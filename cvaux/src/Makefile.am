@@ -33,7 +33,7 @@ libcvaux_la_LDFLAGS = -no-undefined -version-info $(LT_CURRENT):$(LT_REVISION):$
 #  in here.
 #  The following line is only a suggestion!
 #
-libcvaux_la_LIBADD = 
+libcvaux_la_LIBADD = ../../cv/src/libopencv.la
 
 INCLUDES = -I. -I../include -I../../cv/include -I../../cv/src -I../..
 

@@ -1,0 +1,51 @@
+.TH opencv-config 1 "2004-04-22" "OpenCV"
+.SH NAME
+opencv-config \- script to get information about the installed version of OpenCV
+.SH SYNOPSIS
+.B opencv-config
+[ --prefix=
+.IR DIR ]
+[ --version ] [ --libs [<extensions>]] [ --cflags | --cxxflags ]
+.SH DESCRIPTION
+.B opencv-config
+is a tool that is used to configure and determine the compiler and linker
+flags that should be used to compile and link progams, libraries, and
+plugins that use OpenCV.
+.SH OPTIONS
+.TP
+.B --cflags
+Print the C compiler flags that are necessary to compile a program or library
+that uses OpenCV.
+.TP
+.B --cxxflags
+Print the C++ compiler flags that are necessary to compile a program or library
+that uses OpenCV.
+.TP
+.B --libs [<extensions>]
+Print the linker flags that are necessary to link a program that uses
+libopencv. Optionally, add linker flags for the libhighgui, libcvcam and/or
+libcvaux OpenCV extensions by appending highgui, cvcam and/or cvaux.
+.TP
+.BI --prefix= DIR
+If specified, use PREFIX instead of the installation prefix that libopencv
+was built with when computing the output for the --cflags, --cxxflags and
+--libs options. This option must be specified before any of the --cflags,
+--cxxflags and --libs options.
+.TP
+.B --version
+Prints the currently installed version of libopencv on standard output.
+.SH EXAMPLES
+.TP
+gcc -o main.o $(opencv-config --cflags) -c main.c
+is how you might use
+.B opencv-config
+to compile a C source file for an executable program.
+.TP
+gcc -o my_app $(opencv-config --libs) main.o util.o
+is how you might use
+.B opencv-config
+to link compiled objects into an executable program.
+.SH AUTHOR
+This manual page was written for sdl-config by Branden Robinson, originally
+for Progeny Linux Systems, Inc., and the Debian Project. It was adapted to
+libopencv by Sam Hocevar.

@@ -17,7 +17,7 @@ SOMAJOR = @MMAJOR@
 SOMINOR = @MMINOR@
 SOSUBMINOR = @MSUBMINOR@
 
-libhighgui_la_LDFLAGS = -no-undefined -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) -release $(LT_RELEASE) @LDFLAGS@ $(X_LIBS)
+libhighgui_la_LDFLAGS = -no-undefined -version-info $(LT_CURRENT):$(LT_REVISION):$(LT_AGE) -release $(LT_RELEASE) @LDFLAGS@ $(X_LIBS) -lXext
 
 # add here the libraries which have to be include
 # for building the shared lib
@@ -29,7 +29,7 @@ libhighgui_la_LDFLAGS = -no-undefined -version-info $(LT_CURRENT):$(LT_REVISION)
 #  in here.
 #  The following line is only a suggestion!
 #
-libhighgui_la_LIBADD = @MOTIFLIBS@ @IMAGELIBS@ @FFMPEGLIBS@
+libhighgui_la_LIBADD = @MOTIFLIBS@ @IMAGELIBS@ @FFMPEGLIBS@ ../../cv/src/libopencv.la
 
 INCLUDES = -I. -I../../cv/include -I../.. -I/usr/X11R6/include $(X_CFLAGS)
 

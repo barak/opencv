@@ -1,0 +1,16 @@
+Notes for the Debian OpenCV packages:
+
+ To compile code against OpenCV, use `opencv-config --cflags`:
+
+   gcc `opencv-config --cflags` -c code.c -o code.o
+
+ To link it afterwards, use `opencv-config --libs`:
+
+   gcc code.o -o code `opencv-config --libs` -lotherlibs
+
+ Note that `opencv-config --libs` only outputs the linker flag for
+libopencv, other extensions need to be manually specified, eg.
+`opencv-config --libs highgui`. Available extensions are "highgui",
+"cvcam" and "cvaux". This is to let people build binaries which do not
+necessarily depend on the whole X11, libpng, lesstif, etc. mess.
+

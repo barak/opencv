@@ -1,0 +1,98 @@
+opencv (0.9.5-10) unstable; urgency=high
+
+  * debian/patches/30_delete.dpatch:
+    + Fixed a crash at program exit (Closes: #269799).
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Fri,  3 Sep 2004 21:59:26 +0200
+
+opencv (0.9.5-9) unstable; urgency=high
+
+  * debian/control:
+    + Build-depend on lesstif2-dev to take advantage of new Motif 2 features.
+    + libhighgui-dev depends on lesstif2-dev as well.
+  * debian/patches/20_old.dpatch:
+    + No longer patch/unpatch the Makefiles to avoid clock skew issues
+      (Closes: #266622).
+  * debian/patches/30_delete.dpatch:
+    + Fixed delete[] / delete mismatches.
+  * debian/patches/30_window_lnx.cpp.setTrackbarPos_crash.dpatch:
+    + Fix a crash in cvSetTrackbarPos() for closed windows, courtesy of
+      micha137 at users.sourceforge.net.
+  * debian/patches/40_linux_trackbar.dpatch
+    debian/patches/30_linux_mouse.dpatch:
+    + Add arrows to trackbars, courtesy of Filip Sadlo.
+    + Fixed position of mouse button events, courtesy of Filip Sadlo.
+  * debian/patches/30_render.dpatch:
+    + Fixed pointer casts, courtesy of buddha_pht at users.sourceforge.net.
+  * debian/patches/30_xshm.dpatch:
+    + Don't use XShm over network connections.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Tue, 17 Aug 2004 18:01:23 +0200
+
+opencv (0.9.5-8) unstable; urgency=low
+
+  * debian/control:
+    + Added missing build dependency on dpatch (Closes: #262209).
+  * debian/rules:
+    + Call unpatch before make clean.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Fri, 30 Jul 2004 08:34:59 +0200
+
+opencv (0.9.5-7) unstable; urgency=low
+
+  * Rebuilt against libtiff4 due to an ABI change.
+  * Fixed numerous compilation warning due to pointer/int size assumptions and
+    char signedness assumption.
+  * debian/control:
+    + Set policy to 3.6.1.1.
+    + Switched packaging method to dpatch.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Sun, 25 Jul 2004 21:54:33 +0200
+
+opencv (0.9.5-6) unstable; urgency=low
+
+  * cv/include/cvcompat.h cv/include/cvtypes.h:
+    + Fixed more C preprocessor warnings.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Wed, 30 Jun 2004 14:04:12 +0200
+
+opencv (0.9.5-5) unstable; urgency=low
+
+  * cv/include/cv.h:
+    + Fixed C preprocessor warnings.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Wed, 30 Jun 2004 11:59:36 +0200
+
+opencv (0.9.5-4) unstable; urgency=low
+
+  * debian/control:
+    + Added missing lesstif-dev build dependency to the libhighgui-dev
+      package (Closes: #252304).
+  * debian/README.Debian:
+    + Minor updates.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Wed,  2 Jun 2004 13:27:07 -0300
+
+opencv (0.9.5-3) unstable; urgency=low
+
+  * debian/rules:
+    + Enabled static libraries in the build (Closes: #249471).
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Wed, 19 May 2004 21:48:47 +0200
+
+opencv (0.9.5-2) unstable; urgency=low
+
+  * debian/control:
+    + Added libxaw7-dev to the build dependencies.
+    + Added libxaw7-dev to the libcvcam-dev dependencies.
+  * debian/copyright:
+    + Removed a duplicate copyright entry.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Wed, 28 Apr 2004 10:25:56 +0200
+
+opencv (0.9.5-1) unstable; urgency=low
+
+  * Initial release.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Thu, 22 Apr 2004 14:55:19 +0200
+

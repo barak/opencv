@@ -28,7 +28,7 @@ libcvcam_la_LDFLAGS = -no-undefined -version-info $(LT_CURRENT):$(LT_REVISION):$
 #  in here.
 #  The following line is only a suggestion!
 #
-libcvcam_la_LIBADD = -lX11 -lXext -lXaw
+libcvcam_la_LIBADD = -lX11 -lXext -lXaw ../../../highgui/libhighgui.la ../../../../cv/src/libopencv.la
 
 INCLUDES = $(all_includes) -I../../include -I../../../../cv/include -I../../../highgui
 

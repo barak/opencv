@@ -1,0 +1,295 @@
+#! /bin/sh -e
+## 20_old.dpatch by  <sam+deb@zoy.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: No description.
+
+if [ $# -lt 1 ]; then
+    echo "`basename $0`: script expects -patch|-unpatch as argument" >&2
+    exit 1
+fi
+
+[ -f debian/patches/00patch-opts ] && . debian/patches/00patch-opts
+patch_opts="${patch_opts:--f --no-backup-if-mismatch} ${2:+-d $2}"
+
+case "$1" in
+    -patch) patch -p1 ${patch_opts} < $0;;
+    -unpatch) patch -R -p1 ${patch_opts} < $0;;
+    *)
+        echo "`basename $0`: script expects -patch|-unpatch as argument" >&2
+        exit 1;;
+esac
+
+exit 0
+
+@DPATCH@
+diff -urNad /home/sam/debian/official/opencv/opencv-0.9.5/apps/cvlkdemo/cvlkdemo.cpp opencv-0.9.5/apps/cvlkdemo/cvlkdemo.cpp
+--- /home/sam/debian/official/opencv/opencv-0.9.5/apps/cvlkdemo/cvlkdemo.cpp	2004-07-29 12:10:12.000000000 +0200
++++ opencv-0.9.5/apps/cvlkdemo/cvlkdemo.cpp	2004-07-29 12:12:43.000000000 +0200
+@@ -39,8 +39,8 @@
+ //
+ //M*/
+ 
+-#include <tcl.h>
+-#include <tk.h>
++#include <tcl8.4/tcl.h>
++#include <tcl8.4/tk.h>
+ //#include <tkInt.h>
+ 
+ #ifndef WIN32
+
+diff -urNad /home/sam/debian/official/opencv/opencv-0.9.5/apps/vmdemotk/CommandConcatenation.h opencv-0.9.5/apps/vmdemotk/CommandConcatenation.h
+--- /home/sam/debian/official/opencv/opencv-0.9.5/apps/vmdemotk/CommandConcatenation.h	2004-07-29 12:10:12.000000000 +0200
++++ opencv-0.9.5/apps/vmdemotk/CommandConcatenation.h	2004-07-29 12:12:44.000000000 +0200
+@@ -1,4 +1,4 @@
+-    #include <tcl.h>
++    #include <tcl8.4/tcl.h>
+     #include <stdarg.h>
+ 
+     char* CommandConcatenation (Tcl_DString *string, char *str, ...);
+diff -urNad /home/sam/debian/official/opencv/opencv-0.9.5/autogen.sh opencv-0.9.5/autogen.sh
+--- /home/sam/debian/official/opencv/opencv-0.9.5/autogen.sh	2004-07-29 12:10:10.000000000 +0200
++++ opencv-0.9.5/autogen.sh	2004-07-29 12:12:41.000000000 +0200
+@@ -10,9 +10,11 @@
+ touch ./configure.in
+ 
+ # Regenerate configuration files
++libtoolize --copy --force
+ aclocal
+-automake  -a -c 
+ autoconf
++autoheader
++automake  -a -c 
+ 
+ #(cd tests; aclocal; automake --include-deps  --generate-deps --add-missing; autoconf)
+ #(cd cv; aclocal; automake --include-deps  --generate-deps --add-missing; autoconf)
+diff -urNad /home/sam/debian/official/opencv/opencv-0.9.5/cv/include/cv.h opencv-0.9.5/cv/include/cv.h
+--- /home/sam/debian/official/opencv/opencv-0.9.5/cv/include/cv.h	2004-07-29 12:10:10.000000000 +0200
++++ opencv-0.9.5/cv/include/cv.h	2004-07-29 12:12:41.000000000 +0200
+@@ -160,7 +160,7 @@
+         if( mat->refcount != NULL && --*mat->refcount == 0 )
+         {
+             uchar* data = (uchar*)mat->refcount + 2*sizeof(mat->refcount);
+-            cvFree( (void**)&data );
++            cvFree( (void**)(intptr_t)&data );
+         }
+         mat->refcount = NULL;
+     }
+diff -urNad /home/sam/debian/official/opencv/opencv-0.9.5/cv/include/cvcompat.h opencv-0.9.5/cv/include/cvcompat.h
+--- /home/sam/debian/official/opencv/opencv-0.9.5/cv/include/cvcompat.h	2004-07-29 12:10:10.000000000 +0200
++++ opencv-0.9.5/cv/include/cvcompat.h	2004-07-29 12:12:41.000000000 +0200
+@@ -48,6 +48,7 @@
+ #define _CVCOMPAT_H_
+ 
+ #include <string.h>
++#include <stdint.h>
+ 
+ #if _MSC_VER>=1200 && !defined __ICL
+     #define CV_UNREFERENCED(arg)  (arg)
+@@ -169,7 +170,7 @@
+ {
+     CvPoint left_top = { 0, 0 }, right_bottom = { 0, 0 };
+ 
+-    cvGetRawData( mat, 0, 0, (CvSize*)&right_bottom );
++    cvGetRawData( mat, 0, 0, (CvSize*)(intptr_t)&right_bottom );
+     right_bottom.x--;
+     right_bottom.y--;
+ 
+diff -urNad /home/sam/debian/official/opencv/opencv-0.9.5/cv/include/cvtypes.h opencv-0.9.5/cv/include/cvtypes.h
+--- /home/sam/debian/official/opencv/opencv-0.9.5/cv/include/cvtypes.h	2004-07-29 12:10:10.000000000 +0200
++++ opencv-0.9.5/cv/include/cvtypes.h	2004-07-29 12:12:41.000000000 +0200
+@@ -44,6 +44,7 @@
+ 
+ #include <assert.h>
+ #include <stdlib.h>
++#include <stdint.h>
+ 
+ #ifndef WIN32
+     #define CV_CDECL
+@@ -86,6 +87,8 @@
+     #define CV_INLINE __inline
+ #elif defined __cplusplus
+     #define CV_INLINE inline
++#elif defined __GNUC__
++    #define CV_INLINE static inline
+ #else
+     #define CV_INLINE static
+ #endif
+@@ -583,7 +586,7 @@
+ CV_INLINE  int  cvRound( double val )
+ {
+     double temp = val + 6755399441055744.0;
+-    return (int)*((uint64*)&temp);
++    return (int)*((uint64*)(intptr_t)&temp);
+ }
+ 
+ 
+@@ -591,9 +594,9 @@
+ CV_INLINE  int  cvFloor( double val )
+ {
+     double temp = val + 6755399441055744.0;
+-    float diff = (float)(val - (int)*((uint64*)&temp));
++    float diff = (float)(val - (int)*((uint64*)(intptr_t)&temp));
+ 
+-    return (int)*((uint64*)&temp) - (*(int*)&diff < 0);
++    return (int)*((uint64*)(intptr_t)&temp) - (*(int*)(intptr_t)&diff < 0);
+ }
+ 
+ 
+@@ -601,9 +604,9 @@
+ CV_INLINE  int  cvCeil( double val )
+ {
+     double temp = val + 6755399441055744.0;
+-    float diff = (float)((int)*((uint64*)&temp) - val);
++    float diff = (float)((int)*((uint64*)(intptr_t)&temp) - val);
+ 
+-    return (int)*((uint64*)&temp) + (*(int*)&diff < 0);
++    return (int)*((uint64*)(intptr_t)&temp) + (*(int*)(intptr_t)&diff < 0);
+ }
+ 
+ /*************************************** CvRect *****************************************/
+@@ -938,8 +941,8 @@
+ CV_INLINE  float  cvInvSqrt( float arg )
+ {
+     float x, y;
+-    unsigned iarg = *((unsigned*)&arg);
+-    *((unsigned*)&x) = (CV_SQRT_MAGIC - iarg)>>1;
++    unsigned iarg = *((unsigned*)(intptr_t)&arg);
++    *((unsigned*)(intptr_t)&x) = (CV_SQRT_MAGIC - iarg)>>1;
+ 
+     y = arg*0.5f;
+     x*= 1.5f - y*x*x;
+@@ -953,8 +956,8 @@
+ CV_INLINE  float  cvSqrt( float arg )
+ {
+     float x, y;
+-    unsigned iarg = *((unsigned*)&arg);
+-    *((unsigned*)&x) = (CV_SQRT_MAGIC - iarg)>>1;
++    unsigned iarg = *((unsigned*)(intptr_t)&arg);
++    *((unsigned*)(intptr_t)&x) = (CV_SQRT_MAGIC - iarg)>>1;
+ 
+     y = arg*0.5f;
+     x*= 1.5f - y*x*x;
+diff -urNad /home/sam/debian/official/opencv/opencv-0.9.5/opencv-config.in opencv-0.9.5/opencv-config.in
+--- /home/sam/debian/official/opencv/opencv-0.9.5/opencv-config.in	2004-07-29 12:10:10.000000000 +0200
++++ opencv-0.9.5/opencv-config.in	2004-07-29 12:12:41.000000000 +0200
+@@ -9,16 +9,17 @@
+ include_dir="@prefix@/include/opencv"
+ lib_dir="@prefix@/lib"
+ 
++link_libs="-lopencv"
++
+ usage()
+ {
+     cat <<EOF
+ Usage: opencv-config [OPTIONS]
+ Options:
+     [--prefix]
+-    [--libs]
+     [--cflags]
+     [--cxxflags]
+-    [--data-dir]
++    [--libs [opencv] [highgui] [cvcam] [cvaux]]
+     [--version]
+ EOF
+     exit $1
+@@ -50,6 +51,14 @@
+ 	    echo_version=yes
+ 	    ;;
+ 
++	opencv|highgui|cvcam|cvaux)
++	    if test "$echo_libs" = "yes"; then
++		link_libs="$link_libs -l$1"
++	    else
++		usage 1 1>&2
++	    fi
++	    ;;
++
+ 	*)
+ 	    usage 1 1>&2
+ 	    ;;
+@@ -70,7 +79,7 @@
+     libs=""
+ fi
+ 
+-libs="$libs -lopencv -lcvaux -lhighgui"
++libs="$libs $link_libs"
+ 
+ if test "$echo_cflags" = "yes"; then
+     echo $cflags
+diff -urNad /home/sam/debian/official/opencv/opencv-0.9.5/otherlibs/cvcam/src/unix/dialogs.cpp opencv-0.9.5/otherlibs/cvcam/src/unix/dialogs.cpp
+--- /home/sam/debian/official/opencv/opencv-0.9.5/otherlibs/cvcam/src/unix/dialogs.cpp	2004-07-29 12:10:11.000000000 +0200
++++ opencv-0.9.5/otherlibs/cvcam/src/unix/dialogs.cpp	2004-07-29 12:12:42.000000000 +0200
+@@ -39,8 +39,8 @@
+ //
+ //M*/
+ 
+-#include <tcl.h>
+-#include <tk.h>
++#include <tcl8.4/tcl.h>
++#include <tcl8.4/tk.h>
+ #include <pthread.h>
+ #include <stdio.h>
+ #include <assert.h>
+diff -urNad /home/sam/debian/official/opencv/opencv-0.9.5/samples/c/Makefile.debian opencv-0.9.5/samples/c/Makefile.debian
+--- /home/sam/debian/official/opencv/opencv-0.9.5/samples/c/Makefile.debian	2004-07-29 12:10:14.000000000 +0200
++++ opencv-0.9.5/samples/c/Makefile.debian	2004-07-29 12:12:45.000000000 +0200
+@@ -0,0 +1,58 @@
++OBJECTS = DemHist convexhull delaunay distrans drawing edge facedetect ffilldemo fitellipse kalman kmeans laplace minarea morphology motempl pyramid_segmentation squares
++
++all: $(OBJECTS)
++
++clean:
++	rm -f $(OBJECTS)
++
++DemHist: DemHist.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++convexhull: convexhull.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++delaunay: delaunay.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++distrans: distrans.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++drawing: drawing.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++edge: edge.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++facedetect: facedetect.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui cvaux`
++
++ffilldemo: ffilldemo.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++fitellipse: fitellipse.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++kalman: kalman.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++kmeans: kmeans.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++laplace: laplace.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++minarea: minarea.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++morphology: morphology.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++motempl: motempl.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++pyramid_segmentation: pyramid_segmentation.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++
++squares: squares.c
++	$(CXX) $^ -o $@ `opencv-config --cxxflags --libs highgui`
++

@@ -10,7 +10,7 @@ SUBDIRS = cv cvaux otherlibs tests @ADDONS@
 ## here, as well as have a Makefile generated at the end of configure.in
 ##
 ## This only works for subdirectories one level deep.
-DIST_SUBDIRS = $(SUBDIRS) apps tests utils docs samples _dsw
+DIST_SUBDIRS = $(SUBDIRS) apps utils docs samples _dsw
 
 # OpenCV runtime configuration script
 bin_SCRIPTS = opencv-config

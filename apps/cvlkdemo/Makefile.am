@@ -25,6 +25,6 @@ INCLUDES = -I../../otherlibs/highgui -I../../otherlibs/cvcam/include -I../../cv/
 #  in here.
 #  The following line is only a suggestion!
 #
-cvlkdemo_LDADD = @TCLTKLIB@ -L../../cv/src -lopencv -L../../otherlibs/highgui -lhighgui -L../../otherlibs/cvcam/src/unix -lcvcam
+cvlkdemo_LDADD = @TCLTKLIB@ -L../../cv/src -lopencv -L../../otherlibs/highgui -lhighgui -L../../otherlibs/cvcam/src/unix -lcvcam -ltk8.4 -ltcl8.4
 
 #cvlkdemo_LIBS = 

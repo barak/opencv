@@ -134,7 +134,7 @@ dnl
 
 MOTIFLIBS=""
 
-AC_CHECK_FILE([/usr/X11R6/include/Xm/Xm.h],[MOTIFLIBS="-L/usr/X11R6/lib -lXm -lMrm -lUil"],
+AC_CHECK_FILE([/usr/include/Xm/Xm.h],[MOTIFLIBS="-L/usr/X11R6/lib -lXm -lMrm"],
     [AC_MSG_ERROR([Couldn't find Motif headers.
                   Please, install openmotif-devel or lesstif-devel packages])])
 
