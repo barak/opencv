@@ -1,25 +1,26 @@
 #!/bin/sh
 # Primary configuration script
 # Serguei Boldyrev, s_boldyrev@mail.ru, 10.04.2002
-# 
+# Modified by VP: a part of autogen.sh from DIA has been borrowed
+#
 echo "Generating build information using aclocal, automake and autoconf"
 echo "This may take a while ..."
 
 # Touch the timestamps on all the files since CVS messes them up
-# directory=`dirname $0`
 touch ./configure.in
 
-# Regenerate configuration files
-aclocal
-automake  -a -c 
+echo "Running intltoolize"
+intltoolize --copy --force --automake
+
+echo "Running libtoolize"
+libtoolize --copy --force
+
+aclocal-1.8 $ACLOCAL_FLAGS
+autoheader
+automake-1.8 --add-missing $am_opt
 autoconf
 
-#(cd tests; aclocal; automake --include-deps  --generate-deps --add-missing; autoconf)
-#(cd cv; aclocal; automake --include-deps  --generate-deps --add-missing; autoconf)
-#(cd cvaux; aclocal; automake --include-deps  --generate-deps --add-missing; autoconf)
-#(cd optcv; aclocal; automake --include-deps  --generate-deps --add-missing; autoconf)
-#(cd ippcv; aclocal; automake --include-deps  --generate-deps --add-missing; autoconf)
+chmod +x utils/unix2dos.py
+chmod +x utils/dos2unix.py
 
-# Run configure for this platform
-#./configure $*
 echo "Now you are ready to run ./configure"

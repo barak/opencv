@@ -5,7 +5,6 @@
 
 #ifndef _EiC
 #include "cv.h"
-#include "cvaux.h"
 #include "highgui.h"
 
 #include <stdio.h>
@@ -23,30 +22,50 @@
 #define WIN32
 #endif
 
-#define ORIG_WIN_SIZE  24
 static CvMemStorage* storage = 0;
-static CvHidHaarClassifierCascade* hid_cascade = 0;
+static CvHaarClassifierCascade* cascade = 0;
 
 void detect_and_draw( IplImage* image );
+
+const char* cascade_name =
+    "haarcascade_frontalface_alt.xml";
+/*    "haarcascade_profileface.xml";*/
 
 int main( int argc, char** argv )
 {
     CvCapture* capture = 0;
     IplImage *frame, *frame_copy = 0;
+    int optlen = strlen("--cascade=");
+    const char* input_name;
 
-    CvHaarClassifierCascade* cascade =
-    cvLoadHaarClassifierCascade( "<default_face_cascade>",
-                         cvSize( ORIG_WIN_SIZE, ORIG_WIN_SIZE ));
-    hid_cascade = cvCreateHidHaarClassifierCascade( cascade, 0, 0, 0, 1 );
-    cvReleaseHaarClassifierCascade( &cascade );
+    if( argc > 1 && strncmp( argv[1], "--cascade=", optlen ) == 0 )
+    {
+        cascade_name = argv[1] + optlen;
+        input_name = argc > 2 ? argv[2] : 0;
+    }
+    else
+    {
+        fprintf( stderr,
+        "Usage: facedetect --cascade=\"<cascade_path>\" [filename|camera_index]\n" );
+        return -1;
+        /*input_name = argc > 1 ? argv[1] : 0;*/
+    }
 
-    cvNamedWindow( "result", 1 );
+    cascade = (CvHaarClassifierCascade*)cvLoad( cascade_name, 0, 0, 0 );
+    
+    if( !cascade )
+    {
+        fprintf( stderr, "ERROR: Could not load classifier cascade\n" );
+        return -1;
+    }
     storage = cvCreateMemStorage(0);
     
-    if( argc == 1 || (argc == 2 && strlen(argv[1]) == 1 && isdigit(argv[1][0])))
-        capture = cvCaptureFromCAM( argc == 2 ? argv[1][0] - '0' : 0 );
-    else if( argc == 2 )
-        capture = cvCaptureFromAVI( argv[1] ); 
+    if( !input_name || (isdigit(input_name[0]) && input_name[1] == '\0') )
+        capture = cvCaptureFromCAM( !input_name ? 0 : input_name[0] - '0' );
+    else
+        capture = cvCaptureFromAVI( input_name ); 
+
+    cvNamedWindow( "result", 1 );
 
     if( capture )
     {
@@ -76,7 +95,7 @@ int main( int argc, char** argv )
     }
     else
     {
-        char* filename = argc == 2 ? argv[1] : (char*)"lena.jpg";
+        const char* filename = input_name ? input_name : (char*)"lena.jpg";
         IplImage* image = cvLoadImage( filename, 1 );
 
         if( image )
@@ -94,26 +113,27 @@ int main( int argc, char** argv )
 
 void detect_and_draw( IplImage* img )
 {
-    int scale = 2;
-    IplImage* temp = cvCreateImage( cvSize(img->width/2,img->height/2), 8, 3 );
+    int scale = 1;
+    IplImage* temp = cvCreateImage( cvSize(img->width/scale,img->height/scale), 8, 3 );
     CvPoint pt1, pt2;
     int i;
 
-    cvPyrDown( img, temp, CV_GAUSSIAN_5x5 );
+    //cvPyrDown( img, temp, CV_GAUSSIAN_5x5 );
     cvClearMemStorage( storage );
 
-    if( hid_cascade )
+    if( cascade )
     {
-        CvSeq* faces = cvHaarDetectObjects( temp, hid_cascade, storage,
-                                            1.2, 2, CV_HAAR_DO_CANNY_PRUNING );
+        CvSeq* faces = cvHaarDetectObjects( img, cascade, storage,
+                                            1.1, 2, CV_HAAR_DO_CANNY_PRUNING,
+                                            cvSize(40, 40) );
         for( i = 0; i < (faces ? faces->total : 0); i++ )
         {
-            CvRect* r = (CvRect*)cvGetSeqElem( faces, i, 0 );
+            CvRect* r = (CvRect*)cvGetSeqElem( faces, i );
             pt1.x = r->x*scale;
             pt2.x = (r->x+r->width)*scale;
             pt1.y = r->y*scale;
             pt2.y = (r->y+r->height)*scale;
-            cvRectangle( img, pt1, pt2, CV_RGB(255,0,0), 3 );
+            cvRectangle( img, pt1, pt2, CV_RGB(255,0,0), 3, 8, 0 );
         }
     }
 

@@ -40,6 +40,7 @@
 //M*/
 
 #include "cvtest.h"
+#include <stdint.h>
 /*#include "conio.h"   */
 
 static char cTestName[] = "Image segmentation by pyramids";
@@ -64,7 +65,7 @@ static int aPyrSegmentation(void* agr)
 
 /*    ippiPoint cp3[] ={130,130, 150,130, 150,150, 130,150};  */
 /*	CvPoint cp[] ={0,0, 5,5, 5,0, 10,5, 10,0, 15,5, 15,0};  */
-    int chanels = (int)agr;    /* number of the color chanels  */
+    int chanels = (int)(intptr_t)agr;    /* number of the color chanels  */
     int width = 128;
     int height = 128;
     int nPoints = 4;
@@ -136,8 +137,8 @@ static int aPyrSegmentation(void* agr)
     {
         case 1:
         {
-            cvFillPoly( image, &cp, &nPoints, 1, color2);
-            cvFillPoly( image, &cp2, &nPoints, 1, color3); 
+            cvFillPoly( image, &cp, &nPoints, 1, cvScalar(color2));
+            cvFillPoly( image, &cp2, &nPoints, 1, cvScalar(color3)); 
 
             row = (uchar*)image->imageData;
             f_row = (uchar*)image_f->imageData;

@@ -25,7 +25,7 @@ CFG=cvtest - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "cvtest - Win32 Release"
@@ -41,16 +41,17 @@ RSC=rc.exe
 # PROP Intermediate_Dir "..\..\..\_temp\cvtest_Rls"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
+F90=df.exe
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MD /W4 /GX /Zi /O2 /I "." /I "..\..\trs\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /c
+# ADD CPP /nologo /MD /W4 /GX /Zi /O2 /I "." /I "..\..\trs" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /c
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
 # ADD RSC /l 0x419 /d "NDEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
-# ADD LINK32 cv.lib cvaux.lib highgui.lib trs.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /debug /machine:I386 /out:"..\..\..\bin\cvtest.exe" /libpath:"..\..\..\lib"
+# ADD LINK32 cv.lib cvaux.lib cxcore.lib highgui.lib trs.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\..\bin\cvtest.exe" /libpath:"..\..\..\lib"
 
 !ELSEIF  "$(CFG)" == "cvtest - Win32 Debug"
 
@@ -65,16 +66,17 @@ LINK32=link.exe
 # PROP Intermediate_Dir "..\..\..\_temp\cvtest_Dbg"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
+F90=df.exe
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W4 /Gm /GX /Zi /Od /I "." /I "..\..\trs\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /GZ /c
+# ADD CPP /nologo /MDd /W4 /Gm /GX /Zi /Od /I "." /I "..\..\trs" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /GZ /c
 # ADD BASE RSC /l 0x419 /d "_DEBUG"
 # ADD RSC /l 0x419 /d "_DEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LINK32=link.exe
+LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 cvd.lib cvauxd.lib highguid.lib trsd.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /debug /machine:I386 /out:"..\..\..\bin\cvtestd.exe" /pdbtype:sept /libpath:"..\..\..\lib"
+# ADD LINK32 cvd.lib cvauxd.lib cxcored.lib highguid.lib trsd.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\..\bin\cvtestd.exe" /pdbtype:sept /libpath:"..\..\..\lib"
 
 !ENDIF 
 
@@ -85,10 +87,6 @@ LINK32=link.exe
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
-# Begin Source File
-
-SOURCE=.\aabsdiff.cpp
-# End Source File
 # Begin Source File
 
 SOURCE=.\aaccum.cpp
@@ -103,23 +101,7 @@ SOURCE=.\aapproxpoly.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\aarithm.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\aarrayiterator.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\abackproject.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\acalccontrasthist.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\acalculate.cpp
 # End Source File
 # Begin Source File
 
@@ -159,10 +141,6 @@ SOURCE=.\acontoursmatch.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\aconvert.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\aconvhull.cpp
 # End Source File
 # Begin Source File
@@ -176,14 +154,6 @@ SOURCE=.\acreatecontourtree.cpp
 # Begin Source File
 
 SOURCE=.\adistancetransform.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\adrawing.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\adrawing_regress.cpp
 # End Source File
 # Begin Source File
 
@@ -215,10 +185,6 @@ SOURCE=.\ahaar.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\ahistogram.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\ahistograms.cpp
 # End Source File
 # Begin Source File
@@ -235,10 +201,6 @@ SOURCE=.\aimage.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\aimagestatistics.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\akalman.cpp
 # End Source File
 # Begin Source File
@@ -247,27 +209,11 @@ SOURCE=.\akmeans.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\alogic.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\amaskaccum.cpp
 # End Source File
 # Begin Source File
 
 SOURCE=.\amatchcontourtrees.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\amathutils.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\amatrix.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\amatrix2.cpp
 # End Source File
 # Begin Source File
 
@@ -296,22 +242,6 @@ SOURCE=.\amotiontemplates.cpp
 # Begin Source File
 
 SOURCE=.\amotseg.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\anodeiterator.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\anorm.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\anormmask.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\aoperations.cpp
 # End Source File
 # Begin Source File
 
@@ -363,15 +293,7 @@ SOURCE=.\asobel.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\astoragearray.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\asubdivisions.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\asvd.cpp
 # End Source File
 # Begin Source File
 
@@ -380,14 +302,6 @@ SOURCE=.\atemplmatch.cpp
 # Begin Source File
 
 SOURCE=.\athresh.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\atree.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\atreeiterator.cpp
 # End Source File
 # Begin Source File
 

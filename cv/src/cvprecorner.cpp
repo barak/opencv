@@ -41,24 +41,11 @@
 #include "_cv.h"
 
 #define BUFF_SIZE  4096
-/*F///////////////////////////////////////////////////////////////////////////////////////
-//    Name:     icvPreCornerDetect8sC1R
-//    Purpose:  Calculating _CvConvStatetraint image for corner detection
-//             Dx^2 * Dyy + Dxx * Dy^2 - 2 * Dx * Dy * Dxy
-//    Context:
-//    Parameters:
-//              pSrc       - pointer to the source image
-//              srcStep    - width of the full Src image in bytes
-//              corner     - pointer to the image to be filled using expr. (1)
-//              cornerStep - it's step in bytes
-//              roi        - roi size in pixels
-//              opSize     - Sobel operator aperture size - 1
-//    Returns:
-//              CV_NO_ERR if all ok or error code
-//F*/
-IPCVAPI_IMPL( CvStatus, icvPreCornerDetect_8u32f_C1R, ( const uchar *pSrc, int SrcStep,
-                                                        float *corner, int cornerStep,
-                                                        CvSize roi, int kerSize) )
+
+static CvStatus CV_STDCALL
+icvPreCornerDetect_8u32f_C1R( const uchar *pSrc, int SrcStep,
+                              float *corner, int cornerStep,
+                              CvSize roi, int kerSize )
 {
     /* Some Variables */
     int BufStep = roi.width;
@@ -101,11 +88,11 @@ IPCVAPI_IMPL( CvStatus, icvPreCornerDetect_8u32f_C1R, ( const uchar *pSrc, int S
     denom = denom*denom * denom *255*255;
     denom=1.0f/denom;
     /* Buffers for storing resultant convolutions */
-    ShBufX = (short *) icvAlloc( BufByteStep * roi.height);
-    ShBufY = (short *) icvAlloc( BufByteStep * roi.height );
-    ShBufXX = (short *) icvAlloc( BufByteStep * roi.height );
-    ShBufXY = (short *) icvAlloc( BufByteStep * roi.height );
-    ShBufYY = (short *) icvAlloc( BufByteStep * roi.height );
+    ShBufX = (short*)cvAlloc( BufByteStep * roi.height);
+    ShBufY = (short*)cvAlloc( BufByteStep * roi.height );
+    ShBufXX = (short*)cvAlloc( BufByteStep * roi.height );
+    ShBufXY = (short*)cvAlloc( BufByteStep * roi.height );
+    ShBufYY = (short*)cvAlloc( BufByteStep * roi.height );
 
     icvSobelInitAlloc( roi.width, cv8u, kerSize, CV_ORIGIN_TL, 1, 0, &ConvSX );
     icvSobelInitAlloc( roi.width, cv8u, kerSize, CV_ORIGIN_TL, 0, 1, &ConvSY );
@@ -148,135 +135,20 @@ IPCVAPI_IMPL( CvStatus, icvPreCornerDetect_8u32f_C1R, ( const uchar *pSrc, int S
         ind += BufStep;
     }
 
-    icvFree( &ShBufX );
-    icvFree( &ShBufY );
-    icvFree( &ShBufXX );
-    icvFree( &ShBufXY );
-    icvFree( &ShBufYY );
-
-    return CV_NO_ERR;
-}
-
-/*F///////////////////////////////////////////////////////////////////////////////////////
-//    Name:     icvPreCornerDetect8sC1R
-//    Purpose:  Calculating _CvConvStatetraint image for corner detection
-//             Dx^2 * Dyy + Dxx * Dy^2 - 2 * Dx * Dy * Dxy
-//    Context:
-//    Parameters:
-//              pSrc       - pointer to the source image
-//              srcStep    - width of the full Src image in bytes
-//              corner     - pointer to the image to be filled using expr. (1)
-//              cornerStep - it's step in bytes
-//              roi        - roi size in pixels
-//              opSize     - Sobel operator aperture size - 1
-//    Returns:
-//              CV_NO_ERR if all ok or error code
-//F*/
-IPCVAPI_IMPL( CvStatus, icvPreCornerDetect_8s32f_C1R, ( const char *pSrc, int SrcStep,
-                                                        float *corner, int cornerStep,
-                                                        CvSize roi, int kerSize) )
-{
-    /* Some Variables */
-    int BufStep = roi.width;
-    int BufByteStep = roi.width * sizeof( short );
-    int i, j;
-
-
-    /* Buffers for storing resultant convolutions */
-    short *ShBufX;
-    short *ShBufY;
-    short *ShBufXX;
-    short *ShBufXY;
-    short *ShBufYY;
-	float denom = 1;
-    CvSize curROI = roi;
-
-    /* convolution structures */
-    _CvConvState *ConvSX;
-    _CvConvState *ConvSY;
-    _CvConvState *ConvSXX;
-    _CvConvState *ConvSXY;
-    _CvConvState *ConvSYY;
-
-
-
-    /* Check Bad Arguments */
-    if( (pSrc == NULL) || (corner == NULL) )
-        return CV_NULLPTR_ERR;
-    if( (SrcStep <= 0) || (cornerStep <= 0) )
-        return CV_BADSIZE_ERR;
-    if( (roi.width <= 0) || (roi.height <= 0) )
-        return CV_BADSIZE_ERR;
-    if( (kerSize <= 0) && (kerSize != -1) )
-        return CV_BADFACTOR_ERR;
-    if( (cornerStep & 3) )
-        return CV_BADFACTOR_ERR;
-
-
-	for(i = 0; i < kerSize-1;i++)denom *= 2;
-    denom = denom*denom * denom *255*255;
-    denom=1.0f/denom;
-    /* Buffers for storing resultant convolutions */
-    ShBufX = (short *) icvAlloc( BufByteStep * roi.height );
-    ShBufY = (short *) icvAlloc( BufByteStep * roi.height );
-    ShBufXX = (short *) icvAlloc( BufByteStep * roi.height );
-    ShBufXY = (short *) icvAlloc( BufByteStep * roi.height );
-    ShBufYY = (short *) icvAlloc( BufByteStep * roi.height );
-
-    icvSobelInitAlloc( roi.width, cv8s, kerSize, CV_ORIGIN_TL, 1, 0, &ConvSX );
-    icvSobelInitAlloc( roi.width, cv8s, kerSize, CV_ORIGIN_TL, 0, 1, &ConvSY );
-    icvSobelInitAlloc( roi.width, cv8s, kerSize, CV_ORIGIN_TL, 2, 0, &ConvSXX );
-    icvSobelInitAlloc( roi.width, cv8s, kerSize, CV_ORIGIN_TL, 1, 1, &ConvSXY );
-    icvSobelInitAlloc( roi.width, cv8s, kerSize, CV_ORIGIN_TL, 0, 2, &ConvSYY );
-    icvSobel_8s16s_C1R( pSrc, SrcStep, (short *) ShBufX, BufByteStep, &curROI, ConvSX, 0 );
-    icvSobel_8s16s_C1R( pSrc, SrcStep, (short *) ShBufY, BufByteStep, &curROI, ConvSY, 0 );
-    icvSobel_8s16s_C1R( pSrc, SrcStep, (short *) ShBufXX, BufByteStep, &curROI, ConvSXX, 0 );
-    icvSobel_8s16s_C1R( pSrc, SrcStep, (short *) ShBufXY, BufByteStep, &curROI, ConvSXY, 0 );
-    icvSobel_8s16s_C1R( pSrc, SrcStep, (short *) ShBufYY, BufByteStep, &curROI, ConvSYY, 0 );
-    icvFilterFree( &ConvSX );
-    icvFilterFree( &ConvSY );
-    icvFilterFree( &ConvSXX );
-    icvFilterFree( &ConvSXY );
-    icvFilterFree( &ConvSYY );
-
-
-    /* Main Loop */
-    cornerStep >>= 2;
-
-    int ind = 0;
-
-    for( i = 0; i < roi.height; i++ )
-    {
-        for( j = 0; j < roi.width; j++ )
-        {
-
-            float dx = ShBufX[ind + j];
-            float dx2 = dx * dx;
-            float dy = ShBufY[ind + j];
-            float dy2 = dy * dy;
-
-            corner[j] = denom*(dx2 * ShBufYY[ind + j] +
-                dy2 * ShBufXX[ind + j] - 2 * dx * dy * ShBufXY[ind + j]);
-            /* _CvConvStatetraint computed */
-
-        }
-        corner += cornerStep;
-        ind += BufStep;
-    }
-
-    icvFree( &ShBufX );
-    icvFree( &ShBufY );
-    icvFree( &ShBufXX );
-    icvFree( &ShBufXY );
-    icvFree( &ShBufYY );
+    cvFree( (void**)&ShBufX );
+    cvFree( (void**)&ShBufY );
+    cvFree( (void**)&ShBufXX );
+    cvFree( (void**)&ShBufXY );
+    cvFree( (void**)&ShBufYY );
 
     return CV_NO_ERR;
 }
 
 
-IPCVAPI_IMPL( CvStatus, icvPreCornerDetect_32f_C1R, ( const float *pSrc, int SrcStep,
-                                                      float *corner, int cornerStep,
-                                                      CvSize roi, int kerSize ))
+static CvStatus CV_STDCALL
+icvPreCornerDetect_32f_C1R( const float *pSrc, int SrcStep,
+                            float *corner, int cornerStep,
+                            CvSize roi, int kerSize )
 {
     /* Some Variables */
     int BufStep = roi.width;
@@ -318,11 +190,11 @@ IPCVAPI_IMPL( CvStatus, icvPreCornerDetect_32f_C1R, ( const float *pSrc, int Src
 
 
     /* Buffers for storing resultant convolutions */
-    ShBufX = (float *) icvAlloc( BufByteStep * roi.height );
-    ShBufY = (float *) icvAlloc( BufByteStep * roi.height );
-    ShBufXX = (float *) icvAlloc( BufByteStep * roi.height );
-    ShBufXY = (float *) icvAlloc( BufByteStep * roi.height );
-    ShBufYY = (float *) icvAlloc( BufByteStep * roi.height );
+    ShBufX = (float *) cvAlloc( BufByteStep * roi.height );
+    ShBufY = (float *) cvAlloc( BufByteStep * roi.height );
+    ShBufXX = (float *) cvAlloc( BufByteStep * roi.height );
+    ShBufXY = (float *) cvAlloc( BufByteStep * roi.height );
+    ShBufYY = (float *) cvAlloc( BufByteStep * roi.height );
 
     icvSobelInitAlloc( roi.width, cv32f, kerSize, CV_ORIGIN_TL, 1, 0, &ConvSX );
     icvSobelInitAlloc( roi.width, cv32f, kerSize, CV_ORIGIN_TL, 0, 1, &ConvSY );
@@ -365,11 +237,75 @@ IPCVAPI_IMPL( CvStatus, icvPreCornerDetect_32f_C1R, ( const float *pSrc, int Src
         ind += BufStep;
     }
 
-    icvFree( &ShBufX );
-    icvFree( &ShBufY );
-    icvFree( &ShBufXX );
-    icvFree( &ShBufXY );
-    icvFree( &ShBufYY );
+    cvFree( (void**)&ShBufX );
+    cvFree( (void**)&ShBufY );
+    cvFree( (void**)&ShBufXX );
+    cvFree( (void**)&ShBufXY );
+    cvFree( (void**)&ShBufYY );
 
     return CV_NO_ERR;
 }
+
+
+#define ICV_DEF_INIT_TAB_DETECTION( FUNCNAME )              \
+static void icvInit##FUNCNAME##Table( CvFuncTable* table )  \
+{                                                           \
+    table->fn_2d[CV_8U] = (void*)icv##FUNCNAME##_8u32f_C1R; \
+    table->fn_2d[CV_8S] = 0;                                \
+    table->fn_2d[CV_32F] = (void*)icv##FUNCNAME##_32f_C1R;  \
+}
+
+
+ICV_DEF_INIT_TAB_DETECTION( PreCornerDetect )
+
+typedef CvStatus (CV_STDCALL * CvPreCornerFunc)( const void* src, int srcstep,
+                                                 void* dst, int dststep,
+                                                 CvSize size, int aperture_size );
+
+CV_IMPL void
+cvPreCornerDetect( const void* srcarr, void* dstarr, int aperture_size )
+{
+    static CvFuncTable pre_tab;
+    static int inittab = 0;
+
+    CV_FUNCNAME( "cvPreCornerDetect" );
+
+    __BEGIN__;
+
+    CvSize src_size;
+    CvPreCornerFunc func = 0;
+
+    CvMat srcstub, *src = (CvMat*)srcarr;
+    CvMat dststub, *dst = (CvMat*)dstarr;
+
+    if( !inittab )
+    {
+        icvInitPreCornerDetectTable( &pre_tab );
+        inittab = 1;
+    }
+
+    CV_CALL( src = cvGetMat( srcarr, &srcstub ));
+    CV_CALL( dst = cvGetMat( dstarr, &dststub ));
+
+    if( CV_MAT_CN(src->type) != 1 || CV_MAT_CN(dst->type) != 1 )
+        CV_ERROR(CV_StsBadArg, "Source or min-eigen-val images have more than 1 channel");
+
+    if( CV_MAT_DEPTH(dst->type) != CV_32F )
+        CV_ERROR( CV_BadDepth, "min-eigen-val image does not have IPL_DEPTH_32F depth" );
+
+    if( !CV_ARE_SIZES_EQ( src, dst ))
+        CV_ERROR( CV_StsUnmatchedSizes, "" );
+
+    func = (CvPreCornerFunc)(pre_tab.fn_2d[CV_MAT_DEPTH(src->type)]);
+    if( !func )
+        CV_ERROR( CV_StsUnsupportedFormat, "" );
+
+    src_size = cvGetMatSize( src );
+
+    IPPI_CALL( func( src->data.ptr, src->step, dst->data.ptr, dst->step,
+                     src_size, aperture_size ));
+
+    __END__;
+}
+
+/* End of file. */

@@ -109,7 +109,7 @@ CvIntHaarFeatures* icvCreateIntHaarFeatures( CvSize winsize,
                                              int symmetric )
 {
     CvIntHaarFeatures* features = NULL;
-    CvHaarFeature haarFeature;
+    CvTHaarFeature haarFeature;
     
     CvMemStorage* storage = NULL;
     CvSeq* seq = NULL;
@@ -128,10 +128,17 @@ CvIntHaarFeatures* icvCreateIntHaarFeatures( CvSize winsize,
     float factor = 1.0F;
 
     factor = ((float) winsize.width) * winsize.height / (24 * 24);
+#if 0    
     s0 = (int) (s0 * factor);
     s1 = (int) (s1 * factor);
     s2 = (int) (s2 * factor);
     s3 = (int) (s3 * factor);
+#else
+    s0 = 1;
+    s1 = 1;
+    s2 = 1;
+    s3 = 1;
+#endif
 
     /* CV_VECTOR_CREATE( vec, CvIntHaarFeature, size, maxsize ) */
     storage = cvCreateMemStorage();
@@ -337,8 +344,8 @@ CvIntHaarFeatures* icvCreateIntHaarFeatures( CvSize winsize,
 
     seq = cvEndWriteSeq( &writer );
     features = (CvIntHaarFeatures*) cvAlloc( sizeof( CvIntHaarFeatures ) +
-        ( sizeof( CvHaarFeature ) + sizeof( CvFastHaarFeature ) ) * seq->total );
-    features->feature = (CvHaarFeature*) (features + 1);
+        ( sizeof( CvTHaarFeature ) + sizeof( CvFastHaarFeature ) ) * seq->total );
+    features->feature = (CvTHaarFeature*) (features + 1);
     features->fastfeature = (CvFastHaarFeature*) ( features->feature + seq->total );
     features->count = seq->total;
     features->winsize = winsize;
@@ -362,7 +369,7 @@ void icvReleaseIntHaarFeatures( CvIntHaarFeatures** intHaarFeatures )
 }
 
 CV_IMPL
-void icvConvertToFastHaarFeature( CvHaarFeature* haarFeature,
+void icvConvertToFastHaarFeature( CvTHaarFeature* haarFeature,
                                   CvFastHaarFeature* fastHaarFeature,
                                   int size, int step )
 {
@@ -913,6 +920,12 @@ CvIntHaarClassifier* icvCreateCARTStageClassifier( CvHaarTrainingData* data,
             icvConvertToFastHaarFeature( classifier->feature,
                                          classifier->fastfeature,
                                          classifier->count, data->winsize.width + 1 );
+
+            stumpTrainParams.getTrainData = NULL;
+            stumpTrainParams.numcomp = 1;
+            stumpTrainParams.userdata = NULL;
+            stumpTrainParams.sortedIdx = NULL;
+
             for( i = 0; i < classifier->count; i++ )
             {
                 for( j = 0; j < numtrimmed; j++ )
@@ -926,11 +939,6 @@ CvIntHaarClassifier* icvCreateCARTStageClassifier( CvHaarTrainingData* data,
                     eval.data.fl[idx] = ( normfactor == 0.0F )
                         ? 0.0F : (eval.data.fl[idx] / normfactor);
                 }
-
-                stumpTrainParams.getTrainData = NULL;
-                stumpTrainParams.numcomp = 1;
-                stumpTrainParams.userdata = NULL;
-                stumpTrainParams.sortedIdx = NULL;
 
                 stump = (CvStumpClassifier*) trainParams.stumpConstructor( &eval,
                     CV_COL_SAMPLE,
@@ -950,11 +958,12 @@ CvIntHaarClassifier* icvCreateCARTStageClassifier( CvHaarTrainingData* data,
 
                 stump->release( (CvClassifier**) &stump );        
                 
-                stumpTrainParams.getTrainData = icvGetTrainingDataCallback;
-                stumpTrainParams.numcomp = n;
-                stumpTrainParams.userdata = &userdata;
-                stumpTrainParams.sortedIdx = data->idxcache;
             }
+
+            stumpTrainParams.getTrainData = icvGetTrainingDataCallback;
+            stumpTrainParams.numcomp = n;
+            stumpTrainParams.userdata = &userdata;
+            stumpTrainParams.sortedIdx = data->idxcache;
 
 #ifdef CV_VERBOSE
             v_flipped = 1;
@@ -1117,7 +1126,7 @@ CV_IMPL
 CvBackgroundData* icvCreateBackgroundData( const char* filename, CvSize winsize )
 {
     CvBackgroundData* data = NULL;
-    
+
     const char* dir = NULL;    
     char full[PATH_MAX];
     char* imgfilename = NULL;
@@ -1377,24 +1386,29 @@ void icvGetBackgroundImage( CvBackgroundData* data,
 CV_IMPL
 int icvInitBackgroundReaders( const char* filename, CvSize winsize )
 {
-    if( cvbgdata == NULL )
+    if( cvbgdata == NULL && filename != NULL )
     {
         cvbgdata = icvCreateBackgroundData( filename, winsize );
     }
 
-    #ifdef _OPENMP
-    #pragma omp parallel
-    #endif /* _OPENMP */
+    if( cvbgdata )
     {
+
         #ifdef _OPENMP
-        #pragma omp critical(c_create_bg_data)
+        #pragma omp parallel
         #endif /* _OPENMP */
         {
-            if( cvbgreader == NULL )
+            #ifdef _OPENMP
+            #pragma omp critical(c_create_bg_data)
+            #endif /* _OPENMP */
             {
-                cvbgreader = icvCreateBackgroundReader();
+                if( cvbgreader == NULL )
+                {
+                    cvbgreader = icvCreateBackgroundReader();
+                }
             }
         }
+
     }
 
     return (cvbgdata != NULL);
@@ -1541,6 +1555,8 @@ int icvGetHaarTrainingDataFromBG( CvHaarTrainingData* data, int first, int count
     assert( first + count <= data->maxnum );
     assert( cascade != NULL );
 
+    if( !cvbgdata ) return 0;
+
     consumedcount = 0;
     
     #ifdef _OPENMP
@@ -1603,15 +1619,6 @@ int icvGetHaarTrainingDataFromBG( CvHaarTrainingData* data, int first, int count
     return count;
 }
 
-typedef struct CvVecFile
-{
-    FILE*  input;
-    int    count;
-    int    vecsize;
-    int    last;
-    short* vector;
-} CvVecFile;
-
 CV_IMPL
 int icvGetHaarTraininDataFromVecCallback( CvMat* img, void* userdata )
 {
@@ -1662,7 +1669,8 @@ int icvGetHaarTrainingDataFromVec( CvHaarTrainingData* data, int first, int coun
     CvVecFile file;
     short tmp = 0;    
     
-    file.input = fopen( filename, "rb" );
+    file.input = NULL;
+    if( filename ) file.input = fopen( filename, "rb" );
 
     if( file.input != NULL )
     {
@@ -1690,760 +1698,6 @@ int icvGetHaarTrainingDataFromVec( CvHaarTrainingData* data, int first, int coun
     __END__;
 
     return getcount;
-}
-
-CV_IMPL
-void icvRandomQuad( int width, int height, double quad[4][2], 
-                    double maxxangle,
-                    double maxyangle,
-                    double maxzangle )
-{
-    double distfactor = 3.0;
-    double distfactor2 = 1.0;
-
-    double halfw, halfh;
-    int i;
-    
-    double rotVectData[3];
-    double vectData[3];
-    double rotMatData[9];
-
-    CvMat rotVect;
-    CvMat rotMat;
-    CvMat vect;
-
-    double d;
-
-    rotVect = cvMat( 3, 1, CV_64FC1, &rotVectData[0] );
-    rotMat = cvMat( 3, 3, CV_64FC1, &rotMatData[0] );
-    vect = cvMat( 3, 1, CV_64FC1, &vectData[0] );
-
-    rotVectData[0] = maxxangle * (2.0 * rand() / RAND_MAX - 1.0);
-    rotVectData[1] = ( maxyangle - fabs( rotVectData[0] ) )
-        * (2.0 * rand() / RAND_MAX - 1.0);
-    rotVectData[2] = maxzangle * (2.0 * rand() / RAND_MAX - 1.0);
-    d = (distfactor + distfactor2 * (2.0 * rand() / RAND_MAX - 1.0)) * width;
-
-/*
-    rotVectData[0] = maxxangle;
-    rotVectData[1] = maxyangle;
-    rotVectData[2] = maxzangle;
-
-    d = distfactor * width;
-*/
-
-    cvRodrigues( &rotMat, &rotVect, NULL, CV_RODRIGUES_V2M );
-
-    halfw = 0.5 * width;
-    halfh = 0.5 * height;
-
-    quad[0][0] = -halfw;
-    quad[0][1] = -halfh;
-    quad[1][0] =  halfw;
-    quad[1][1] = -halfh;
-    quad[2][0] =  halfw;
-    quad[2][1] =  halfh;
-    quad[3][0] = -halfw;
-    quad[3][1] =  halfh;
-
-    for( i = 0; i < 4; i++ )
-    {
-        rotVectData[0] = quad[i][0];
-        rotVectData[1] = quad[i][1];
-        rotVectData[2] = 0.0;
-        cvMatMulAdd( &rotMat, &rotVect, 0, &vect );
-        quad[i][0] = vectData[0] * d / (d + vectData[2]) + halfw;
-        quad[i][1] = vectData[1] * d / (d + vectData[2]) + halfh;
-        
-        /*
-        quad[i][0] += halfw;
-        quad[i][1] += halfh;
-        */
-    }
-}
-
-typedef struct CvSampleDistortionData
-{
-    IplImage* src;
-    IplImage* erode;
-    IplImage* dilate;
-    IplImage* mask;
-    IplImage* img;
-    IplImage* maskimg;
-    int dx;
-    int dy;
-    int bgcolor;
-} CvSampleDistortionData;
-
-int icvStartSampleDistortion( const char* imgfilename, int bgcolor, int bgthreshold,
-                              CvSampleDistortionData* data )
-{
-    memset( data, 0, sizeof( *data ) );
-    data->src = cvLoadImage( imgfilename, 0 );
-    if( data->src != NULL && data->src->nChannels == 1 
-        && data->src->depth == IPL_DEPTH_8U )
-    {
-        int r, c;
-        uchar* pmask;
-        uchar* psrc;
-        uchar* perode;
-        uchar* pdilate;
-        uchar dd, de;
-        
-        data->dx = data->src->width / 2;
-        data->dy = data->src->height / 2;
-        data->bgcolor = bgcolor;
-
-        data->mask = cvCloneImage( data->src );
-        data->erode = cvCloneImage( data->src );
-        data->dilate = cvCloneImage( data->src );
-            
-        /* make mask image */
-        for( r = 0; r < data->mask->height; r++ )
-        {
-            for( c = 0; c < data->mask->width; c++ )
-            {
-                pmask = ( (uchar*) (data->mask->imageData + r * data->mask->widthStep)
-                        + c );
-                if( bgcolor - bgthreshold <= (int) (*pmask) &&
-                    (int) (*pmask) <= bgcolor + bgthreshold )
-                {
-                    *pmask = (uchar) 0;
-                }
-                else
-                {
-                    *pmask = (uchar) 255;
-                }
-            }
-        }
-            
-        /* extend borders of source image */
-        cvErode( data->src, data->erode, 0, 1 );
-        cvDilate( data->src, data->dilate, 0, 1 );
-        for( r = 0; r < data->mask->height; r++ )
-        {
-            for( c = 0; c < data->mask->width; c++ )
-            {
-                pmask = ( (uchar*) (data->mask->imageData + r * data->mask->widthStep)
-                        + c );
-                if( (*pmask) == 0 )
-                {
-                    psrc = ( (uchar*) (data->src->imageData + r * data->src->widthStep)
-                           + c );
-                    perode = 
-                        ( (uchar*) (data->erode->imageData + r * data->erode->widthStep)
-                                + c );
-                    pdilate = 
-                        ( (uchar*)(data->dilate->imageData + r * data->dilate->widthStep)
-                                + c );
-                    de = bgcolor - (*perode);
-                    dd = (*pdilate) - bgcolor;
-                    if( de >= dd && de > bgthreshold )
-                    {
-                        (*psrc) = (*perode);
-                    }
-                    if( dd > de && dd > bgthreshold )
-                    {
-                        (*psrc) = (*pdilate);
-                    }
-                }
-            }
-        }
-
-        data->img = cvCreateImage( cvSize( data->src->width + 2 * data->dx,
-                                           data->src->height + 2 * data->dy ),
-                                   IPL_DEPTH_8U, 1 );
-        data->maskimg = cvCloneImage( data->img );
-
-        return 1;
-    }
-
-    return 0;
-}
-
-void icvPlaceDistortedSample( CvArr* background,
-                              int inverse, int maxintensitydev,
-                              double maxxangle, double maxyangle, double maxzangle,
-                              int inscribe, double maxshiftf, double maxscalef,
-                              CvSampleDistortionData* data )
-{
-    double quad[4][2];
-    int r, c;
-    uchar* pimg;
-    uchar* pbg;
-    uchar* palpha;
-    uchar chartmp;
-    int forecolordev;
-    float scale;
-    IplImage* img;
-    IplImage* maskimg;
-    CvMat  stub;
-    CvMat* bgimg;
-
-    CvRect cr;
-    CvRect roi;
-
-    double xshift, yshift, randscale;
-
-    icvRandomQuad( data->src->width, data->src->height, quad,
-                   maxxangle, maxyangle, maxzangle );
-    quad[0][0] += (double) data->dx;
-    quad[0][1] += (double) data->dy;
-    quad[1][0] += (double) data->dx;
-    quad[1][1] += (double) data->dy;
-    quad[2][0] += (double) data->dx;
-    quad[2][1] += (double) data->dy;
-    quad[3][0] += (double) data->dx;
-    quad[3][1] += (double) data->dy;
-    
-    cvSet( data->img, cvScalar( data->bgcolor ) );
-    cvSet( data->maskimg, cvScalar( 0.0 ) );
-
-#ifdef HAVE_IPL
-    iplWarpPerspectiveQ( data->src, data->img, quad, IPL_WARP_R_TO_Q,
-                         IPL_INTER_CUBIC | IPL_SMOOTH_EDGE );
-    iplWarpPerspectiveQ( data->mask, data->maskimg, quad, IPL_WARP_R_TO_Q,
-                         IPL_INTER_CUBIC | IPL_SMOOTH_EDGE );
-#endif /* HAVE_IPL */
-    cvSmooth( data->maskimg, data->maskimg, CV_GAUSSIAN, 3, 3 );
-
-    bgimg = cvGetMat( background, &stub );
-
-    cr.x = data->dx;
-    cr.y = data->dy;
-    cr.width = data->src->width;
-    cr.height = data->src->height;
-
-    if( inscribe )
-    {
-        /* quad's circumscribing rectangle */
-        cr.x = (int) MIN( quad[0][0], quad[3][0] );
-        cr.y = (int) MIN( quad[0][1], quad[1][1] );
-        cr.width  = (int) (MAX( quad[1][0], quad[2][0] ) + 0.5F ) - cr.x;
-        cr.height = (int) (MAX( quad[2][1], quad[3][1] ) + 0.5F ) - cr.y;
-    }
-    
-    xshift = maxshiftf * rand() / RAND_MAX;
-    yshift = maxshiftf * rand() / RAND_MAX;
-
-    cr.x -= (int) ( xshift * cr.width  );
-    cr.y -= (int) ( yshift * cr.height );
-    cr.width  = (int) ((1.0 + maxshiftf) * cr.width );
-    cr.height = (int) ((1.0 + maxshiftf) * cr.height);
-
-    randscale = maxscalef * rand() / RAND_MAX;
-    cr.x -= (int) ( 0.5 * randscale * cr.width  );
-    cr.y -= (int) ( 0.5 * randscale * cr.height );
-    cr.width  = (int) ((1.0 + randscale) * cr.width );
-    cr.height = (int) ((1.0 + randscale) * cr.height);
-
-    scale = MAX( ((float) cr.width) / bgimg->cols, ((float) cr.height) / bgimg->rows );
-
-    roi.x = (int) (-0.5F * (scale * bgimg->cols - cr.width) + cr.x);
-    roi.y = (int) (-0.5F * (scale * bgimg->rows - cr.height) + cr.y);
-    roi.width  = (int) (scale * bgimg->cols);
-    roi.height = (int) (scale * bgimg->rows);
-
-    img = cvCreateImage( cvSize( bgimg->cols, bgimg->rows ), IPL_DEPTH_8U, 1 );
-    maskimg = cvCreateImage( cvSize( bgimg->cols, bgimg->rows ), IPL_DEPTH_8U, 1 );
-    
-    cvSetImageROI( data->img, roi );
-    cvResize( data->img, img );
-    cvResetImageROI( data->img );
-    cvSetImageROI( data->maskimg, roi );
-    cvResize( data->maskimg, maskimg );
-    cvResetImageROI( data->maskimg );
-    
-    forecolordev = (int) (maxintensitydev * (2.0 * rand() / RAND_MAX - 1.0));
-
-    for( r = 0; r < img->height; r++ )
-    {
-        for( c = 0; c < img->width; c++ )
-        {
-            pimg = (uchar*) img->imageData + r * img->widthStep + c;
-            pbg = (uchar*) bgimg->data.ptr + r * bgimg->step + c;
-            palpha = (uchar*) maskimg->imageData + r * maskimg->widthStep + c;
-            chartmp = (uchar) MAX( 0, MIN( 255, forecolordev + (*pimg) ) );
-            if( inverse )
-            {
-                chartmp ^= 0xFF;
-            }
-            *pbg = (uchar) (( chartmp*(*palpha )+(255 - (*palpha) )*(*pbg) ) / 255);
-        }
-    }
-
-    cvReleaseImage( &img );
-    cvReleaseImage( &maskimg );
-}
-
-void icvEndSampleDistortion( CvSampleDistortionData* data )
-{
-    if( data->src )
-    {
-        cvReleaseImage( &data->src );
-    }
-    if( data->mask )
-    {
-        cvReleaseImage( &data->mask );
-    }
-    if( data->erode )
-    {
-        cvReleaseImage( &data->erode );
-    }
-    if( data->dilate )
-    {
-        cvReleaseImage( &data->dilate );
-    }
-    if( data->img )
-    {
-        cvReleaseImage( &data->img );
-    }
-    if( data->maskimg )
-    {
-        cvReleaseImage( &data->maskimg );
-    }
-}
-
-void icvWriteVecHeader( FILE* file, int count, int width, int height )
-{
-    int vecsize;
-    short tmp;
-
-    /* number of samples */
-    fwrite( &count, sizeof( count ), 1, file );    
-    /* vector size */
-    vecsize = width * height;
-    fwrite( &vecsize, sizeof( vecsize ), 1, file );
-    /* min/max values */
-    tmp = 0;
-    fwrite( &tmp, sizeof( tmp ), 1, file );
-    fwrite( &tmp, sizeof( tmp ), 1, file );    
-}
-
-void icvWriteVecSample( FILE* file, CvArr* sample )
-{
-    CvMat* mat, stub;
-    int r, c;
-    short tmp;
-    uchar chartmp;
-
-    mat = cvGetMat( sample, &stub );
-    chartmp = 0;
-    fwrite( &chartmp, sizeof( chartmp ), 1, file );
-    for( r = 0; r < mat->rows; r++ )
-    {
-        for( c = 0; c < mat->cols; c++ )
-        {
-            tmp = (short) (CV_MAT_ELEM( *mat, uchar, r, c ));
-            fwrite( &tmp, sizeof( tmp ), 1, file );
-        }
-    }
-}
-
-CV_IMPL
-void cvCreateTrainingSamples( const char* filename,
-                              const char* imgfilename, int bgcolor, int bgthreshold,
-                              const char* bgfilename, int count,
-                              int invert, int maxintensitydev,
-                              double maxxangle, double maxyangle, double maxzangle,
-                              int showsamples,
-                              int winwidth, int winheight )
-{
-    CvSampleDistortionData data;
-
-    assert( filename != NULL );
-    assert( imgfilename != NULL );
-
-    if( !icvMkDir( filename ) )
-    {
-        fprintf( stderr, "Unable to create output file: %s\n", filename );
-        return;
-    }
-    if( icvStartSampleDistortion( imgfilename, bgcolor, bgthreshold, &data ) )
-    {
-        FILE* output = NULL;
-
-        output = fopen( filename, "wb" );
-        if( output != NULL )
-        {
-            int hasbg;
-            int i;
-            CvMat sample;
-            int inverse;
-
-            hasbg = 0;
-            hasbg = (bgfilename != NULL && icvInitBackgroundReaders( bgfilename,
-                     cvSize( winwidth,winheight ) ) );
-
-            sample = cvMat( winheight, winwidth, CV_8UC1, cvAlloc( sizeof( uchar ) *
-                            winheight * winwidth ) );
-
-            icvWriteVecHeader( output, count, sample.cols, sample.rows );
-
-            if( showsamples )
-            {
-                cvNamedWindow( "Sample", CV_WINDOW_AUTOSIZE );
-            }
-
-            inverse = invert;
-            for( i = 0; i < count; i++ )
-            {
-                if( hasbg )
-                {
-                    icvGetBackgroundImage( cvbgdata, cvbgreader, &sample );
-                }
-                else
-                {
-                    cvSet( &sample, cvScalar( bgcolor ) );
-                }
-
-                if( invert == CV_RANDOM_INVERT )
-                {
-                    inverse = (rand() > (RAND_MAX/2));
-                }
-                icvPlaceDistortedSample( &sample, inverse, maxintensitydev,
-                    maxxangle, maxyangle, maxzangle, 
-                    0   /* nonzero means placing image without cut offs */,
-                    0.0 /* nozero adds random shifting                  */,
-                    0.0 /* nozero adds random scaling                   */,
-                    &data );
-
-                if( showsamples )
-                {
-                    cvShowImage( "Sample", &sample );
-                    if( cvWaitKey( 0 ) == 27 )
-                    {
-                        showsamples = 0;
-                    }
-                }
-
-                icvWriteVecSample( output, &sample );
-
-#ifdef CV_VERBOSE
-                if( i % 500 == 0 )
-                {
-                    printf( "\r%3d%%", 100 * i / count );
-                }
-#endif /* CV_VERBOSE */
-            }
-            icvDestroyBackgroundReaders();
-            cvFree( (void**) &(sample.data.ptr) );
-            fclose( output );
-        } /* if( output != NULL ) */
-        
-        icvEndSampleDistortion( &data );
-    }
-    
-#ifdef CV_VERBOSE
-    printf( "\r      \r" );
-#endif /* CV_VERBOSE */ 
-
-}
-
-#define CV_INFO_FILENAME "info.dat"
-
-CV_IMPL
-void cvCreateTestSamples( const char* infoname,
-                          const char* imgfilename, int bgcolor, int bgthreshold,
-                          const char* bgfilename, int count,
-                          int invert, int maxintensitydev,
-                          double maxxangle, double maxyangle, double maxzangle,
-                          int showsamples,
-                          int winwidth, int winheight )
-{
-    CvSampleDistortionData data;
-
-    assert( infoname != NULL );
-    assert( imgfilename != NULL );
-    assert( bgfilename != NULL );
-
-    if( !icvMkDir( infoname ) )
-    {
-
-#if CV_VERBOSE
-        fprintf( stderr, "Unable to create directory hierarchy: %s\n", infoname );
-#endif /* CV_VERBOSE */
-
-        return;
-    }
-    if( icvStartSampleDistortion( imgfilename, bgcolor, bgthreshold, &data ) )
-    {
-        char fullname[PATH_MAX];
-        char* filename;
-        CvMat win;
-        FILE* info;
-
-        if( icvInitBackgroundReaders( bgfilename, cvSize( 10, 10 ) ) )
-        {
-            int i;
-            int x, y, width, height;
-            float scale;
-            float maxscale;
-            int inverse;
-
-            if( showsamples )
-            {
-                cvNamedWindow( "Image", CV_WINDOW_AUTOSIZE );
-            }
-            
-            info = fopen( infoname, "w" );
-            strcpy( fullname, infoname );
-            filename = strrchr( fullname, '\\' );
-            if( filename == NULL )
-            {
-                filename = strrchr( fullname, '/' );
-            }
-            if( filename == NULL )
-            {
-                filename = fullname;
-            }
-            else
-            {
-                filename++;
-            }
-
-            count = MIN( count, cvbgdata->count );
-            inverse = invert;
-            for( i = 0; i < count; i++ )
-            {
-                icvGetNextFromBackgroundData( cvbgdata, cvbgreader );
-                
-                maxscale = MIN( 0.7F * cvbgreader->src.cols / winwidth,
-                                   0.7F * cvbgreader->src.rows / winheight );
-                if( maxscale < 1.0F ) continue;
-
-                scale = (maxscale - 1.0F) * rand() / RAND_MAX + 1.0F;
-                width = (int) (scale * winwidth);
-                height = (int) (scale * winheight);
-                x = (int) ((0.1+0.8 * rand()/RAND_MAX) * (cvbgreader->src.cols - width));
-                y = (int) ((0.1+0.8 * rand()/RAND_MAX) * (cvbgreader->src.rows - height));
-
-                cvGetSubArr( &cvbgreader->src, &win, cvRect( x, y ,width, height ) );
-                if( invert == CV_RANDOM_INVERT )
-                {
-                    inverse = (rand() > (RAND_MAX/2));
-                }
-                icvPlaceDistortedSample( &win, inverse, maxintensitydev,
-                                         maxxangle, maxyangle, maxzangle, 
-                                         1, 0.0, 0.0, &data );
-                
-                
-                sprintf( filename, "%04d_%04d_%04d_%04d_%04d.jpg",
-                         (i + 1), x, y, width, height );
-                
-                if( info ) 
-                {
-                    fprintf( info, "%s %d %d %d %d %d\n",
-                        filename, 1, x, y, width, height );
-                }
-
-                cvSaveImage( fullname, &cvbgreader->src );
-                if( showsamples )
-                {
-                    cvShowImage( "Image", &cvbgreader->src );
-                    if( cvWaitKey( 0 ) == 27 )
-                    {
-                        showsamples = 0;
-                    }
-                }
-            }
-            if( info ) fclose( info );
-            icvDestroyBackgroundReaders();
-        }
-        icvEndSampleDistortion( &data );
-    }
-}
-
-CV_IMPL
-int cvCreateTrainingSamplesFromInfo( const char* infoname, const char* vecfilename,
-                                     int num,
-                                     int showsamples,
-                                     int winwidth, int winheight )
-{
-    char fullname[PATH_MAX];
-    char* filename;
-
-    FILE* info;
-    FILE* vec;
-    IplImage* src;
-    IplImage* sample;
-    int line;
-    int error;
-    int i;
-    int x, y, width, height;
-    int total;
-
-    assert( infoname != NULL );
-    assert( vecfilename != NULL );
-
-    total = 0;
-    if( !icvMkDir( vecfilename ) )
-    {
-
-#if CV_VERBOSE
-        fprintf( stderr, "Unable to create directory hierarchy: %s\n", vecfilename );
-#endif /* CV_VERBOSE */
-
-        return total;
-    }
-
-    info = fopen( infoname, "r" );
-    if( info == NULL )
-    {
-
-#if CV_VERBOSE
-        fprintf( stderr, "Unable to open file: %s\n", infoname );
-#endif /* CV_VERBOSE */
-
-        return total;
-    }
-
-    vec = fopen( vecfilename, "wb" );
-    if( vec == NULL )
-    {
-
-#if CV_VERBOSE
-        fprintf( stderr, "Unable to open file: %s\n", vecfilename );
-#endif /* CV_VERBOSE */
-
-        fclose( info );
-
-        return total;
-    }
-
-    sample = cvCreateImage( cvSize( winwidth, winheight ), IPL_DEPTH_8U, 1 );
-
-    icvWriteVecHeader( vec, num, sample->width, sample->height );
-
-    if( showsamples )
-    {
-        cvNamedWindow( "Sample", CV_WINDOW_AUTOSIZE );
-    }
-    
-    strcpy( fullname, infoname );
-    filename = strrchr( fullname, '\\' );
-    if( filename == NULL )
-    {
-        filename = strrchr( fullname, '/' );
-    }
-    if( filename == NULL )
-    {
-        filename = fullname;
-    }
-    else
-    {
-        filename++;
-    }
-
-    for( line = 1, error = 0, total = 0; total < num ;line++ )
-    {
-        int count;
-
-        error = ( fscanf( info, "%s %d", filename, &count ) != 2 );
-        if( !error )
-        {
-            src = cvLoadImage( fullname, 0 );
-            error = ( src == NULL );
-            if( error )
-            {
-
-#if CV_VERBOSE
-                fprintf( stderr, "Unable to open image: %s\n", fullname );
-#endif /* CV_VERBOSE */
-
-            }
-        }
-        for( i = 0; (i < count) && (total < num); i++, total++ )
-        {
-            error = ( fscanf( info, "%d %d %d %d", &x, &y, &width, &height ) != 4 );
-            if( error ) break;
-            cvSetImageROI( src, cvRect( x, y, width, height ) );
-            cvResize( src, sample );
-            
-            if( showsamples )
-            {
-                cvShowImage( "Sample", sample );
-                if( cvWaitKey( 0 ) == 27 )
-                {
-                    showsamples = 0;
-                }
-            }            
-            icvWriteVecSample( vec, sample );
-        }
-        
-        if( src )
-        {
-            cvReleaseImage( &src );
-        }
-
-        if( error )
-        {
-
-#if CV_VERBOSE
-            fprintf( stderr, "%s(%d) : parse error", infoname, line );
-#endif /* CV_VERBOSE */
-
-            break;
-        }
-    }
-    
-    if( sample )
-    {
-        cvReleaseImage( &sample );
-    }
-
-    fclose( vec );
-    fclose( info );
-
-    return total;
-}
-
-CV_IMPL
-void cvShowVecSamples( const char* filename, int winwidth, int winheight )
-{
-    CvVecFile file;
-    short tmp; 
-    int i;
-    CvMat* sample;
-    
-    tmp = 0;
-    file.input = fopen( filename, "rb" );
-
-    if( file.input != NULL )
-    {
-        fread( &file.count, sizeof( file.count ), 1, file.input );
-        fread( &file.vecsize, sizeof( file.vecsize ), 1, file.input );
-        fread( &tmp, sizeof( tmp ), 1, file.input );
-        fread( &tmp, sizeof( tmp ), 1, file.input );
-        
-        if( file.vecsize != winwidth * winheight )
-        {
-
-#if CV_VERBOSE
-            fprintf( stderr, "Invalid vec file sample size\n" );
-#endif /* CV_VERBOSE */
-            fclose( file.input );
-
-            return;
-        }
-
-        if( !feof( file.input ) )
-        {
-            file.last = 0;
-            file.vector = (short*) cvAlloc( sizeof( *file.vector ) * file.vecsize );
-            sample = cvCreateMat( winheight, winwidth, CV_8UC1 );
-            cvNamedWindow( "Sample", CV_WINDOW_AUTOSIZE );
-            for( i = 0; i < file.count; i++ )
-            {
-                icvGetHaarTraininDataFromVecCallback( sample, &file );
-                cvShowImage( "Sample", sample );
-                if( cvWaitKey( 0 ) == 27 ) break;
-            }
-            cvReleaseMat( &sample );
-            cvFree( (void**) &file.vector );
-        }
-        fclose( file.input );
-    }
 }
 
 CV_IMPL
@@ -2637,6 +1891,611 @@ void cvCreateCascadeClassifier( const char* dirname,
     /* CLEAN UP */
     icvDestroyBackgroundReaders();
     cascade->release( (CvIntHaarClassifier**) &cascade );
+}
+
+/* tree cascade classifier */
+
+int icvNumSplits( CvStageHaarClassifier* stage )
+{
+    int i;
+    int num;
+
+    num = 0;
+    for( i = 0; i < stage->count; i++ )
+    {
+        num += ((CvCARTHaarClassifier*) stage->classifier[i])->count;
+    }
+
+    return num;
+}
+
+void icvSetNumSamples( CvHaarTrainingData* training_data, int num )
+{
+    assert( num <= training_data->maxnum );
+
+    training_data->sum.rows = training_data->tilted.rows = num;
+    training_data->normfactor.cols = num;
+    training_data->cls.cols = training_data->weights.cols = num;
+}
+
+void icvSetWeightsAndClasses( CvHaarTrainingData* training_data,
+                              int num1, float weight1, float cls1,
+                              int num2, float weight2, float cls2 )
+{
+    int j;
+
+    assert( num1 + num2 <= training_data->maxnum );
+
+    for( j = 0; j < num1; j++ )
+    {
+        training_data->weights.data.fl[j] = weight1;
+        training_data->cls.data.fl[j] = cls1;
+    }
+    for( j = num1; j < num1 + num2; j++ )
+    {
+        training_data->weights.data.fl[j] = weight2;
+        training_data->cls.data.fl[j] = cls2;
+    }
+}
+
+CvMat* icvGetUsedValues( CvHaarTrainingData* training_data,
+                         int start, int num,
+                         CvIntHaarFeatures* haar_features,
+                         CvStageHaarClassifier* stage )
+{
+    CvMat* ptr = NULL;
+    CvMat* feature_idx = NULL;
+
+    CV_FUNCNAME( "icvGetUsedValues" );
+
+    __BEGIN__;
+
+    int num_splits;
+    int i, j;
+    int r;
+    int total, last;
+
+    num_splits = icvNumSplits( stage );
+
+    CV_CALL( feature_idx = cvCreateMat( 1, num_splits, CV_32SC1 ) );
+
+    total = 0;
+    for( i = 0; i < stage->count; i++ )
+    {
+        CvCARTHaarClassifier* cart;
+
+        cart = (CvCARTHaarClassifier*) stage->classifier[i];
+        for( j = 0; j < cart->count; j++ )
+        {
+            feature_idx->data.i[total++] = cart->compidx[j];
+        }
+    }
+    icvSort_32s( feature_idx->data.i, total, 0 );
+
+    last = 0;
+    for( i = 1; i < total; i++ )
+    {
+        if( feature_idx->data.i[i] != feature_idx->data.i[last] )
+        {
+            feature_idx->data.i[++last] = feature_idx->data.i[i];
+        }
+    }
+    total = last + 1;
+    CV_CALL( ptr = cvCreateMat( num, total, CV_32FC1 ) );
+    
+
+    #ifdef _OPENMP
+    #pragma omp parallel for
+    #endif
+    for( r = start; r < start + num; r++ )
+    {
+        int c;
+
+        for( c = 0; c < total; c++ )
+        {
+            float val, normfactor;
+            int fnum;
+
+            fnum = feature_idx->data.i[c];
+
+            val = cvEvalFastHaarFeature( haar_features->fastfeature + fnum,
+                (sum_type*) (training_data->sum.data.ptr
+                        + r * training_data->sum.step),
+                (sum_type*) (training_data->tilted.data.ptr
+                        + r * training_data->tilted.step) );
+            normfactor = training_data->normfactor.data.fl[r];
+            val = ( normfactor == 0.0F ) ? 0.0F : (val / normfactor);
+            CV_MAT_ELEM( *ptr, float, r - start, c ) = val;
+        }
+    }
+
+    __END__;
+
+    cvReleaseMat( &feature_idx );
+
+    return ptr;
+}
+
+/* possible split in the tree */
+typedef struct CvSplit
+{
+    CvTreeCascadeNode* parent;
+    CvTreeCascadeNode* single_cluster;
+    CvTreeCascadeNode* multiple_clusters;
+    int num_clusters;
+    float single_multiple_ratio;
+
+    struct CvSplit* next;
+} CvSplit;
+
+CV_IMPL
+void cvCreateTreeCascadeClassifier( const char* dirname,
+                                    const char* vecfilename,
+                                    const char* bgfilename, 
+                                    int npos, int nneg, int nstages,
+                                    int numprecalculated,
+                                    int numsplits,
+                                    float minhitrate, float maxfalsealarm,
+                                    float weightfraction,
+                                    int mode, int symmetric,
+                                    int equalweights,
+                                    int winwidth, int winheight,
+                                    int boosttype, int stumperror,
+                                    int maxtreesplits, int minpos )
+{
+    CvTreeCascadeClassifier* tcc = NULL;
+    CvIntHaarFeatures* haar_features = NULL;
+    CvHaarTrainingData* training_data = NULL;
+    CvMat* vals = NULL;
+    CvMat* cluster_idx = NULL;
+    CvMat* idx = NULL;
+    CvMat* features_idx = NULL;
+
+    CV_FUNCNAME( "cvCreateTreeCascadeClassifier" );
+
+    __BEGIN__;
+
+    int i, k;
+    CvTreeCascadeNode* leaves;
+    int best_num, cur_num;
+    CvSize winsize;
+    char stage_name[PATH_MAX];
+    char buf[PATH_MAX];
+    char* suffix;
+    int total_splits;
+
+    int poscount;
+    int negcount;
+    int consumed;
+    double proctime;
+
+    int nleaves;
+    float required_leaf_fa_rate;
+    float neg_ratio;
+
+    int max_clusters;
+
+    max_clusters = CV_MAX_CLUSTERS;
+    neg_ratio = (float) nneg / npos;
+
+    nleaves = 1 + MAX( 0, maxtreesplits );
+    required_leaf_fa_rate = powf( maxfalsealarm, (float) nstages ) / nleaves;
+
+    printf( "Required leaf false alarm rate: %f\n", required_leaf_fa_rate );
+
+    total_splits = 0;
+
+    winsize = cvSize( winwidth, winheight );
+
+    CV_CALL( cluster_idx = cvCreateMat( 1, npos + nneg, CV_32SC1 ) );
+    CV_CALL( idx = cvCreateMat( 1, npos + nneg, CV_32SC1 ) );
+
+    CV_CALL( tcc = (CvTreeCascadeClassifier*)
+        icvLoadTreeCascadeClassifier( dirname, winwidth + 1, &total_splits ) );
+    CV_CALL( leaves = icvFindDeepestLeaves( tcc ) );
+
+    CV_CALL( icvPrintTreeCascade( tcc->root ) );
+
+    haar_features = icvCreateIntHaarFeatures( winsize, mode, symmetric );
+
+    printf( "Number of features used : %d\n", haar_features->count );
+
+    training_data = icvCreateHaarTrainingData( winsize, npos + nneg );
+
+    sprintf( stage_name, "%s/", dirname );
+    suffix = stage_name + strlen( stage_name );
+
+    if( !icvInitBackgroundReaders( bgfilename, winsize ) && nstages > 0 )
+        CV_ERROR( CV_StsError, "Unable to read negative images" );
+    
+    if( nstages > 0 )
+    {
+        /* width-first search in the tree */
+        do
+        {
+            CvSplit* first_split;
+            CvSplit* last_split;
+            CvSplit* cur_split;
+            
+            CvTreeCascadeNode* parent;
+            CvTreeCascadeNode* cur_node;
+            CvTreeCascadeNode* last_node;
+
+            first_split = last_split = cur_split = NULL;
+            parent = leaves;
+            leaves = NULL;
+            do
+            {                
+                int best_clusters; /* best selected number of clusters */
+                float posweight, negweight;
+                float leaf_fa_rate;
+
+                if( parent ) sprintf( buf, "%d", parent->idx );
+                else sprintf( buf, "NULL" );
+	            printf( "\nParent node: %s\n\n", buf );
+
+                printf( "*** 1 cluster ***\n" );
+
+                tcc->eval = icvEvalTreeCascadeClassifierFilter;
+                /* find path from the root to the node <parent> */
+                icvSetLeafNode( tcc, parent );
+
+                /* load samples */
+                consumed = 0;
+                poscount = icvGetHaarTrainingDataFromVec( training_data, 0, npos,
+                    (CvIntHaarClassifier*) tcc, vecfilename, &consumed );
+
+                printf( "POS: %d %d %f\n", poscount, consumed, ((double) poscount)/consumed );
+
+                if( poscount <= 0 )
+                    CV_ERROR( CV_StsError, "Unable to obtain positive samples" );
+
+                fflush( stdout );
+
+                proctime = -TIME( 0 );
+
+                nneg = (int) (neg_ratio * poscount);
+                negcount = icvGetHaarTrainingDataFromBG( training_data, poscount, nneg,
+                    (CvIntHaarClassifier*) tcc, &consumed );
+
+                printf( "NEG: %d %d %f\n", negcount, consumed, ((float) negcount)/consumed );
+                printf( "BACKGROUND PROCESSING TIME: %.2f\n", (proctime + TIME( 0 )) );
+
+                if( negcount <= 0 )
+                    CV_ERROR( CV_StsError, "Unable to obtain negative samples" );
+
+                leaf_fa_rate = (float) negcount / consumed;
+                if( leaf_fa_rate <= required_leaf_fa_rate )
+                {
+                    printf( "Required leaf false alarm rate achieved. "
+                            "Branch training terminated.\n" );
+                }
+                else
+                {
+                    CvTreeCascadeNode* single_cluster;
+                    CvTreeCascadeNode* multiple_clusters;
+                    CvSplit* cur_split;
+                    int single_num;
+
+                    icvSetNumSamples( training_data, poscount + negcount );
+                    posweight = (equalweights) ? 1.0F / (poscount + negcount) : (0.5F/poscount);
+                    negweight = (equalweights) ? 1.0F / (poscount + negcount) : (0.5F/negcount);
+                    icvSetWeightsAndClasses( training_data,
+                        poscount, posweight, 1.0F, negcount, negweight, 0.0F );
+
+                    fflush( stdout );
+
+                    /* precalculate feature values */
+                    proctime = -TIME( 0 );
+                    icvPrecalculate( training_data, haar_features, numprecalculated );
+                    printf( "Precalculation time: %.2f\n", (proctime + TIME( 0 )) );
+
+                    /* train stage classifier using all positive samples */
+                    CV_CALL( single_cluster = icvCreateTreeCascadeNode() );
+                    fflush( stdout );
+
+                    proctime = -TIME( 0 );
+                    single_cluster->stage =
+                        (CvStageHaarClassifier*) icvCreateCARTStageClassifier(
+                            training_data, NULL, haar_features,
+                            minhitrate, maxfalsealarm, symmetric,
+                            weightfraction, numsplits, (CvBoostType) boosttype,
+                            (CvStumpError) stumperror, 0 );
+                    printf( "Stage training time: %.2f\n", (proctime + TIME( 0 )) );
+
+                    single_num = icvNumSplits( single_cluster->stage );
+                    best_num = single_num;
+                    best_clusters = 1;
+                    multiple_clusters = NULL;
+
+                    printf( "Number of used features: %d\n", single_num );
+                    
+                    if( maxtreesplits >= 0 )
+                    {
+                        max_clusters = CV_MIN( max_clusters,
+                                               maxtreesplits - total_splits + 1 );
+                    }
+
+                    /* try clustering */
+                    vals = NULL;
+                    for( k = 2; k <= max_clusters; k++ )
+                    {
+                        int cluster;
+                        int stop_clustering;
+
+                        printf( "*** %d clusters ***\n", k );
+
+                        /* check whether clusters are big enough */
+                        stop_clustering = ( k * minpos > poscount );
+                        if( !stop_clustering )
+                        {
+                            int num[CV_MAX_CLUSTERS];
+
+                            if( k == 2 )
+                            {
+                                proctime = -TIME( 0 );
+                                CV_CALL( vals = icvGetUsedValues( training_data, 0, poscount,
+                                    haar_features, single_cluster->stage ) );
+                                printf( "Getting values for clustering time: %.2f\n", (proctime + TIME(0)) );
+                                printf( "Value matirx size: %d x %d\n", vals->rows, vals->cols );
+                                fflush( stdout );
+
+                                cluster_idx->cols = vals->rows;
+                                for( i = 0; i < negcount; i++ ) idx->data.i[i] = poscount + i;
+                            }
+
+                            proctime = -TIME( 0 );
+
+                            CV_CALL( cvKMeans2( vals, k, cluster_idx, CV_TERM_CRITERIA() ) );
+
+                            printf( "Clustering time: %.2f\n", (proctime + TIME( 0 )) );
+
+                            for( cluster = 0; cluster < k; cluster++ ) num[cluster] = 0;
+                            for( i = 0; i < cluster_idx->cols; i++ )
+                                num[cluster_idx->data.i[i]]++;
+                            for( cluster = 0; cluster < k; cluster++ )
+                            {
+                                if( num[cluster] < minpos )
+                                {
+                                    stop_clustering = 1;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if( stop_clustering )
+                        {
+                            printf( "Clusters are too small. Clustering aborted.\n" );
+                            break;
+                        }
+                        
+                        cur_num = 0;
+                        cur_node = last_node = NULL;
+                        for( cluster = 0; (cluster < k) && (cur_num < best_num); cluster++ )
+                        {
+                            CvTreeCascadeNode* new_node;
+
+                            int num_splits;
+                            int last_pos;
+                            int total_pos;
+
+                            printf( "Cluster: %d\n", cluster );
+
+                            last_pos = negcount;
+                            for( i = 0; i < cluster_idx->cols; i++ )
+                            {
+                                if( cluster_idx->data.i[i] == cluster )
+                                {
+                                    idx->data.i[last_pos++] = i;
+                                }
+                            }
+                            idx->cols = last_pos;
+
+                            total_pos = idx->cols - negcount;
+                            printf( "# pos: %d of %d. (%d%%)\n", total_pos, poscount,
+                                100 * total_pos / poscount );
+
+                            CV_CALL( new_node = icvCreateTreeCascadeNode() );
+                            if( last_node ) last_node->next = new_node;
+                            else cur_node = new_node;
+                            last_node = new_node;
+
+                            posweight = (equalweights)
+                                ? 1.0F / (total_pos + negcount) : (0.5F / total_pos);
+                            negweight = (equalweights)
+                                ? 1.0F / (total_pos + negcount) : (0.5F / total_pos);
+
+                            icvSetWeightsAndClasses( training_data,
+                                poscount, posweight, 1.0F, negcount, negweight, 0.0F );
+
+                            /* CV_DEBUG_SAVE( idx ); */
+
+                            fflush( stdout );
+
+                            proctime = -TIME( 0 );
+                            new_node->stage = (CvStageHaarClassifier*)
+                                icvCreateCARTStageClassifier( training_data, idx, haar_features,
+                                    minhitrate, maxfalsealarm, symmetric,
+                                    weightfraction, numsplits, (CvBoostType) boosttype,
+                                    (CvStumpError) stumperror, best_num - cur_num );
+                            printf( "Stage training time: %.2f\n", (proctime + TIME( 0 )) );
+
+                            if( !(new_node->stage) )
+                            {
+                                printf( "Stage training aborted.\n" );
+                                cur_num = best_num + 1;
+                            }
+                            else
+                            {
+                                num_splits = icvNumSplits( new_node->stage );
+                                cur_num += num_splits;
+
+                                printf( "Number of used features: %d\n", num_splits );
+                            }
+                        } /* for each cluster */
+
+                        if( cur_num < best_num )
+                        {
+                            icvReleaseTreeCascadeNodes( &multiple_clusters );
+                            best_num = cur_num;
+                            best_clusters = k;
+                            multiple_clusters = cur_node;
+                        }
+                        else
+                        {
+                            icvReleaseTreeCascadeNodes( &cur_node );
+                        }
+                    } /* try different number of clusters */
+                    cvReleaseMat( &vals );
+
+                    CV_CALL( cur_split = (CvSplit*) cvAlloc( sizeof( *cur_split ) ) );
+                    CV_ZERO_OBJ( cur_split );
+                    
+                    if( last_split ) last_split->next = cur_split;
+                    else first_split = cur_split;
+                    last_split = cur_split;
+
+                    cur_split->single_cluster = single_cluster;
+                    cur_split->multiple_clusters = multiple_clusters;
+                    cur_split->num_clusters = best_clusters;
+                    cur_split->parent = parent;
+                    cur_split->single_multiple_ratio = (float) single_num / best_num;
+                }
+
+                if( parent ) parent = parent->next_same_level;
+            } while( parent );
+
+            /* choose which nodes should be splitted */
+            do
+            {
+                float max_single_multiple_ratio;
+
+                cur_split = NULL;
+                max_single_multiple_ratio = 0.0F;
+                last_split = first_split;
+                while( last_split )
+                {
+                    if( last_split->single_cluster && last_split->multiple_clusters &&
+                        last_split->single_multiple_ratio > max_single_multiple_ratio )
+                    {
+                        max_single_multiple_ratio = last_split->single_multiple_ratio;
+                        cur_split = last_split;
+                    }
+                    last_split = last_split->next;
+                }
+                if( cur_split )
+                {
+                    if( maxtreesplits < 0 ||
+                        cur_split->num_clusters <= maxtreesplits - total_splits + 1 )
+                    {
+                        cur_split->single_cluster = NULL;
+                        total_splits += cur_split->num_clusters - 1;
+                    }
+                    else
+                    {
+                        icvReleaseTreeCascadeNodes( &(cur_split->multiple_clusters) );
+                        cur_split->multiple_clusters = NULL;
+                    }
+                }
+            } while( cur_split );
+
+            /* attach new nodes to the tree */
+            leaves = last_node = NULL;
+            last_split = first_split;
+            while( last_split )
+            {
+                cur_node = (last_split->multiple_clusters)
+                    ? last_split->multiple_clusters : last_split->single_cluster;
+                parent = last_split->parent;
+                if( parent ) parent->child = cur_node;
+                
+                /* connect leaves via next_same_level and save them */
+                for( ; cur_node; cur_node = cur_node->next )
+                {
+                    FILE* file;
+
+                    if( last_node ) last_node->next_same_level = cur_node;
+                    else leaves = cur_node;
+                    last_node = cur_node;
+                    cur_node->parent = parent;
+
+                    cur_node->idx = tcc->next_idx;
+                    tcc->next_idx++;
+                    sprintf( suffix, "%d/%s", cur_node->idx, CV_STAGE_CART_FILE_NAME );
+                    file = NULL;
+                    if( icvMkDir( stage_name ) && (file = fopen( stage_name, "w" ) ) )
+                    {
+                        cur_node->stage->save( (CvIntHaarClassifier*) cur_node->stage, file );
+                        fprintf( file, "\n%d\n%d\n",
+                            ((parent) ? parent->idx : -1),
+                            ((cur_node->next) ? tcc->next_idx : -1) );
+                    }
+                    else
+                    {
+                        printf( "Failed to save classifier into %s\n", stage_name );
+                    }
+                    if( file ) fclose( file );
+                }
+
+                if( parent ) sprintf( buf, "%d", parent->idx );
+                else sprintf( buf, "NULL" );
+	            printf( "\nParent node: %s\n", buf );
+                printf( "Chosen number of splits: %d\n\n", (last_split->multiple_clusters)
+                    ? (last_split->num_clusters - 1) : 0 );
+                
+                cur_split = last_split;
+                last_split = last_split->next;
+                cvFree( (void**) &cur_split );
+            } /* for each split point */
+
+            printf( "Total number of splits: %d\n", total_splits );
+            
+            if( !(tcc->root) ) tcc->root = leaves;
+            CV_CALL( icvPrintTreeCascade( tcc->root ) );
+
+        } while( leaves );
+
+    } /* if( nstages > 0 )
+
+    /* check cascade performance */
+    printf( "\nCascade performance\n" );
+
+    tcc->eval = icvEvalTreeCascadeClassifier;
+
+    /* load samples */
+    consumed = 0;
+    poscount = icvGetHaarTrainingDataFromVec( training_data, 0, npos,
+        (CvIntHaarClassifier*) tcc, vecfilename, &consumed );
+
+    printf( "POS: %d %d %f\n", poscount, consumed,
+        (consumed > 0) ? (((float) poscount)/consumed) : 0 );
+
+    if( poscount <= 0 )
+        fprintf( stderr, "Warning: unable to obtain positive samples\n" );
+
+    proctime = -TIME( 0 );
+
+    negcount = icvGetHaarTrainingDataFromBG( training_data, poscount, nneg,
+        (CvIntHaarClassifier*) tcc, &consumed );
+
+    printf( "NEG: %d %d %f\n", negcount, consumed, 
+        (consumed > 0) ? (((float) negcount)/consumed) : 0 );
+    printf( "BACKGROUND PROCESSING TIME: %.2f\n", (proctime + TIME( 0 )) );
+
+    if( negcount <= 0 )
+        fprintf( stderr, "Warning: unable to obtain negative samples\n" );
+
+    __END__;
+
+    icvDestroyBackgroundReaders();
+
+    if( tcc ) tcc->release( (CvIntHaarClassifier**) &tcc );
+    icvReleaseIntHaarFeatures( &haar_features );
+    icvReleaseHaarTrainingData( &training_data );
+    cvReleaseMat( &cluster_idx );
+    cvReleaseMat( &idx );
+    cvReleaseMat( &vals );
+    cvReleaseMat( &features_idx );
 }
 
 /* End of file. */

@@ -1,0 +1,14 @@
+usr/include/opencv/cv.*
+usr/include/opencv/cx*.*
+usr/include/opencv/cvcompat.*
+usr/include/opencv/cverror.*
+usr/include/opencv/cvmat.*
+usr/include/opencv/cvtypes.*
+usr/lib/libcv0*.a
+usr/lib/libcv0*.la
+usr/lib/libcv0*.so
+usr/lib/libcxcore*.a
+usr/lib/libcxcore*.la
+usr/lib/libcxcore*.so
+usr/lib/pkgconfig
+usr/bin

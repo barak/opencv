@@ -1,10 +1,7 @@
-EXTRA_DIST =
+EXTRA_DIST = cvstreams.h
+
 # The directory where the include files will be installed
-libopencvincludedir = $(includedir)/opencv
+libcvincludedir = $(includedir)/opencv
 
 # Which header files to install
-libopencvinclude_HEADERS = cv.h cvcompat.h cverror.h cvtypes.h cv.hpp
-
-
-
-
+libcvinclude_HEADERS = cv.h cvcompat.h cvtypes.h cv.hpp

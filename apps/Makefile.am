@@ -1,2 +1,1 @@
-SUBDIRS = cvlkdemo cvcsdemo vmdemotk HaarFaceDetect haartraining
-
+SUBDIRS = haartraining

@@ -40,6 +40,7 @@
 //M*/
 #include "_cv.h"
 #include <float.h>
+#include <stdio.h>
 
 static void
 intersect( CvPoint2D32f pt, CvSize win_size, CvSize img_size,
@@ -64,7 +65,7 @@ intersect( CvPoint2D32f pt, CvSize win_size, CvSize img_size,
 
 
 static CvStatus
-icvInitPyramidalAlgorithm( uchar * imgA, uchar * imgB,
+icvInitPyramidalAlgorithm( const uchar * imgA, const uchar * imgB,
                            int imgStep, CvSize imgSize,
                            uchar * pyrA, uchar * pyrB,
                            int level,
@@ -105,7 +106,7 @@ icvInitPyramidalAlgorithm( uchar * imgA, uchar * imgB,
         criteria->epsilon = 0.f;
         break;
     case CV_TERMCRIT_EPS:
-        criteria->maxIter = max_iters;
+        criteria->max_iter = max_iters;
         break;
     case CV_TERMCRIT_ITER | CV_TERMCRIT_EPS:
         break;
@@ -129,7 +130,7 @@ icvInitPyramidalAlgorithm( uchar * imgA, uchar * imgB,
         levelSize.width = (levelSize.width + 1) >> 1;
         levelSize.height = (levelSize.height + 1) >> 1;
 
-        int tstep = icvAlign(levelSize.width,ALIGN) * sizeof( imgA[0] );
+        int tstep = cvAlign(levelSize.width,ALIGN) * sizeof( imgA[0] );
         pyrBytes += tstep * levelSize.height;
     }
 
@@ -140,7 +141,7 @@ icvInitPyramidalAlgorithm( uchar * imgA, uchar * imgB,
         (sizeof( imgI[0][0] ) * 2 + sizeof( step[0][0] ) +
          sizeof(size[0][0]) + sizeof( scale[0][0] )) * level1;
 
-    *buffer = (uchar *) icvAlloc( bufferBytes );
+    *buffer = (uchar *)cvAlloc( bufferBytes );
     if( !buffer[0] )
         return CV_OUTOFMEM_ERR;
 
@@ -150,8 +151,8 @@ icvInitPyramidalAlgorithm( uchar * imgA, uchar * imgB,
     *scale = (double *) (*step + level1);
     *size = (CvSize *)(*scale + level1);
 
-    imgI[0][0] = imgA;
-    imgJ[0][0] = imgB;
+    imgI[0][0] = (uchar*)imgA;
+    imgJ[0][0] = (uchar*)imgB;
     step[0][0] = imgStep;
     scale[0][0] = 1;
     size[0][0] = imgSize;
@@ -173,7 +174,7 @@ icvInitPyramidalAlgorithm( uchar * imgA, uchar * imgB,
             ptrB = bufPtr;
 
         icvPyrDownGetBufSize_Gauss5x5( imgSize.width, cv8u, 1, &pyr_down_buffer_size );
-        pyr_down_temp_buffer = (uchar *) icvAlloc( pyr_down_buffer_size );
+        pyr_down_temp_buffer = (uchar *) cvAlloc( pyr_down_buffer_size );
         
         levelSize = imgSize;
 
@@ -187,7 +188,7 @@ icvInitPyramidalAlgorithm( uchar * imgA, uchar * imgB,
             levelSize.height = (levelSize.height + 1) >> 1;
 
             size[0][i] = levelSize;
-            step[0][i] = icvAlign( levelSize.width, ALIGN ) * sizeof( imgA[0] );
+            step[0][i] = cvAlign( levelSize.width, ALIGN ) * sizeof( imgA[0] );
             scale[0][i] = scale[0][i - 1] * 0.5;
 
             levelBytes = step[0][i] * levelSize.height;
@@ -225,7 +226,7 @@ icvInitPyramidalAlgorithm( uchar * imgA, uchar * imgB,
     }
 
   func_exit:
-    icvFree( &pyr_down_temp_buffer );
+    cvFree( (void**)&pyr_down_temp_buffer );
 
     return CV_OK;
 }
@@ -293,13 +294,13 @@ icvInitPyramidalAlgorithm( uchar * imgA, uchar * imgB,
 //    Notes:  For calculating spatial derivatives 3x3 Sobel operator is used.
 //            The values of pixels beyond the image are determined using replication mode.
 //F*/
-static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
-                                                 uchar * imgB,
+static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( const uchar * imgA,
+                                                 const uchar * imgB,
                                                  int imgStep,
                                                  CvSize imgSize,
                                                  uchar * pyrA,
                                                  uchar * pyrB,
-                                                 CvPoint2D32f * featuresA,
+                                                 const CvPoint2D32f * featuresA,
                                                  CvPoint2D32f * featuresB,
                                                  int count,
                                                  CvSize winSize,
@@ -364,7 +365,7 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
     /* buffer_size = <size for patches> + <size for pyramids> */
     bufferBytes = (srcPatchLen + patchLen * 3) * sizeof( patchI[0] );
 
-    buffer = (uchar *) icvAlloc( bufferBytes );
+    buffer = (uchar *) cvAlloc( bufferBytes );
     if( !buffer )
     {
         result = CV_OUTOFMEM_ERR;
@@ -401,8 +402,9 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
         {
             CvPoint2D32f u;
             CvSize levelSize = size[l];
-            double Gxx0 = 0, Gxy0 = 0, Gyy0 = 0;
-            int Gready = 0;
+            CvPoint prev_minJ = { -1, -1 }, prev_maxJ = { -1, -1 };
+            double Gxx = 0, Gxy = 0, Gyy = 0, D = 0;
+            float prev_mx = 0, prev_my = 0;
 
             v.x += v.x;
             v.y += v.y;
@@ -411,7 +413,7 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
             u.y = (float) (featuresA[i].y * scale[l]);
 
             if( icvGetRectSubPix_8u32f_C1R( imgI[l], step[l], levelSize,
-                                            patchI, srcPatchStep, srcPatchSize, u ) < 0 )
+                            patchI, srcPatchStep, srcPatchSize, u ) < 0 )
             {
                 /* point is outside the image. take the next */
                 pt_status = 0;
@@ -433,12 +435,10 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
 
             intersect( u, winSize, levelSize, &minI, &maxI );
 
-            for( j = 0; j < criteria.maxIter; j++ )
+            for( j = 0; j < criteria.max_iter; j++ )
             {
                 double bx = 0, by = 0;
                 float mx, my;
-                double D;
-                double Gxx, Gxy, Gyy;
 
                 if( icvGetRectSubPix_8u32f_C1R( imgJ[l], step[l], levelSize,
                                                 patchJ, patchStep, patchSize, v ) < 0 )
@@ -456,9 +456,10 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
                 maxJ.x = MIN( maxJ.x, maxI.x );
                 maxJ.y = MIN( maxJ.y, maxI.y );
 
-                if( Gready &&
-                    maxJ.x - minJ.x == patchSize.width &&
-                    maxJ.y - minJ.y == patchSize.height )
+                if( maxJ.x == prev_maxJ.x &&
+                    maxJ.y == prev_maxJ.y &&
+                    minJ.x == prev_minJ.x &&
+                    minJ.y == prev_minJ.y )
                 {
                     for( y = minJ.y; y < maxJ.y; y++ )
                     {
@@ -471,7 +472,6 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
                             by += (double) (t * Iy[idx]);
                         }
                     }
-                    Gxx = Gxx0; Gyy = Gyy0; Gxy = Gxy0;
                 }
                 else
                 {
@@ -492,23 +492,17 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
                         }
                     }
 
-                    if( !Gready &&
-                        maxJ.x - minJ.x == patchSize.width &&
-                        maxJ.y - minJ.y == patchSize.height )
+                    D = Gxx * Gyy - Gxy * Gxy;
+                    if( D < DBL_EPSILON )
                     {
-                        Gxx0 = Gxx; Gyy0 = Gyy; Gxy0 = Gxy;
-                        Gready = 1;
+                        pt_status = 0;
+                        break;
                     }
-                }
+                    D = 1. / D;
 
-                D = Gxx * Gyy - Gxy * Gxy;
-                if( D < DBL_EPSILON )
-                {
-                    pt_status = 0;
-                    break;
+                    prev_minJ = minJ;
+                    prev_maxJ = maxJ;
                 }
-
-                D = 1. / D;
 
                 mx = (float) ((Gyy * bx - Gxy * by) * D);
                 my = (float) ((Gxx * by - Gxy * bx) * D);
@@ -518,6 +512,15 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
 
                 if( mx * mx + my * my < criteria.epsilon )
                     break;
+
+                if( j > 0 && fabs(mx + prev_mx) < 0.01 && fabs(my + prev_my) < 0.01 )
+                {
+                    v.x -= mx*0.5f;
+                    v.y -= my*0.5f;
+                    break;
+                }
+                prev_mx = mx;
+                prev_my = my;
             }
 
             if( pt_status == 0 )
@@ -553,14 +556,14 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( uchar * imgA,
 
   func_exit:
 
-    icvFree( &pyr_buffer );
-    icvFree( &buffer );
+    cvFree( (void**)&pyr_buffer );
+    cvFree( (void**)&buffer );
 
     return result;
 #undef MAX_LEVEL
 }
 
-
+#if 0
 /* Affine tracking algorithm */
 static  CvStatus  icvCalcAffineFlowPyrLK_8uC1R( uchar * imgA, uchar * imgB,
                                                 int imgStep, CvSize imgSize,
@@ -630,7 +633,7 @@ static  CvStatus  icvCalcAffineFlowPyrLK_8uC1R( uchar * imgA, uchar * imgB,
 
         (36 * 2 + 6) * sizeof( double );
 
-    buffer = (uchar *) icvAlloc( bufferBytes );
+    buffer = (uchar *) cvAlloc( bufferBytes );
     if( !buffer )
     {
         result = CV_OUTOFMEM_ERR;
@@ -784,7 +787,7 @@ static  CvStatus  icvCalcAffineFlowPyrLK_8uC1R( uchar * imgA, uchar * imgB,
             }
             else
             {
-                for( j = 0; j < criteria.maxIter; j++ )
+                for( j = 0; j < criteria.max_iter; j++ )
                 {
                     double b[6], eta[6];
                     double t0, t1, s = 0;
@@ -889,24 +892,24 @@ static  CvStatus  icvCalcAffineFlowPyrLK_8uC1R( uchar * imgA, uchar * imgB,
 
   func_exit:
 
-    icvFree( &pyr_buffer );
-    icvFree( &buffer );
+    cvFree( (void**)&pyr_buffer );
+    cvFree( (void**)&buffer );
 
     return result;
 #undef MAX_LEVEL
 }
-
+#endif
 
 static int icvMinimalPyramidSize( CvSize img_size )
 {
-    return icvAlign(img_size.width,8) * img_size.height / 3;
+    return cvAlign(img_size.width,8) * img_size.height / 3;
 }
 
 
 CV_IMPL void
 cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
                         void* pyrarrA, void* pyrarrB,
-                        CvPoint2D32f * featuresA,
+                        const CvPoint2D32f * featuresA,
                         CvPoint2D32f * featuresB,
                         int count, CvSize winSize, int level,
                         char *status, float *error,
@@ -937,7 +940,7 @@ cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
     if( imgA->step != imgB->step )
         CV_ERROR( CV_StsUnmatchedSizes, "imgA and imgB must have equal steps" );
 
-    img_size = icvGetMatSize( imgA );
+    img_size = cvGetMatSize( imgA );
 
     if( pyrA )
     {
@@ -975,7 +978,7 @@ cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
     __END__;
 }
 
-
+#if 0
 CV_IMPL void
 cvCalcAffineFlowPyrLK( const void* arrA, const void* arrB,
                        void* pyrarrA, void* pyrarrB,
@@ -1014,7 +1017,7 @@ cvCalcAffineFlowPyrLK( const void* arrA, const void* arrB,
     if( !matrices )
         CV_ERROR( CV_StsNullPtr, "" );
 
-    img_size = icvGetMatSize( imgA );
+    img_size = cvGetMatSize( imgA );
 
     if( pyrA )
     {
@@ -1051,7 +1054,7 @@ cvCalcAffineFlowPyrLK( const void* arrA, const void* arrB,
 
     __END__;
 }
-
+#endif
 
 
 /* End of file. */

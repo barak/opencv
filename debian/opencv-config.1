@@ -23,17 +23,17 @@ that uses OpenCV.
 .TP
 .B --libs [<extensions>]
 Print the linker flags that are necessary to link a program that uses
-libopencv. Optionally, add linker flags for the libhighgui, libcvcam and/or
+libcv. Optionally, add linker flags for the libhighgui, libcvcam and/or
 libcvaux OpenCV extensions by appending highgui, cvcam and/or cvaux.
 .TP
 .BI --prefix= DIR
-If specified, use PREFIX instead of the installation prefix that libopencv
+If specified, use PREFIX instead of the installation prefix that libcv
 was built with when computing the output for the --cflags, --cxxflags and
 --libs options. This option must be specified before any of the --cflags,
 --cxxflags and --libs options.
 .TP
 .B --version
-Prints the currently installed version of libopencv on standard output.
+Prints the currently installed version of libcv on standard output.
 .SH EXAMPLES
 .TP
 gcc -o main.o $(opencv-config --cflags) -c main.c
@@ -48,4 +48,4 @@ to link compiled objects into an executable program.
 .SH AUTHOR
 This manual page was written for sdl-config by Branden Robinson, originally
 for Progeny Linux Systems, Inc., and the Debian Project. It was adapted to
-libopencv by Sam Hocevar.
+libcv by Sam Hocevar.

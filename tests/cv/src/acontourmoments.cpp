@@ -40,6 +40,7 @@
 //M*/
 
 #include "cvtest.h"
+#include <stdint.h>
 
 static char *cTestName[] = 
 {
@@ -68,7 +69,7 @@ static int aContourMoments(void *arg)
 /*    CvPoint cp[] ={0,0, 5,5, 5,0, 0,5};*/
 /*    CvPoint cp[] ={5,0, 10,5, 5,10, 0,5};*/
 /*	CvPoint cp[] ={0,0, 5,5, 5,0, 10,5, 10,0, 15,5, 15,0};*/
-    int algr = (int) arg;
+    int algr = (int)(intptr_t) arg;
     int width = 128;
     int height = 128;
     int kp = 5;
@@ -152,7 +153,7 @@ static int aContourMoments(void *arg)
     memset(Iplimage->imageData,bkcolor,l);
 //    CVL_CHECK(ippiFillPoly8uC1R((uchar*)Iplimage->imageData, Iplimage->widthStep, size, cp, kp, color1));
 
-    cvFillPoly(Iplimage, &cp, &kp, 1, color1);
+    cvFillPoly(Iplimage, &cp, &kp, 1, cvScalar(color1));
 
     for(i=0;i<kp;i++)
     {
@@ -160,7 +161,7 @@ static int aContourMoments(void *arg)
          else i1 = 0;
 //         CVL_CHECK(ippiLine8uC1R((uchar*)Iplimage->imageData, Iplimage->widthStep, size, cp[i], cp[i1],
 //                                 color2));
-         cvLine(Iplimage, cp[i], cp[i1], color2);
+         cvLine(Iplimage, cp[i], cp[i1], cvScalar(color2));
     }
     cvMoments(Iplimage, &mState);
 

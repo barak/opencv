@@ -47,16 +47,13 @@
 
 #include <stdio.h>
 
-#define icvCvt_32f_64d  icvCvt_32f64f
-#define icvCvt_64d_32f  icvCvt_64f32f
-
-CvStatus icvFindHomography( int numPoints,
+static CvStatus icvFindHomography( int numPoints,
                             CvSize imageSize,
                             CvPoint2D64d * imagePoints,
 
                             CvPoint2D64d * objectPoints, CvMatr64d Homography );
 
-CvStatus icvInitIntrinsicParams( int numImages,
+static CvStatus icvInitIntrinsicParams( int numImages,
                                  int *numPoints,
                                  CvSize imageSize,
                                  CvPoint2D64d * imagePoints,
@@ -66,19 +63,62 @@ CvStatus icvInitIntrinsicParams( int numImages,
 
                                  CvVect64d distortion, CvMatr64d cameraMatrix );
 
-CvStatus icvNormalizeImagePoints( int numPoints,
+static CvStatus icvNormalizeImagePoints( int numPoints,
                                   CvPoint2D64d * ImagePoints,
                                   CvVect64d focalLength,
                                   CvPoint2D64d principalPoint,
                                   CvVect64d distortion, CvPoint3D64d * resImagePoints );
 
-CvStatus icvRigidMotionTransform( int numPoints,
+static CvStatus icvRigidMotionTransform( int numPoints,
                                   CvPoint3D64d * objectPoints,
                                   CvVect64d rotVect, CvVect64d transVect,
                                   CvPoint3D64d * rigidMotionTrans,/* Output points */
                                   CvMatr64d derivMotionRot, CvMatr64d derivMotionTrans );
 
-CvStatus icvSVDSym_64d( CvMatr64d LtL, CvVect64d resV, int num );
+static CvStatus icvSVDSym_64d( CvMatr64d LtL, CvVect64d resV, int num );
+
+static CvStatus CV_STDCALL icvRodrigues_64d( CvMatr64d rotMatr, CvVect64d rotVect,
+                                      CvMatr64d Jacobian, int convType );
+
+static CvStatus CV_STDCALL icvRodrigues( CvMatr32f rotMatr, CvVect32f rotVect,
+                                  CvMatr32f Jacobian, int convType );
+
+
+static CvStatus CV_STDCALL
+icvComplexMult_64d( CvMatr64d srcMatr, CvMatr64d dstMatr, int width, int height )
+{
+    CvMat src = cvMat( height, width, CV_64FC1, srcMatr );
+    CvMat dst = cvMat( width, height, CV_64FC1, dstMatr );
+
+    CvMat* at = cvCreateMat( width, height, CV_64FC1 );
+    CvMat* ata = cvCreateMat( width, width, CV_64FC1 );
+    CvMat* inv_ata = cvCreateMat( width, width, CV_64FC1 );
+
+    cvMulTransposed( &src, ata, 1 );
+    cvInvert( ata, inv_ata, CV_SVD );
+
+#if 0
+    {
+        CvMat* t = cvCreateMat( width, width, CV_64FC1 );
+        CvMat* eye = cvCreateMat( width, width, CV_64FC1 );
+        cvSetIdentity( eye );
+        cvMatMul( ata, inv_ata, t );
+        double norm = cvNorm( eye, t, CV_L1 );
+        cvReleaseMat( &t );
+        cvReleaseMat( &eye );
+    }
+#endif
+
+    cvT( &src, at );
+    cvMatMul( inv_ata, at, &dst );
+
+    cvReleaseMat( &at );
+    cvReleaseMat( &ata );
+    cvReleaseMat( &inv_ata );
+
+    return CV_OK;
+}
+
 
 /****************************************************************************************/
 /*F//////////////////////////////////////////////////////////////////////////////////////
@@ -605,12 +645,45 @@ icvInitIntrinsicParams( int numImages,
 
 /*======================================================================================*/
 
-IPCVAPI_IMPL( CvStatus, icvRodrigues_64d, (CvMatr64d rotMatr,
-                                           CvVect64d rotVect,
-                                           CvMatr64d Jacobian, CvRodriguesType convType) )
+CvStatus CV_STDCALL icvRodrigues( CvMatr32f rotMatr32f, CvVect32f rotVect32f,
+                                  CvMatr32f Jacobian32f, int convType )
 {
 
+    double rotMatr64d[3 * 3];
+    double rotVect64d[3];
+    double Jacobian64d[3 * 9];
+    CvStatus status;
 
+    if( convType == CV_RODRIGUES_V2M )
+    {
+        icvCvt_32f_64d( rotVect32f, rotVect64d, 3 );
+    }
+    else
+    {
+        icvCvt_32f_64d( rotMatr32f, rotMatr64d, 3 * 3 );
+    }
+
+    status = icvRodrigues_64d( rotMatr64d, rotVect64d, Jacobian32f ? Jacobian64d : 0, convType );
+
+    if( convType == CV_RODRIGUES_V2M )
+    {
+        icvCvt_64d_32f( rotMatr64d, rotMatr32f, 3 * 3 );
+    }
+    else
+    {
+        icvCvt_64d_32f( rotVect64d, rotVect32f, 3 );
+    }
+
+    if( Jacobian32f )
+        icvCvt_64d_32f( Jacobian64d, Jacobian32f, 3 * 9 );
+
+    return status;
+
+}
+
+CvStatus CV_STDCALL icvRodrigues_64d( CvMatr64d rotMatr, CvVect64d rotVect,
+                                      CvMatr64d Jacobian, int convType )
+{
     double      eps = DBL_EPSILON;
     double      bigeps = 10e+20*eps;
     int         t;
@@ -883,8 +956,7 @@ IPCVAPI_IMPL( CvStatus, icvRodrigues_64d, (CvMatr64d rotMatr,
 
                         icvScaleVector_64d(dtrdR, dthetadR, 9, dthetadtr);
                         
-
-                        dvar1dtheta[0] = (double)(-vth*cos(theta)/sin(theta));
+                        dvar1dtheta[0] = (double)(-vth/tan(theta));
                         dvar1dtheta[1] = 1;
 
                         icvSetZero_64d(dvardR,9,5);
@@ -988,6 +1060,72 @@ IPCVAPI_IMPL( CvStatus, icvRodrigues_64d, (CvMatr64d rotMatr,
 
     return CV_NO_ERR;
 }
+
+
+CV_IMPL void
+cvRodrigues( CvMat* mat, CvMat* vec, CvMat* jacobian,
+             int convType )
+{
+    CV_FUNCNAME( "cvRodrigues" );
+
+    __BEGIN__;
+
+    if( !CV_IS_MAT( mat ) || !CV_IS_MAT( vec ))
+        CV_ERROR( CV_StsBadArg, "" );
+
+    if( !CV_ARE_DEPTHS_EQ( mat, vec ))
+        CV_ERROR( CV_StsUnmatchedFormats, "" );
+
+    if( mat->width != 3 || mat->height != 3 )
+        CV_ERROR( CV_StsBadSize, "" );
+
+    if( vec->width*vec->height*CV_MAT_CN(vec->type) != 3 )
+        CV_ERROR( CV_StsBadSize, "" );
+
+    if( !CV_IS_MAT_CONT( mat->type & vec->type ))
+        CV_ERROR( CV_BadStep, "All the input/output arrays must be conitnuous" );
+
+    if( jacobian )
+    {
+        if( !CV_IS_MAT( jacobian ))
+            CV_ERROR( CV_StsBadArg, "" );
+
+        if( !CV_ARE_TYPES_EQ( mat, jacobian ))
+            CV_ERROR( CV_StsUnmatchedFormats, "" );
+
+        if( jacobian->width != 9 || jacobian->height != 3 )
+            CV_ERROR( CV_StsBadSize, "" );
+
+        if( !CV_IS_MAT_CONT( jacobian->type ))
+            CV_ERROR( CV_BadStep, "All the input/output arrays must be conitnuous" );
+    }
+
+    if( CV_MAT_TYPE( mat->type ) == CV_64FC1 )
+    {
+        IPPI_CALL( icvRodrigues_64d( mat->data.db, vec->data.db,
+                                     jacobian ? jacobian->data.db : 0, convType ));
+    }
+    else if( CV_MAT_TYPE( mat->type ) == CV_32FC1 )
+    {
+        IPPI_CALL( icvRodrigues( mat->data.fl, vec->data.fl,
+                                 jacobian ? jacobian->data.fl : 0, convType ));
+    }
+    else
+    {
+        CV_ERROR( CV_StsUnsupportedFormat, "" );
+    }
+
+    CV_CHECK_NANS( mat );
+    CV_CHECK_NANS( vec );
+    
+#ifdef  CV_CHECK_FOR_NANS    
+    if( jacobian )
+        CV_CHECK_NANS( jacobian );
+#endif
+
+    __END__;
+}
+
 
 /*======================================================================================*/
 
@@ -1133,7 +1271,7 @@ icvRigidMotionTransform( int numPoints,
 
 /*======================================================================================*/
 
-CvStatus
+static CvStatus
 icvProjectPoints( int numPoints,
                   CvPoint3D64d * objectPoints,
                   CvVect64d rotVect,
@@ -1528,7 +1666,7 @@ icvProjectPoints( int numPoints,
 #define Sgn(x)  (x<0?-1:(x>0?1:0))
 
 /*======================================================================================*/
-CvStatus
+static CvStatus
 icvFindExtrinsicCameraParams_64d( int numPoints,
                                   CvSize imageSize,
                                   CvPoint2D64d * imagePoints,
@@ -1769,7 +1907,12 @@ icvFindExtrinsicCameraParams_64d( int numPoints,
         tmp3f2[1] = Homography[4];
         tmp3f2[2] = Homography[7];
 
-        icvCrossProduct2L_64d( tmp3f1, tmp3f2, tmp3 );
+        {
+        CvMat mf1 = cvMat( 3, 1, CV_64F, tmp3f1 );
+        CvMat mf2 = cvMat( 3, 1, CV_64F, tmp3f2 );
+        CvMat m3 = cvMat( 3, 1, CV_64F, tmp3 );
+        cvCrossProduct( &mf1, &mf2, &m3 );
+        }
 
         rotMatr[0] = Homography[0];
         rotMatr[3] = Homography[3];
@@ -1909,8 +2052,7 @@ icvFindExtrinsicCameraParams_64d( int numPoints,
         /* Copy matrix elements (reshape) */
         for( i = 0; i < 9; i++ )
         {
-            CvScalar value;
-            value = cvGetAt( matrVm, i, 11 );
+            CvScalar value = cvGetAt( matrVm, i, 11 );
             cvSetAt(matrRR,value,i%3,i/3);
         }
         double det;
@@ -2136,7 +2278,7 @@ icvFindExtrinsicCameraParams_64d( int numPoints,
 }
 
 /*======================================================================================*/
-CvStatus
+static CvStatus
 icvCalibrateCamera_64d( int numImages,
                         int *numPoints,
                         CvSize imageSize,
@@ -2552,44 +2694,6 @@ static CvStatus icvFindExtrinsicCameraParams( int numPoints,
 
 /*======================================================================================*/
 
-IPCVAPI_IMPL( CvStatus, icvRodrigues, (CvMatr32f rotMatr32f,
-                                       CvVect32f rotVect32f,
-                                       CvMatr32f Jacobian32f, CvRodriguesType convType) )
-{
-
-    double rotMatr64d[3 * 3];
-    double rotVect64d[3];
-    double Jacobian64d[3 * 9];
-    CvStatus status;
-
-    if( convType == CV_RODRIGUES_V2M )
-    {
-        icvCvt_32f_64d( rotVect32f, rotVect64d, 3 );
-    }
-    else
-    {
-        icvCvt_32f_64d( rotMatr32f, rotMatr64d, 3 * 3 );
-    }
-
-    status = icvRodrigues_64d( rotMatr64d, rotVect64d, Jacobian32f ? Jacobian64d : 0, convType );
-
-    if( convType == CV_RODRIGUES_V2M )
-    {
-        icvCvt_64d_32f( rotMatr64d, rotMatr32f, 3 * 3 );
-    }
-    else
-    {
-        icvCvt_64d_32f( rotVect64d, rotVect32f, 3 );
-    }
-
-    if( Jacobian32f )
-        icvCvt_64d_32f( Jacobian64d, Jacobian32f, 3 * 9 );
-
-    return status;
-
-}
-
-
 CV_IMPL void
 cvCalibrateCamera( int numImages,
                    int *numPoints,
@@ -2699,7 +2803,8 @@ cvFindExtrinsicCameraParams_64d( int numPoints,
 }
 /*======================================================================================*/
 
-CvStatus icvProjectPointsSimple(  int numPoints,
+static CvStatus
+icvProjectPointsSimple(  int numPoints,
                 CvPoint3D64d * objectPoints,
                 CvVect64d rotMatr,
                 CvVect64d transVect,

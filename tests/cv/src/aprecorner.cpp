@@ -147,7 +147,6 @@ static int fcaPreCorner( void )
 {
     long lErrors = 0;
     IplImage* src8u;
-    IplImage* src8s;
     IplImage* src32f;
     IplImage* tmpsrc;
     IplImage* eigenv32f;
@@ -172,14 +171,12 @@ static int fcaPreCorner( void )
     
     /* Creating images for testing */
     src8u = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_8U, 1);
-    src8s = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_8S, 1);
 	src32f = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
     tmpsrc = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
 	eigenv32f = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
     testdst = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
 
     atsFillRandomImage(src8u,0, 64);
-    atsFillRandomImage(src8s,-32, 32);
 	atsFillRandomImage(src32f,-128, 127);
 
     atsConvert(src8u,tmpsrc);
@@ -187,10 +184,6 @@ static int fcaPreCorner( void )
     cvPreCornerDetect(src8u,testdst,kerSize);
     lErrors += (long)cvNorm(eigenv32f,testdst,CV_C);
 	
-    atsConvert(src8s,tmpsrc);
-    preCorner(tmpsrc,eigenv32f,kerSize);
-    cvPreCornerDetect(src8s,testdst,kerSize);
-    lErrors += (long)cvNorm(eigenv32f,testdst,CV_C);
     preCorner(src32f,eigenv32f,kerSize);
     cvPreCornerDetect(src32f,testdst,kerSize);
 	lErrors += (long)cvNorm(eigenv32f,testdst,CV_C);

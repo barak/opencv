@@ -42,6 +42,7 @@
 #include "cvtest.h"
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include <float.h>
 
@@ -65,7 +66,7 @@ int test_lf(void* arg)
     float reps = 0.0f, aeps = 0.0f;
     float line[6];
     int ret = 1;
-    int type = int(arg);
+    int type = (int)(intptr_t)arg;
 
     /* Initialize the data */
     int i;
@@ -125,8 +126,8 @@ int test_lf(void* arg)
 void InitAFitLine(void)
 {
     /* Registering test functions */
-    trsRegArg(func_names[0], test_desc[0], atsAlgoClass, test_lf, LF_FITLINE2D);
-    trsRegArg(func_names[1], test_desc[0], atsAlgoClass, test_lf, LF_FITLINE3D);
-    trsRegArg(func_names[2], test_desc[0], atsAlgoClass, test_lf, LF_PROJECT);
+    trsRegArg(func_names[0], test_desc[0], atsAlgoClass, test_lf, (intptr_t)LF_FITLINE2D);
+    trsRegArg(func_names[1], test_desc[0], atsAlgoClass, test_lf, (intptr_t)LF_FITLINE3D);
+    trsRegArg(func_names[2], test_desc[0], atsAlgoClass, test_lf, (intptr_t)LF_PROJECT);
 } /* InitAFitLine*/
 

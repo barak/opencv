@@ -92,7 +92,7 @@ static int emd_test( void* arg )
                   w2[] = { 30, 20, 70, 30, 60 };
     matr_info mi;
     float emd;
-    arg;
+    //arg;
 
     mi.x_origin = w1;
     mi.y_origin = w2;

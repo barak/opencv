@@ -42,6 +42,7 @@
 #include "cvtest.h"
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include <float.h>
 
@@ -98,7 +99,7 @@ int test_dt(void* arg)
     float distance;
     int xi, yi, xm = 0, ym = 0;
     int genType;
-    CvDisMaskType maskType = CvDisMaskType(int(arg));
+    CvDisMaskType maskType = CvDisMaskType((int)(intptr_t)arg);
 
     size.width = w;
     size.height = h;
@@ -171,7 +172,7 @@ int test_dt(void* arg)
             euclid = FLT_MAX;
             for(ip = 0; ip < npoints; ip++)
             {
-                distance = (float)sqrt((xi-x[ip])*(xi-x[ip])+(yi-y[ip])*(yi-y[ip]));
+                distance = (float)sqrt((double)(xi-x[ip])*(xi-x[ip])+(yi-y[ip])*(yi-y[ip]));
                 if(distance < euclid)
                 {
                     euclid = distance;

@@ -40,6 +40,7 @@
 //M*/
 
 #include "cvtest.h"
+#include <stdint.h>
 
 static char* funcs[] =
 {
@@ -80,8 +81,8 @@ static int derv_test( void* arg )
     const double success_error_level = 1e-3;
 
     int   param = (int)arg;
-    int   depth = param % 3, dst_depth;
-    int   func = param / 3;
+    int   depth = param % 2, dst_depth;
+    int   func = param / 2;
     int   max_order = func != 2 ? 3 : 2;
 
     int   seed  = atsGetSeed();
@@ -110,7 +111,7 @@ static int derv_test( void* arg )
 
     read_derv_params();
 
-    depth = depth == 0 ? IPL_DEPTH_8U : depth == 1 ? IPL_DEPTH_8S : IPL_DEPTH_32F;
+    depth = depth == 0 ? IPL_DEPTH_8U : IPL_DEPTH_32F;
     dst_depth = depth == IPL_DEPTH_32F ? IPL_DEPTH_32F : IPL_DEPTH_16S;
 
     src_img = atsCreateImage( max_img_size, max_img_size, depth, 1, 0 );
@@ -241,30 +242,24 @@ test_exit:
 
 
 #define LAPLACE_8UC1    0
-#define LAPLACE_8SC1    1
-#define LAPLACE_32FC1   2
+#define LAPLACE_32FC1   1
 
-#define SOBEL_8UC1      3
-#define SOBEL_8SC1      4
-#define SOBEL_32FC1     5
+#define SOBEL_8UC1      2
+#define SOBEL_32FC1     3
 
-#define SCHARR_8UC1     6
-#define SCHARR_8SC1     7
-#define SCHARR_32FC1    8
+#define SCHARR_8UC1     4
+#define SCHARR_32FC1    5
 
 void InitADerv( void )
 {
     /* Registering test functions */
     trsRegArg( funcs[0], test_desc, atsAlgoClass, derv_test, LAPLACE_8UC1 );
-    trsRegArg( funcs[0], test_desc, atsAlgoClass, derv_test, LAPLACE_8SC1 );
     trsRegArg( funcs[0], test_desc, atsAlgoClass, derv_test, LAPLACE_32FC1 );
 
     trsRegArg( funcs[1], test_desc, atsAlgoClass, derv_test, SOBEL_8UC1 );
-    trsRegArg( funcs[1], test_desc, atsAlgoClass, derv_test, SOBEL_8SC1 );
     trsRegArg( funcs[1], test_desc, atsAlgoClass, derv_test, SOBEL_32FC1 );
 
     trsRegArg( funcs[2], test_desc, atsAlgoClass, derv_test, SCHARR_8UC1 );
-    trsRegArg( funcs[2], test_desc, atsAlgoClass, derv_test, SCHARR_8SC1 );
     trsRegArg( funcs[2], test_desc, atsAlgoClass, derv_test, SCHARR_32FC1 );
 
 } /* InitADerv */

@@ -1,9 +1,0 @@
-usr/include/opencv/cv.*
-usr/include/opencv/cvcompat.*
-usr/include/opencv/cverror.*
-usr/include/opencv/cvmat.*
-usr/include/opencv/cvtypes.*
-usr/lib/libopencv*.a
-usr/lib/libopencv*.la
-usr/lib/libopencv*.so
-usr/bin

@@ -40,6 +40,7 @@
 //M*/
 
 #include "cvtest.h"
+#include <stdint.h>
 
 #define DEPTH_8U 0
 
@@ -77,9 +78,6 @@ static int fmaCanny( void* arg )
     if( !read_param )
     {
         read_param = 1;
-        /* Determine which test are needed to run */
-        trsCaseRead( &data_type,"/u/s/a", "u",
-                     "a - all, 8u - unsigned char, 8s - char" );
 
         /* Read test-parameters */
         trsiRead( &lImageWidth, "5", "width of the image" );
@@ -90,7 +88,7 @@ static int fmaCanny( void* arg )
 
     }
 
-    if( (int)arg != data_type && (int)data_type != 2 ) return TRS_UNDEF;
+    if( (int)(intptr_t)arg != data_type && data_type != 2 ) return TRS_UNDEF;
 
     roi.height = lImageHeight;
     roi.width  = lImageWidth;
@@ -108,7 +106,7 @@ static int fmaCanny( void* arg )
     trsWrite( ATS_CON, " %d connected components were found" , Components );
     /* Run CVL function to check it */
 
-    switch ( (int)arg )
+    switch ( (int)(intptr_t)arg )
     {
     case DEPTH_8U:
         {

@@ -1435,7 +1435,7 @@ void  atsGenerateBlobImage( IplImage* img, int min_blob_size, int max_blob_size,
         axes.height = (atsRandPlain32s( rng_state ) %
                       (max_blob_size - min_blob_size) + min_blob_size + 1)/2;
         
-        cvEllipse( img, center, axes, angle, 0, 360, brightness, CV_FILLED ); 
+        cvEllipse( img, center, axes, angle, 0, 360, cvScalar(brightness), CV_FILLED ); 
     }
 }
 
@@ -1563,7 +1563,7 @@ void atsCalcKernel( int   datatype,
 		size = MAX(sizeX,sizeY);
 
 
-		origin;
+		//origin;
 
 		_atsCalcKer(KerX,Xorder,CV_SCHARR,datatype);
 		_atsCalcKer(KerY,Yorder,CV_SCHARR,datatype);
@@ -1573,7 +1573,7 @@ void atsCalcKernel( int   datatype,
 	}
 	else
 	{
-		origin;
+		//origin;
 
 		_atsCalcKer(KerX,Xorder,apertureSize,datatype);
 		_atsCalcKer(KerY,Yorder,apertureSize,datatype);

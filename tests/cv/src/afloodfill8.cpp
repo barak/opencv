@@ -344,7 +344,7 @@ static int fmaFloodFill8( void )
      /* 8U */
             Counter8 = 0;   X1 = X2 = i;    Y1 = Y2 = j;
             /* Run CVL function */
-            cvFloodFill ( I1, seed, 10.0, (double)d1, (double)d2, &Comp, 8 );
+            cvFloodFill ( I1, seed, cvScalar(10.0), cvScalar(d1), cvScalar(d2), &Comp, 8 );
             /* Run test function */
             r = _cvFloodFill8uC1R_slow8 (pI2+mp, step, size, seed, 10, d1, d2 );
             /* Comparison */
@@ -357,7 +357,7 @@ static int fmaFloodFill8( void )
      /* 32F */
             Counter8 = 0;   X1 = X2 = i;    Y1 = Y2 = j;
             /* Run CVL function */
-            cvFloodFill ( I3, seed, 10.0, (double)d1, (double)d2, &Comp, 8 );
+            cvFloodFill ( I3, seed, cvScalar(10.0), cvScalar(d1), cvScalar(d2), &Comp, 8 );
             /* Run test function */
             r = _cvFloodFill32fC1R_slow8 (pI4+mp4, step4, size, seed, 10.0, (float)d1, (float)d2 );
             /* Comparison */
@@ -397,7 +397,7 @@ static int fmaFloodFill8( void )
      /* 8U */
                 Counter8 = 0; X1 = X2 = i;    Y1 = Y2 = j;
                 /* Run CVL function */
-                cvFloodFill ( I1, seed, 255.0, (double)d1, (double)d2, &Comp, 8 );
+                cvFloodFill ( I1, seed, cvScalar(255.0), cvScalar(d1), cvScalar(d2), &Comp, 8 );
                 /* Run test function */
                 r = _cvFloodFill8uC1R_slow8 (pI2+mp, step, size, seed, 255, d1, d2 );
                 /* Comparison */
@@ -410,7 +410,7 @@ static int fmaFloodFill8( void )
      /* 32F */
                 Counter8 = 0; X1 = X2 = i;    Y1 = Y2 = j;
                 /* Run CVL function */
-                cvFloodFill ( I3, seed, 255.0, (double)d1, (double)d2, &Comp, 8 );
+                cvFloodFill ( I3, seed, cvScalar(255.0), cvScalar(d1), cvScalar(d2), &Comp, 8 );
                 /* Run test function */
                 r = _cvFloodFill32fC1R_slow8 (pI4+mp4, step4, size, seed, 255.0, (float)d1, (float)d2 );
                 /* Comparison */

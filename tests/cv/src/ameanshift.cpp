@@ -58,16 +58,11 @@ static float epsilon;
 static int steps;
 
 #define ATS_8U  0
-#define ATS_8S  1
-#define ATS_32F 2
+#define ATS_32F 1
 
 #define EPS_8U      (ATS_8U << 4) | CV_TERMCRIT_EPS
 #define ITER_8U     (ATS_8U << 4) | CV_TERMCRIT_ITER
 #define EPS_ITER_8U (ATS_8U << 4) | CV_TERMCRIT_ITER | CV_TERMCRIT_EPS
-
-#define EPS_8S      (ATS_8S << 4) | CV_TERMCRIT_EPS
-#define ITER_8S     (ATS_8S << 4) | CV_TERMCRIT_ITER
-#define EPS_ITER_8S (ATS_8S << 4) | CV_TERMCRIT_ITER | CV_TERMCRIT_EPS
 
 #define EPS_32F      (ATS_32F << 4) | CV_TERMCRIT_EPS
 #define ITER_32F     (ATS_32F << 4) | CV_TERMCRIT_ITER
@@ -78,8 +73,7 @@ static int foaMeanShiftC1R( void* prm )
     /* Some variables */
     long       lParam  = (long)prm;
     int        Flvr = (lParam >> 4) & 0xf;
-    int        depth = (Flvr == ATS_8U ? IPL_DEPTH_8U : 
-                        Flvr == ATS_8S ? IPL_DEPTH_8S : IPL_DEPTH_32F);
+    int        depth = (Flvr == ATS_8U ? IPL_DEPTH_8U : IPL_DEPTH_32F);
     int        Type = lParam & 0xf;
     int        Errors = 0;
 
@@ -122,7 +116,7 @@ static int foaMeanShiftC1R( void* prm )
 
     criteria.type = Type;
     criteria.epsilon = epsilon;
-    criteria.maxIter = iter;
+    criteria.max_iter = iter;
 
     /* Allocating source arrays; */
     src = cvCreateImage(roi, depth, 1);
@@ -136,18 +130,6 @@ static int foaMeanShiftC1R( void* prm )
         switch( Flvr )
         {
         case ATS_8U:
-            atsbInitEllipse( (uchar*)src->imageData,
-                             roi.width,
-                             roi.height,
-                             src->widthStep,
-                             x,
-                             y,
-                             Length,
-                             Width,
-                             alpha,
-                             10 );
-            break;
-        case ATS_8S:
             atsbInitEllipse( (uchar*)src->imageData,
                              roi.width,
                              roi.height,
@@ -186,7 +168,7 @@ static int foaMeanShiftC1R( void* prm )
         
         /* Checking results */
         /* Checking x-centers */
-        if( fabs( x - (Window.x + Window.width / 2) ) > epsilon )
+        if( abs( x - (Window.x + Window.width / 2) ) > epsilon )
         {
             Errors++;
             trsWrite( ATS_LST,
@@ -196,7 +178,7 @@ static int foaMeanShiftC1R( void* prm )
         }
         /* Checking length */
         /* Checking x-centers */
-        if( fabs( y - (Window.y + Window.height / 2) ) > epsilon )
+        if( abs( y - (Window.y + Window.height / 2) ) > epsilon )
         {
             Errors++;
             trsWrite( ATS_LST,
@@ -218,10 +200,6 @@ void InitAMeanShift()
     trsRegArg( FuncName, TestName, TestClass, foaMeanShiftC1R, EPS_8U );
     trsRegArg( FuncName, TestName, TestClass, foaMeanShiftC1R, ITER_8U );
     trsRegArg( FuncName, TestName, TestClass, foaMeanShiftC1R, EPS_ITER_8U );
-
-    trsRegArg( FuncName, TestName, TestClass, foaMeanShiftC1R, EPS_8S );
-    trsRegArg( FuncName, TestName, TestClass, foaMeanShiftC1R, ITER_8S );
-    trsRegArg( FuncName, TestName, TestClass, foaMeanShiftC1R, EPS_ITER_8S );
 
     trsRegArg( FuncName, TestName, TestClass, foaMeanShiftC1R, EPS_32F );
     trsRegArg( FuncName, TestName, TestClass, foaMeanShiftC1R, ITER_32F );

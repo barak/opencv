@@ -42,6 +42,7 @@
 #include "cvtest.h"
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <assert.h>
 #include <limits.h>
 #include <float.h>
@@ -118,7 +119,7 @@ static int line_smp_test( void* arg )
     const int success_error_level = 0;
     const char* message = "No errors";
 
-    int   param     = (int)arg;
+    int   param     = (int)(intptr_t)arg;
     int   depth     = param/2;
     int   channels  = (param & 1);
 
@@ -214,7 +215,7 @@ static int line_smp_test( void* arg )
             {
                 uchar* buf = src_buf;
 
-                cvLine( img, pt1, pt2, color );
+                cvLine( img, pt1, pt2, cvScalar(color&255,(color>>8)&255,(color>>16)&255,0) );
 
                 for( j = 0; j < count; j++ )
                 {
@@ -271,7 +272,7 @@ static int line_smp_test( void* arg )
                 count *= channels;
                 for( j = 0; j < count; j++ )
                 {
-                    double t = fabs(src_buf[j] - dst_buf[j]);
+                    double t = abs(src_buf[j] - dst_buf[j]);
                     err = MAX( err, t );
                 }
             }
@@ -437,7 +438,7 @@ static int rect_smp_test( void* arg )
     const int min_img_size = 3;
     const double success_error_level_base = 5e-5;
 
-    int   param = (int)arg;
+    int   param = (int)(intptr_t)arg;
     int   channels  = 1;
     int   depth = param/2;
 
@@ -477,10 +478,6 @@ static int rect_smp_test( void* arg )
     case IPL_DEPTH_8U:
         atsRandSetBounds( &rng_state, 0, img8u_range );
         success_error_level *= img8u_range;
-        break;
-    case IPL_DEPTH_8S:
-        atsRandSetBounds( &rng_state, -img8s_range, img8s_range );
-        success_error_level *=img8s_range;
         break;
     case IPL_DEPTH_32F:
         atsRandSetBounds( &rng_state, -img32f_range, img32f_range );

@@ -46,6 +46,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 /* Testing parameters */
 static char test_desc[] = "Snakes regression test";
@@ -83,7 +84,7 @@ static char* file_name[] =
 static int data_type = 0;
 static int fmaSnakes( void* arg )
 {
-    int lParam = (int)arg;
+    int lParam = (int)(intptr_t)arg;
     FILE* file;
     char abs_file_name[_MAX_PATH];
     char rel_path[_MAX_PATH];
@@ -167,7 +168,7 @@ static int fmaSnakes( void* arg )
         fscanf(file, "%d", &num_pos );
 
         /* get number iterations between two positions */
-        fscanf(file, "%d", &criteria.maxIter ); 
+        fscanf(file, "%d", &criteria.max_iter ); 
 
         /* read initial snake position */
         for ( j = 0; j < length; j++ )

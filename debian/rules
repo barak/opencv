@@ -58,13 +58,13 @@ binary-indep: build install
 	dh_testroot
 	dh_installchangelogs -i ChangeLog
 	dh_installdocs -i AUTHORS THANKS TODO debian/README.Debian
-	dh_installexamples -p libopencv-doc samples/c/*.c samples/c/*.png samples/c/*.jpg samples/c/Makefile.debian
-	mv debian/libopencv-doc/usr/share/doc/libopencv-doc/examples/Makefile.debian debian/libopencv-doc/usr/share/doc/libopencv-doc/examples/Makefile
-	dh_install -p libopencv-doc docs/*.rtf usr/share/doc/libopencv-doc
-	dh_install -p libopencv-doc docs/*.pdf usr/share/doc/libopencv-doc
-	dh_install -p libopencv-doc docs/*.htm usr/share/doc/libopencv-doc/html
-	dh_install -p libopencv-doc docs/*.jpg usr/share/doc/libopencv-doc/html
-	dh_install -p libopencv-doc docs/ref usr/share/doc/libopencv-doc/html
+	dh_installexamples -p opencv-doc samples/c/*.c samples/c/*.png samples/c/*.jpg samples/c/Makefile.debian
+	mv debian/opencv-doc/usr/share/doc/opencv-doc/examples/Makefile.debian debian/opencv-doc/usr/share/doc/opencv-doc/examples/Makefile
+	dh_install -p opencv-doc docs/*.rtf usr/share/doc/opencv-doc
+	dh_install -p opencv-doc docs/*.pdf usr/share/doc/opencv-doc
+	dh_install -p opencv-doc docs/*.htm usr/share/doc/opencv-doc/html
+	dh_install -p opencv-doc docs/*.jpg usr/share/doc/opencv-doc/html
+	dh_install -p opencv-doc docs/ref usr/share/doc/opencv-doc/html
 #	dh_install
 #	dh_installmenu
 #	dh_installdebconf	
@@ -78,7 +78,7 @@ binary-indep: build install
 	dh_installman -i
 	dh_link -i
 	dh_strip -i
-	dh_compress -i
+	dh_compress -i -Xexamples
 	dh_fixperms -i
 #	dh_perl
 #	dh_python
@@ -105,7 +105,7 @@ binary-arch: build install
 #	dh_installinit
 #	dh_installcron
 #	dh_installinfo
-	dh_installman -p libopencv-dev debian/opencv-config.1
+	dh_installman -p libcv-dev debian/opencv-config.1
 	dh_link -a
 	dh_strip -a
 	dh_compress -a

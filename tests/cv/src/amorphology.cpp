@@ -42,6 +42,7 @@
 #include "cvtest.h"
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <assert.h>
 #include <limits.h>
 #include <float.h>
@@ -63,7 +64,6 @@ static int mop_l = 0, mop_h = 1,
 static int init_morph_params = 0;
 
 static const int img8u_range = 255;
-static const int img8s_range = 128;
 static const float img32f_range = 1000.f;
 static const int img32f_bits  = 23;
 
@@ -93,7 +93,7 @@ static void read_moprh_params( void )
 
         /* read test params */
         trsiRead( &min_img_size, "1", "Minimal linear size of the image" );
-        trsiRead( &max_img_size, "27", "Maximal linear size of the image" );
+        trsiRead( &max_img_size, "37", "Maximal linear size of the image" );
         trsCaseRead( &img_size_delta_type,"/a/m", "m", "a - add, m - multiply" );
         trsiRead( &img_size_delta, "3", "Image size step(factor)" );
 
@@ -113,7 +113,7 @@ static void read_moprh_params( void )
 
 static int MorphTest( void* arg )
 {
-    int   param    = (int)arg;
+    int   param    = (int)(intptr_t)arg;
     int   mop      = param < 6 ? amoErode : amoDilate;
     int   depth    = (param % 6) >= 3 ? IPL_DEPTH_32F : IPL_DEPTH_8U;
     int   ch_idx   = (param % 3);

@@ -42,6 +42,7 @@
 #include "cvtest.h"
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <assert.h>
 #include <limits.h>
 #include <float.h>
@@ -78,8 +79,8 @@ static void read_haar_params( void )
     }
 }
 
-static void intergate_etalon( IplImage* img, IplImage* sum,
-                              IplImage* sqsum, IplImage* tilted )
+static int intergate_etalon( IplImage* img, IplImage* sum,
+                             IplImage* sqsum, IplImage* tilted )
 {
     int x, y;
     int step = img->widthStep/sizeof(uchar);
@@ -125,15 +126,15 @@ static void intergate_etalon( IplImage* img, IplImage* sum,
             tdata[x] = ts;
         }
     }
+
+    return trsResult( TRS_FAIL, "Failed" );
 }
 
 
 static int haar_test( void )
 {
     const double success_error_level = 0;
-
     int   seed = atsGetSeed();
-    int   code = TRS_OK;
 
     /* position where the maximum error occured */
     int   i, merr_iter = 0;
@@ -236,15 +237,12 @@ test_exit:
     cvReleaseImage( &sqsum1 );
     cvReleaseImage( &sqsum2 );
 
-    if( code == TRS_OK )
-    {
-        trsWrite( ATS_LST, "Max err is %g at iter = %d, seed = %08x",
-                           max_err, merr_iter, seed );
+    trsWrite( ATS_LST, "Max err is %g at iter = %d, seed = %08x",
+                       max_err, merr_iter, seed );
 
-        return max_err <= success_error_level ?
-            trsResult( TRS_OK, "No errors" ) :
-            trsResult( TRS_FAIL, "Bad accuracy" );
-    }
+    return max_err <= success_error_level ?
+        trsResult( TRS_OK, "No errors" ) :
+        trsResult( TRS_FAIL, "Bad accuracy" );
 }
 
 

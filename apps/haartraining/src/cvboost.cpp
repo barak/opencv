@@ -48,8 +48,6 @@
 #include <time.h>
 #include <limits.h>
 
-#include <_cv.h>
-
 #include <_cvcommon.h>
 #include <cvclassifier.h>
 
@@ -57,7 +55,11 @@
 #include <omp.h>
 #endif /* _OPENMP */
 
-#define CV_IMPL CV_EXTERN_C
+#ifdef __cplusplus
+#define CV_BOOST_IMPL extern "C"
+#else
+#define CV_BOOST_IMPL
+#endif
 
 typedef struct CvValArray
 {
@@ -69,13 +71,13 @@ typedef struct CvValArray
     ( *( (float*) (aux->data + ((int) (idx1)) * aux->step ) ) <  \
       *( (float*) (aux->data + ((int) (idx2)) * aux->step ) ) )
 
-CV_IMPLEMENT2_QSORT( icvSortIndexedValArray_16s, short, CMP_VALUES, CvValArray* )
+CV_IMPLEMENT_QSORT_EX( icvSortIndexedValArray_16s, short, CMP_VALUES, CvValArray* )
 
-CV_IMPLEMENT2_QSORT( icvSortIndexedValArray_32s, int,   CMP_VALUES, CvValArray* )
+CV_IMPLEMENT_QSORT_EX( icvSortIndexedValArray_32s, int,   CMP_VALUES, CvValArray* )
 
-CV_IMPLEMENT2_QSORT( icvSortIndexedValArray_32f, float, CMP_VALUES, CvValArray* )
+CV_IMPLEMENT_QSORT_EX( icvSortIndexedValArray_32f, float, CMP_VALUES, CvValArray* )
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvGetSortedIndices( CvMat* val, CvMat* idx, int sortcols )
 {
     int idxtype = 0;
@@ -158,14 +160,14 @@ void cvGetSortedIndices( CvMat* val, CvMat* idx, int sortcols )
     }
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvReleaseStumpClassifier( CvClassifier** classifier )
 {
     cvFree( (void**) classifier );
     *classifier = 0;
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 float cvEvalStumpClassifier( CvClassifier* classifier, CvMat* sample )
 {
     assert( classifier != NULL );
@@ -187,7 +189,7 @@ float cvEvalStumpClassifier( CvClassifier* classifier, CvMat* sample )
 }
 
 #define ICV_DEF_FIND_STUMP_THRESHOLD( suffix, type, error )                              \
-CV_IMPL int icvFindStumpThreshold_##suffix(                                              \
+CV_BOOST_IMPL int icvFindStumpThreshold_##suffix(                                              \
         uchar* data, size_t datastep,                                                    \
         uchar* wdata, size_t wstep,                                                      \
         uchar* ydata, size_t ystep,                                                      \
@@ -405,7 +407,7 @@ CvFindThresholdFunc findStumpThreshold_32f[4] = {
         icvFindStumpThreshold_sq_32f
     };
 
-CV_IMPL
+CV_BOOST_IMPL
 CvClassifier* cvCreateStumpClassifier( CvMat* trainData,
                       int flags,
                       CvMat* trainClasses,
@@ -578,7 +580,7 @@ CvClassifier* cvCreateStumpClassifier( CvMat* trainData,
  * Multithreaded stump classifier constructor
  * Includes huge train data support through callback function
  */
-CV_IMPL
+CV_BOOST_IMPL
 CvClassifier* cvCreateMTStumpClassifier( CvMat* trainData,
                       int flags,
                       CvMat* trainClasses,
@@ -735,8 +737,8 @@ CvClassifier* cvCreateMTStumpClassifier( CvMat* trainData,
 
         if( sorteddata != NULL )
         {
-            filter = (char*) cvAlloc( sizeof( char ) * n );
-            memset( (void*) filter, 0, sizeof( char ) * n );
+            filter = (char*) cvAlloc( sizeof( char ) * m );
+            memset( (void*) filter, 0, sizeof( char ) * m );
             for( i = 0; i < l; i++ )
             {
                 filter[(int) *((float*) (idxdata + i * idxstep))] = (char) 1;
@@ -1095,7 +1097,7 @@ CvClassifier* cvCreateMTStumpClassifier( CvMat* trainData,
     return (CvClassifier*) stump;
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 float cvEvalCARTClassifier( CvClassifier* classifier, CvMat* sample )
 {
     CV_FUNCNAME( "cvEvalCARTClassifier" );
@@ -1149,7 +1151,7 @@ float cvEvalCARTClassifier( CvClassifier* classifier, CvMat* sample )
     return ((CvCARTClassifier*) classifier)->val[-idx];
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 float cvEvalCARTClassifierIdx( CvClassifier* classifier, CvMat* sample )
 {
     CV_FUNCNAME( "cvEvalCARTClassifierIdx" );
@@ -1203,7 +1205,7 @@ float cvEvalCARTClassifierIdx( CvClassifier* classifier, CvMat* sample )
     return (float) (-idx);
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvReleaseCARTClassifier( CvClassifier** classifier )
 {
     cvFree( (void**) classifier );
@@ -1318,7 +1320,7 @@ typedef struct CvCARTNode
     float errdrop;
 } CvCARTNode;
 
-CV_IMPL
+CV_BOOST_IMPL
 CvClassifier* cvCreateCARTClassifier( CvMat* trainData,
                      int flags,
                      CvMat* trainClasses,
@@ -1530,7 +1532,7 @@ typedef struct CvBoostTrainer
  * using ANY appropriate weak classifier
  */
 
-CV_IMPL
+CV_BOOST_IMPL
 CvBoostTrainer* icvBoostStartTraining( CvMat* trainClasses,
                                        CvMat* weakTrainVals,
                                        CvMat* weights,
@@ -1608,7 +1610,7 @@ CvBoostTrainer* icvBoostStartTraining( CvMat* trainClasses,
  * Discrete AdaBoost functions
  *
  */
-CV_IMPL
+CV_BOOST_IMPL
 float icvBoostNextWeakClassifierDAB( CvMat* weakEvalVals,
                                      CvMat* trainClasses,
                                      CvMat* weakTrainVals,
@@ -1682,7 +1684,7 @@ float icvBoostNextWeakClassifierDAB( CvMat* weakEvalVals,
  * Real AdaBoost functions
  *
  */
-CV_IMPL
+CV_BOOST_IMPL
 float icvBoostNextWeakClassifierRAB( CvMat* weakEvalVals,
                                      CvMat* trainClasses,
                                      CvMat* weakTrainVals,
@@ -1744,7 +1746,7 @@ float icvBoostNextWeakClassifierRAB( CvMat* weakEvalVals,
 #define CV_LB_PROB_THRESH      0.01F
 #define CV_LB_WEIGHT_THRESHOLD 0.0001F
 
-CV_IMPL
+CV_BOOST_IMPL
 void icvResponsesAndWeightsLB( int num, uchar* wdata, int wstep,
                                uchar* ydata, int ystep,
                                uchar* fdata, int fstep,
@@ -1773,7 +1775,7 @@ void icvResponsesAndWeightsLB( int num, uchar* wdata, int wstep,
     }
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 CvBoostTrainer* icvBoostStartTrainingLB( CvMat* trainClasses,
                                          CvMat* weakTrainVals,
                                          CvMat* weights,
@@ -1855,7 +1857,7 @@ CvBoostTrainer* icvBoostStartTrainingLB( CvMat* trainClasses,
     return ptr;
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 float icvBoostNextWeakClassifierLB( CvMat* weakEvalVals,
                                     CvMat* trainClasses,
                                     CvMat* weakTrainVals,
@@ -1914,7 +1916,7 @@ float icvBoostNextWeakClassifierLB( CvMat* weakEvalVals,
  * Gentle AdaBoost
  *
  */
-CV_IMPL
+CV_BOOST_IMPL
 float icvBoostNextWeakClassifierGAB( CvMat* weakEvalVals,
                                      CvMat* trainClasses,
                                      CvMat* weakTrainVals,
@@ -2000,7 +2002,7 @@ CvBoostNextWeakClassifier nextWeakClassifier[4] = {
  * Dispatchers
  *
  */
-CV_IMPL
+CV_BOOST_IMPL
 CvBoostTrainer* cvBoostStartTraining( CvMat* trainClasses,
                                       CvMat* weakTrainVals,
                                       CvMat* weights,
@@ -2010,14 +2012,14 @@ CvBoostTrainer* cvBoostStartTraining( CvMat* trainClasses,
     return startTraining[type]( trainClasses, weakTrainVals, weights, sampleIdx, type );
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvBoostEndTraining( CvBoostTrainer** trainer )
 {
     cvFree( (void**) trainer );
     *trainer = NULL;
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 float cvBoostNextWeakClassifier( CvMat* weakEvalVals,
                                  CvMat* trainClasses,
                                  CvMat* weakTrainVals,
@@ -2141,10 +2143,10 @@ static CvZeroApproxFunc icvZeroApproxFunc[] =
     icvZeroApproxMed,  /* CV_MREG     */
 };
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvBtNext( CvCARTClassifier** trees, CvBtTrainer* trainer );
 
-CV_IMPL
+CV_BOOST_IMPL
 CvBtTrainer* cvBtStart( CvCARTClassifier** trees,
                         CvMat* trainData,
                         int flags,
@@ -2857,7 +2859,7 @@ static CvBtNextFunc icvBtNextFunc[] =
     icvBtNext_MREG
 };
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvBtNext( CvCARTClassifier** trees, CvBtTrainer* trainer )
 {
 
@@ -2906,7 +2908,7 @@ void cvBtNext( CvCARTClassifier** trees, CvBtTrainer* trainer )
     __END__;
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvBtEnd( CvBtTrainer** trainer )
 {
     CV_FUNCNAME( "cvBtEnd" );
@@ -2939,7 +2941,7 @@ void cvBtEnd( CvBtTrainer** trainer )
 *                         Boosted tree model as a classifier                             *
 \****************************************************************************************/
 
-CV_IMPL
+CV_BOOST_IMPL
 float cvEvalBtClassifier( CvClassifier* classifier, CvMat* sample )
 {
     float val;
@@ -2980,7 +2982,7 @@ float cvEvalBtClassifier( CvClassifier* classifier, CvMat* sample )
     return val;
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 float cvEvalBtClassifier2( CvClassifier* classifier, CvMat* sample )
 {
     float val;
@@ -2996,7 +2998,7 @@ float cvEvalBtClassifier2( CvClassifier* classifier, CvMat* sample )
     return (float) (val >= 0.0F);
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 float cvEvalBtClassifierK( CvClassifier* classifier, CvMat* sample )
 {
     int cls;
@@ -3081,7 +3083,7 @@ static CvEvalBtClassifier icvEvalBtClassifier[] =
     cvEvalBtClassifier
 };
 
-CV_IMPL
+CV_BOOST_IMPL
 int cvSaveBtClassifier( CvClassifier* classifier, const char* filename )
 {
     CV_FUNCNAME( "cvSaveBtClassifier" );
@@ -3145,7 +3147,7 @@ int cvSaveBtClassifier( CvClassifier* classifier, const char* filename )
 }
 
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvReleaseBtClassifier( CvClassifier** ptr )
 {
     CV_FUNCNAME( "cvReleaseBtClassifier" );
@@ -3293,7 +3295,7 @@ CvBtClassifier* icvAllocBtClassifier( CvBoostType type, int flags, int numclasse
     return ptr;
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 CvClassifier* cvCreateBtClassifier( CvMat* trainData,
                                     int flags,
                                     CvMat* trainClasses,
@@ -3382,7 +3384,7 @@ CvClassifier* cvCreateBtClassifier( CvMat* trainData,
     return (CvClassifier*) ptr;
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 CvClassifier* cvCreateBtClassifierFromFile( const char* filename )
 {
     CvBtClassifier* ptr;
@@ -3470,7 +3472,7 @@ CvClassifier* cvCreateBtClassifierFromFile( const char* filename )
 *                                    Utility functions                                   *
 \****************************************************************************************/
 
-CV_IMPL
+CV_BOOST_IMPL
 CvMat* cvTrimWeights( CvMat* weights, CvMat* idx, float factor )
 {
     CvMat* ptr;
@@ -3547,7 +3549,7 @@ CvMat* cvTrimWeights( CvMat* weights, CvMat* idx, float factor )
 }
 
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvReadTrainData( const char* filename, int flags,
                       CvMat** trainData,
                       CvMat** trainClasses )
@@ -3620,7 +3622,7 @@ void cvReadTrainData( const char* filename, int flags,
     
 }
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvWriteTrainData( const char* filename, int flags,
                        CvMat* trainData, CvMat* trainClasses, CvMat* sampleIdx )
 {
@@ -3689,11 +3691,11 @@ void cvWriteTrainData( const char* filename, int flags,
         {
             if( sampleIdx->rows == 1 )
             {
-                sc = cvGetAt( sampleIdx, 0, i );
+                sc = cvGet2D( sampleIdx, 0, i );
             }
             else
             {
-                sc = cvGetAt( sampleIdx, i, 0 );
+                sc = cvGet2D( sampleIdx, i, 0 );
             }
             idx = (int) sc.val[0];
         }
@@ -3747,7 +3749,7 @@ ICV_RAND_SHUFFLE( 32S, int )
 
 ICV_RAND_SHUFFLE( 32F, float )
 
-CV_IMPL
+CV_BOOST_IMPL
 void cvRandShuffle( CvMat* mat )
 {
     CV_FUNCNAME( "cvRandShuffle" );
@@ -3784,3 +3786,5 @@ void cvRandShuffle( CvMat* mat )
 
     __END__;
 }
+
+/* End of file. */

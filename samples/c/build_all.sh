@@ -1,2 +1,6 @@
 #!/bin/sh
-for i in *.c; do g++ `opencv-config --cxxflags` -o `basename $i .c` $i `opencv-config --libs`; done
+for i in *.c; do
+    echo "compiling $i"
+    g++ -ggdb -O0 `pkg-config --cflags opencv` -o `basename $i .c` $i `pkg-config --libs opencv`;
+done
+

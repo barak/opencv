@@ -42,6 +42,7 @@
 #include "cvtest.h"
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <math.h>
 #include <float.h>
 
@@ -67,7 +68,7 @@ int test_ht(void* arg)
     int lineLength = 10, lineGap = 2;
     int w = 100; /* width and height of the rect */
     int h = 100;
-    int type = int(arg);
+    int type = (int)(intptr_t)arg;
     IplImage* image; /* Source and destination images */
     image = cvCreateImage( cvSize(w, h), 8, 1 );
     cvZero(image);
@@ -116,9 +117,9 @@ int test_ht(void* arg)
 void InitAHoughLines(void)
 {
     /* Registering test functions */
-    trsRegArg(func_names[0], test_desc[0], atsAlgoClass, test_ht, HT_STANDARD);
-    trsRegArg(func_names[1], test_desc[0], atsAlgoClass, test_ht, HT_PP);
-    trsRegArg(func_names[2], test_desc[0], atsAlgoClass, test_ht, HT_MD);
+    trsRegArg(func_names[0], test_desc[0], atsAlgoClass, test_ht, (intptr_t)HT_STANDARD);
+    trsRegArg(func_names[1], test_desc[0], atsAlgoClass, test_ht, (intptr_t)HT_PP);
+    trsRegArg(func_names[2], test_desc[0], atsAlgoClass, test_ht, (intptr_t)HT_MD);
 
 } /* InitADistanceTransform*/
 

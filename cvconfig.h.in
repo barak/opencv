@@ -1,15 +1,24 @@
 /* cvconfig.h.in.  Generated from configure.in by autoheader.  */
 
+/* V4L capturing support */
+#undef HAVE_CAMV4L
+
+/* IEEE1394 capturing support */
+#undef HAVE_DC1394
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
-/* FFMpeg codec libs are present */
+/* FFMpeg video codecs library */
 #undef HAVE_FFMPEG
+
+/* GTK+ 2.x toolkit */
+#undef HAVE_GTK
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* IJG JPEG codec library is present */
+/* IJG JPEG codec */
 #undef HAVE_JPEG
 
 /* Define to 1 if you have the `m' library (-lm). */
@@ -21,7 +30,7 @@
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
-/* PNG codec library is present */
+/* PNG codec */
 #undef HAVE_PNG
 
 /* Define to 1 if you have the `png_get_valid' function. */
@@ -51,13 +60,13 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
-/* TIFF codec library is present */
+/* TIFF codec */
 #undef HAVE_TIFF
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* LZ77 compression/decompression library is present (used for PNG) */
+/* LZ77 compression/decompression library (used for PNG) */
 #undef HAVE_ZLIB
 
 /* Name of package */
@@ -83,6 +92,3 @@
 
 /* Version number of package */
 #undef VERSION
-
-/* Define to 1 if the X Window System is missing or not being used. */
-#undef X_DISPLAY_MISSING

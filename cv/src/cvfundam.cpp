@@ -39,7 +39,6 @@
 //
 //M*/
 #include "_cv.h"
-#include "_cvvm.h"
 
 /* Valery Mosyagin */
 
@@ -47,39 +46,35 @@
 /* new version of fundamental matrix functions */
 /*=====================================================================================*/
 
-int icvComputeFundamental7Point(CvMat* points1,CvMat* points2,
+static int icvComputeFundamental7Point(CvMat* points1,CvMat* points2,
                                      CvMat* fundMatr);
 
-int icvComputeFundamental8Point(CvMat* points1,CvMat* points2,
+static int icvComputeFundamental8Point(CvMat* points1,CvMat* points2,
                                      CvMat* fundMatr);
 
 
-int icvComputeFundamentalRANSAC(   CvMat* points1,CvMat* points2,
+static int icvComputeFundamentalRANSAC(   CvMat* points1,CvMat* points2,
                                         CvMat* fundMatr,
                                         double threshold,/* threshold for good point. Distance from epipolar line */
-										double p,/* probability of good result. Usually = 0.99 */
+                                        double p,/* probability of good result. Usually = 0.99 */
                                         CvMat* status);
 
-int icvComputeFundamentalLMedS(   CvMat* points1,CvMat* points2,
+static int icvComputeFundamentalLMedS(   CvMat* points1,CvMat* points2,
                                         CvMat* fundMatr,
                                         double threshold,/* threshold for good point. Distance from epipolar line */
-										double p,/* probability of good result. Usually = 0.99 */
+                                        double p,/* probability of good result. Usually = 0.99 */
                                         CvMat* status);
 
-void icvMakeFundamentalSingular(CvMat* fundMatr);
+static void icvMakeFundamentalSingular(CvMat* fundMatr);
 
-void icvNormalizeFundPoints(	CvMat* points,
-								CvMat* transfMatr);
+static void icvNormalizeFundPoints(    CvMat* points,
+                                CvMat* transfMatr);
 
-int icvSolveCubic(CvMat* coeffs,CvMat* result);
+static void icvMake2DPoints(CvMat* srcPoint,CvMat* dstPoint);
 
-void icvMake2DPoints(CvMat* srcPoint,CvMat* dstPoint);
+static void icvMake3DPoints(const CvMat* srcPoint,CvMat* dstPoint);
 
-void icvMake3DPoints(CvMat* srcPoint,CvMat* dstPoint);
-
-void icvComputeCorrespondEpilines(CvMat* points,int pointImageID,CvMat* fundMatr,CvMat* corrLines);	
-
-int icvCubicV( double a2, double a1, double a0, double *squares );
+static int icvCubicV( double a2, double a1, double a0, double *squares );
 
 /*=====================================================================================*/
 
@@ -107,13 +102,14 @@ int icvCubicV( double a2, double a1, double a0, double *squares );
 //    Returns:
 //      number of found matrixes 
 //F*/
-int cvFindFundamentalMat(   CvMat* points1,
-							CvMat* points2,
-							CvMat* fundMatr,
-							int    method,
-							double param1,
-							double param2,
-                            CvMat* status)
+CV_IMPL int
+cvFindFundamentalMat( CvMat* points1,
+                      CvMat* points2,
+                      CvMat* fundMatr,
+                      int    method,
+                      double param1,
+                      double param2,
+                      CvMat* status )
 {
     int result = -1;
 
@@ -203,20 +199,20 @@ int cvFindFundamentalMat(   CvMat* points1,
     }
 
 
-	switch( method )
-	{
-		case CV_FM_7POINT: result = icvComputeFundamental7Point(wpoints[1], wpoints[0], fundMatr);break;
+    switch( method )
+    {
+        case CV_FM_7POINT: result = icvComputeFundamental7Point(wpoints[1], wpoints[0], fundMatr);break;
 
-		case CV_FM_8POINT: result = icvComputeFundamental8Point(wpoints[1],wpoints[0], fundMatr);break;
+        case CV_FM_8POINT: result = icvComputeFundamental8Point(wpoints[1],wpoints[0], fundMatr);break;
 
-		case CV_FM_LMEDS : result = icvComputeFundamentalLMedS(   wpoints[1],wpoints[0], fundMatr,
+        case CV_FM_LMEDS : result = icvComputeFundamentalLMedS(   wpoints[1],wpoints[0], fundMatr,
                                         param1,param2,status);break;
 
-		case CV_FM_RANSAC: result = icvComputeFundamentalRANSAC(   wpoints[1],wpoints[0], fundMatr,
+        case CV_FM_RANSAC: result = icvComputeFundamentalRANSAC(   wpoints[1],wpoints[0], fundMatr,
                                         param1,param2,status);break;
 
-		//default:return -1/*ERROR*/;
-	}
+        //default:return -1/*ERROR*/;
+    }
 
     __END__;
 
@@ -229,7 +225,7 @@ int cvFindFundamentalMat(   CvMat* points1,
 /*=====================================================================================*/
 
 /* Computes 1 or 3 fundamental matrixes using 7-point algorithm */
-int icvComputeFundamental7Point(CvMat* points1, CvMat* points2, CvMat* fundMatr)
+static int icvComputeFundamental7Point(CvMat* points1, CvMat* points2, CvMat* fundMatr)
 {
 
     CvMat* squares = 0;
@@ -253,8 +249,8 @@ int icvComputeFundamental7Point(CvMat* points1, CvMat* points2, CvMat* fundMatr)
     int numPoint;
     numPoint = points1->cols;
     
-    int type;
-    type = points1->type;
+    /*int type;
+    type = points1->type;*/
     
     if( numPoint != points2->cols )
     {
@@ -336,37 +332,37 @@ int icvComputeFundamental7Point(CvMat* points1, CvMat* points2, CvMat* fundMatr)
 
     cvSVD( &matrU, &matrSS, &matrUU, &matrVV, 0/*CV_SVD_V_T*/ );/* get transposed matrix V */
 
-	double F111,F112,F113;
-	double F121,F122,F123;
-	double F131,F132,F133;
+    double F111,F112,F113;
+    double F121,F122,F123;
+    double F131,F132,F133;
 
-	double F211,F212,F213;
-	double F221,F222,F223;
-	double F231,F232,F233;
+    double F211,F212,F213;
+    double F221,F222,F223;
+    double F231,F232,F233;
 
-	F111=cvmGet(&matrVV,0,7);
+    F111=cvmGet(&matrVV,0,7);
     F112=cvmGet(&matrVV,1,7);
     F113=cvmGet(&matrVV,2,7);
-	F121=cvmGet(&matrVV,3,7);
+    F121=cvmGet(&matrVV,3,7);
     F122=cvmGet(&matrVV,4,7);
     F123=cvmGet(&matrVV,5,7);
-	F131=cvmGet(&matrVV,6,7);
+    F131=cvmGet(&matrVV,6,7);
     F132=cvmGet(&matrVV,7,7);
     F133=cvmGet(&matrVV,8,7);
     
-	F211=cvmGet(&matrVV,0,8);
+    F211=cvmGet(&matrVV,0,8);
     F212=cvmGet(&matrVV,1,8);
     F213=cvmGet(&matrVV,2,8);
-	F221=cvmGet(&matrVV,3,8);
+    F221=cvmGet(&matrVV,3,8);
     F222=cvmGet(&matrVV,4,8);
     F223=cvmGet(&matrVV,5,8);
-	F231=cvmGet(&matrVV,6,8);
+    F231=cvmGet(&matrVV,6,8);
     F232=cvmGet(&matrVV,7,8);
     F233=cvmGet(&matrVV,8,8);
 
     double a,b,c,d;
 
-	a =   F231*F112*F223 + F231*F212*F123 - F231*F212*F223 + F231*F113*F122 -
+    a =   F231*F112*F223 + F231*F212*F123 - F231*F212*F223 + F231*F113*F122 -
           F231*F113*F222 - F231*F213*F122 + F231*F213*F222 - F131*F112*F223 -
           F131*F212*F123 + F131*F212*F223 - F131*F113*F122 + F131*F113*F222 +
           F131*F213*F122 - F131*F213*F222 + F121*F212*F133 - F121*F212*F233 +
@@ -379,7 +375,7 @@ int icvComputeFundamental7Point(CvMat* points1, CvMat* points2, CvMat* fundMatr)
           F211*F123*F232 - F211*F223*F132 + F211*F223*F232 + F111*F122*F133 -
           F111*F122*F233 - F121*F112*F133 + F131*F112*F123 - F231*F112*F123;
     
-	b =   2*F231*F213*F122 - 3*F231*F213*F222 + F231*F112*F123   - 2*F231*F112*F223 -
+    b =   2*F231*F213*F122 - 3*F231*F213*F222 + F231*F112*F123   - 2*F231*F112*F223 -
           2*F231*F212*F123 + 3*F231*F212*F223 - F231*F113*F122   + 2*F231*F113*F222 +
           F131*F212*F123   - 2*F131*F212*F223 - F131*F113*F222   - F131*F213*F122   +
           2*F131*F213*F222 + F121*F113*F232   + F121*F213*F132   - 2*F121*F213*F232 -
@@ -391,14 +387,14 @@ int icvComputeFundamental7Point(CvMat* points1, CvMat* points2, CvMat* fundMatr)
           F111*F123*F232   - F111*F223*F132   + 2*F111*F223*F232 + F111*F122*F233   +
           F111*F222*F133   + F211*F122*F133;
     
-	c =   F231*F112*F223   + F231*F212*F123   - 3*F231*F212*F223 - F231*F113*F222   -
+    c =   F231*F112*F223   + F231*F212*F123   - 3*F231*F212*F223 - F231*F113*F222   -
           F231*F213*F122   + 3*F231*F213*F222 + F131*F212*F223   - F131*F213*F222   +
           F121*F213*F232   - F221*F112*F233   - F221*F212*F133   + 3*F221*F212*F233 +
           F221*F113*F232   + F221*F213*F132   - 3*F221*F213*F232 + F211*F122*F233   +
           F211*F222*F133   - 3*F211*F222*F233 - F211*F123*F232   - F211*F223*F132   +
           3*F211*F223*F232 - F121*F212*F233   + F111*F222*F233   - F111*F223*F232;
     
-	d =   F221*F213*F232 - F211*F223*F232 + F211*F222*F233 - F221*F212*F233 +
+    d =   F221*F213*F232 - F211*F223*F232 + F211*F222*F233 - F221*F212*F233 +
           F231*F212*F223 - F231*F213*F222;
 
     /* find root */
@@ -412,7 +408,7 @@ int icvComputeFundamental7Point(CvMat* points1, CvMat* points2, CvMat* fundMatr)
     cvmSet(&coeffs,0,3,d);
 
     int numCubRoots;
-    numCubRoots = icvSolveCubic(&coeffs,squares);
+    numCubRoots = cvSolveCubic(&coeffs,squares);
 
     /* take real solution */
     /* Need test all roots */
@@ -469,7 +465,7 @@ int icvComputeFundamental7Point(CvMat* points1, CvMat* points2, CvMat* fundMatr)
 
 /*=====================================================================================*/
 
-int icvComputeFundamental8Point(CvMat* points1,CvMat* points2, CvMat* fundMatr)
+static int icvComputeFundamental8Point(CvMat* points1,CvMat* points2, CvMat* fundMatr)
 {
     CvMat* wpoints[2]={0,0};
     CvMat* preFundMatr = 0;
@@ -499,8 +495,8 @@ int icvComputeFundamental8Point(CvMat* points1,CvMat* points2, CvMat* fundMatr)
     int numPoint;
     numPoint = points1->cols;
     
-    int type;
-    type = points1->type;
+    /*int type;
+    type = points1->type;*/
     
     if( numPoint != points2->cols )
     {
@@ -672,10 +668,10 @@ int icvComputeFundamental8Point(CvMat* points1,CvMat* points2, CvMat* fundMatr)
 
 /* Computes fundamental matrix using RANSAC method */
 /*  */
-int icvComputeFundamentalRANSAC(   CvMat* points1,CvMat* points2,
+static int icvComputeFundamentalRANSAC(   CvMat* points1,CvMat* points2,
                                         CvMat* fundMatr,
                                         double threshold,/* Threshold for good points */
-										double p,/* Probability of good result. */
+                                        double p,/* Probability of good result. */
                                         CvMat* status)    
 {
     CvMat* wpoints1 = 0;
@@ -702,8 +698,8 @@ int icvComputeFundamentalRANSAC(   CvMat* points1,CvMat* points2,
     int numPoint;
     numPoint = points1->cols;
     
-    int type;
-    type = points1->type;
+    /*int type;
+    type = points1->type;*/
     
     if( numPoint != points2->cols )
     {
@@ -844,8 +840,8 @@ int icvComputeFundamentalRANSAC(   CvMat* points1,CvMat* points2,
                     {
                         /* Create corresponde lines */
                     
-                        icvComputeCorrespondEpilines(wpoints1,2,&fund7,corrLines2);
-                        icvComputeCorrespondEpilines(wpoints2,1,&fund7,corrLines1);
+                        cvComputeCorrespondEpilines(wpoints1,2,&fund7,corrLines2);
+                        cvComputeCorrespondEpilines(wpoints2,1,&fund7,corrLines1);
                         /* compute distances for points and number of good points */
                         int i;
                         numGoodPoints = 0;
@@ -879,14 +875,15 @@ int icvComputeFundamentalRANSAC(   CvMat* points1,CvMat* points2,
 
                     /* Recompute new number of need steps */
 
-			        /* Adaptive number of samples to count*/
-			        double ep = 1 - (double)numGoodPoints / (double)numPoint;
+                    /* Adaptive number of samples to count*/
+                    double ep = 1 - (double)numGoodPoints / (double)numPoint;
                     if( ep == 1 )
                     {
                         ep = 0.5;//if there is not good points set ration of outliers to 50%
                     }
             
-			        double newNumSamples = log(1-p) / log(1-pow(1-ep,7));
+                    double newNumSamples = log(1-p);
+                    newNumSamples /= log(1-pow(1-ep,7));
 
                     if( newNumSamples < (double)NumSamples )
                     {
@@ -992,7 +989,7 @@ int icvComputeFundamentalRANSAC(   CvMat* points1,CvMat* points2,
 
 /*=====================================================================================*/
 
-void icvCompPointLineDists(CvMat* points,CvMat* lines,CvMat* distances)
+static void icvCompPointLineDists(CvMat* points,CvMat* lines,CvMat* distances)
 {/* Line must be normalized */
     
     int numPoints;
@@ -1025,13 +1022,13 @@ void icvCompPointLineDists(CvMat* points,CvMat* lines,CvMat* distances)
 #define _compVals( v1, v2 )  ((v1) < (v2))
 
 /* Create function to sort vector */
-CV_IMPLEMENT_QSORT( _SortCvMatVect, double, _compVals )
+static CV_IMPLEMENT_QSORT( _SortCvMatVect, double, _compVals )
 
 /*=====================================================================================*/
-int icvComputeFundamentalLMedS(    CvMat* points1,CvMat* points2,
+static int icvComputeFundamentalLMedS(    CvMat* points1,CvMat* points2,
                                     CvMat* fundMatr,
                                     double threshold,/* Threshold for good points */
-									double p,/* Probability of good result. */
+                                    double p,/* Probability of good result. */
                                     CvMat* status)    
 {
     CvMat* wpoints1 = 0;
@@ -1063,8 +1060,8 @@ int icvComputeFundamentalLMedS(    CvMat* points1,CvMat* points2,
     int numPoint;
     numPoint = points1->cols;
     
-    int type;
-    type = points1->type;
+    /*int type;
+    type = points1->type;*/
     
     if( numPoint != points2->cols )
     {
@@ -1128,8 +1125,8 @@ int icvComputeFundamentalLMedS(    CvMat* points1,CvMat* points2,
         int NumSamples = 500;//Maximux number of steps
         int wasCount = 0;  //count of choosing samples
 
-		double goodMean = FLT_MAX;
-		double currMean;
+        double goodMean = FLT_MAX;
+        double currMean;
 
         int numGoodPoints = 0;
 
@@ -1208,26 +1205,26 @@ int icvComputeFundamentalLMedS(    CvMat* points1,CvMat* points2,
 
                 cvGetSubArr(&fundTriple,&fund7,cvRect(0,currFund*3,3,3));
                 {
-				    /* Compute median error for this matrix */
-				    {
-                        icvComputeCorrespondEpilines(wpoints1,2,&fund7,corrLines2);
-                        icvComputeCorrespondEpilines(wpoints2,1,&fund7,corrLines1);
+                    /* Compute median error for this matrix */
+                    {
+                        cvComputeCorrespondEpilines(wpoints1,2,&fund7,corrLines2);
+                        cvComputeCorrespondEpilines(wpoints2,1,&fund7,corrLines1);
 
-					    icvCompPointLineDists(wpoints1,corrLines1,dists1);
-					    icvCompPointLineDists(wpoints2,corrLines2,dists2);
+                        icvCompPointLineDists(wpoints1,corrLines1,dists1);
+                        icvCompPointLineDists(wpoints2,corrLines2,dists2);
 
-					    /* add distances for points (d1*d1+d2*d2) */
-					    cvMul(dists1,dists1,distsSq1);
-					    cvMul(dists2,dists2,distsSq2);
+                        /* add distances for points (d1*d1+d2*d2) */
+                        cvMul(dists1,dists1,distsSq1);
+                        cvMul(dists2,dists2,distsSq2);
 
-					    cvAdd(distsSq1,distsSq2,allDists);
+                        cvAdd(distsSq1,distsSq2,allDists);
 
-					    /* sort distances */
-					    _SortCvMatVect(allDists->data.db,numPoint,0);
+                        /* sort distances */
+                        _SortCvMatVect(allDists->data.db,numPoint,0);
 
-					    /* get median error */
-					    currMean = allDists->data.db[numPoint/2];
-				    }
+                        /* get median error */
+                        currMean = allDists->data.db[numPoint/2];
+                    }
                 }
 
                 if( currMean < goodMean )
@@ -1248,13 +1245,14 @@ int icvComputeFundamentalLMedS(    CvMat* points1,CvMat* points2,
 
 
                     /* Compute adaptive number of steps */
-			        double ep = 1 - (double)numGoodPoints / (double)numPoint;
+                    double ep = 1 - (double)numGoodPoints / (double)numPoint;
                     if( ep == 1 )
                     {
                         ep = 0.5;//if there is not good points set ration of outliers to 50%
                     }
 
-			        double newNumSamples = log(1-p) / log(1-pow(1-ep,7));
+                    double newNumSamples = log(1-p);
+                    newNumSamples /= log(1-pow(1-ep,7));
                     if( newNumSamples < (double)NumSamples )
                     {
                         NumSamples = cvRound(newNumSamples);
@@ -1276,12 +1274,12 @@ int icvComputeFundamentalLMedS(    CvMat* points1,CvMat* points2,
         }
         else
         {/* we have computed fundamental matrix */
-		    {
-                icvComputeCorrespondEpilines(wpoints1,2,&bestFund,corrLines2);
-                icvComputeCorrespondEpilines(wpoints2,1,&bestFund,corrLines1);
+            {
+                cvComputeCorrespondEpilines(wpoints1,2,&bestFund,corrLines2);
+                cvComputeCorrespondEpilines(wpoints2,1,&bestFund,corrLines1);
 
-			    icvCompPointLineDists(wpoints1,corrLines1,dists1);
-			    icvCompPointLineDists(wpoints2,corrLines2,dists2);
+                icvCompPointLineDists(wpoints1,corrLines1,dists1);
+                icvCompPointLineDists(wpoints2,corrLines2,dists2);
 
                 /* test dist for each point and set status for each point if need */
                 int i;
@@ -1311,7 +1309,7 @@ int icvComputeFundamentalLMedS(    CvMat* points1,CvMat* points2,
 
                 }
                 numGoodPoints = currPnt;
-		    }
+            }
 
             /* we have best 7-point fundamental matrix. */
             /* and best points */
@@ -1381,7 +1379,7 @@ int icvComputeFundamentalLMedS(    CvMat* points1,CvMat* points2,
 
 
 
-void icvMakeFundamentalSingular(CvMat* fundMatr)
+static void icvMakeFundamentalSingular(CvMat* fundMatr)
 {
     CV_FUNCNAME( "icvFundSingular" );
     __BEGIN__;
@@ -1439,7 +1437,7 @@ void icvMakeFundamentalSingular(CvMat* fundMatr)
 /* place centroid of points to (0,0) */
 /* set mean distance from (0,0) by sqrt(2) */
 
-void icvNormalizeFundPoints( CvMat* points, CvMat* transfMatr )
+static void icvNormalizeFundPoints( CvMat* points, CvMat* transfMatr )
 {
     CvMat* subwpointsx = 0;
     CvMat* subwpointsy = 0;
@@ -1447,16 +1445,15 @@ void icvNormalizeFundPoints( CvMat* points, CvMat* transfMatr )
     CvMat* pointsxx    = 0;
     CvMat* pointsyy    = 0;
 
-	int numPoint;
-	int type;
-	double shiftx,shifty; 
-	double meand;
-	double scale;
+    int numPoint;
+    double shiftx,shifty; 
+    double meand;
+    double scale;
 
-	CvMat tmpwpointsx;
+    CvMat tmpwpointsx;
     CvMat tmpwpointsy;
 
-	CvScalar sumx;
+    CvScalar sumx;
     CvScalar sumy;
 
     CV_FUNCNAME( "icvNormalizeFundPoints" );
@@ -1470,8 +1467,6 @@ void icvNormalizeFundPoints( CvMat* points, CvMat* transfMatr )
     }
     
     numPoint = points->cols;
-        
-    type = points->type;
     
     if( numPoint < 1 )
     {
@@ -1536,7 +1531,7 @@ void icvNormalizeFundPoints( CvMat* points, CvMat* transfMatr )
     /* in vector sqdists we have distances */
     /* compute mean value and scale */
     
-    meand = cvMean(sqdists);    
+    meand = cvAvg(sqdists).val[0];
     
     if( fabs(meand) > 1e-8  )
     {
@@ -1585,19 +1580,13 @@ void icvNormalizeFundPoints( CvMat* points, CvMat* transfMatr )
     cvReleaseMat(&pointsyy);
 
 }
-/*=====================================================================================*/
-// Solve cubic equation and returns number of roots
-int cvSolveCubic(CvMat* coeffs,CvMat* result)
-{
-    return icvSolveCubic(coeffs, result);
-}
 
 /*=====================================================================================*/
 // Solve cubic equation and returns number of roots
 // Also returns 0 if all values are possible
 // Test for very big coefficients
 // Input params 1x3 or 1x4
-int icvSolveCubic(CvMat* coeffs,CvMat* result)
+CV_IMPL int cvSolveCubic(CvMat* coeffs,CvMat* result)
 {/* solve a*x^3 + b+x^2 + c*x + d = 0 */
     /* coeffs a,b,c,d or b,c,d if a== 1*/
     /* test input params */
@@ -1753,7 +1742,7 @@ void cvMake2DPoints(CvMat* srcPoint,CvMat* dstPoint)
 
   Source and destiantion may be the same and in this case src must be 2D
 */
-void icvMake2DPoints(CvMat* srcPoint,CvMat* dstPoint)
+static void icvMake2DPoints(CvMat* srcPoint,CvMat* dstPoint)
 {
     CvMat* submatx = 0;
     CvMat* submaty = 0;
@@ -1834,7 +1823,7 @@ void icvMake2DPoints(CvMat* srcPoint,CvMat* dstPoint)
 
 void cvMake3DPoints(CvMat* srcPoint,CvMat* dstPoint)
 {
-    icvMake3DPoints(srcPoint,dstPoint);
+    icvMake3DPoints((const CvMat*)srcPoint,dstPoint);
     return;
 }
 
@@ -1852,7 +1841,7 @@ void cvMake3DPoints(CvMat* srcPoint,CvMat* dstPoint)
           
   Source and destiantion may be the same and in this case src must be 2D
 */
-void icvMake3DPoints(CvMat* srcPoint,CvMat* dstPoint)
+static void icvMake3DPoints(const CvMat* srcPoint,CvMat* dstPoint)
 {
     CvMat* tmpSubmatz = 0;
 
@@ -1926,13 +1915,8 @@ void icvMake3DPoints(CvMat* srcPoint,CvMat* dstPoint)
 }
 
 /*=====================================================================================*/
-void cvComputeCorrespondEpilines(CvMat* points,int pointImageID,CvMat* fundMatr,CvMat* corrLines)
-{
-	icvComputeCorrespondEpilines(points, pointImageID, fundMatr, corrLines);
-	return;
-}
-/*=====================================================================================*/
-void icvComputeCorrespondEpilines(CvMat* points,int pointImageID,CvMat* fundMatr,CvMat* corrLines)
+CV_IMPL void
+cvComputeCorrespondEpilines(const CvMat* points,int pointImageID,const CvMat* fundMatr,CvMat* corrLines)
 {
 
     CvMat* wpoints = 0;
@@ -2039,7 +2023,7 @@ void icvComputeCorrespondEpilines(CvMat* points,int pointImageID,CvMat* fundMatr
 #define REAL_ZERO(x) ( (x) < 1e-8 && (x) > -1e-8)
 
 /* function return squares for cubic equation. 6 params - two for each square (Re,Im) */
-int
+static int
 icvCubicV( double a2, double a1, double a0, double *squares )
 {
     double p, q, D, c1, c2, b1, b2, ro1, ro2, fi1, fi2;
@@ -2104,23 +2088,21 @@ icvCubicV( double a2, double a1, double a0, double *squares )
 
     if( !REAL_ZERO( ro1 ))
     {
+        c1 = SIGN( ro1 ) * pow( fabs( ro1 ), 1. / 3 );
+        c1 -= SIGN( ro1 ) * p / 3. * pow( fabs( ro1 ), -1. / 3 );
 
-        c1 = SIGN( ro1 ) * pow( fabs( ro1 ), 1. / 3 ) -
-            SIGN( ro1 ) * p / 3. * pow( fabs( ro1 ), -1. / 3 );
-
-        c2 = SIGN( ro1 ) * pow( fabs( ro1 ), 1. / 3 ) +
-            SIGN( ro1 ) * p / 3. * pow( fabs( ro1 ), -1. / 3 );
+        c2 = SIGN( ro1 ) * pow( fabs( ro1 ), 1. / 3 );
+        c2 += SIGN( ro1 ) * p / 3. * pow( fabs( ro1 ), -1. / 3 );
     }                           /* if */
 
     if( !REAL_ZERO( ro2 ))
     {
+        b1 = SIGN( ro2 ) * pow( fabs( ro2 ), 1. / 3 );
+        b1 -= SIGN( ro2 ) * p / 3. * pow( fabs( ro2 ), -1. / 3 );
 
-        b1 = SIGN( ro2 ) * pow( fabs( ro2 ), 1. / 3 ) -
-            SIGN( ro2 ) * p / 3. * pow( fabs( ro2 ), -1. / 3 );
-
-        b2 = SIGN( ro2 ) * pow( fabs( ro2 ), 1. / 3 ) +
-            SIGN( ro2 ) * p / 3. * pow( fabs( ro2 ), -1. / 3 );
-    }                           /* if */
+        b2 = SIGN( ro2 ) * pow( fabs( ro2 ), 1. / 3 );
+        b2 += SIGN( ro2 ) * p / 3. * pow( fabs( ro2 ), -1. / 3 );
+    }
 
     for( i = 0; i < 6; i++ )
     {
@@ -2187,364 +2169,4 @@ icvCubicV( double a2, double a1, double a0, double *squares )
 }                               /* icvCubic */
 
 /*=====================================================================================*/
-
-
-
-
-
-
-
-
-/* Obsolete functions. Just for ViewMorping */
-/*=====================================================================================*/
-
-int
-icvGaussMxN( double *A, double *B, int M, int N, double **solutions )
-{
-    int *variables;
-    int row, swapi, i, i_best = 0, j, j_best = 0, t;
-    double swapd, ratio, bigest;
-
-    if( !A || !B || !M || !N )
-        return -1;
-
-    variables = (int *) icvAlloc( (long) N * sizeof( int ));
-
-    if( variables == 0 )
-        return -1;
-
-    for( i = 0; i < N; i++ )
-    {
-        variables[i] = i;
-    }                           /* for */
-
-    /* -----  Direct way  ----- */
-
-    for( row = 0; row < M; row++ )
-    {
-
-        bigest = 0;
-
-        for( j = row; j < M; j++ )
-        {                       /* search non null element */
-            for( i = row; i < N; i++ )
-            {
-
-                if( fabs( A[j * N + i] ) > fabs( bigest ))
-                {
-                    bigest = A[j * N + i];
-                    i_best = i;
-                    j_best = j;
-                }               /* if */
-            }                   /* for */
-        }                       /* for */
-
-        if( REAL_ZERO( bigest ))
-            break;              /* if all shank elements are null */
-
-        if( j_best - row )
-        {
-
-            for( t = 0; t < N; t++ )
-            {                   /* swap a rows */
-
-                swapd = A[row * N + t];
-                A[row * N + t] = A[j_best * N + t];
-                A[j_best * N + t] = swapd;
-            }                   /* for */
-
-            swapd = B[row];
-            B[row] = B[j_best];
-            B[j_best] = swapd;
-        }                       /* if */
-
-        if( i_best - row )
-        {
-
-            for( t = 0; t < M; t++ )
-            {                   /* swap a columns  */
-
-                swapd = A[t * N + i_best];
-                A[t * N + i_best] = A[t * N + row];
-                A[t * N + row] = swapd;
-            }                   /* for */
-
-            swapi = variables[row];
-            variables[row] = variables[i_best];
-            variables[i_best] = swapi;
-        }                       /* if */
-
-        for( i = row + 1; i < M; i++ )
-        {                       /* recounting A and B */
-
-            ratio = -A[i * N + row] / A[row * N + row];
-            B[i] += B[row] * ratio;
-
-            for( j = N - 1; j >= row; j-- )
-            {
-
-                A[i * N + j] += A[row * N + j] * ratio;
-            }                   /* for */
-        }                       /* for */
-    }                           /* for */
-
-    if( row < M )
-    {                           /* if rank(A)<M */
-
-        for( j = row; j < M; j++ )
-        {
-            if( !REAL_ZERO( B[j] ))
-            {
-
-                icvFree( &variables );
-                return -1;      /* if system is antithetic */
-            }                   /* if */
-        }                       /* for */
-
-        M = row;                /* decreasing size of the task */
-    }                           /* if */
-
-    /* ----- Reverse way ----- */
-
-    if( M < N )
-    {                           /* if solution are not exclusive */
-
-        *solutions = (double *) icvAlloc( ((N - M + 1) * N) * sizeof( double ));
-
-        if( *solutions == 0 )
-        {
-            icvFree( &variables );
-            return -1;
-        }
-
-
-        for( t = M; t <= N; t++ )
-        {
-            for( j = M; j < N; j++ )
-            {
-
-                (*solutions)[(t - M) * N + variables[j]] = (double) (t == j);
-            }                   /* for */
-
-            for( i = M - 1; i >= 0; i-- )
-            {                   /* finding component of solution */
-
-                if( t < N )
-                {
-                    (*solutions)[(t - M) * N + variables[i]] = 0;
-                }
-                else
-                {
-                    (*solutions)[(t - M) * N + variables[i]] = B[i] / A[i * N + i];
-                }               /* if */
-
-                for( j = i + 1; j < N; j++ )
-                {
-
-                    (*solutions)[(t - M) * N + variables[i]] -=
-                        (*solutions)[(t - M) * N + variables[j]] * A[i * N + j] / A[i * N + i];
-                }               /* for */
-            }                   /* for */
-        }                       /* for */
-
-        icvFree( &variables );
-        return N - M;
-    }                           /* if */
-
-    *solutions = (double *) icvAlloc( (N) * sizeof( double ));
-
-    if( solutions == 0 )
-        return -1;
-
-    for( i = N - 1; i >= 0; i-- )
-    {                           /* finding exclusive solution */
-
-        (*solutions)[variables[i]] = B[i] / A[i * N + i];
-
-        for( j = i + 1; j < N; j++ )
-        {
-
-            (*solutions)[variables[i]] -=
-                (*solutions)[variables[j]] * A[i * N + j] / A[i * N + i];
-        }                       /* for */
-    }                           /* for */
-
-    icvFree( &variables );
-    return 0;
-
-}                               /* icvGaussMxN */
-
-/*=====================================================================================*/
-
-CvStatus
-icvGetCoof( double *f1, double *f2, double *a2, double *a1, double *a0 )
-{
-    double G[9], a3;
-    int i;
-
-    if( !f1 || !f2 || !a0 || !a1 || !a2 )
-        return CV_BADFACTOR_ERR;
-
-    for( i = 0; i < 9; i++ )
-    {
-
-        G[i] = f1[i] - f2[i];
-    }                           /* for */
-
-    a3 = icvDet( G );
-
-    if( REAL_ZERO( a3 ))
-        return CV_BADFACTOR_ERR;
-
-    *a2 = 0;
-    *a1 = 0;
-    *a0 = icvDet( f2 );
-
-    for( i = 0; i < 9; i++ )
-    {
-
-        *a2 += f2[i] * icvMinor( G, (int) (i % 3), (int) (i / 3) );
-        *a1 += G[i] * icvMinor( f2, (int) (i % 3), (int) (i / 3) );
-    }                           /* for */
-
-    *a0 /= a3;
-    *a1 /= a3;
-    *a2 /= a3;
-
-    return CV_NO_ERR;
-
-}                               /* icvGetCoof */
-
-
-
-/*======================================================================================*/
-
-/*F///////////////////////////////////////////////////////////////////////////////////////
-//    Name:    icvLMedS7
-//    Purpose:
-//      
-//      
-//    Context:
-//    Parameters:
-//     
-//      
-//      
-//     
-//      
-//    
-//     
-//    Returns:
-//      CV_NO_ERR if all Ok or error code
-//    Notes:
-//F*/
-
-CvStatus
-icvLMedS7( int *points1, int *points2, CvMatrix3 * matrix )
-{                               /* Incorrect realization */
-    CvStatus error = CV_NO_ERR;
-
-/*    int         amount; */
-    matrix = matrix;
-    points1 = points1;
-    points2 = points2;
-
-/*    error = cs_Point7( points1, points2, matrix ); */
-/*    error = icvPoint7    ( points1, points2, matrix,&amount ); */
-    return error;
-
-}                               /* icvLMedS7 */
-
-
-/*======================================================================================*/
-/*F///////////////////////////////////////////////////////////////////////////////////////
-//    Name:    icvPoint7
-//    Purpose:
-//      
-//      
-//    Context:
-//    Parameters:
-//     
-//      
-//      
-//     
-//      
-//    
-//     
-//    Returns:
-//      CV_NO_ERR if all Ok or error code
-//    Notes:
-//F*/
-
-CvStatus
-icvPoint7( int *ml, int *mr, double *F, int *amount )
-{
-    double A[63], B[7];
-    double *solutions;
-    double a2, a1, a0;
-    double squares[6];
-    int i, j;
-
-/*    int         amount; */
-/*    float*     F; */
-
-    CvStatus error = CV_BADFACTOR_ERR;
-
-/*    F = (float*)matrix->m; */
-
-    if( !ml || !mr || !F )
-        return CV_BADFACTOR_ERR;
-
-    for( i = 0; i < 7; i++ )
-    {
-        for( j = 0; j < 9; j++ )
-        {
-
-            A[i * 9 + j] = (double) ml[i * 3 + j / 3] * (double) mr[i * 3 + j % 3];
-        }                       /* for */
-        B[i] = 0;
-    }                           /* for */
-
-    *amount = 0;
-
-    if( icvGaussMxN( A, B, 7, 9, &solutions ) == 2 )
-    {
-        if( icvGetCoef( solutions, solutions + 9, &a2, &a1, &a0 ) == CV_NO_ERR )
-        {
-            icvCubic( a2, a1, a0, squares );
-
-            for( i = 0; i < 1; i++ )
-            {
-
-                if( REAL_ZERO( squares[i * 2 + 1] ))
-                {
-
-                    for( j = 0; j < 9; j++ )
-                    {
-
-                        F[*amount + j] = (float) (squares[i] * solutions[j] +
-                                                  (1 - squares[i]) * solutions[j + 9]);
-                    }           /* for */
-
-                    *amount += 9;
-
-                    error = CV_NO_ERR;
-                }               /* if */
-            }                   /* for */
-
-            icvFree( &solutions );
-            return error;
-        }
-        else
-        {
-            icvFree( &solutions );
-        }                       /* if */
-
-    }
-    else
-    {
-        icvFree( &solutions );
-    }                           /* if */
-
-    return error;
-}                               /* icvPoint7 */
 

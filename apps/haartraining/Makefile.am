@@ -1,2 +1,4 @@
-SUBDIRS = src
-EXTRA_DIST = make doc include
+SUBDIRS = src include
+EXTRA_DIST = make doc
+
+

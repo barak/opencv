@@ -42,6 +42,7 @@
 #include "cvtest.h"
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <assert.h>
 
 static char* test_desc = "Comparing with IPL-based pipeline";
@@ -56,7 +57,6 @@ static int ud_l = 0, ud_h = 1,
            ch_l = 0, ch_h = 1;
 
 static const int img8u_range = 255;
-static const int img8s_range = 128;
 static const float img32f_range = 1.f;
 static const int img32f_bits  = 23;
 
@@ -77,7 +77,6 @@ static void apply_gaussian( IplImage* src, IplImage* dst )
     int   bt_pix = ((src->depth & 255) >> 3) * src->nChannels;
     int   i, j;
     int   w, h;
-    int   depth = src->depth;
     IplROI* roi = src->roi;
 
     /* 1. Create appropriate border mode. example: a b c I e c b (I-left boundary) */
@@ -117,21 +116,7 @@ static void apply_gaussian( IplImage* src, IplImage* dst )
     roi->width += x0*2;
     roi->height += y0*2;
 
-    /* 2. convolve */
-    if( depth == IPL_DEPTH_8S )
-    {
-        src->depth = dst->depth = IPL_DEPTH_8U;
-        cvXorS( src, cvScalarAll( 128 ), src );
-    }
-        
     cvSmooth( src, dst, CV_GAUSSIAN, 5, 5 );
-
-    if( depth == IPL_DEPTH_8S )
-    {
-        cvXorS( src, cvScalarAll( 128 ), src );
-        cvXorS( dst, cvScalarAll( 128 ), dst );
-        src->depth = dst->depth = IPL_DEPTH_8S;
-    }
 
     roi->width = w;
     roi->height = h;
@@ -174,7 +159,7 @@ static void read_pyramid_params( void )
         trsCaseRead( &up_down, "/a/u/d", "a", "a - all, u - up_samle, d - down_sample" );
         if( up_down != 0 ) ud_l = ud_h = up_down - 1;
 
-        trsCaseRead( &data_types,"/a/8u/8s/32f", "a",
+        trsCaseRead( &data_types,"/a/8u/32f", "a",
             "a - all, 8u - unsigned char, 8s - signed char, 32f - float" );
         if( data_types != 0 ) dt_l = dt_h = data_types - 1;
 
@@ -202,8 +187,7 @@ static int PyrDownCmpIPL( void* arg )
     int         code = TRS_OK;
 
     int         param = (int)arg;
-    int         depth = param/2 == 2 ? IPL_DEPTH_32F :
-                        param/2 == 1 ? IPL_DEPTH_8S  : IPL_DEPTH_8U;
+    int         depth = param/2 != 0 ? IPL_DEPTH_32F : IPL_DEPTH_8U;
     int         channels = param % 2 == 1 ? 3 : 1;
 
     int         seed = atsGetSeed();
@@ -262,9 +246,6 @@ static int PyrDownCmpIPL( void* arg )
                 {
                 case IPL_DEPTH_8U:
                     atsRandSetBounds( &rng_state, 0, img8u_range );
-                    break;
-                case IPL_DEPTH_8S:
-                    atsRandSetBounds( &rng_state, -img8s_range, img8s_range );
                     break;
                 case IPL_DEPTH_32F:
                     atsRandSetBounds( &rng_state, -img32f_range, img32f_range );
@@ -338,15 +319,14 @@ static int PyrUpCmpIPL( void* arg )
     int         code = TRS_OK;
 
     int         param = (int)arg;
-    int         depth = param/2 == 2 ? IPL_DEPTH_32F :
-                        param/2 == 1 ? IPL_DEPTH_8S  : IPL_DEPTH_8U;
+    int         depth = param/2 != 0 ? IPL_DEPTH_32F : IPL_DEPTH_8U;
     int         channels = param % 2 == 1 ? 3 : 1;
 
     int         w = 0, h = 0, i = 0;
     int         merr_w = 0, merr_h = 0, merr_iter = 0; /* where was maximum error */
     double      max_err = 0.;
 
-    int         seed = -1; //atsGetSeed();
+    int         seed = atsGetSeed();
 
     double      success_error_level;
     IplROI      srcRoi, dstRoi;
@@ -401,9 +381,6 @@ static int PyrUpCmpIPL( void* arg )
                 {
                 case IPL_DEPTH_8U:
                     atsRandSetBounds( &rng_state, 0, img8u_range );
-                    break;
-                case IPL_DEPTH_8S:
-                    atsRandSetBounds( &rng_state, -img8s_range, img8s_range );
                     break;
                 case IPL_DEPTH_32F:
                     atsRandSetBounds( &rng_state, -img32f_range, img32f_range );
@@ -473,24 +450,18 @@ test_exit:
 
 #define _8U_C1    0
 #define _8U_C3    1
-#define _8S_C1    2
-#define _8S_C3    3
-#define _32F_C1   4
-#define _32F_C3   5
+#define _32F_C1   2
+#define _32F_C3   3
 
 void InitAPyramids( void )
 {
     trsRegArg( funcs[0],  test_desc, atsAlgoClass, PyrUpCmpIPL, _8U_C1 );
     trsRegArg( funcs[0],  test_desc, atsAlgoClass, PyrUpCmpIPL, _8U_C3 );
-    trsRegArg( funcs[0],  test_desc, atsAlgoClass, PyrUpCmpIPL, _8S_C1 );
-    trsRegArg( funcs[0],  test_desc, atsAlgoClass, PyrUpCmpIPL, _8S_C3 );
     trsRegArg( funcs[0],  test_desc, atsAlgoClass, PyrUpCmpIPL, _32F_C1 );
     trsRegArg( funcs[0],  test_desc, atsAlgoClass, PyrUpCmpIPL, _32F_C3 );
 
     trsRegArg( funcs[1],  test_desc, atsAlgoClass, PyrDownCmpIPL, _8U_C1 );
     trsRegArg( funcs[1],  test_desc, atsAlgoClass, PyrDownCmpIPL, _8U_C3 );
-    trsRegArg( funcs[1],  test_desc, atsAlgoClass, PyrDownCmpIPL, _8S_C1 );
-    trsRegArg( funcs[1],  test_desc, atsAlgoClass, PyrDownCmpIPL, _8S_C3 );
     trsRegArg( funcs[1], test_desc, atsAlgoClass, PyrDownCmpIPL, _32F_C1 );
     trsRegArg( funcs[1], test_desc, atsAlgoClass, PyrDownCmpIPL, _32F_C3 );
 

@@ -1,3 +1,21 @@
+opencv (0.9.6-1) unstable; urgency=low
+
+  * New upstream release (Closes: #267825).
+  * Major upstream changes:
+    + This release merged most Debian-specific patches upstream.
+    + This version now uses pkg-config instead of opencv-config.
+    + This version uses GTK+ instead of Motif widgets.
+    + Example programs were fixed (Closes: #254150).
+  * debian/control:
+    + Build-depend on libdc1394 and libavcodec. As a result, build no longer
+      fails if libavcodec-dev is installed (Closes: #270345).
+  * debian/copyright:
+    + Fixed upstream URL (Closes: #270344).
+  * cvaux/src/cvvideo.cpp: the code portion causing an FTBFS on amd64 is no
+    longer there (Closes: #297625).
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Fri,  1 Apr 2005 19:30:58 +0200
+
 opencv (0.9.5-10) unstable; urgency=high
 
   * debian/patches/30_delete.dpatch:

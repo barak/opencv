@@ -2,12 +2,14 @@ Source: opencv
 Priority: optional
 Section: devel
 Maintainer: Sam Hocevar (Debian packages) <sam+deb@zoy.org>
-Build-Depends: debhelper (>= 4.0.0), dpatch, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, lesstif2-dev, libx11-dev, libice-dev, libxext-dev, libxt-dev, libsm-dev, tk8.4-dev, tcl8.4-dev, libxaw7-dev
+Build-Depends: debhelper (>= 4.0.0), dpatch, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev
 Standards-Version: 3.6.1.1
 
-Package: libopencv-doc
+Package: opencv-doc
 Section: doc
 Architecture: all
+Conflicts: libopencv-doc
+Replaces: libopencv-doc
 Description: OpenCV documentation and examples
  This package contains the OpenCV documentation and example programs.
  .
@@ -21,13 +23,13 @@ Description: OpenCV documentation and examples
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libopencv-dev
+Package: libcv-dev
 Section: libdevel
 Architecture: any
-Depends: libopencv0.9-5 (= ${Source-Version})
-Recommends: libcvaux-dev (>= ${Source-Version})
-Suggests: libcvcam-dev (>= ${Source-Version}), libhighgui-dev (>= ${Source-Version})
-Description: development files for libopencv
+Depends: libcv0.9-0 (= ${Source-Version}), libcvaux-dev (= ${Source-Version}), libhighgui-dev (= ${Source-Version})
+Conflicts: libopencv-dev
+Replaces: libopencv-dev
+Description: development files for libcv
  This package contains the header files and static library needed to compile
  applications that use OpenCV (Open Computer Vision).
  .
@@ -44,7 +46,7 @@ Description: development files for libopencv
 Package: libcvaux-dev
 Section: libdevel
 Architecture: any
-Depends: libcvaux0.9-5 (= ${Source-Version}), libopencv-dev (>= ${Source-Version})
+Depends: libcvaux0.9-0 (= ${Source-Version}), libcv-dev (>= ${Source-Version})
 Description: development files for libcvaux
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) extensions.
@@ -62,7 +64,7 @@ Description: development files for libcvaux
 Package: libhighgui-dev
 Section: libdevel
 Architecture: any
-Depends: libhighgui0.9-5 (= ${Source-Version}), libopencv-dev (>= ${Source-Version}), libxext-dev, libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libx11-dev, libxt-dev, libsm-dev, libice-dev, lesstif2-dev
+Depends: libhighgui0.9-0 (= ${Source-Version}), libcv-dev (>= ${Source-Version}), libxext-dev, libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libx11-dev, libxt-dev, libsm-dev, libice-dev, lesstif2-dev
 Description: development files for libhighgui
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) GUI.
@@ -77,25 +79,7 @@ Description: development files for libhighgui
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libcvcam-dev
-Section: libdevel
-Architecture: any
-Depends: libcvcam0.9-5 (= ${Source-Version}), libhighgui-dev (>= ${Source-Version}), libopencv-dev (>= ${Source-Version}), libxaw7-dev
-Description: development files for libcvcam
- This package contains the header files and static library needed to compile
- applications that use the OpenCV (Open Computer Vision) camera support.
- .
- The Open Computer Vision Library is a collection of algorithms and sample
- code for various computer vision problems. The library is compatible with
- IPL (Intel's Image Processing Library) and, if available, can use IPP
- (Intel's Integrated Performance Primitives) for better performance.
- .
- OpenCV provides low level portable data types and operators, and a set
- of high level functionalities for video acquisition, image processing and
- analysis, structural analysis, motion analysis and object tracking, object
- recognition, camera calibration and 3D reconstruction.
-
-Package: libopencv0.9-5
+Package: libcv0.9-0
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -112,7 +96,7 @@ Description: computer vision library
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libcvaux0.9-5
+Package: libcvaux0.9-0
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -130,7 +114,7 @@ Description: computer vision extension library
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libhighgui0.9-5
+Package: libhighgui0.9-0
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -147,20 +131,3 @@ Description: computer vision GUI library
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libcvcam0.9-5
-Section: libs
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: computer vision camera support library
- This package contains the OpenCV (Open Computer Vision) camera support
- library.
- .
- The Open Computer Vision Library is a collection of algorithms and sample
- code for various computer vision problems. The library is compatible with
- IPL (Intel's Image Processing Library) and, if available, can use IPP
- (Intel's Integrated Performance Primitives) for better performance.
- .
- OpenCV provides low level portable data types and operators, and a set
- of high level functionalities for video acquisition, image processing and
- analysis, structural analysis, motion analysis and object tracking, object
- recognition, camera calibration and 3D reconstruction.

@@ -1,4 +1,188 @@
 =============================================================================
+                   OpenCV beta 4, Friday, August 13, 2004
+=============================================================================
+
+>>> Global changes: <<<
+  -  cv library has been split into
+        cv (image processing and computer vision part)
+        and cxcore (basic functionality that is shared with OpenPNL)
+
+        so any application that linked cv should now link both cv and cxcore.
+
+  -  DLLs now have a version number (096 for beta 4) in their names, so they do not
+     conflict with applications using libraries from previous (and future) OpenCV releases.
+     Import libraries on Windows do not have version numbers in their names.
+
+  -  Many of applications have been dropped/replaced with simple demo samples (see opencv/samples/c):
+     - Hawk, HMMDemo, LKDemo, VMDemo, vmdemotk have been dropped completely.
+     - LKDemo and cvlkdemo have been replaced with sample lkdemo.c
+     - HaarFaceDetect has been replaced with facedetect.c
+     - cvcsdemo has been replaced with camshiftdemo.c
+
+  -  Some of obsolete functions, including e-HMMs, eigen objects, view morphing ...
+     have been moved from cv to cvaux.
+
+  -  A lot of external dependencies have been removed together
+     with corresponding demo applications: TCL/TK, FLTK, Motif, MFC
+
+  -  Pre-built binaries in windows distribution are now built using Intel Compiler 8.x
+     resulting in noticeable performance increase for many functions.
+     
+  -  On linux there is no cvcam anymore. Highgui should be used instead
+     Windows version is also obsolete and will be removed as soon as DirectShow support
+     will be added to highgui.
+
+  -  Interfaces for EiC, Ch and MATLAB have been temporarily dropped.
+
+>>> New features/functionality: <<<
+
+  -  Support for Miscrosoft Visual Studio .NET 2003 (see ../_make/*.sln) and
+     Borland C++ BuilderX (see ../_make/cbuilderx/*.bpgr) has been added.
+
+  -  More functions from IPP 4.x are supported.
+
+  -  Support for 16u (16-bit unsigned) type has been added.
+
+  -  New functions for arbitrary convolution (cvFilter2D),
+     geometrical transformations (cvWarpAffine, cvWarpPerspective) have been added.
+     Another 2 interpolation methods have been added to cvResize.
+
+  -  XML input/output has been completely rewritten. Now arbitrarily
+     complex structures may be easily read and very easily written to XML.
+     In parallel, YAML (www.yaml.org) is supported.
+
+  -  Haar object detection:
+       - the code has been transferred to cv
+       - trained classifiers are now stored in XML/YAML format
+         (there is still possibility to load classifiers from directories).
+       - support for classifiers trees, rather than cascades has been added
+         (see opencv/apps/haartraining/)
+       - more cascades for detecting frontal face, new cascades for detecting
+         profile face and body have been added (thanks to David Bradley,
+         Hannes Kruppa and Bernt Schiele). see opencv/data/readme.txt for details.
+       - classifier for detecting frontal face has been removed from the code.
+
+  -  Reference manual has been reorganized and it is now covers entire cxcore, cv
+     and highgui libraries.
+
+  -  New object-oriented test engine has been created. cxcore functionality
+     has been tested using it (see opencv/bin/cxcoretest.exe,
+     opencv/tests/{cxts;cxcore/src})
+
+  -  All the drawing functions now support antialiasing and multi-channel images
+     of arbitrary depth (earlier only single-channel images of depth>8bit were supported).
+     Floodfill also supports color floating-point images now.
+
+  -  Linux version of highgui now supports capturing video from cameras via
+     dc1394 and/or V4L2 (thanks to Magnus Lundin for the patch) (not tested!)
+
+  -  Linux version of highgui now uses GTK+ 2.x instead of Motif.
+
+  -  Several patches by Premnath Dubey have been applied to Windows version of cvcam.
+     It is now possible to set the camera resolution from within a program.
+
+>>> Optimizations: <<<
+
+  -  DFT functions now use mixed-radix algorithm and, optionally,
+     DFT/FFT functions from IPP.
+
+  -  Matrix multiplication now is done by blocks resulting
+     in better cache utilization => better performance.
+     Optionally, gemm from Intel MKL can be used.
+
+  -  Lucas-Kanade Optical flow includes a few heuristics that significantly
+     improve performance (thanks to Alexander Kibkalo for the patch).
+
+  -  cvRound nows uses inline assembly when built with Visual C++, Intel Compiler
+     or GCC 3.x (the latter is done via C99 lrint() function). That also
+     resolves the problem with Direct3D and few others (thanks to HCK (hengck23) for the hint).
+
+  -  Morphology with arbitrary-shaped element now processes only
+     the aperture elements corresponding non-zero coefficients (so cvFilter2D does)
+     in a single loop that gives +1.5x performance increase.
+
+  -  alloca() has been replaced by cvStackAlloc that returns an aligned pointer.
+     For some functions it improved performance a lot.
+
+  -  Arithmetic operations with mask are now done using non-mask operations +
+     copy with mask. It helps to engage IPP for such operations and is in general faster.
+
+  -  cvSeqSort and generic sorting macro (CV_IMPLEMENT_QSORT...) now use Berkeley qsort
+     that almost eliminates the worst (quadratic complexity) case and
+     improves performance on nearly-sorted sequences.
+
+  -  Some typical operations on data structure, such as retrieving sequence element,
+     retrieving graph edge, positioning sequence reader have been optimized for
+     faster average performance and smaller overhead.
+
+  -  Special vectorized versions of double-precision math functions (cvExp, cvLog etc.)
+     have been created. Optionally, ippvm is used if available, which gives incredible
+     performance improvement.
+
+>>> Bug fixes: <<<
+
+  (this is an incomplete list, unfortunately)
+  -  Several bugs in cvSVD and cvSVBkSb have been fixed.
+     Thanks to Siddhartha Chaudhuri, John Coady and others for the reports and patches.
+  -  Probabilistic hough transform crashed
+     Thanks to Dave Grossman, Michael Bunk and others for the report.
+  -  Haartraining worked incorrectly without IPL.
+     Thanks to Robert (robert_021202) and others for the report
+  -  [SF bug #883138] in cvhaartraining library, function cvCreateMTStumpClassifier()
+     number of features was used instead of number of samples for memory allocation.
+     (Though, it did not cause troubles with the small-to-medium training databases we used)
+     Thanks to Alberto Albiol for the patch.
+  -  In haartraining the code for scaling features in case of using different from "standard" 24x24 window
+     was buggy. Thanks to Vasanth Philomin for the report.
+  -  cvMahalanobis() crashed on rows (not columns). Thanks to Irina Shevtsova for the patch.
+  -  CV_IMAGE_ELEM() macro has incorrect.
+     Thanks to Gabe (gjbrostow), Nicola Bellotto and many other people for the report and the patch.
+  -  Highgui had shift and control switched in Windows.
+     Thanks to Gabe (gjbrostow) for the patch
+  -  Matrix multiplication worked incorrectly on some small matrices.
+     Thanks to Changwen Xie for the report)
+  -  Stereo camera callibration contained buggy code for translation vector conversion.
+     Thanks to Ed Staub for the report)
+  -  cvRound worked incorrectly in single-precision FPU mode.
+     Thanks to Altay Murat and other people for the report and to HCK for the suggested solution.
+  -  cvRepeat worked incorrectly with multi-row source array
+     Thanks to Roman Stanchak for the patch.
+  -  Code for computing fundamental matrix could not be compiled under Linux
+     Thanks to Arngrimur Bjarnason, Shane Frasier and other people for the report.
+  -  [SF bug #937948]. MinEnclosingCircle did not returned _enclosing_ circle for some near-singular point configurations.
+     Thanks to unknown author for the report and the test sample.
+  -  [SF bug #926708]. cvConvexityDefects contained invalid error checking code.
+     Thanks to unknown author for the patch.
+  -  [SF bug #925821]. CalibFilter crashed on bottom-origin images.
+     Thanks to Philip Gruebele for the fix.
+  -  [SF bug #910296]. CImage::Create() did not check depth of already existing image.
+     Thanks to unknown author for the patch.
+  -  [SF bug #883199] cvInitMatHeader() did not initialize data pointer correctly.
+     Thanks to Zhang Li for the report.
+  -  In cvMinEigenVal kerSize was not actually used instead of blockSize.
+     Thanks to Frederic Devernay for the patch.
+  -  VFW capturing code in highgui created capturing window incorrectly.
+     Thanks to John Nagle for the patch.
+  -  cvMoments gave inaccurate results (1-pixel shift).
+     Thanks to Walter Vanzella for the report.
+  -  n-dimensional matrices have been initialized incorrectly.
+     Thanks to Ziqiang Liu for the patch.
+  -  Rotating calipers code, used in cvMinAreaRect2, handled almost collinear line segments
+     incorrectly. Thanks to vamfun for the patch (although the fixed it a little bit differently,
+     but used the same idea).
+  -  In highgui 16-bit BMP could not be loaded.
+     Thanks to Latha for the report.
+  -  cvCalcEMD2 checked the size of output flow matrix incorrectly.
+     Thanks to Duckhoon Kim for the patch.
+  -  [SF bug #898556] cvGetDimSize() always returned error. Thanks to unknown author for the report.
+  -  Multiple bugs in reference manuals have been fixed. Thanks to Irina Shevtsova, Pavel Yarykin,
+     Stepan Dilman and others for the reports.
+  -  Several patches for better portability to Linux and IA64 have been applied
+     Thanks to Sam Hocevar.
+  ...
+
+
+=============================================================================
                    OpenCV beta 3.1, Thursday, February 27, 2003
 =============================================================================
 
@@ -6,7 +190,7 @@
 
   -  Fourier and Cosine transforms have been added (cvDFT & cvDCT)
   -  CV_CAP_PROP_FRAME_COUNT property was added to CvCapture interface in HighGUI
-     (thanks to Asim Shankar) 
+     (thanks to Asim Shankar)
   -  Now some basic functions like cvAlloc, cvCreateMat, cvAdd etc. can handle
      huge (>4Gb) matrices on 64-bit platforms (and, probably, 2-4Gb matrices on
      32-bit Linux versions with specially patched kernels)
@@ -26,7 +210,7 @@
   -  cvSVBkSb gave incorrect results if matrix was a singular.
   -  cvSolve gave incorrect results in case of small matrices (<= 4x4)
   (thanks to Danielle Shor for reporting that and for the proposed solution on SVBkSb)
-  
+
   -  cvSolve and cvInvert damaged stack in some situation (CV_LU method)
   -  cvDrawContours could not draw a single contour
   -  highgui didn't allow ',' and '%' symbols in the file paths under Win32

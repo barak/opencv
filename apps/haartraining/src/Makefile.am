@@ -1,12 +1,21 @@
-EXTRA_DIST = performance.cpp createsamples.cpp
+lib_LIBRARIES = libcvhaartraining.a
 
-bin_PROGRAMS = haartraining
+bin_PROGRAMS = opencv-haartraining opencv-createsamples opencv-performance
 
-haartraining_SOURCES = cvboost.cpp cvhaarclassifier.cpp cvhaartraining.cpp cvcommon.cpp haartraining.cpp
+libcvhaartraining_a_SOURCES = cvboost.cpp cvhaarclassifier.cpp cvhaartraining.cpp cvcommon.cpp cvsamples.cpp
+opencv_haartraining_SOURCES = haartraining.cpp
+opencv_createsamples_SOURCES = createsamples.cpp
+opencv_performance_SOURCES = performance.cpp
 
 noinst_HEADERS = cvclassifier.h _cvhaartraining.h _cvcommon.h
 
-INCLUDES = -I../../../cv/include -I../../../cv/src -I../../../otherlibs/highgui -I./ -I../include
-LIBS = -L../../../cv/src -lopencv -L../../../otherlibs/highgui -lhighgui
+EXTRA_DIST =
 
-CXX=@CXXOPENMP@
+INCLUDES = -I../../../cxcore/include -I../../../cv/include -I../../../otherlibs/highgui -I. -I../include
+LIBS = ../../../cxcore/src/libcxcore0.9.la ../../../cv/src/libcv0.9.la ../../../otherlibs/highgui/libhighgui0.9.la
+
+opencv_haartraining_LDFLAGS = -L. -lcvhaartraining
+opencv_createsamples_LDFLAGS = -L. -lcvhaartraining
+opencv_performance_LDFLAGS = -L. -lcvhaartraining
+
+#CXX=@CXXOPENMP@
