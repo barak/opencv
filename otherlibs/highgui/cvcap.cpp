@@ -1211,7 +1211,8 @@ static int icvOpenAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture, const char* filename
                            capture->rgb_picture.linesize[0] );
 
                 capture->pos = 0;
-                capture->fps = capture->avctx->frame_rate*1e-4;
+                /*capture->fps = capture->avctx->frame_rate*1e-4;*/
+                capture->fps = 30;
                 capture->picture.data[0] = 0;
                 fseek( capture->file, (long)capture->data_offset, SEEK_SET );
                 capture->offset = capture->data_offset;

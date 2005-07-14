@@ -1,3 +1,22 @@
+opencv (0.9.6-2) unstable; urgency=low
+
+  * The great g++ transition upload.
+  * debian/control:
+    + Renamed 0.9-0 packages to 0.9-0c2.
+    + Set policy to 3.6.2.1.
+    + Build-depend on a newer libavcodec-dev.
+  * docs/index.htm:
+    + Encoded invalid HTML characters.
+    + Fixed links to the reference manual (Closes: #306922).
+  * docs/ref/opencvref_cv.htm:
+    + Encoded invalid HTML characters.
+    + Fixed the definition of CvHistogram (Closes: #307269).
+  * otherlibs/highgui/cvcap.cpp:
+    + Hardcoded the capture framerate because ffmpeg no longer easily provides
+      the information.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Thu, 14 Jul 2005 15:48:31 +0200
+
 opencv (0.9.6-1) unstable; urgency=low
 
   * New upstream release (Closes: #267825).

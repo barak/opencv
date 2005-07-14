@@ -2,8 +2,8 @@ Source: opencv
 Priority: optional
 Section: devel
 Maintainer: Sam Hocevar (Debian packages) <sam+deb@zoy.org>
-Build-Depends: debhelper (>= 4.0.0), dpatch, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev
-Standards-Version: 3.6.1.1
+Build-Depends: debhelper (>= 4.0.0), dpatch, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050626-2)
+Standards-Version: 3.6.2.1
 
 Package: opencv-doc
 Section: doc
@@ -26,7 +26,7 @@ Description: OpenCV documentation and examples
 Package: libcv-dev
 Section: libdevel
 Architecture: any
-Depends: libcv0.9-0 (= ${Source-Version}), libcvaux-dev (= ${Source-Version}), libhighgui-dev (= ${Source-Version})
+Depends: libcv0.9-0c2 (= ${Source-Version}), libcvaux-dev (= ${Source-Version}), libhighgui-dev (= ${Source-Version})
 Conflicts: libopencv-dev
 Replaces: libopencv-dev
 Description: development files for libcv
@@ -46,7 +46,7 @@ Description: development files for libcv
 Package: libcvaux-dev
 Section: libdevel
 Architecture: any
-Depends: libcvaux0.9-0 (= ${Source-Version}), libcv-dev (>= ${Source-Version})
+Depends: libcvaux0.9-0c2 (= ${Source-Version}), libcv-dev (>= ${Source-Version})
 Description: development files for libcvaux
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) extensions.
@@ -64,7 +64,7 @@ Description: development files for libcvaux
 Package: libhighgui-dev
 Section: libdevel
 Architecture: any
-Depends: libhighgui0.9-0 (= ${Source-Version}), libcv-dev (>= ${Source-Version}), libxext-dev, libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libx11-dev, libxt-dev, libsm-dev, libice-dev, lesstif2-dev
+Depends: libhighgui0.9-0c2 (= ${Source-Version}), libcv-dev (>= ${Source-Version}), libxext-dev, libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libx11-dev, libxt-dev, libsm-dev, libice-dev, lesstif2-dev
 Description: development files for libhighgui
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) GUI.
@@ -79,10 +79,11 @@ Description: development files for libhighgui
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libcv0.9-0
+Package: libcv0.9-0c2
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libcv0.9-0
 Description: computer vision library
  This package contains the OpenCV (Open Computer Vision) runtime libraries.
  .
@@ -96,10 +97,11 @@ Description: computer vision library
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libcvaux0.9-0
+Package: libcvaux0.9-0c2
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libcvaux0.9-0
 Description: computer vision extension library
  This package contains the OpenCV (Open Computer Vision) extensions runtime
  library.
@@ -114,10 +116,11 @@ Description: computer vision extension library
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libhighgui0.9-0
+Package: libhighgui0.9-0c2
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
+Conflicts: libhighgui0.9-0
 Description: computer vision GUI library
  This package contains the OpenCV (Open Computer Vision) GUI library.
  .
