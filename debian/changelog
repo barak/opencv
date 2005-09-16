@@ -1,3 +1,17 @@
+opencv (0.9.6-3) unstable; urgency=low
+
+  * debian/control:
+    + Build-depend on a newer libavcodec-dev.
+    + Make libhighgui-dev depend on all required -dev packages such as
+      libtheora-dev (Closes: #319018).
+  * debian/rules:
+    + Hint --build and --host to configure.
+  * configure.in:
+    + Use -O2 on m68k instead of -O3 to bypass gcc ICEs (Closes: #321106).
+  * tests/cv/src/apyramids.cpp: fixed 64 bits compilation (Closes: #318791).
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Fri, 16 Sep 2005 11:53:13 +0200
+
 opencv (0.9.6-2) unstable; urgency=low
 
   * The great g++ transition upload.

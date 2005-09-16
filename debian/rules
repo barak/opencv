@@ -3,17 +3,21 @@
 #export DH_VERBOSE=1
 include /usr/share/dpatch/dpatch.make
 
-# These are used for cross-compiling and for saving the configure script
-# from having to guess our platform (since we know it already)
 DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
-CFLAGS = -Wall -g
+confflags = --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info
+ifeq ($(DEB_BUILD_GNU_TYPE), $(DEB_HOST_GNU_TYPE))
+  confflags += --build $(DEB_HOST_GNU_TYPE)
+else
+  confflags += --build $(DEB_BUILD_GNU_TYPE) --host $(DEB_HOST_GNU_TYPE)
+endif
 
+CFLAGS = -Wall -g
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -O0
 else
-	CFLAGS += -O2
+	CFLAGS += -O2 -g
 endif
 ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
 	INSTALL_PROGRAM += -s
@@ -27,9 +31,7 @@ config.status: configure
 	touch cvconfig.h.in
 	touch `find . -name Makefile.in`
 	touch stamp-h.in
-	CFLAGS="$(CFLAGS)" ./configure --prefix=/usr --enable-static \
-	  --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
-	  --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info
+	CFLAGS="$(CFLAGS)" ./configure $(confflags) --enable-static
 
 build: build-stamp
 build-stamp: patch config.status

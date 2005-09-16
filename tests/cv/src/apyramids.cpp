@@ -186,7 +186,7 @@ static int PyrDownCmpIPL( void* arg )
     const int   r = 2;
     int         code = TRS_OK;
 
-    int         param = (int)arg;
+    int         param = (intptr_t)arg;
     int         depth = param/2 != 0 ? IPL_DEPTH_32F : IPL_DEPTH_8U;
     int         channels = param % 2 == 1 ? 3 : 1;
 
@@ -318,7 +318,7 @@ static int PyrUpCmpIPL( void* arg )
     const int   r = 2;
     int         code = TRS_OK;
 
-    int         param = (int)arg;
+    int         param = (intptr_t)arg;
     int         depth = param/2 != 0 ? IPL_DEPTH_32F : IPL_DEPTH_8U;
     int         channels = param % 2 == 1 ? 3 : 1;
 

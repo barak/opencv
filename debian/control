@@ -2,7 +2,7 @@ Source: opencv
 Priority: optional
 Section: devel
 Maintainer: Sam Hocevar (Debian packages) <sam+deb@zoy.org>
-Build-Depends: debhelper (>= 4.0.0), dpatch, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050626-2)
+Build-Depends: debhelper (>= 4.0.0), dpatch, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2)
 Standards-Version: 3.6.2.1
 
 Package: opencv-doc
@@ -64,7 +64,7 @@ Description: development files for libcvaux
 Package: libhighgui-dev
 Section: libdevel
 Architecture: any
-Depends: libhighgui0.9-0c2 (= ${Source-Version}), libcv-dev (>= ${Source-Version}), libxext-dev, libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libx11-dev, libxt-dev, libsm-dev, libice-dev, lesstif2-dev
+Depends: libhighgui0.9-0c2 (= ${Source-Version}), libcv-dev (>= ${Source-Version}), libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2)
 Description: development files for libhighgui
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) GUI.

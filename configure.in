@@ -53,14 +53,19 @@ else
         if test x$ac_cv_prog_gcc = xyes; then
             CXXFLAGS="-g -mcpu=i686 -march=i686 -ffast-math -fomit-frame-pointer"
         fi
+        CXXFLAGS="$CXXFLAGS -O3"
+        ;;
+    m68k-*-*)
+        CXXFLAGS="$CXXFLAGS -O2"
         ;;
     *-*-*)
-    if test x$ac_cv_prog_gcc = xyes; then
-        CXXFLAGS="-g -fomit-frame-pointer"
-    fi
-    ;;    
+        if test x$ac_cv_prog_gcc = xyes; then
+            CXXFLAGS="-g -fomit-frame-pointer"
+        fi
+        CXXFLAGS="$CXXFLAGS -O3"
+        ;;    
     esac
-    CXXFLAGS="$CXXFLAGS -O3 -DNDEBUG"
+    CXXFLAGS="$CXXFLAGS -DNDEBUG"
 fi
 
 if test x$ac_cv_prog_gcc = xyes; then
