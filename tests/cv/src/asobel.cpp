@@ -80,7 +80,7 @@ static int derv_test( void* arg )
 {
     const double success_error_level = 1e-3;
 
-    int   param = (int)arg;
+    int   param = (int)(intptr_t)arg;
     int   depth = param % 2, dst_depth;
     int   func = param / 2;
     int   max_order = func != 2 ? 3 : 2;

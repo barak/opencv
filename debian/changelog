@@ -1,3 +1,10 @@
+opencv (0.9.6-4) unstable; urgency=low
+
+  * tests/cv/src/asobel.cpp:
+    + Fixed an illegal int/void* cast.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Mon, 26 Sep 2005 19:39:52 +0200
+
 opencv (0.9.6-3) unstable; urgency=low
 
   * debian/control:
