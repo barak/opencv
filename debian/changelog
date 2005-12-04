@@ -1,3 +1,13 @@
+opencv (0.9.6-4.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Medium-urgency upload for RC bugfix.
+  * Rename libcvaux0.9-0c2 to libcvaux0.9-0c2a for the C++ mt allocator ABI
+    transition, and conflict/replace libcvaux0.9-0c2 accordingly
+    (closes: #339240).
+
+ -- Steve Langasek <vorlon@debian.org>  Sat,  3 Dec 2005 21:27:40 -0800
+
 opencv (0.9.6-4) unstable; urgency=low
 
   * tests/cv/src/asobel.cpp:
