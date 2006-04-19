@@ -135,8 +135,8 @@ long atsCompare2Dfl( float* ArrayAct, float* ArrayExp, CvSize size, int stride, 
     int   x, y;
     long  lErrors = 0;
     
-    for( y = 0; y < size.height; y++, ArrayAct = (float*)((long)ArrayAct + stride), 
-                                      ArrayExp = (float*)((long)ArrayExp + stride) )
+    for( y = 0; y < size.height; y++, ArrayAct = (float*)((size_t)ArrayAct + stride), 
+                                      ArrayExp = (float*)((size_t)ArrayExp + stride) )
         for( x = 0; x < size.width; x++ )
             if( fabs( ArrayAct[x] - ArrayExp[x] ) > Tol )
             {
@@ -311,7 +311,7 @@ void atsfInitEllipse( float* Src,
                 Src[j] = value;
             else Src[j] = 0;
         }
-        Src = (float*)((long)Src + step);
+        Src = (float*)((size_t)Src + step);
     }
 } /* atsfInitEllipse */
 
@@ -739,7 +739,7 @@ static char test_data_path[1000];
 void atsInitModuleTestData( char* module, char* path_from_module )
 {
     int i;
-    for( i = strlen( module ); i >= 0 && module[i] != '/' && module[i] != '\\'; i-- );
+    for( i = (int)strlen( module ); i >= 0 && module[i] != '/' && module[i] != '\\'; i-- );
     strcpy( test_data_path, module );
     strcpy( test_data_path + i + 1, path_from_module );
     strcat( test_data_path, "/" );

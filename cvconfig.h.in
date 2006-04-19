@@ -6,6 +6,9 @@
 /* IEEE1394 capturing support */
 #undef HAVE_DC1394
 
+/* libdc1394 0.9.4 or 0.9.5 */
+#undef HAVE_DC1394_095
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 

@@ -1,3 +1,20 @@
+opencv (0.9.7-1) unstable; urgency=low
+
+  * New upstream release.
+  * Maintainer upload.
+  * Acknowledging previous NMU (Closes: #339240). Thanks to Steve Langasek.
+  * debian/control:
+    + Build-depend on swig because of the Python bindings.
+    + Renamed 0.9-0c2 packages to 0.9.7-0 due to API changes.
+    + Depend and build-depend on libavformat-dev.
+  * debian/rules:
+    + Activated Python wrappers.
+    + Build example apps.
+  * cxtypes.h highgui.h: Replace "static" with "static inline" for inline
+    functions declared in the public headers.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Wed, 19 Apr 2006 09:37:55 +0200
+
 opencv (0.9.6-4.1) unstable; urgency=medium
 
   * Non-maintainer upload.

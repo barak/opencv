@@ -8,5 +8,5 @@ includedir=@includedir@/opencv
 Name: OpenCV
 Description: Intel(R) Open Source Computer Vision Library
 Version: @VERSION@
-Libs: -L${libdir} -lcxcore0.9 -lcv0.9 -lhighgui0.9 -lcvaux0.9
+Libs: -L${libdir} -lcxcore0.9.7 -lcv0.9.7 -lhighgui0.9.7 -lcvaux0.9.7
 Cflags: -I${includedir}

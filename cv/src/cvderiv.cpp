@@ -52,7 +52,7 @@ static int icvCalcKer( char *kernel, int order, int size,
     int i, j;
     int* kerI = (int*)kernel;
     int type = -1;
-    
+
     if( size != CV_SCHARR )
     {
         if( size == 3 )
@@ -144,32 +144,34 @@ static int icvCalcKer( char *kernel, int order, int size,
 }
 
 
-CvStatus CV_STDCALL icvSobelInitAlloc( int roiwidth, int datatype, int size,
-                                       int origin, int dx, int dy, CvFilterState** state )
+CvFilterState* icvSobelInitAlloc( int roiwidth, int datatype, int size,
+                                  int origin, int dx, int dy )
 {
+    CvFilterState* state = 0;
+
     #define MAX_KERNEL_SIZE  7
     int ker[MAX_KERNEL_SIZE*2+1];
     CvDataType worktype = datatype != cv32f ? cv32s : cv32f;
-    CvStatus status;
     int x_filter_type, y_filter_type;
     int x_size = size, y_size = size;
-    
-    if( !state )
-        return CV_NULLPTR_ERR;
+
+    CV_FUNCNAME( "icvSobelInitAlloc" );
+
+    __BEGIN__;
 
     if( size == CV_SCHARR )
     {
         if( dx + dy != 1 )
-            return CV_BADRANGE_ERR;
+            CV_ERROR( CV_StsOutOfRange, "Sharr filter can be used only for the first derivatives" );
         x_size = y_size = 3;
     }
     else
     {
         if( (size&1) == 0 || size < 1 || size > MAX_KERNEL_SIZE )
-            return CV_BADRANGE_ERR;
+            CV_ERROR( CV_StsBadSize, "Sobel filter size can be 1, 3, 5 or 7" );
 
         if( (unsigned)dx > 2 || (unsigned)dy > 2 )
-            return CV_BADRANGE_ERR;
+            CV_ERROR( CV_StsOutOfRange, "Derivatives of order>2 can not be computed now" );
 
         if( size == 1 )
         {
@@ -178,7 +180,7 @@ CvStatus CV_STDCALL icvSobelInitAlloc( int roiwidth, int datatype, int size,
             else if( dx == 0 )
                 x_size = 1, y_size = 3;
             else
-                return CV_BADARG_ERR;
+                CV_ERROR( CV_StsOutOfRange, "1x3 or 3x1 filter can not be used for mixed derivatives" );
         }
     }
 
@@ -189,16 +191,17 @@ CvStatus CV_STDCALL icvSobelInitAlloc( int roiwidth, int datatype, int size,
     {
     CvSize element_size = { x_size, y_size };
     CvPoint element_anchor = { x_size/2, y_size/2 };
-    
-    status = icvFilterInitAlloc( roiwidth, worktype, 1, element_size, element_anchor, ker,
-                                 ICV_MAKE_SEPARABLE_KERNEL(x_filter_type, y_filter_type), state );
+
+    state = icvFilterInitAlloc( roiwidth, worktype, 1, element_size, element_anchor, ker,
+                                ICV_MAKE_SEPARABLE_KERNEL(x_filter_type, y_filter_type) );
     }
-    if( status < 0 )
-        return status;
 
-    (*state)->origin = origin != 0;
+    if( state )
+        state->origin = origin != 0;
 
-    return CV_OK;
+    __END__;
+
+    return state;
 }
 
 
@@ -227,7 +230,7 @@ CvStatus CV_STDCALL icvSobel_8u16s_C1R( const uchar* pSrc, int srcStep,
     int* fmaskY = (int*)(state->ker1) + ker_y;
     int fmX0 = fmaskX[0], fmY0 = fmaskY[0];
 
-    int is_small_width = width < MAX( ker_x, ker_right );
+    int is_small_width = width <= ker_width;
     int starting_flag = 0;
     int width_rest = width & (CV_MORPH_ALIGN - 1);
     int origin = state->origin;
@@ -235,7 +238,10 @@ CvStatus CV_STDCALL icvSobel_8u16s_C1R( const uchar* pSrc, int srcStep,
         y_type = ICV_Y_KERNEL_TYPE(state->kerType);
     int x_asymm = (x_type & 3) - 1, /* <0 - general kind (not used),
                                        0-symmetric, 1-asymmetric*/
-        y_asymm = (y_type & 3) - 1; 
+        y_asymm = (y_type & 3) - 1;
+
+    if( stage == CV_START + CV_END )
+        stage = CV_WHOLE;
 
     /* initialize cyclic buffer when starting */
     if( stage == CV_WHOLE || stage == CV_START )
@@ -278,7 +284,7 @@ CvStatus CV_STDCALL icvSobel_8u16s_C1R( const uchar* pSrc, int srcStep,
                 continue;
             }
 
-            need_copy |= src_height == 1;
+            need_copy |= src_height == 0;
 
             if( ker_width > 1 )
             {
@@ -407,25 +413,25 @@ CvStatus CV_STDCALL icvSobel_8u16s_C1R( const uchar* pSrc, int srcStep,
                 {
                     int *trow1 = rows[origin*2], *trow2 = rows[(origin^1)*2];
 
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
                         int val0, val1;
                         val0 = trow2[x] - trow1[x];
                         val1 = trow2[x + 1] - trow1[x + 1];
-                
+
                         tdst2[x + 0] = (short)val0;
                         tdst2[x + 1] = (short)val1;
-                
+
                         val0 = trow2[x + 2] - trow1[x + 2];
                         val1 = trow2[x + 3] - trow1[x + 3];
-                
+
                         tdst2[x + 2] = (short)val0;
                         tdst2[x + 3] = (short)val1;
                     }
                 }
                 else
                 {
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
                         int val0, val1, val2, val3;
 
@@ -459,18 +465,18 @@ CvStatus CV_STDCALL icvSobel_8u16s_C1R( const uchar* pSrc, int srcStep,
                 {
                     int *trow1 = rows[0], *trow2 = rows[2];
 
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
                         int val0, val1;
                         val0 = trow[x]*2 + trow1[x] + trow2[x];
                         val1 = trow[x + 1]*2 + trow1[x+1] + trow2[x+1];
-                
+
                         tdst2[x + 0] = (short)val0;
                         tdst2[x + 1] = (short)val1;
-                
+
                         val0 = trow[x + 2]*2 + trow1[x+2] + trow2[x+2];
                         val1 = trow[x + 3]*2 + trow1[x+3] + trow2[x+3];
-                
+
                         tdst2[x + 2] = (short)val0;
                         tdst2[x + 3] = (short)val1;
                     }
@@ -479,25 +485,25 @@ CvStatus CV_STDCALL icvSobel_8u16s_C1R( const uchar* pSrc, int srcStep,
                 {
                     int *trow1 = rows[0], *trow2 = rows[2];
 
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
                         int val0, val1;
                         val0 = trow[x]*10 + (trow1[x] + trow2[x])*3;
                         val1 = trow[x + 1]*10 + (trow1[x+1] + trow2[x+1])*3;
-                
+
                         tdst2[x + 0] = (short)val0;
                         tdst2[x + 1] = (short)val1;
-                
+
                         val0 = trow[x + 2]*10 + (trow1[x+2] + trow2[x+2])*3;
                         val1 = trow[x + 3]*10 + (trow1[x+3] + trow2[x+3])*3;
-                
+
                         tdst2[x + 2] = (short)val0;
                         tdst2[x + 3] = (short)val1;
                     }
                 }
                 else
                 {
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
                         int val0, val1, val2, val3;
 
@@ -586,7 +592,7 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
     float* fmaskY = (float*)(state->ker1) + ker_y;
     float fmX0 = fmaskX[0], fmY0 = fmaskY[0];
 
-    int is_small_width = width < MAX( ker_x, ker_right );
+    int is_small_width = width <= ker_width;
     int starting_flag = 0;
     int width_rest = width & (CV_MORPH_ALIGN - 1);
     int origin = state->origin;
@@ -594,13 +600,20 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
         y_type = ICV_Y_KERNEL_TYPE(state->kerType);
     int x_asymm = (x_type & 3) - 1, /* <0 - general kind (not used),
                                        0-symmetric, 1-asymmetric*/
-        y_asymm = (y_type & 3) - 1; 
+        y_asymm = (y_type & 3) - 1;
+
+    if( stage == CV_START + CV_END )
+        stage = CV_WHOLE;
 
     /* initialize cyclic buffer when starting */
     if( stage == CV_WHOLE || stage == CV_START )
     {
         for( i = 0; i < ker_height; i++ )
+        {
             rows[i] = (float*)(state->buffer + state->buffer_step * i);
+            for( x = width; (x&3) != 0; x++ )
+                rows[i][x] = 0.f;
+        }
 
         crows = ker_y;
         if( stage != CV_WHOLE )
@@ -638,7 +651,7 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
                 continue;
             }
 
-            need_copy |= src_height == 1;
+            need_copy |= src_height == 0;
 
             if( ker_width > 1 )
             {
@@ -704,12 +717,12 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
                         for( i = 0; i < width; i++ )
                         {
                             int j;
-                            float t0 = tsrc[i + ker_x]*fmX0;
+                            double t0 = tsrc[i + ker_x]*fmX0;
 
                             for( j = 1; j <= ker_x; j++ )
-                                t0 += (tsrc[i+ker_x+j] + tsrc[i+ker_x-j])*fmaskX[j];
+                                t0 += (double)(tsrc[i+ker_x+j] + tsrc[i+ker_x-j])*fmaskX[j];
 
-                            tdst[i] = t0;
+                            tdst[i] = (float)t0;
                         }
                     }
                 }
@@ -767,27 +780,27 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
                 {
                     float *trow1 = rows[origin*2], *trow2 = rows[(origin^1)*2];
 
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
-                        float val0, val1;
+                        double val0, val1;
                         val0 = trow2[x] - trow1[x];
                         val1 = trow2[x + 1] - trow1[x + 1];
-                
+
                         tdst2[x + 0] = (float)val0;
                         tdst2[x + 1] = (float)val1;
-                
+
                         val0 = trow2[x + 2] - trow1[x + 2];
                         val1 = trow2[x + 3] - trow1[x + 3];
-                
+
                         tdst2[x + 2] = (float)val0;
                         tdst2[x + 3] = (float)val1;
                     }
                 }
                 else
                 {
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
-                        float val0, val1, val2, val3;
+                        double val0, val1, val2, val3;
 
                         val0 = trow[x]*fmY0;
                         val1 = trow[x + 1]*fmY0;
@@ -797,7 +810,7 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
                         for( i = 1; i <= ker_y; i++ )
                         {
                             float *trow1, *trow2;
-                            float m = fmaskY[i];
+                            double m = fmaskY[i];
                             trow1 = rows[ker_y - i];
                             trow2 = rows[ker_y + i];
                             val0 += (trow2[x] - trow1[x])*m;
@@ -806,10 +819,10 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
                             val3 += (trow2[x+3] - trow1[x+3])*m;
                         }
 
-                        tdst2[x + 0] = val0;
-                        tdst2[x + 1] = val1;
-                        tdst2[x + 2] = val2;
-                        tdst2[x + 3] = val3;
+                        tdst2[x + 0] = (float)val0;
+                        tdst2[x + 1] = (float)val1;
+                        tdst2[x + 2] = (float)val2;
+                        tdst2[x + 3] = (float)val3;
                     }
                 }
             }
@@ -819,18 +832,18 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
                 {
                     float *trow1 = rows[0], *trow2 = rows[2];
 
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
-                        float val0, val1;
+                        double val0, val1;
                         val0 = trow[x]*2 + trow1[x] + trow2[x];
                         val1 = trow[x + 1]*2 + trow1[x+1] + trow2[x+1];
-                
+
                         tdst2[x + 0] = (float)val0;
                         tdst2[x + 1] = (float)val1;
-                
+
                         val0 = trow[x + 2]*2 + trow1[x+2] + trow2[x+2];
                         val1 = trow[x + 3]*2 + trow1[x+3] + trow2[x+3];
-                
+
                         tdst2[x + 2] = (float)val0;
                         tdst2[x + 3] = (float)val1;
                     }
@@ -839,27 +852,27 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
                 {
                     float *trow1 = rows[0], *trow2 = rows[2];
 
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
-                        float val0, val1;
+                        double val0, val1;
                         val0 = trow[x]*10 + (trow1[x] + trow2[x])*3;
                         val1 = trow[x + 1]*10 + (trow1[x+1] + trow2[x+1])*3;
-                
+
                         tdst2[x + 0] = (float)val0;
                         tdst2[x + 1] = (float)val1;
-                
+
                         val0 = trow[x + 2]*10 + (trow1[x+2] + trow2[x+2])*3;
                         val1 = trow[x + 3]*10 + (trow1[x+3] + trow2[x+3])*3;
-                
+
                         tdst2[x + 2] = (float)val0;
                         tdst2[x + 3] = (float)val1;
                     }
                 }
                 else
                 {
-                    for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                    for( x = 0; x < width; x += 4 )
                     {
-                        float val0, val1, val2, val3;
+                        double val0, val1, val2, val3;
 
                         val0 = trow[x]*fmY0;
                         val1 = trow[x + 1]*fmY0;
@@ -869,7 +882,7 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
                         for( i = 1; i <= ker_y; i++ )
                         {
                             float *trow1, *trow2;
-                            float m = fmaskY[i];
+                            double m = fmaskY[i];
                             trow1 = rows[ker_y - i];
                             trow2 = rows[ker_y + i];
                             val0 += (trow2[x] + trow1[x])*m;
@@ -878,10 +891,10 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
                             val3 += (trow2[x+3] + trow1[x+3])*m;
                         }
 
-                        tdst2[x + 0] = val0;
-                        tdst2[x + 1] = val1;
-                        tdst2[x + 2] = val2;
-                        tdst2[x + 3] = val3;
+                        tdst2[x + 0] = (float)val0;
+                        tdst2[x + 1] = (float)val1;
+                        tdst2[x + 2] = (float)val2;
+                        tdst2[x + 3] = (float)val3;
                     }
                 }
             }
@@ -925,11 +938,10 @@ CvStatus CV_STDCALL icvSobel_32f_C1R( const float* pSrc, int srcStep,
 *                                      S C H A R R                                       *
 \****************************************************************************************/
 
-static CvStatus CV_STDCALL
-icvScharrInitAlloc( int roiwidth, int datatype, int origin,
-                    int dx, int dy, CvFilterState** state )
+static CvFilterState* CV_STDCALL
+icvScharrInitAlloc( int roiwidth, int datatype, int origin, int dx, int dy )
 {
-    return icvSobelInitAlloc( roiwidth, datatype, CV_SCHARR, origin, dx, dy, state );
+    return icvSobelInitAlloc( roiwidth, datatype, CV_SCHARR, origin, dx, dy );
 }
 
 static CvStatus CV_STDCALL
@@ -957,22 +969,23 @@ icvScharr_32f_C1R( const float* pSrc, int srcStep,
 *                                      L A P L A C E                                     *
 \****************************************************************************************/
 
-static CvStatus CV_STDCALL
-icvLaplaceInitAlloc( int roiwidth, int datatype,
-                     int size, CvFilterState** state )
+static CvFilterState* CV_STDCALL
+icvLaplaceInitAlloc( int roiwidth, int datatype, int size )
 {
+    CvFilterState* state = 0;
+
     #define MAX_KERNEL_SIZE  7
     int ker[MAX_KERNEL_SIZE*2+1];
     CvDataType worktype = datatype != cv32f ? cv32s : cv32f;
-    CvStatus status;
     int x_filter_type, y_filter_type;
     int x_size = size;
-    
-    if( !state )
-        return CV_NULLPTR_ERR;
+
+    CV_FUNCNAME( "icvLaplaceInitAlloc" );
+
+    __BEGIN__;
 
     if( (size&1) == 0 || size < 1 || size > MAX_KERNEL_SIZE )
-        return CV_BADRANGE_ERR;
+        CV_ERROR( CV_StsBadSize, "Aperture size can be 1, 3, 5 or 7" );
 
     if( size == 1 )
         x_size = 3;
@@ -984,15 +997,16 @@ icvLaplaceInitAlloc( int roiwidth, int datatype,
     CvSize element_size = { x_size, x_size };
     CvPoint element_anchor = { x_size/2, x_size/2 };
 
-    status = icvFilterInitAlloc( roiwidth, worktype, 2, element_size, element_anchor, ker,
-                                 ICV_MAKE_SEPARABLE_KERNEL(x_filter_type, y_filter_type), state );
+    state = icvFilterInitAlloc( roiwidth, worktype, 2, element_size, element_anchor, ker,
+                                ICV_MAKE_SEPARABLE_KERNEL(x_filter_type, y_filter_type));
     }
-    if( status < 0 )
-        return status;
 
-    (*state)->origin = 0;
+    if( state )
+        state->origin = 0;
 
-    return CV_OK;
+    __END__;
+
+    return state;
 }
 
 
@@ -1022,10 +1036,13 @@ icvLaplace_8u16s_C1R( const uchar* pSrc, int srcStep,
     int* fmaskY = (int*)(state->ker1) + ker_y;
     int fmX0 = fmaskX[0], fmY0 = fmaskY[0];
 
-    int is_small_width = width < MAX( ker_x, ker_right );
+    int is_small_width = width <= ker_width;
     int starting_flag = 0;
     int width_rest = width & (CV_MORPH_ALIGN - 1);
     int y_type = ICV_Y_KERNEL_TYPE(state->kerType);
+
+    if( stage == CV_START + CV_END )
+        stage = CV_WHOLE;
 
     /* initialize cyclic buffer when starting */
     if( stage == CV_WHOLE || stage == CV_START )
@@ -1068,7 +1085,7 @@ icvLaplace_8u16s_C1R( const uchar* pSrc, int srcStep,
                 continue;
             }
 
-            need_copy |= src_height == 1;
+            need_copy |= src_height == 0;
 
             {
                 uchar* tbufc = (uchar*)tbufw;
@@ -1194,44 +1211,44 @@ icvLaplace_8u16s_C1R( const uchar* pSrc, int srcStep,
 
             if( y_type == ICV_1_2_1_KERNEL )
             {
-                for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                for( x = 0; x < width; x += 4 )
                 {
                     int val0, val1;
                     val0 = trow[x]*2 + trow1[x] + trow2[x] -
                            trow[x+width]*2 + trow1[x+width] + trow2[x+width];
                     val1 = trow[x+1]*2 + trow1[x+1] + trow2[x+1] -
                            trow[x+1+width]*2 + trow1[x+1+width] + trow2[x+1+width];
-            
+
                     tdst2[x + 0] = (short)val0;
                     tdst2[x + 1] = (short)val1;
-            
+
                     val0 = trow[x+2]*2 + trow1[x+2] + trow2[x+2] -
                            trow[x+2+width]*2 + trow1[x+2+width] + trow2[x+2+width];
                     val1 = trow[x+3]*2 + trow1[x+3] + trow2[x+3] -
                            trow[x+3+width]*2 + trow1[x+3+width] + trow2[x+3+width];
-            
+
                     tdst2[x + 2] = (short)val0;
                     tdst2[x + 3] = (short)val1;
                 }
             }
             else
             {
-                for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                for( x = 0; x < width; x += 4 )
                 {
                     int val0, val1;
                     val0 = trow[x] -
                            trow[x+width]*2 + trow1[x+width] + trow2[x+width];
                     val1 = trow[x+1] -
                            trow[x+1+width]*2 + trow1[x+1+width] + trow2[x+1+width];
-            
+
                     tdst2[x + 0] = (short)val0;
                     tdst2[x + 1] = (short)val1;
-            
+
                     val0 = trow[x+2] -
                            trow[x+2+width]*2 + trow1[x+2+width] + trow2[x+2+width];
                     val1 = trow[x+3] -
                            trow[x+3+width]*2 + trow1[x+3+width] + trow2[x+3+width];
-            
+
                     tdst2[x + 2] = (short)val0;
                     tdst2[x + 3] = (short)val1;
                 }
@@ -1241,29 +1258,29 @@ icvLaplace_8u16s_C1R( const uchar* pSrc, int srcStep,
         {
             int *trow0 = rows[0], *trow1 = rows[1], *trow3 = rows[3], *trow4 = rows[4];
 
-            for( x = 0; x < width; x += CV_MORPH_ALIGN )
+            for( x = 0; x < width; x += 4 )
             {
                 int val0, val1;
                 val0 = trow0[x] + trow4[x] + (trow1[x] + trow3[x])*4 + trow[x]*6 +
                        trow0[x+width] + trow4[x+width] - 2*trow[x+width];
                 val1 = trow0[x+1] + trow4[x+1] + (trow1[x+1] + trow3[x+1])*4 + trow[x+1]*6 +
                        trow0[x+1+width] + trow4[x+1+width] - 2*trow[x+1+width];
-            
+
                 tdst2[x + 0] = (short)val0;
                 tdst2[x + 1] = (short)val1;
-            
+
                 val0 = trow0[x+2] + trow4[x+2] + (trow1[x+2] + trow3[x+2])*4 + trow[x+2]*6 +
                        trow0[x+2+width] + trow4[x+2+width] - 2*trow[x+2+width];
                 val1 = trow0[x+3] + trow4[x+3] + (trow1[x+3] + trow3[x+3])*4 + trow[x+3]*6 +
                        trow0[x+3+width] + trow4[x+3+width] - 2*trow[x+3+width];
-            
+
                 tdst2[x + 2] = (short)val0;
                 tdst2[x + 3] = (short)val1;
             }
         }
         else
         {
-            for( x = 0; x < width; x += CV_MORPH_ALIGN )
+            for( x = 0; x < width; x += 4 )
             {
                 int val0, val1, val2, val3;
 
@@ -1350,16 +1367,23 @@ icvLaplace_32f_C1R( const float* pSrc, int srcStep,
     float* fmaskY = (float*)(state->ker1) + ker_y;
     float fmX0 = fmaskX[0], fmY0 = fmaskY[0];
 
-    int is_small_width = width < MAX( ker_x, ker_right );
+    int is_small_width = width <= ker_width;
     int starting_flag = 0;
     int width_rest = width & (CV_MORPH_ALIGN - 1);
     int y_type = ICV_Y_KERNEL_TYPE(state->kerType);
+
+    if( stage == CV_START + CV_END )
+        stage = CV_WHOLE;
 
     /* initialize cyclic buffer when starting */
     if( stage == CV_WHOLE || stage == CV_START )
     {
         for( i = 0; i < ker_height; i++ )
+        {
             rows[i] = (float*)(state->buffer + state->buffer_step * i);
+            for( x = width; (x&3) != 0; x++ )
+                rows[i][x] = rows[i][x+width] = 0.f;
+        }
 
         crows = ker_y;
         if( stage != CV_WHOLE )
@@ -1397,7 +1421,7 @@ icvLaplace_32f_C1R( const float* pSrc, int srcStep,
                 continue;
             }
 
-            need_copy |= src_height == 1;
+            need_copy |= src_height == 0;
 
             {
                 float* tbufc = (float*)tbufw;
@@ -1461,8 +1485,8 @@ icvLaplace_32f_C1R( const float* pSrc, int srcStep,
                     for( i = 0; i < width; i++ )
                     {
                         int j;
-                        float t0 = tsrc[i + ker_x]*fmX0;
-                        float t1 = tsrc[i + ker_x]*fmY0;
+                        double t0 = tsrc[i + ker_x]*fmX0;
+                        double t1 = tsrc[i + ker_x]*fmY0;
 
                         for( j = 1; j <= ker_x; j++ )
                         {
@@ -1470,8 +1494,8 @@ icvLaplace_32f_C1R( const float* pSrc, int srcStep,
                             t1 += (tsrc[i+ker_x+j] + tsrc[i+ker_x-j])*fmaskY[j];
                         }
 
-                        tdst[i] = t0;
-                        tdst[i+width] = t1;
+                        tdst[i] = (float)t0;
+                        tdst[i+width] = (float)t1;
                     }
                 }
 
@@ -1523,44 +1547,44 @@ icvLaplace_32f_C1R( const float* pSrc, int srcStep,
 
             if( y_type == ICV_1_2_1_KERNEL )
             {
-                for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                for( x = 0; x < width; x += 4 )
                 {
                     float val0, val1;
                     val0 = trow[x]*2 + trow1[x] + trow2[x] -
                            trow[x+width]*2 + trow1[x+width] + trow2[x+width];
                     val1 = trow[x+1]*2 + trow1[x+1] + trow2[x+1] -
                            trow[x+1+width]*2 + trow1[x+1+width] + trow2[x+1+width];
-            
+
                     tdst2[x + 0] = (float)val0;
                     tdst2[x + 1] = (float)val1;
-            
+
                     val0 = trow[x+2]*2 + trow1[x+2] + trow2[x+2] -
                            trow[x+2+width]*2 + trow1[x+2+width] + trow2[x+2+width];
                     val1 = trow[x+3]*2 + trow1[x+3] + trow2[x+3] -
                            trow[x+3+width]*2 + trow1[x+3+width] + trow2[x+3+width];
-            
+
                     tdst2[x + 2] = (float)val0;
                     tdst2[x + 3] = (float)val1;
                 }
             }
             else
             {
-                for( x = 0; x < width; x += CV_MORPH_ALIGN )
+                for( x = 0; x < width; x += 4 )
                 {
                     float val0, val1;
                     val0 = trow[x] -
                            trow[x+width]*2 + trow1[x+width] + trow2[x+width];
                     val1 = trow[x+1] -
                            trow[x+1+width]*2 + trow1[x+1+width] + trow2[x+1+width];
-            
+
                     tdst2[x + 0] = (float)val0;
                     tdst2[x + 1] = (float)val1;
-            
+
                     val0 = trow[x+2] -
                            trow[x+2+width]*2 + trow1[x+2+width] + trow2[x+2+width];
                     val1 = trow[x+3] -
                            trow[x+3+width]*2 + trow1[x+3+width] + trow2[x+3+width];
-            
+
                     tdst2[x + 2] = (float)val0;
                     tdst2[x + 3] = (float)val1;
                 }
@@ -1570,31 +1594,31 @@ icvLaplace_32f_C1R( const float* pSrc, int srcStep,
         {
             float*trow0 = rows[0], *trow1 = rows[1], *trow3 = rows[3], *trow4 = rows[4];
 
-            for( x = 0; x < width; x += CV_MORPH_ALIGN )
+            for( x = 0; x < width; x += 4 )
             {
                 float val0, val1;
                 val0 = trow0[x] + trow4[x] + (trow1[x] + trow3[x])*4 + trow[x]*6 +
                        trow0[x+width] + trow4[x+width] - 2*trow[x+width];
                 val1 = trow0[x+1] + trow4[x+1] + (trow1[x+1] + trow3[x+1])*4 + trow[x+1]*6 +
                        trow0[x+1+width] + trow4[x+1+width] - 2*trow[x+1+width];
-            
+
                 tdst2[x + 0] = (float)val0;
                 tdst2[x + 1] = (float)val1;
-            
+
                 val0 = trow0[x+2] + trow4[x+2] + (trow1[x+2] + trow3[x+2])*4 + trow[x+2]*6 +
                        trow0[x+2+width] + trow4[x+2+width] - 2*trow[x+2+width];
                 val1 = trow0[x+3] + trow4[x+3] + (trow1[x+3] + trow3[x+3])*4 + trow[x+3]*6 +
                        trow0[x+3+width] + trow4[x+3+width] - 2*trow[x+3+width];
-            
+
                 tdst2[x + 2] = (float)val0;
                 tdst2[x + 3] = (float)val1;
             }
         }
         else
         {
-            for( x = 0; x < width; x += CV_MORPH_ALIGN )
+            for( x = 0; x < width; x += 4 )
             {
-                float val0, val1, val2, val3;
+                double val0, val1, val2, val3;
 
                 val0 = trow[x]*fmY0 + trow[x + width]*fmX0;
                 val1 = trow[x + 1]*fmY0 + trow[x + 1 + width]*fmX0;
@@ -1604,7 +1628,7 @@ icvLaplace_32f_C1R( const float* pSrc, int srcStep,
                 for( i = 1; i <= ker_y; i++ )
                 {
                     float *trow1, *trow2;
-                    float m0 = fmaskY[i], m1 = fmaskX[i];
+                    double m0 = fmaskY[i], m1 = fmaskX[i];
                     trow1 = rows[ker_y - i];
                     trow2 = rows[ker_y + i];
                     val0 += (trow2[x] + trow1[x])*m0 +
@@ -1617,10 +1641,10 @@ icvLaplace_32f_C1R( const float* pSrc, int srcStep,
                             (trow2[x+3+width] + trow1[x+3+width])*m1;
                 }
 
-                tdst2[x + 0] = val0;
-                tdst2[x + 1] = val1;
-                tdst2[x + 2] = val2;
-                tdst2[x + 3] = val3;
+                tdst2[x + 0] = (float)val0;
+                tdst2[x + 1] = (float)val1;
+                tdst2[x + 2] = (float)val2;
+                tdst2[x + 3] = (float)val3;
             }
         }
 
@@ -1664,7 +1688,7 @@ void icvSepConvSmall3_32f( float*  src, int src_step,
 {
     int  dst_width, buffer_step = 0;
     int  x, y;
-    
+
     assert( src && dst && src_size.width > 2 && src_size.height > 2 &&
             (src_step & 3) == 0 && (dst_step & 3) == 0 &&
             (kx || ky) && (buffer || !kx || !ky));
@@ -1676,7 +1700,7 @@ void icvSepConvSmall3_32f( float*  src, int src_step,
 
     if( !kx )
     {
-        /* set vars, so that vertical convolution 
+        /* set vars, so that vertical convolution
            will write results into destination ROI and
            horizontal convolution won't run */
         src_size.width = dst_width;
@@ -1686,11 +1710,11 @@ void icvSepConvSmall3_32f( float*  src, int src_step,
     }
 
     assert( src_step >= src_size.width && dst_step >= dst_width );
-    
+
     src_size.height -= 3;
     if( !ky )
     {
-        /* set vars, so that vertical convolution won't run and 
+        /* set vars, so that vertical convolution won't run and
            horizontal convolution will write results into destination ROI and */
         src_size.height += 3;
         buffer_step = src_step;
@@ -1733,11 +1757,34 @@ ICV_DEF_INIT_DERIV_TAB( Sobel )
 ICV_DEF_INIT_DERIV_TAB( Scharr )
 ICV_DEF_INIT_DERIV_TAB( Laplace )
 
+
+////////////////////////////////// IPP derivative filters ////////////////////////////////
+
+icvFilterSobelVert_8u16s_C1R_t icvFilterSobelVert_8u16s_C1R_p = 0;
+icvFilterSobelHoriz_8u16s_C1R_t icvFilterSobelHoriz_8u16s_C1R_p = 0;
+icvFilterSobelVertSecond_8u16s_C1R_t icvFilterSobelVertSecond_8u16s_C1R_p = 0;
+icvFilterSobelHorizSecond_8u16s_C1R_t icvFilterSobelHorizSecond_8u16s_C1R_p = 0;
+icvFilterSobelCross_8u16s_C1R_t icvFilterSobelCross_8u16s_C1R_p = 0;
+
+icvFilterSobelVert_32f_C1R_t icvFilterSobelVert_32f_C1R_p = 0;
+icvFilterSobelHoriz_32f_C1R_t icvFilterSobelHoriz_32f_C1R_p = 0;
+icvFilterSobelVertSecond_32f_C1R_t icvFilterSobelVertSecond_32f_C1R_p = 0;
+icvFilterSobelHorizSecond_32f_C1R_t icvFilterSobelHorizSecond_32f_C1R_p = 0;
+icvFilterSobelCross_32f_C1R_t icvFilterSobelCross_32f_C1R_p = 0;
+
+icvFilterScharrVert_8u16s_C1R_t icvFilterScharrVert_8u16s_C1R_p = 0;
+icvFilterScharrHoriz_8u16s_C1R_t icvFilterScharrHoriz_8u16s_C1R_p = 0;
+icvFilterScharrVert_32f_C1R_t icvFilterScharrVert_32f_C1R_p = 0;
+icvFilterScharrHoriz_32f_C1R_t icvFilterScharrHoriz_32f_C1R_p = 0;
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
 CV_IMPL void
 cvSobel( const void* srcarr, void* dstarr, int dx, int dy, int aperture_size )
 {
     static CvFuncTable sobel_tab, scharr_tab;
     static int inittab = 0;
+    CvMat* temp = 0;
 
     CvFilterState *state = 0;
     CV_FUNCNAME( "cvSobel" );
@@ -1763,29 +1810,26 @@ cvSobel( const void* srcarr, void* dstarr, int dx, int dy, int aperture_size )
     CV_CALL( dst = cvGetMat( dst, &dststub ));
 
     if( CV_IS_IMAGE_HDR( srcarr ))
-    {
         origin = ((IplImage*)srcarr)->origin;
-    }
 
     if( CV_MAT_CN( src->type ) != 1 || CV_MAT_CN( dst->type ) != 1 )
         CV_ERROR( CV_BadNumChannels, cvUnsupportedFormat );
 
-    if( CV_MAT_DEPTH( src->type ) <= CV_8S )
+    if( CV_MAT_DEPTH( src->type ) == CV_8U )
     {
         if( CV_MAT_DEPTH( dst->type ) != CV_16S )
-            CV_ERROR( CV_StsUnmatchedFormats, "Destination should have 16s format"
-                                              " when source has 8u or 8s format" );
+            CV_ERROR( CV_StsUnmatchedFormats,
+            "Destination array should be 16-bit signed when the source is 8-bit" );
     }
     else if( CV_MAT_DEPTH( src->type ) == CV_32F )
     {
         if( CV_MAT_DEPTH( dst->type ) != CV_32F )
-            CV_ERROR( CV_StsUnmatchedFormats, "Destination should have 16s format"
-                                              " when source has 8u or 8s format" );
+            CV_ERROR( CV_StsUnmatchedFormats,
+            "Destination array should be 32-bit floating point "
+            "when the source is 32-bit floating point" );
     }
     else
-    {
         CV_ERROR( CV_StsUnsupportedFormat, "Unsupported source array format" );
-    }
 
     depth = CV_MAT_DEPTH( src->type );
     datatype = icvDepthToDataType(depth);
@@ -1793,27 +1837,101 @@ cvSobel( const void* srcarr, void* dstarr, int dx, int dy, int aperture_size )
     if( !CV_ARE_SIZES_EQ( src, dst ))
         CV_ERROR( CV_StsBadArg, "src and dst have different sizes" );
 
+    size = cvGetMatSize(src);
+
+    if( ((aperture_size == CV_SCHARR || aperture_size == 3 || aperture_size == 5) &&
+        dx <= 1 && dy <= 1 && icvFilterSobelVert_8u16s_C1R_p))
+    {
+        CvSobelFixedIPPFunc ipp_sobel_func = 0;
+        CvFilterFixedIPPFunc ipp_scharr_func = 0;
+
+        if( dx == 1 && dy == 0 && aperture_size == CV_SCHARR )
+            ipp_scharr_func = depth == CV_8U ?
+                icvFilterScharrVert_8u16s_C1R_p : icvFilterScharrVert_32f_C1R_p;
+        else if( dx == 0 && dy == 1 && aperture_size == CV_SCHARR )
+            ipp_scharr_func = depth == CV_8U ?
+                icvFilterScharrHoriz_8u16s_C1R_p : icvFilterScharrHoriz_32f_C1R_p;
+        else if( dx == 1 && dy == 0 )
+            ipp_sobel_func = depth == CV_8U ?
+                icvFilterSobelVert_8u16s_C1R_p : icvFilterSobelVert_32f_C1R_p;
+        else if( dx == 0 && dy == 1 )
+            ipp_sobel_func = depth == CV_8U ?
+                icvFilterSobelHoriz_8u16s_C1R_p : icvFilterSobelHoriz_32f_C1R_p;
+        else if( dx == 2 && dy == 0 )
+            ipp_sobel_func = depth == CV_8U ?
+                icvFilterSobelVertSecond_8u16s_C1R_p : icvFilterSobelVertSecond_32f_C1R_p;
+        else if( dx == 1 && dy == 1 )
+            ipp_sobel_func = depth == CV_8U ?
+                icvFilterSobelCross_8u16s_C1R_p : icvFilterSobelCross_32f_C1R_p;
+        else if( dx == 0 && dy == 2 )
+            ipp_sobel_func = depth == CV_8U ?
+                icvFilterSobelHorizSecond_8u16s_C1R_p : icvFilterSobelHorizSecond_32f_C1R_p;
+
+        if( ipp_sobel_func || ipp_scharr_func )
+        {
+            int need_to_negate = (dx == 1 && aperture_size != CV_SCHARR) ^ ((dy == 1) && origin);
+            aperture_size = aperture_size == CV_SCHARR ? 3 : aperture_size;
+            CvSize el_size = { aperture_size, aperture_size };
+            CvPoint el_anchor = { aperture_size/2, aperture_size/2 };
+            int stripe_buf_size = 1 << 15; // the optimal value may depend on CPU cache,
+                                           // overhead of current IPP code etc.
+            const uchar* shifted_ptr;
+            int y, delta_y = 0;
+            int temp_step;
+            int dst_step = dst->step ? dst->step : CV_STUB_STEP;
+            CvSize stripe_size;
+
+            CV_CALL( temp = icvIPPFilterInit( src, stripe_buf_size, el_size ));
+
+            shifted_ptr = temp->data.ptr +
+                el_anchor.y*temp->step + el_anchor.x*CV_ELEM_SIZE(depth);
+            temp_step = temp->step ? temp->step : CV_STUB_STEP;
+
+            for( y = 0; y < src->rows; y += delta_y )
+            {
+                delta_y = icvIPPFilterNextStripe( src, temp, y, el_size, el_anchor );
+                stripe_size.width = size.width;
+                stripe_size.height = delta_y;
+
+                if( ipp_sobel_func )
+                {
+                    IPPI_CALL( ipp_sobel_func( shifted_ptr, temp_step,
+                            dst->data.ptr + y*dst_step, dst_step,
+                            stripe_size, aperture_size*10 + aperture_size ));
+                }
+                else
+                {
+                    IPPI_CALL( ipp_scharr_func( shifted_ptr, temp_step,
+                            dst->data.ptr + y*dst_step, dst_step, stripe_size ));
+                }
+            }
+
+            if( need_to_negate )
+                cvSubRS( dst, cvScalarAll(0), dst );
+            EXIT;
+        }
+    }
+
     if( aperture_size == CV_SCHARR )
     {
-        IPPI_CALL( icvScharrInitAlloc( src->width, datatype, origin, dx, dy, &state ));
+        CV_CALL( state = icvScharrInitAlloc( src->width, datatype, origin, dx, dy ));
         func = (CvFilterFunc)(scharr_tab.fn_2d[depth]);
     }
     else
     {
-        IPPI_CALL( icvSobelInitAlloc( src->width, datatype, aperture_size,
-                                      origin, dx, dy, &state ));
+        CV_CALL( state = icvSobelInitAlloc( src->width, datatype, aperture_size, origin, dx, dy ));
         func = (CvFilterFunc)(sobel_tab.fn_2d[depth]);
     }
 
     if( !func )
         CV_ERROR( CV_StsUnsupportedFormat, "" );
 
-    size = cvGetMatSize(src);
     IPPI_CALL( func( src->data.ptr, src->step, dst->data.ptr,
                      dst->step, &size, state, 0 ));
 
     __END__;
 
+    cvReleaseMat( &temp );
     icvFilterFree( &state );
 }
 
@@ -1823,7 +1941,7 @@ cvLaplace( const void* srcarr, void* dstarr, int aperture_size )
 {
     static CvFuncTable laplace_tab;
     static int inittab = 0;
-    
+
     CV_FUNCNAME( "cvLaplace" );
 
     CvFilterState *state = 0;
@@ -1848,7 +1966,7 @@ cvLaplace( const void* srcarr, void* dstarr, int aperture_size )
     if( CV_MAT_CN( src->type ) != 1 || CV_MAT_CN( dst->type ) != 1 )
         CV_ERROR( CV_BadNumChannels, cvUnsupportedFormat );
 
-    if( CV_MAT_DEPTH( src->type ) <= CV_8S )
+    if( CV_MAT_DEPTH( src->type ) == CV_8U )
     {
         if( CV_MAT_DEPTH( dst->type ) != CV_16S )
             CV_ERROR( CV_StsUnmatchedFormats, "Destination should have 16s format"
@@ -1870,7 +1988,7 @@ cvLaplace( const void* srcarr, void* dstarr, int aperture_size )
     if( !CV_ARE_SIZES_EQ( src, dst ))
         CV_ERROR( CV_StsBadArg, "src and dst have different sizes" );
 
-    IPPI_CALL( icvLaplaceInitAlloc( src->width, icvDepthToDataType(depth), aperture_size, &state ));
+    CV_CALL( state = icvLaplaceInitAlloc( src->width, icvDepthToDataType(depth), aperture_size ));
     func = (CvFilterFunc)(laplace_tab.fn_2d[depth]);
 
     if( !func )

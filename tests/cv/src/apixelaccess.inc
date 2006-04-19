@@ -40,7 +40,7 @@
 //M*/
 
 #define CHECK( value, error, message )          \
-    if( value )                                 \
+    if( (value) != 0 )                          \
     {                                           \
         error++;                                \
         trsWrite( ATS_CON | ATS_LST, message ); \
@@ -49,7 +49,7 @@
     /* Body function */
     
     TEST_TYPE  pos;
-    DATA_TYPE* data = (DATA_TYPE*)icvAlloc( SIZE_X * SIZE_Y * sizeof(DATA_TYPE) );
+    DATA_TYPE* data = (DATA_TYPE*)cvAlloc( SIZE_X * SIZE_Y * sizeof(DATA_TYPE) );
     CvSize     roi;
     int        Errors = 0;
 
@@ -496,7 +496,7 @@
            Errors,
            "MOVE_PARAM_WRAP(LD): Wrong x\n" );
     
-    icvFree( &data );
+    cvFree( (void**)&data );
 
     return Errors == 0 ? TRS_OK : trsResult( TRS_FAIL, "Fixed %d error(s)", Errors );
 

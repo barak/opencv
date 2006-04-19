@@ -1,28 +1,27 @@
-lib_LTLIBRARIES = libcv0.9.la
+lib_LTLIBRARIES = libcv0.9.7.la
 
-libcv0_9_la_SOURCES = cvaccum.cpp cvadapthresh.cpp cvapprox.cpp \
-    cvcalccontrasthistogram.cpp cvcalcimagehomography.cpp \
-    cvcalibinit.cpp cvcalibration.cpp cvcamshift.cpp cvcanny.cpp \
-    cvcolor.cpp cvcondens.cpp cvcontours.cpp cvcontourtree.cpp \
-    cvconvhull.cpp cvconvolve.cpp cvcorner.cpp cvcornersubpix.cpp \
-    cvderiv.cpp cvdistransform.cpp cvdominants.cpp cvemd.cpp \
-    cvfeatureselect.cpp cvfloodfill.cpp cvfundam.cpp cvgeometry.cpp \
-    cvhaar.cpp cvhistogram.cpp cvhough.cpp cvimgwarp.cpp cvkalman.cpp \
-    cvlinefit.cpp cvlkpyramid.cpp cvmatchcontours.cpp cvmineval.cpp \
-    cvmoments.cpp cvmorph.cpp cvmotempl.cpp cvoptflowbm.cpp \
-    cvoptflowhs.cpp cvoptflowlk.cpp cvpgh.cpp cvposit.cpp cvprecomp.cpp \
-    cvprecorner.cpp cvpyramids.cpp cvpyrsegmentation.cpp \
-    cvrotcalipers.cpp cvsamplers.cpp cvshapedescr.cpp cvsmooth.cpp \
-    cvsnakes.cpp cvsubdivision2d.cpp cvsumpixels.cpp cvswitcher.cpp \
-    cvtables.cpp cvtemplmatch.cpp cvthresh.cpp cvundistort.cpp \
-    cvutils.cpp
+libcv0_9_7_la_SOURCES = \
+    cvaccum.cpp cvadapthresh.cpp cvapprox.cpp cvcalccontrasthistogram.cpp \
+    cvcalcimagehomography.cpp cvcalibinit.cpp cvcalibration.cpp \
+    cvcamshift.cpp cvcanny.cpp cvcolor.cpp cvcondens.cpp cvcontours.cpp \
+    cvcontourtree.cpp cvconvhull.cpp cvconvolve.cpp cvcorner.cpp \
+    cvcornersubpix.cpp cvderiv.cpp cvdistransform.cpp cvdominants.cpp \
+    cvemd.cpp cvfeatureselect.cpp cvfloodfill.cpp cvfundam.cpp \
+    cvgeometry.cpp cvhaar.cpp cvhistogram.cpp cvhough.cpp cvimgwarp.cpp \
+    cvkalman.cpp cvlinefit.cpp cvlkpyramid.cpp cvmatchcontours.cpp \
+    cvmoments.cpp cvmorph.cpp cvmotempl.cpp cvoptflowbm.cpp cvoptflowhs.cpp \
+    cvoptflowlk.cpp cvpgh.cpp cvposit.cpp cvprecomp.cpp cvpyramids.cpp \
+    cvpyrsegmentation.cpp cvrotcalipers.cpp cvsamplers.cpp cvshapedescr.cpp \
+    cvsmooth.cpp cvsnakes.cpp cvsubdivision2d.cpp cvsumpixels.cpp \
+    cvswitcher.cpp cvtables.cpp cvtemplmatch.cpp cvthresh.cpp \
+    cvundistort.cpp cvutils.cpp
 
-
-include_HEADERS =
 noinst_HEADERS = _cv.h _cvgeom.h _cvimgproc.h _cvipp.h _cvlist.h _cvmatrix.h
 EXTRA_DIST = cv.dsp cv.vcproj cv.rc resource.h
 
-libcv0_9_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@ ../../cxcore/src/libcxcore0.9.la
+libcv0_9_7_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@
+libcv0_9_7_la_LIBADD  = $(top_builddir)/cxcore/src/libcxcore0.9.7.la
+
 LIBS = -ldl -lpthread -lm
 
-INCLUDES = -I. -I../include -I../../cxcore/include -I../..
+INCLUDES = -I. -I$(top_srcdir)/cv/include -I$(top_srcdir)/cxcore/include -I$(top_srcdir)

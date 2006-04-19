@@ -1,21 +1,25 @@
-lib_LTLIBRARIES = libcvaux0.9.la
+lib_LTLIBRARIES = libcvaux0.9.7.la
 
-libcvaux0_9_la_SOURCES = camshift.cpp cv3dtracker.cpp cvaux.cpp \
-    cvauxutils.cpp cvcalibfilter.cpp cvcorrespond.cpp cvcorrimages.cpp \
-    cvcreatehandmask.cpp cvdpstereo.cpp cveigenobjects.cpp cvepilines.cpp \
-    cvface.cpp cvfacedetection.cpp cvfacetemplate.cpp cvfindface.cpp \
-    cvfindhandregion.cpp cvhmm.cpp cvhmm1d.cpp cvhmmobs.cpp cvlcm.cpp \
-    cvlee.cpp cvlevmar.cpp cvlevmarprojbandle.cpp cvlevmartrif.cpp \
-    cvlines.cpp cvlmeds.cpp cvmat.cpp cvmorphcontours.cpp cvmorphing.cpp \
-    cvprewarp.cpp cvscanlines.cpp cvsegment.cpp cvsubdiv2.cpp cvtexture.cpp \
-    cvtrifocal.cpp cvvecfacetracking.cpp cvvideo.cpp precomp.cpp
+libcvaux0_9_7_la_SOURCES = \
+    camshift.cpp cv3dtracker.cpp cvaux.cpp cvauxutils.cpp \
+    cvbgfg_acmmm2003.cpp cvbgfg_common.cpp cvbgfg_gaussmix.cpp \
+    cvcalibfilter.cpp cvclique.cpp cvcorrespond.cpp cvcorrimages.cpp \
+    cvcreatehandmask.cpp cvdpstereo.cpp cveigenobjects.cpp \
+    cvepilines.cpp cvface.cpp cvfacedetection.cpp cvfacetemplate.cpp \
+    cvfindface.cpp cvfindhandregion.cpp cvhmm1d.cpp cvhmm.cpp \
+    cvhmmobs.cpp cvlcm.cpp cvlee.cpp cvlevmar.cpp cvlevmarprojbandle.cpp \
+    cvlevmartrif.cpp cvlines.cpp cvlmeds.cpp cvmat.cpp cvmorphcontours.cpp \
+    cvmorphing.cpp cvprewarp.cpp cvscanlines.cpp cvsegment.cpp \
+    cvsubdiv2.cpp cvtexture.cpp cvtrifocal.cpp cvvecfacetracking.cpp \
+    cvvideo.cpp decomppoly.cpp enmin.cpp extendededges.cpp \
+    precomp.cpp
 
 EXTRA_DIST = cvaux.dsp cvaux.vcproj cvaux.rc resource.h
 
 include_HEADERS =
 noinst_HEADERS = _cvaux.h _cvfacedetection.h _cvvectrack.h _cvvm.h
 
-libcvaux0_9_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@
-libcvaux0_9_la_LIBADD = ../../cv/src/libcv0.9.la ../../cxcore/src/libcxcore0.9.la
+libcvaux0_9_7_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@
+libcvaux0_9_7_la_LIBADD  = $(top_builddir)/cv/src/libcv0.9.7.la
 
-INCLUDES = -I. -I../include -I../../cxcore/include -I../../cv/include -I../../cv/src -I../..
+INCLUDES = -I. -I$(top_srcdir)/cvaux/include -I$(top_srcdir)/cxcore/include -I$(top_srcdir)/cv/include -I$(top_srcdir)/cv/src -I$(top_srcdir)

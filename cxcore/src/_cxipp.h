@@ -46,37 +46,18 @@
 *                                      Copy/Set                                          *
 \****************************************************************************************/
 
-IPCVAPI_EX( CvStatus, icvCopy_8u_C1R, "ippiCopy_8u_C1R", CV_PLUGINS1(CV_PLUGIN_IPPI),
+/* temporary disable ipp zero and copy functions as they affect subsequent functions' performance */
+IPCVAPI_EX( CvStatus, icvCopy_8u_C1R, "ippiCopy_8u_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_IPPI)*/,
                   ( const uchar* src, int src_step,
                     uchar* dst, int dst_step, CvSize size ))
 
-IPCVAPI_EX( CvStatus, icvSetByte_8u_C1R, "ippiSet_8u_C1R", CV_PLUGINS1(CV_PLUGIN_IPPI),
+IPCVAPI_EX( CvStatus, icvSetByte_8u_C1R, "ippiSet_8u_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_IPPI)*/,
                   ( uchar value, uchar* dst, int dst_step, CvSize size ))
-
-#define IPCV_CVT_TO( flavor )                                                   \
-IPCVAPI_EX( CvStatus, icvCvtTo_##flavor##_C1R, "ippiCvtTo_" #flavor "_C1R", 0,  \
-    ( const void* src, int step1, void* dst, int step, CvSize size, int param ))
-
-IPCV_CVT_TO( 8u )
-IPCV_CVT_TO( 8s )
-IPCV_CVT_TO( 16u )
-IPCV_CVT_TO( 16s )
-IPCV_CVT_TO( 32s )
-IPCV_CVT_TO( 32f )
-IPCV_CVT_TO( 64f )
-
-#undef IPCV_CVT_TO
 
 IPCVAPI_EX( CvStatus, icvCvt_32f64f, "ippsConvert_32f64f",
             CV_PLUGINS1(CV_PLUGIN_IPPS), ( const float* src, double* dst, int len ))
 IPCVAPI_EX( CvStatus, icvCvt_64f32f, "ippsConvert_64f32f",
             CV_PLUGINS1(CV_PLUGIN_IPPS), ( const double* src, float* dst, int len ))
-
-/* dst(idx) = src(idx)*a + b */
-IPCVAPI_EX( CvStatus, icvScale_32f, "ippsScale_32f", 0, ( const float* src, float* dst,
-                                                          int len, float a, float b ))
-IPCVAPI_EX( CvStatus, icvScale_64f, "ippsScale_64f", 0, ( const double* src, double* dst,
-                                                          int len, double a, double b ))
 
 #define IPCV_COPYSET( flavor, arrtype, scalartype )                                 \
 IPCVAPI_EX( CvStatus, icvCopy##flavor, "ippiCopy" #flavor,                          \
@@ -85,7 +66,7 @@ IPCVAPI_EX( CvStatus, icvCopy##flavor, "ippiCopy" #flavor,                      
                                      arrtype* dst, int dststep, CvSize size,        \
                                      const uchar* mask, int maskstep ))             \
 IPCVAPI_EX( CvStatus, icvSet##flavor, "ippiSet" #flavor,                            \
-                                    CV_PLUGINS1(CV_PLUGIN_OPTCV),                   \
+                                    0/*CV_PLUGINS1(CV_PLUGIN_OPTCV)*/,              \
                                   ( arrtype* dst, int dststep,                      \
                                     const uchar* mask, int maskstep,                \
                                     CvSize size, const arrtype* scalar ))
@@ -133,55 +114,10 @@ IPCVAPI_EX( CvStatus, icv##name##_64f_C1R,                          \
   double* dst, int dststep, CvSize size ))
 
 
-#define IPCV_UN_ARITHM( name )                                      \
-IPCVAPI_EX( CvStatus, icv##name##_8u_C1R,                           \
-    "ippcv" #name "_8u_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),          \
-( const uchar* src, int srcstep, uchar* dst, int dststep,           \
-  CvSize size, const int* scalar ))                                 \
-IPCVAPI_EX( CvStatus, icv##name##_16u_C1R,                          \
-    "ippcv" #name "_16u_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),         \
-( const ushort* src, int srcstep, ushort* dst, int dststep,         \
-  CvSize size, const int* scalar ))                                 \
-IPCVAPI_EX( CvStatus, icv##name##_16s_C1R,                          \
-    "ippcv" #name "_16s_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),         \
-( const short* src, int srcstep, short* dst, int dststep,           \
-  CvSize size, const int* scalar ))                                 \
-IPCVAPI_EX( CvStatus, icv##name##_32s_C1R,                          \
-    "ippcv" #name "_32s_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),         \
-( const int* src, int srcstep, int* dst, int dststep,               \
-  CvSize size, const int* scalar ))                                 \
-IPCVAPI_EX( CvStatus, icv##name##_32f_C1R,                          \
-    "ippcv" #name "_32f_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),         \
-( const float* src, int srcstep, float* dst, int dststep,           \
-  CvSize size, const float* scalar ))                               \
-IPCVAPI_EX( CvStatus, icv##name##_64f_C1R,                          \
-    "ippcv" #name "_64f_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),         \
-( const double* src, int srcstep, double* dst, int dststep,         \
-  CvSize size, const double* scalar ))
-
-
 IPCV_BIN_ARITHM( Add )
 IPCV_BIN_ARITHM( Sub )
-IPCV_UN_ARITHM( AddC )
-IPCV_UN_ARITHM( SubRC )
 
 #undef IPCV_BIN_ARITHM
-#undef IPCV_UN_ARITHM
-
-#define IPCV_MUL( flavor, arrtype )                                 \
-IPCVAPI_EX( CvStatus, icvMul_##flavor##_C1R,                        \
-    "ippcvMul_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),       \
-( const arrtype* src1, int step1, const arrtype* src2, int step2,   \
-  arrtype* dst, int step, CvSize size, double scale ))
-
-IPCV_MUL( 8u, uchar )
-IPCV_MUL( 16u, ushort )
-IPCV_MUL( 16s, short )
-IPCV_MUL( 32s, int )
-IPCV_MUL( 32f, float )
-IPCV_MUL( 64f, double )
-
-#undef IPCV_MUL
 
 /****************************************************************************************\
 *                                     Logical operations                                 *
@@ -191,11 +127,7 @@ IPCV_MUL( 64f, double )
 IPCVAPI_EX( CvStatus, icv##name##_8u_C1R,                               \
     "ippi" #name "_8u_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_IPPI)*/,           \
 ( const uchar* src1, int srcstep1, const uchar* src2, int srcstep2,     \
-  uchar* dst, int dststep, CvSize size ))                               \
-IPCVAPI_EX( CvStatus, icv##name##C_8u_CnR,                              \
-    "ippi" #name "C_8u_CnR", CV_PLUGINS1(CV_PLUGIN_OPTCV),              \
-( const uchar* src1, int srcstep1, uchar* dst, int dststep,             \
-  CvSize, const uchar* scalar, int pix_size ))
+  uchar* dst, int dststep, CvSize size ))
 
 IPCV_LOGIC( And )
 IPCV_LOGIC( Or )
@@ -203,7 +135,7 @@ IPCV_LOGIC( Xor )
 
 #undef IPCV_LOGIC
 
-IPCVAPI_EX( CvStatus, icvNot_8u_C1R, "ippiNot_8u_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_IPPI)*/,
+IPCVAPI_EX( CvStatus, icvNot_8u_C1R, "ippiNot_8u_C1R", CV_PLUGINS1(CV_PLUGIN_IPPI),
 ( const uchar* src, int step1, uchar* dst, int step, CvSize size ))
 
 /****************************************************************************************\
@@ -218,15 +150,15 @@ IPCVAPI_EX( CvStatus, icvMean_##flavor##_C1MR,          \
 ( const srctype* img, int imgstep, const uchar* mask,   \
   int maskStep, CvSize size, double* mean ))            \
 IPCVAPI_EX( CvStatus, icvMean_##flavor##_C2MR,          \
-"ippiMean_" #flavor "_C2MR", CV_PLUGINS1(CV_PLUGIN_OPTCV), \
+"ippiMean_" #flavor "_C2MR", 0/*CV_PLUGINS1(CV_PLUGIN_OPTCV)*/, \
 ( const srctype* img, int imgstep, const uchar* mask,   \
   int maskStep, CvSize size, double* mean ))            \
 IPCVAPI_EX( CvStatus, icvMean_##flavor##_C3MR,          \
-"ippiMean_" #flavor "_C3MR", CV_PLUGINS1(CV_PLUGIN_OPTCV), \
+"ippiMean_" #flavor "_C3MR", 0/*CV_PLUGINS1(CV_PLUGIN_OPTCV)*/, \
 ( const srctype* img, int imgstep, const uchar* mask,   \
   int maskStep, CvSize size, double* mean ))            \
 IPCVAPI_EX( CvStatus, icvMean_##flavor##_C4MR,          \
-"ippiMean_" #flavor "_C4MR", CV_PLUGINS1(CV_PLUGIN_OPTCV), \
+"ippiMean_" #flavor "_C4MR", 0/*CV_PLUGINS1(CV_PLUGIN_OPTCV)*/, \
 ( const srctype* img, int imgstep, const uchar* mask,   \
   int maskStep, CvSize size, double* mean ))
 
@@ -241,36 +173,39 @@ IPCV_DEF_MEAN_MASK( 64f, double )
 
 //////////////////////////////////// Mean_StdDev ////////////////////////////////////////
 
+#undef IPCV_MEAN_SDV_PLUGIN
+#define ICV_MEAN_SDV_PLUGIN 0 /* CV_PLUGINS1(IPPCV) */
+
 #define IPCV_DEF_MEAN_SDV( flavor, srctype )                                \
 IPCVAPI_EX( CvStatus, icvMean_StdDev_##flavor##_C1R,                        \
-"ippiMean_StdDev_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPCV),            \
+"ippiMean_StdDev_" #flavor "_C1R", ICV_MEAN_SDV_PLUGIN,                     \
 ( const srctype* img, int imgstep, CvSize size, double* mean, double* sdv ))\
 IPCVAPI_EX( CvStatus, icvMean_StdDev_##flavor##_C2R,                        \
-"ippiMean_StdDev_" #flavor "_C2R", CV_PLUGINS1(CV_PLUGIN_OPTCV),            \
+"ippiMean_StdDev_" #flavor "_C2R", ICV_MEAN_SDV_PLUGIN,                     \
 ( const srctype* img, int imgstep, CvSize size, double* mean, double* sdv ))\
 IPCVAPI_EX( CvStatus, icvMean_StdDev_##flavor##_C3R,                        \
-"ippiMean_StdDev_" #flavor "_C3R", CV_PLUGINS1(CV_PLUGIN_OPTCV),            \
+"ippiMean_StdDev_" #flavor "_C3R", ICV_MEAN_SDV_PLUGIN,                     \
 ( const srctype* img, int imgstep, CvSize size, double* mean, double* sdv ))\
 IPCVAPI_EX( CvStatus, icvMean_StdDev_##flavor##_C4R,                        \
-"ippiMean_StdDev_" #flavor "_C4R", CV_PLUGINS1(CV_PLUGIN_OPTCV),            \
+"ippiMean_StdDev_" #flavor "_C4R", ICV_MEAN_SDV_PLUGIN,                     \
 ( const srctype* img, int imgstep, CvSize size, double* mean, double* sdv ))\
                                                                             \
 IPCVAPI_EX( CvStatus, icvMean_StdDev_##flavor##_C1MR,                       \
-"ippiMean_StdDev_" #flavor "_C1MR", CV_PLUGINS1(CV_PLUGIN_IPPCV),           \
+"ippiMean_StdDev_" #flavor "_C1MR", ICV_MEAN_SDV_PLUGIN,                    \
 ( const srctype* img, int imgstep,                                          \
   const uchar* mask, int maskStep,                                          \
   CvSize size, double* mean, double* sdv ))                                 \
 IPCVAPI_EX( CvStatus, icvMean_StdDev_##flavor##_C2MR,                       \
-"ippiMean_StdDev_" #flavor "_C2MR", CV_PLUGINS1(CV_PLUGIN_OPTCV),           \
+"ippiMean_StdDev_" #flavor "_C2MR", ICV_MEAN_SDV_PLUGIN,                    \
 ( const srctype* img, int imgstep,  const uchar* mask, int maskStep,        \
   CvSize size, double* mean, double* sdv ))                                 \
 IPCVAPI_EX( CvStatus, icvMean_StdDev_##flavor##_C3MR,                       \
-"ippiMean_StdDev_" #flavor "_C3MR", CV_PLUGINS1(CV_PLUGIN_OPTCV),           \
+"ippiMean_StdDev_" #flavor "_C3MR", ICV_MEAN_SDV_PLUGIN,                    \
 ( const srctype* img, int imgstep,                                          \
   const uchar* mask, int maskStep,                                          \
   CvSize size, double* mean, double* sdv ))                                 \
 IPCVAPI_EX( CvStatus, icvMean_StdDev_##flavor##_C4MR,                       \
-"ippiMean_StdDev_" #flavor "_C4MR", CV_PLUGINS1(CV_PLUGIN_OPTCV),           \
+"ippiMean_StdDev_" #flavor "_C4MR", ICV_MEAN_SDV_PLUGIN,                    \
 ( const srctype* img, int imgstep,                                          \
   const uchar* mask, int maskStep,                                          \
   CvSize size, double* mean, double* sdv ))
@@ -283,9 +218,9 @@ IPCV_DEF_MEAN_SDV( 32f, float )
 IPCV_DEF_MEAN_SDV( 64f, double )
 
 #undef IPCV_DEF_MEAN_SDV
+#undef IPCV_MEAN_SDV_PLUGIN
 
 //////////////////////////////////// MinMaxIndx /////////////////////////////////////////
-
 
 #define IPCV_DEF_MIN_MAX_LOC( flavor, srctype, extrtype )       \
 IPCVAPI_EX( CvStatus, icvMinMaxIndx_##flavor##_C1R,             \
@@ -301,14 +236,29 @@ IPCVAPI_EX( CvStatus, icvMinMaxIndx_##flavor##_C1MR,            \
   CvSize size, extrtype* minVal, extrtype* maxVal,              \
   CvPoint* minLoc, CvPoint* maxLoc ))
 
-IPCV_DEF_MIN_MAX_LOC( 8u, uchar, float )
-IPCV_DEF_MIN_MAX_LOC( 16u, ushort, float )
-IPCV_DEF_MIN_MAX_LOC( 16s, short, float )
-IPCV_DEF_MIN_MAX_LOC( 32s, int, double )
-IPCV_DEF_MIN_MAX_LOC( 32f, float, float )
-IPCV_DEF_MIN_MAX_LOC( 64f, double, double )
+#define IPCV_DEF_MIN_MAX_LOC_NO_MASK( flavor, srctype, extrtype ) \
+IPCVAPI_EX( CvStatus, icvMinMaxIndx_##flavor##_C1R,             \
+"ippiMinMaxIndx_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPCV), \
+( const srctype* img, int imgstep,                              \
+  CvSize size, extrtype* minVal, extrtype* maxVal,              \
+  CvPoint* minLoc, CvPoint* maxLoc ))                           \
+                                                                \
+IPCVAPI_EX( CvStatus, icvMinMaxIndx_##flavor##_C1MR,            \
+"ippiMinMaxIndx_" #flavor "_C1MR", 0/*CV_PLUGINS1(CV_PLUGIN_IPPCV)*/,\
+( const srctype* img, int imgstep,                              \
+  const uchar* mask, int maskStep,                              \
+  CvSize size, extrtype* minVal, extrtype* maxVal,              \
+  CvPoint* minLoc, CvPoint* maxLoc ))
 
-#undef IPCV_MIN_MAX_LOC
+IPCV_DEF_MIN_MAX_LOC_NO_MASK( 8u, uchar, float )
+IPCV_DEF_MIN_MAX_LOC_NO_MASK( 16u, ushort, float )
+IPCV_DEF_MIN_MAX_LOC_NO_MASK( 16s, short, float )
+IPCV_DEF_MIN_MAX_LOC_NO_MASK( 32s, int, double )
+IPCV_DEF_MIN_MAX_LOC_NO_MASK( 32f, float, float )
+IPCV_DEF_MIN_MAX_LOC_NO_MASK( 64f, double, double )
+
+#undef IPCV_DEF_MIN_MAX_LOC
+#undef IPCV_DEF_MIN_MAX_LOC_NO_MASK
 
 ////////////////////////////////////////// Sum //////////////////////////////////////////
 
@@ -362,7 +312,7 @@ IPCV_DEF_SUM_NOHINT( 64f, double )
 
 #define IPCV_DEF_NON_ZERO( flavor, srctype )                            \
 IPCVAPI_EX( CvStatus, icvCountNonZero_##flavor##_C1R,                   \
-    "ippiCountNonZero_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),   \
+    "ippiCountNonZero_" #flavor "_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_OPTCV)*/,   \
     ( const srctype* img, int imgstep, CvSize size, int* nonzero ))
 
 IPCV_DEF_NON_ZERO( 8u, uchar )
@@ -385,11 +335,11 @@ IPCVAPI_EX( CvStatus, icvNorm_L1_##flavor##_C1R,                                
                                              ( const srctype* img, int imgstep,         \
                                                CvSize size, double* norm ))             \
 IPCVAPI_EX( CvStatus, icvNorm_L2_##flavor##_C1R,                                        \
-           "ippiNorm_L2_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPI),                  \
+           "ippiNorm_L2_" #flavor "_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_IPPI)*/,             \
                                              ( const srctype* img, int imgstep,         \
                                                CvSize size, double* norm ))             \
 IPCVAPI_EX( CvStatus, icvNormDiff_Inf_##flavor##_C1R,                                   \
-           "ippiNormDiff_Inf_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPI),             \
+           "ippiNormDiff_Inf_" #flavor "_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_IPPI)*/,        \
                                              ( const srctype* img1, int imgstep1,       \
                                                const srctype* img2, int imgstep2,       \
                                                CvSize size, double* norm ))             \
@@ -399,7 +349,7 @@ IPCVAPI_EX( CvStatus, icvNormDiff_L1_##flavor##_C1R,                            
                                                const srctype* img2, int imgstep2,       \
                                                CvSize size, double* norm ))             \
 IPCVAPI_EX( CvStatus, icvNormDiff_L2_##flavor##_C1R,                                    \
-           "ippiNormDiff_L2_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPI),              \
+           "ippiNormDiff_L2_" #flavor "_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_IPPI)*/,         \
                                              ( const srctype* img1, int imgstep1,       \
                                                const srctype* img2, int imgstep2,       \
                                                CvSize size, double* norm ))
@@ -495,7 +445,7 @@ IPCV_DEF_NORM_MASK_C1( 64f, double )
 
 #define IPCV_ABS_DIFF( flavor, arrtype )                    \
 IPCVAPI_EX( CvStatus, icvAbsDiff_##flavor##_C1R,            \
-"ippiAbsDiff_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPCV),   \
+"ippiAbsDiff_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPCV),\
 ( const arrtype* src1, int srcstep1,                        \
   const arrtype* src2, int srcstep2,                        \
   arrtype* dst, int dststep, CvSize size ))
@@ -508,22 +458,6 @@ IPCV_ABS_DIFF( 32f, float )
 IPCV_ABS_DIFF( 64f, double )
 
 #undef IPCV_ABS_DIFF
-
-#define IPCV_ABS_DIFF_C( flavor, arrtype, scalartype )      \
-IPCVAPI_EX( CvStatus, icvAbsDiffC_##flavor##_CnR,           \
-"ippiAbsDiffC_" #flavor "_CnR", CV_PLUGINS1(CV_PLUGIN_OPTCV),\
-( const arrtype* src1, int srcstep1,                        \
-  arrtype* dst, int dststep,                                \
-  CvSize size, const scalartype* scalar ))
-
-IPCV_ABS_DIFF_C( 8u, uchar, int )
-IPCV_ABS_DIFF_C( 16u, ushort, int )
-IPCV_ABS_DIFF_C( 16s, short, int )
-IPCV_ABS_DIFF_C( 32s, int, int )
-IPCV_ABS_DIFF_C( 32f, float, float )
-IPCV_ABS_DIFF_C( 64f, double, double )
-
-#undef IPCV_ABS_DIFF_C
 
 ////////////////////////////// Comparisons //////////////////////////////////////////
 
@@ -557,30 +491,30 @@ IPCV_CMP( float, 32f )
 
 #define IPCV_PIX_PLANE( flavor, arrtype )                                           \
 IPCVAPI_EX( CvStatus, icvCopy_##flavor##_C2P2R,                                     \
-    "ippiCopy_" #flavor "_C2P2R", CV_PLUGINS2(CV_PLUGIN_IPPI,CV_PLUGIN_OPTCV),      \
+    "ippiCopy_" #flavor "_C2P2R", 0/*CV_PLUGINS1(CV_PLUGIN_IPPI)*/,                 \
     ( const arrtype* src, int srcstep, arrtype** dst, int dststep, CvSize size ))   \
 IPCVAPI_EX( CvStatus, icvCopy_##flavor##_C3P3R,                                     \
-    "ippiCopy_" #flavor "_C3P3R", CV_PLUGINS2(CV_PLUGIN_IPPI,CV_PLUGIN_OPTCV),      \
+    "ippiCopy_" #flavor "_C3P3R", CV_PLUGINS1(CV_PLUGIN_IPPI),                      \
     ( const arrtype* src, int srcstep, arrtype** dst, int dststep, CvSize size ))   \
 IPCVAPI_EX( CvStatus, icvCopy_##flavor##_C4P4R,                                     \
-    "ippiCopy_" #flavor "_C4P4R", CV_PLUGINS2(CV_PLUGIN_IPPI,CV_PLUGIN_OPTCV),      \
+    "ippiCopy_" #flavor "_C4P4R", CV_PLUGINS1(CV_PLUGIN_IPPI),                      \
     ( const arrtype* src, int srcstep, arrtype** dst, int dststep, CvSize size ))   \
 IPCVAPI_EX( CvStatus, icvCopy_##flavor##_CnC1CR,                                    \
-    "ippiCopy_" #flavor "_CnC1CR", CV_PLUGINS1(CV_PLUGIN_OPTCV),                    \
+    "ippiCopy_" #flavor "_CnC1CR", 0/*CV_PLUGINS1(CV_PLUGIN_OPTCV)*/,               \
     ( const arrtype* src, int srcstep, arrtype* dst, int dststep,                   \
       CvSize size, int cn, int coi ))                                               \
 IPCVAPI_EX( CvStatus, icvCopy_##flavor##_C1CnCR,                                    \
-    "ippiCopy_" #flavor "_CnC1CR", CV_PLUGINS1(CV_PLUGIN_OPTCV),                    \
+    "ippiCopy_" #flavor "_CnC1CR", 0/*CV_PLUGINS1(CV_PLUGIN_OPTCV)*/,               \
     ( const arrtype* src, int srcstep, arrtype* dst, int dststep,                   \
       CvSize size, int cn, int coi ))                                               \
 IPCVAPI_EX( CvStatus, icvCopy_##flavor##_P2C2R,                                     \
-    "ippiCopy_" #flavor "_P2C2R", CV_PLUGINS2(CV_PLUGIN_IPPI,CV_PLUGIN_OPTCV),      \
+    "ippiCopy_" #flavor "_P2C2R", 0/*CV_PLUGINS1(CV_PLUGIN_IPPI)*/,                 \
     ( const arrtype** src, int srcstep, arrtype* dst, int dststep, CvSize size ))   \
 IPCVAPI_EX( CvStatus, icvCopy_##flavor##_P3C3R,                                     \
-    "ippiCopy_" #flavor "_P3C3R", CV_PLUGINS2(CV_PLUGIN_IPPI,CV_PLUGIN_OPTCV),      \
+    "ippiCopy_" #flavor "_P3C3R", CV_PLUGINS1(CV_PLUGIN_IPPI),                      \
     ( const arrtype** src, int srcstep, arrtype* dst, int dststep, CvSize size ))   \
 IPCVAPI_EX( CvStatus, icvCopy_##flavor##_P4C4R,                                     \
-    "ippiCopy_" #flavor "_P4C4R", CV_PLUGINS2(CV_PLUGIN_IPPI,CV_PLUGIN_OPTCV),      \
+    "ippiCopy_" #flavor "_P4C4R", CV_PLUGINS1(CV_PLUGIN_IPPI),                      \
     ( const arrtype** src, int srcstep, arrtype* dst, int dststep, CvSize size ))
 
 IPCV_PIX_PLANE( 8u, uchar )
@@ -594,30 +528,30 @@ IPCV_PIX_PLANE( 64f, int64 )
 /*                            Math routines and RNGs                                    */
 /****************************************************************************************/
 
-IPCVAPI_EX( CvStatus, icvInvSqrt_32f, "ippsInvSqrt_32f_A21, ippibInvSqrt_32f",
-           CV_PLUGINS2(CV_PLUGIN_IPPVM,CV_PLUGIN_OPTCV),
+IPCVAPI_EX( CvStatus, icvInvSqrt_32f, "ippsInvSqrt_32f_A21",
+           CV_PLUGINS1(CV_PLUGIN_IPPVM),
            ( const float* src, float* dst, int len ))
-IPCVAPI_EX( CvStatus, icvSqrt_32f, "ippsSqrt_32f_A21, ippsSqrt_32f, ippibSqrt_32f",
-           CV_PLUGINS3(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS,CV_PLUGIN_OPTCV),
+IPCVAPI_EX( CvStatus, icvSqrt_32f, "ippsSqrt_32f_A21, ippsSqrt_32f",
+           CV_PLUGINS2(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS),
            ( const float* src, float* dst, int len ))
-IPCVAPI_EX( CvStatus, icvInvSqrt_64f, "ippsInvSqrt_64f_A50, ippibInvSqrt_64f",
-           CV_PLUGINS2(CV_PLUGIN_IPPVM,CV_PLUGIN_OPTCV),
+IPCVAPI_EX( CvStatus, icvInvSqrt_64f, "ippsInvSqrt_64f_A50",
+           CV_PLUGINS1(CV_PLUGIN_IPPVM),
            ( const double* src, double* dst, int len ))
-IPCVAPI_EX( CvStatus, icvSqrt_64f, "ippsSqrt_64f_A50, ippsSqrt_64f, ippibSqrt_64f",
-           CV_PLUGINS3(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS,CV_PLUGIN_OPTCV),
+IPCVAPI_EX( CvStatus, icvSqrt_64f, "ippsSqrt_64f_A50, ippsSqrt_64f",
+           CV_PLUGINS2(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS),
            ( const double* src, double* dst, int len ))
 
-IPCVAPI_EX( CvStatus, icvLog_32f, "ippsLn_32f_A21, ippsLn_32f, ippibLog_32f",
-           CV_PLUGINS3(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS,CV_PLUGIN_OPTCV),
+IPCVAPI_EX( CvStatus, icvLog_32f, "ippsLn_32f_A21, ippsLn_32f",
+           CV_PLUGINS2(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS),
            ( const float *x, float *y, int n ) )
-IPCVAPI_EX( CvStatus, icvLog_64f, "ippsLn_64f_A50, ippsLn_64f, ippibLog_64f",
-           CV_PLUGINS3(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS,CV_PLUGIN_OPTCV),
+IPCVAPI_EX( CvStatus, icvLog_64f, "ippsLn_64f_A50, ippsLn_64f",
+           CV_PLUGINS2(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS),
            ( const double *x, double *y, int n ) )
-IPCVAPI_EX( CvStatus, icvExp_32f, "ippsExp_32f_A21, ippsExp_32f, ippibExp_32f",
-           CV_PLUGINS3(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS,CV_PLUGIN_OPTCV),
+IPCVAPI_EX( CvStatus, icvExp_32f, "ippsExp_32f_A21, ippsExp_32f",
+           CV_PLUGINS2(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS),
            ( const float *x, float *y, int n ) )
-IPCVAPI_EX( CvStatus, icvExp_64f, "ippsExp_64f_A50, ippsExp_64f, ippibExp_64f",
-           CV_PLUGINS3(CV_PLUGIN_IPPVM,CV_PLUGIN_OPTCV,CV_PLUGIN_IPPS),
+IPCVAPI_EX( CvStatus, icvExp_64f, "ippsExp_64f_A50, ippsExp_64f",
+           CV_PLUGINS2(CV_PLUGIN_IPPVM,CV_PLUGIN_IPPS),
            ( const double *x, double *y, int n ) )
 IPCVAPI_EX( CvStatus, icvFastArctan_32f, "ippibFastArctan_32f",
            CV_PLUGINS1(CV_PLUGIN_IPPCV),
@@ -628,58 +562,54 @@ IPCVAPI_EX( CvStatus, icvFastArctan_32f, "ippibFastArctan_32f",
 /****************************************************************************************/
 
 IPCVAPI_EX( CvStatus, icvCheckArray_32f_C1R,
-           "ippiCheckArray_32f_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),
+           "ippiCheckArray_32f_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_OPTCV)*/,
            ( const float* src, int srcstep,
              CvSize size, int flags,
              double min_val, double max_val ))
 
 IPCVAPI_EX( CvStatus, icvCheckArray_64f_C1R,
-           "ippiCheckArray_64f_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),
+           "ippiCheckArray_64f_C1R", 0/*CV_PLUGINS1(CV_PLUGIN_OPTCV)*/,
            ( const double* src, int srcstep,
              CvSize size, int flags,
              double min_val, double max_val ))
 
 /****************************************************************************************/
-/*                                Vector operations                                     */
+/*                    Affine transformations of matrix/image elements                   */
 /****************************************************************************************/
 
-#define IPCV_DOTPRODUCT_2D( flavor, arrtype, sumtype )                  \
-IPCVAPI_EX( CvStatus, icvDotProduct_##flavor##_C1R,                     \
-           "ippiDotProduct_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV), \
-                              ( const arrtype* src1, int step1,         \
-                                const arrtype* src2, int step2,         \
-                                CvSize size, sumtype* _sum ))
+#define IPCV_TRANSFORM( suffix, ipp_suffix, cn )                \
+IPCVAPI_EX( CvStatus, icvColorTwist##suffix##_C##cn##R,         \
+        "ippiColorTwist" #ipp_suffix "_C" #cn                   \
+        "R,ippiColorTwist" #ipp_suffix "_C" #cn "R",            \
+        CV_PLUGINS2(CV_PLUGIN_IPPI, CV_PLUGIN_IPPCC),           \
+        ( const void* src, int srcstep, void* dst, int dststep, \
+          CvSize roisize, const float* twist_matrix ))
 
-IPCV_DOTPRODUCT_2D( 8u, uchar, int64 )
-IPCV_DOTPRODUCT_2D( 16u, ushort, int64 )
-IPCV_DOTPRODUCT_2D( 16s, short, int64 )
-IPCV_DOTPRODUCT_2D( 32s, int, double )
-IPCV_DOTPRODUCT_2D( 32f, float, double )
-IPCV_DOTPRODUCT_2D( 64f, double, double )
+IPCV_TRANSFORM( _8u, 32f_8u, 3 )
+IPCV_TRANSFORM( _16u, 32f_16u, 3 )
+IPCV_TRANSFORM( _16s, 32f_16s, 3 )
+IPCV_TRANSFORM( _32f, _32f, 3 )
+IPCV_TRANSFORM( _32f, _32f, 4 )
 
-#undef IPCV_DOTPRODUCT_2D
+#undef IPCV_TRANSFORM
 
-/****************************************************************************************/
-/*                                    Linear Algebra                                    */
-/****************************************************************************************/
+#define IPCV_TRANSFORM_N1( suffix )                             \
+IPCVAPI_EX( CvStatus, icvColorToGray##suffix,                   \
+        "ippiColorToGray" #suffix ",ippiColorToGray" #suffix,   \
+        CV_PLUGINS2(CV_PLUGIN_IPPI,CV_PLUGIN_IPPCC),            \
+        ( const void* src, int srcstep, void* dst, int dststep, \
+          CvSize roisize, const float* coeffs ))
 
-IPCVAPI_EX( CvStatus, icvLUDecomp_32f, "ippiLUDecomp_32f_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),
-                                    ( double* A, int stepA, CvSize sizeA,
-                                      float* B, int stepB, CvSize sizeB,
-                                      double* _det ))
+IPCV_TRANSFORM_N1( _8u_C3C1R )
+IPCV_TRANSFORM_N1( _16u_C3C1R )
+IPCV_TRANSFORM_N1( _16s_C3C1R )
+IPCV_TRANSFORM_N1( _32f_C3C1R )
+IPCV_TRANSFORM_N1( _8u_AC4C1R )
+IPCV_TRANSFORM_N1( _16u_AC4C1R )
+IPCV_TRANSFORM_N1( _16s_AC4C1R )
+IPCV_TRANSFORM_N1( _32f_AC4C1R )
 
-IPCVAPI_EX( CvStatus, icvLUDecomp_64f, "ippiLUDecomp_64f_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),
-                                    ( double* A, int stepA, CvSize sizeA,
-                                      double* B, int stepB, CvSize sizeB,
-                                      double* _det ))
-
-IPCVAPI_EX( CvStatus, icvLUBack_32f, "ippiLUBack_32f_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),
-                                  ( double* A, int stepA, CvSize sizeA,
-                                    float* B, int stepB, CvSize sizeB ))
-
-IPCVAPI_EX( CvStatus, icvLUBack_64f, "ippiLUBack_64f_C1R", CV_PLUGINS1(CV_PLUGIN_OPTCV),
-                                  ( double* A, int stepA, CvSize sizeA,
-                                    double* B, int stepB, CvSize sizeB ))
+#undef IPCV_TRANSFORM_N1
 
 /****************************************************************************************/
 /*                  Matrix routines from BLAS/LAPACK compatible libraries               */
@@ -729,25 +659,6 @@ IPCV_DFT( R_32f, RToPack_32f, PackToR_32f )
 IPCV_DFT( C_64fc, CToC_64fc, CToC_64fc )
 IPCV_DFT( R_64f, RToPack_64f, PackToR_64f )
 #undef IPCV_DFT
-
-/*#define IPCV_DCT( dir, flavor )                                                         \
-IPCVAPI_EX( CvStatus, icvDCT##dir##InitAlloc_##flavor,                                  \
-            "ippsDCT" #dir "InitAlloc_" #flavor, CV_PLUGINS1(CV_PLUGIN_IPPS),           \
-            ( void** spec, int, CvHintAlgorithm ))                                      \
-IPCVAPI_EX( CvStatus, icvDCT##dir##Free_##flavor,                                       \
-            "ippsDCT" #dir "Free_" #flavor, CV_PLUGINS1(CV_PLUGIN_IPPS), ( void* spec ))\
-IPCVAPI_EX( CvStatus, icvDCT##dir##GetBufSize_##flavor,                                 \
-            "ippsDCT" #dir "GetBufSize_" #flavor, CV_PLUGINS1(CV_PLUGIN_IPPS),          \
-            ( const void* spec, int* buf_size ))                                        \
-IPCVAPI_EX( CvStatus, icvDCT##dir##_##flavor,                                           \
-            "ippsDCT" #dir "_" #flavor, CV_PLUGINS1(CV_PLUGIN_IPPS),                    \
-            ( const void* src, void* dst, const void* spec, void* buf ))
-
-IPCV_DCT( Fwd, 32f )
-IPCV_DCT( Inv, 32f )
-IPCV_DCT( Fwd, 64f )
-IPCV_DCT( Inv, 64f )
-#undef IPCV_DCT*/
 
 #endif /*_CXCORE_IPP_H_*/
 

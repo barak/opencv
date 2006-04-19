@@ -155,11 +155,11 @@ Linux
 
    + libpng, libjpeg and libtiff with development files.
 
-   + libavcodec from ffmpeg 0.4.8 + headers.
+   + libavcodec from ffmpeg 0.4.9-pre1 + headers.
      Earlier version do not work with OpenCV because of different API.
      libavcodec is LGPL software, so to use it with non-GPL software (such as OpenCV)
      you need to build and use a _shared_ library libavcodec.so.*:
-        get ffmpeg-0.4.8 from ffmpeg.sourceforge.net
+        get ffmpeg-0.4.9-pre1 from ffmpeg.sourceforge.net
         ./configure --enable-shared
         make
         make install
@@ -169,11 +169,11 @@ Linux
    Now build OpenCV:  
    ======
    
-   a) if your distribution uses RPM, you may build RPMs via:
-         rpmbuild -ta OpenCV-x.y.z.tar.gz" (for RH 8.x) or
-         rpm -ta OpenCV-x.y.z.tar.gz" (for others)
+   a) if your distribution uses RPM, you may build RPMs using:
+         rpmbuild -ta OpenCV-x.y.z.tar.gz (for RPM 4.x or later) or
+         rpm -ta OpenCV-x.y.z.tar.gz" (for eariler versions of RPM)
       where OpenCV-x.y.z.tar.gz should be put to /usr/src/redhat/SOURCES/ or
-      similar folder  
+      similar directory  
 
       it will build OpenCV-x.y.z.*.rpm (there is no OpenCV-devel,
       everything is in one package)
@@ -197,6 +197,28 @@ Linux
       default installation path is /usr/local/lib and /usr/local/include/opencv,
       so you need to add /usr/local/lib to /etc/ld.so.conf (and run ldconfig after)
 
+   c) if you want to step in as an OpenCV developer, you will need some additional tools:
+
+      autoconf-2.59 (including autoheader-2.59)
+      automake-1.6 (including aclocal-1.6)
+      libtool-1.5 (including libtoolize-1.5)
+      swig (version 1.3.24 is best)
+
+      If the default versions of these tools installed on your machine differs, you
+      should specify the paths to the required versions via environment variables. For
+      example, if 'automake --version' gives you a version number 1.7.x but there is
+      /usr/bin/automake-1.6 installed on your machine, then call 
+
+      export AUTOMAKE=/usr/binautomake-1.6
+
+      whenever you want to work on OpenCV sources.
+
+      In addition, you should 'configure --enable-maintainer-mode', so that all
+      autotools are invoked automagically, if Makefile's or the configure-script
+      need to be regenerated. You can manually regenerate everything by starting
+      'autoreconf' from the top directory.
+
+
    How to test OpenCV:
    =======
 
@@ -210,5 +232,21 @@ Linux
      g++ `pkg-config --cflags opencv` -o morphology morphology.c `pkg-config --libs opencv`
      Plain gcc won't work because of unresolved c++-specific symbols (located in highgui?)
    
+   How to make OpenCV use IPP:
+   =======
 
+   + install IPP.
+     Let's assume, it installs to /opt/intel/ipp/4.1/ia32.
    
+   + add <install_path>/bin and <install_path>/bin/linux32
+     (for example, /opt/intel/ipp/4.1/ia32/bin and /opt/intel/ipp/4.1/ia32/bin/linux32)
+     to LD_LIBRARY_PATH in your initialization script (.bashrc or similar):
+
+     LD_LIBRARY_PATH=/opt/intel/ipp/4.1/ia32/bin:/opt/intel/ipp/4.1/ia32/bin/linux32:$LD_LIBRARY_PATH
+     export LD_LIBRARY_PATH
+
+     or add these two directories, one per line, to /etc/ld.so.conf and run
+     ldconfig as root.
+
+   + that's it. Now OpenCV should be able to locate IPP shared libraries and make use of them.
+

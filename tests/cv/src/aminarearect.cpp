@@ -40,6 +40,9 @@
 //M*/
 
 #include "cvtest.h"
+
+#if 0
+
 #include "float.h"
 
 CvSeq* atsCvtHullToContour( CvSeq* hull, CvMemStorage* storage )
@@ -228,7 +231,7 @@ static int fmaMinAreaRect(void)
     }
 
     storage = cvCreateMemStorage(0);
-    points = (CvPoint*)icvAlloc( lNumPoints * sizeof(CvPoint) );
+    points = (CvPoint*)cvAlloc( lNumPoints * sizeof(CvPoint) );
     
     for( j = 0; j < lLoopsProp; j++ )
     {
@@ -266,7 +269,7 @@ static int fmaMinAreaRect(void)
         cvClearMemStorage( storage );
     } /* for */
 
-    icvFree(&points);
+    cvFree((void**)&points);
     cvReleaseMemStorage(&storage);
     
    if( lErrors == 0 ) return trsResult( TRS_OK, "No errors fixed for this test" );
@@ -281,4 +284,5 @@ void InitAMinAreaRect(void)
     
 } /* InitAMinAreaRect */
 
+#endif
 

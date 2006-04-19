@@ -2,7 +2,7 @@ Source: opencv
 Priority: optional
 Section: devel
 Maintainer: Sam Hocevar (Debian packages) <sam+deb@zoy.org>
-Build-Depends: debhelper (>= 4.0.0), dpatch, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2)
+Build-Depends: debhelper (>= 4.0.0), dpatch, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2), libavformat-dev, python2.3-dev, swig
 Standards-Version: 3.6.2.1
 
 Package: opencv-doc
@@ -26,7 +26,7 @@ Description: OpenCV documentation and examples
 Package: libcv-dev
 Section: libdevel
 Architecture: any
-Depends: libcv0.9-0c2 (= ${Source-Version}), libcvaux-dev (= ${Source-Version}), libhighgui-dev (= ${Source-Version})
+Depends: libcv0.9.7-0 (= ${Source-Version}), libcvaux-dev (= ${Source-Version}), libhighgui-dev (= ${Source-Version})
 Conflicts: libopencv-dev
 Replaces: libopencv-dev
 Description: development files for libcv
@@ -46,7 +46,7 @@ Description: development files for libcv
 Package: libcvaux-dev
 Section: libdevel
 Architecture: any
-Depends: libcvaux0.9-0c2a (= ${Source-Version}), libcv-dev (>= ${Source-Version})
+Depends: libcvaux0.9.7-0 (= ${Source-Version}), libcv-dev (>= ${Source-Version})
 Description: development files for libcvaux
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) extensions.
@@ -64,7 +64,7 @@ Description: development files for libcvaux
 Package: libhighgui-dev
 Section: libdevel
 Architecture: any
-Depends: libhighgui0.9-0c2 (= ${Source-Version}), libcv-dev (>= ${Source-Version}), libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2)
+Depends: libhighgui0.9.7-0 (= ${Source-Version}), libcv-dev (>= ${Source-Version}), libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2), libavformat-dev
 Description: development files for libhighgui
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) GUI.
@@ -79,11 +79,10 @@ Description: development files for libhighgui
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libcv0.9-0c2
+Package: libcv0.9.7-0
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Conflicts: libcv0.9-0
 Description: computer vision library
  This package contains the OpenCV (Open Computer Vision) runtime libraries.
  .
@@ -97,12 +96,10 @@ Description: computer vision library
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libcvaux0.9-0c2a
+Package: libcvaux0.9.7-0
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Conflicts: libcvaux0.9-0, libcvaux0.9-0c2
-Replaces: libcvaux0.9-0, libcvaux0.9-0c2
 Description: computer vision extension library
  This package contains the OpenCV (Open Computer Vision) extensions runtime
  library.
@@ -117,13 +114,48 @@ Description: computer vision extension library
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libhighgui0.9-0c2
+Package: libhighgui0.9.7-0
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Conflicts: libhighgui0.9-0
 Description: computer vision GUI library
  This package contains the OpenCV (Open Computer Vision) GUI library.
+ .
+ The Open Computer Vision Library is a collection of algorithms and sample
+ code for various computer vision problems. The library is compatible with
+ IPL (Intel's Image Processing Library) and, if available, can use IPP
+ (Intel's Integrated Performance Primitives) for better performance.
+ .
+ OpenCV provides low level portable data types and operators, and a set
+ of high level functionalities for video acquisition, image processing and
+ analysis, structural analysis, motion analysis and object tracking, object
+ recognition, camera calibration and 3D reconstruction.
+
+Package: python-opencv
+Section: python
+Architecture: all
+Depends: python2.3-opencv, ${python:Depends}
+Description: Python bindings for the computer vision library
+ This package contains Python bindings for the OpenCV (Open Computer Vision)
+ library.
+ .
+ The Open Computer Vision Library is a collection of algorithms and sample
+ code for various computer vision problems. The library is compatible with
+ IPL (Intel's Image Processing Library) and, if available, can use IPP
+ (Intel's Integrated Performance Primitives) for better performance.
+ .
+ OpenCV provides low level portable data types and operators, and a set
+ of high level functionalities for video acquisition, image processing and
+ analysis, structural analysis, motion analysis and object tracking, object
+ recognition, camera calibration and 3D reconstruction.
+
+Package: python2.3-opencv
+Section: python
+Architecture: any
+Depends: ${python:Depends}, ${shlibs:Depends}
+Description: Python bindings for the computer vision library
+ This package contains Python bindings for the OpenCV (Open Computer Vision)
+ library.
  .
  The Open Computer Vision Library is a collection of algorithms and sample
  code for various computer vision problems. The library is compatible with

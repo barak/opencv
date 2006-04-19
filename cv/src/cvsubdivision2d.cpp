@@ -40,10 +40,6 @@
 //M*/
 #include "_cv.h"
 
-#if _MSC_VER >= 1200
-#pragma warning (disable:4710)  // function '...' not inlined
-#endif
-
 CV_IMPL CvSubdiv2D *
 cvCreateSubdiv2D( int subdiv_type, int header_size,
                   int vtx_size, int quadedge_size, CvMemStorage * storage )
@@ -393,6 +389,18 @@ cvSubdiv2DLocate( CvSubdiv2D * subdiv, CvPoint2D32f pt,
         *_point = point;
 
     return location;
+}
+
+
+CV_INLINE int
+icvIsPtInCircle3( CvPoint2D32f pt, CvPoint2D32f a, CvPoint2D32f b, CvPoint2D32f c )
+{
+    double val = (a.x * a.x + a.y * a.y) * cvTriangleArea( b, c, pt );
+    val -= (b.x * b.x + b.y * b.y) * cvTriangleArea( a, c, pt );
+    val += (c.x * c.x + c.y * c.y) * cvTriangleArea( a, b, pt );
+    val -= (pt.x * pt.x + pt.y * pt.y) * cvTriangleArea( a, b, c );
+
+    return val > FLT_EPSILON ? 1 : val < -FLT_EPSILON ? -1 : 0;
 }
 
 

@@ -42,13 +42,12 @@
 #include "cvtest.h"
 
 #include <stdlib.h>
-#include <stdint.h>
 #include <math.h>
 #include <float.h>
 
-static const int LF_FITLINE2D = 1;
-static const int LF_FITLINE3D = 2;
-static const int LF_PROJECT = 3;
+#define LF_FITLINE2D (size_t)1
+#define LF_FITLINE3D (size_t)2
+#define LF_PROJECT   (size_t)3
 
 static char* func_names[] = {"cvFitLine2D", "cvFitLine3D", "cvProject3D"};
 static char* test_desc[] = { "Run the line fitting and projection functions"};
@@ -66,7 +65,7 @@ int test_lf(void* arg)
     float reps = 0.0f, aeps = 0.0f;
     float line[6];
     int ret = 1;
-    int type = (int)(intptr_t)arg;
+    int type = (int)(size_t)arg;
 
     /* Initialize the data */
     int i;
@@ -126,8 +125,8 @@ int test_lf(void* arg)
 void InitAFitLine(void)
 {
     /* Registering test functions */
-    trsRegArg(func_names[0], test_desc[0], atsAlgoClass, test_lf, (intptr_t)LF_FITLINE2D);
-    trsRegArg(func_names[1], test_desc[0], atsAlgoClass, test_lf, (intptr_t)LF_FITLINE3D);
-    trsRegArg(func_names[2], test_desc[0], atsAlgoClass, test_lf, (intptr_t)LF_PROJECT);
+    trsRegArg(func_names[0], test_desc[0], atsAlgoClass, test_lf, LF_FITLINE2D);
+    trsRegArg(func_names[1], test_desc[0], atsAlgoClass, test_lf, LF_FITLINE3D);
+    trsRegArg(func_names[2], test_desc[0], atsAlgoClass, test_lf, LF_PROJECT);
 } /* InitAFitLine*/
 

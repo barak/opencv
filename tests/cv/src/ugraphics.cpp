@@ -47,8 +47,9 @@
 #include <math.h>
 #include <assert.h>
 
-static const char* ATS_WND_CLASS = "ATS_Window_Class";
+#if 0
 
+static const char* ATS_WND_CLASS = "ATS_Window_Class";
 
 static LRESULT CALLBACK AtsWindowProc(
   HWND hwnd,      /* handle to window */
@@ -59,8 +60,6 @@ static LRESULT CALLBACK AtsWindowProc(
 {
     return DefWindowProc( hwnd, uMsg, wParam, lParam );
 }
-
-
 
 int atsCreateWindow( const char* name, CvPoint wnd_org, CvSize wnd_size )
 {
@@ -210,6 +209,8 @@ void  atsDestroyWindow( int window )
 {
     DestroyWindow( (HWND)window );
 }
+
+#endif
 
 #endif
 

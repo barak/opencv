@@ -42,14 +42,46 @@
 #ifndef _CXCORE_TYPES_H_
 #define _CXCORE_TYPES_H_
 
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
-#ifndef __BORLANDC__
-#include <math.h>
-#else
-#include <fastmath.h>
-#endif
+#ifndef SKIP_INCLUDES
+  #include <assert.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <float.h>
+
+  #if defined WIN64 && defined EM64T && defined _MSC_VER
+    #include <emmintrin.h>
+  #endif
+
+  #if defined __ICL
+    #define CV_ICC   __ICL
+  #elif defined __ICC
+    #define CV_ICC   __ICC
+  #elif defined __ECL
+    #define CV_ICC   __ECL
+  #elif defined __ECC
+    #define CV_ICC   __ECC
+  #endif
+
+  #if defined __BORLANDC__
+    #include <fastmath.h>
+  #elif defined WIN64 && !defined EM64T && defined CV_ICC
+    #include <mathimf.h>
+  #else
+    #include <math.h>
+  #endif
+
+  #ifdef HAVE_IPL
+      #ifndef __IPL_H__
+          #if defined WIN32 || defined WIN64
+              #include <ipl.h>
+          #else
+              #include <ipl/ipl.h>
+          #endif
+      #endif
+  #elif defined __IPL_H__
+      #define HAVE_IPL
+  #endif
+#endif // SKIP_INCLUDES
 
 #if defined WIN32 || defined WIN64
     #define CV_CDECL __cdecl
@@ -80,12 +112,10 @@
 #ifndef CV_INLINE
 #if defined __cplusplus
     #define CV_INLINE inline
-#elif defined __GNUC__
-    #define CV_INLINE static __inline
-#elif defined WIN32 || defined WIN64
+#elif (defined WIN32 || defined WIN64) && !defined __GNUC__
     #define CV_INLINE __inline
 #else
-    #define CV_INLINE static
+    #define CV_INLINE static inline
 #endif
 #endif /* CV_INLINE */
 
@@ -107,11 +137,17 @@ typedef long long int64;
 typedef unsigned long long uint64;
 #endif
 
-#ifndef __IPL_H__
+#ifndef HAVE_IPL
 typedef unsigned char uchar;
-    #ifndef __USE_MISC
 typedef unsigned short ushort;
-    #endif
+#endif
+
+#ifndef CV_SSE2
+  #if defined __SSE2__ || defined _MM_SHUFFLE2 || (defined WIN64 && defined EM64T && defined _MSC_VER)
+    #define CV_SSE2 1
+  #else
+    #define CV_SSE2 0
+  #endif
 #endif
 
 /* CvArr* is used to pass arbitrary array-like data structures
@@ -150,15 +186,12 @@ typedef void CvArr;
 #define  CV_CMP(a,b)    (((a) > (b)) - ((a) < (b)))
 #define  CV_SIGN(a)     CV_CMP((a),0)
 
-/* ************************************************************* *\
-   substitutions for round(x), floor(x), ceil(x):
-   the algorithm was taken from Agner Fog's optimization guide
-   at http://www.agner.org/assem
-\* ************************************************************* */
-CV_INLINE  int  cvRound( double value );
 CV_INLINE  int  cvRound( double value )
 {
-#if defined WIN32 && defined _MSC_VER
+#if CV_SSE2
+    __m128d t = _mm_load_sd( &value );
+    return _mm_cvtsd_si32(t);
+#elif defined WIN32 && !defined WIN64 && defined _MSC_VER
     int t;
     __asm
     {
@@ -166,81 +199,74 @@ CV_INLINE  int  cvRound( double value )
         fistp t;
     }
     return t;
-#elif __GNUC__ > 3
-    return (int)lrint( value );
+#elif (defined __GNUC__ && __GNUC__ > 2) || (defined WIN64 && !defined EM64T && defined CV_ICC)
+    return (int)lrint(value);
 #else
-    union { double d; uint64 i; } u;
-    u.d = value + 6755399441055744.0;
-    return (int)u.i;
+    /*
+     the algorithm was taken from Agner Fog's optimization guide
+     at http://www.agner.org/assem
+     */
+    double temp = value + 6755399441055744.0;
+    return (int)*((uint64*)&temp);
 #endif
 }
 
 
-CV_INLINE  int  cvFloor( double value );
 CV_INLINE  int  cvFloor( double value )
 {
+#if CV_SSE2
+    __m128d t = _mm_load_sd( &value );
+    int i = _mm_cvtsd_si32(t);
+    return i - _mm_movemask_pd(_mm_cmplt_sd(t,_mm_cvtsi32_sd(t,i)));
+#else
     int temp = cvRound(value);
-    union { float f; int i; } u;
-    u.f = (float)(value - temp);
-
-    return temp - (u.i < 0);
+    float diff = (float)(value - temp);
+    return temp - (*(int*)&diff < 0);
+#endif
 }
 
 
-CV_INLINE  int  cvCeil( double value );
 CV_INLINE  int  cvCeil( double value )
 {
+#if CV_SSE2
+    __m128d t = _mm_load_sd( &value );
+    int i = _mm_cvtsd_si32(t);
+    return i + _mm_movemask_pd(_mm_cmpgt_sd(t,_mm_cvtsi32_sd(t,i)));
+#else
     int temp = cvRound(value);
-    union { float f; int i; } u;
-    u.f = (float)(temp - value);
-
-    return temp + (u.i < 0);
+    float diff = (float)(temp - value);
+    return temp + (*(int*)&diff < 0);
+#endif
 }
 
-/* ************************************************************************** *\
-   Fast square root and inverse square root by
-   Bruce W. Holloway, Jeremy M., James Van Buskirk, Vesa Karvonen and others.
-   Taken from Paul Hsieh's site http://www.azillionmonkeys.com/qed/sqroot.html.
-\* ************************************************************************** */
-#define CV_SQRT_MAGIC  0xbe6f0000
+#define cvInvSqrt(value) ((float)(1./sqrt(value)))
+#define cvSqrt(value)  ((float)sqrt(value))
 
-CV_INLINE  float  cvInvSqrt( float value );
-CV_INLINE  float  cvInvSqrt( float value )
-{
-    float y;
-    union { float f; unsigned int i; } u, v;
-    v.f = value;
-    u.i = (CV_SQRT_MAGIC - v.i)>>1;
-
-    y = value*0.5f;
-    u.f*= 1.5f - y*u.f*u.f;
-    u.f*= 1.5f - y*u.f*u.f;
-    u.f*= 1.5f - y*u.f*u.f;
-
-    return u.f;
-}
-
-#define cvSqrt(value)  ((float)sqrt((value)))
-
-CV_INLINE int cvIsNaN( double value );
 CV_INLINE int cvIsNaN( double value )
 {
-    union { double d; uint64 i; } u;
-    u.d = value;
-    unsigned lo = (unsigned)u.i;
-    unsigned hi = (unsigned)(u.i >> 32);
+#if 1/*defined _MSC_VER || defined __BORLANDC__
+    return _isnan(value);
+#elif defined __GNUC__
+    return isnan(value);
+#else*/
+    unsigned lo = (unsigned)*(uint64*)&value;
+    unsigned hi = (unsigned)(*(uint64*)&value >> 32);
     return (hi & 0x7fffffff) + (lo != 0) > 0x7ff00000;
+#endif
 }
 
 
-CV_INLINE int cvIsInf( double value );
 CV_INLINE int cvIsInf( double value )
 {
-    union { double d; uint64 i; } u;
-    u.d = value;
-    unsigned lo = (unsigned)u.i;
-    unsigned hi = (unsigned)(u.i >> 32);
+#if 1/*defined _MSC_VER || defined __BORLANDC__
+    return !_finite(value);
+#elif defined __GNUC__
+    return isinf(value);
+#else*/
+    unsigned lo = (unsigned)*(uint64*)&value;
+    unsigned hi = (unsigned)(*(uint64*)&value >> 32);
     return (hi & 0x7fffffff) == 0x7ff00000 && lo == 0;
+#endif
 }
 
 
@@ -248,15 +274,13 @@ CV_INLINE int cvIsInf( double value )
 
 typedef uint64 CvRNG;
 
-CV_INLINE CvRNG cvRNG( int64 seed CV_DEFAULT(-1));
-CV_INLINE CvRNG cvRNG( int64 seed )
+CV_INLINE CvRNG cvRNG( int64 seed CV_DEFAULT(-1))
 {
     CvRNG rng = (uint64)(seed ? seed : (int64)-1);
     return rng;
 }
 
 /* returns random 32-bit unsigned integer */
-CV_INLINE unsigned cvRandInt( CvRNG* rng );
 CV_INLINE unsigned cvRandInt( CvRNG* rng )
 {
     uint64 temp = *rng;
@@ -266,7 +290,6 @@ CV_INLINE unsigned cvRandInt( CvRNG* rng )
 }
 
 /* returns random floating-point number between 0 and 1 */
-CV_INLINE double cvRandReal( CvRNG* rng );
 CV_INLINE double cvRandReal( CvRNG* rng )
 {
     return cvRandInt(rng)*2.3283064365386962890625e-10 /* 2^-32 */;
@@ -307,6 +330,11 @@ CV_INLINE double cvRandReal( CvRNG* rng )
 
 #define IPL_ALIGN_DWORD   IPL_ALIGN_4BYTES
 #define IPL_ALIGN_QWORD   IPL_ALIGN_8BYTES
+
+#define IPL_BORDER_CONSTANT   0
+#define IPL_BORDER_REPLICATE  1
+#define IPL_BORDER_REFLECT    2
+#define IPL_BORDER_WRAP       3
 
 typedef struct _IplImage
 {
@@ -385,24 +413,20 @@ IplConvKernelFP;
 #define IPL_IMAGE_MAGIC_VAL  ((int)sizeof(IplImage))
 #define CV_TYPE_NAME_IMAGE "opencv-image"
 
-
-/* for file storages make the value independent from arch */
-#define IPL_IMAGE_FILE_MAGIC_VAL  112
-
 #define CV_IS_IMAGE_HDR(img) \
     ((img) != NULL && ((const IplImage*)(img))->nSize == sizeof(IplImage))
 
 #define CV_IS_IMAGE(img) \
     (CV_IS_IMAGE_HDR(img) && ((IplImage*)img)->imageData != NULL)
 
-#define IPL_DEPTH_64F  64 /* for storing double-precision
-                             floating point data in IplImage's */
+/* for storing double-precision
+   floating point data in IplImage's */
+#define IPL_DEPTH_64F  64
 
 /* get reference to pixel at (col,row),
    for multi-channel images (col) should be multiplied by number of channels */
 #define CV_IMAGE_ELEM( image, elemtype, row, col )       \
     (((elemtype*)((image)->imageData + (image)->widthStep*(row)))[(col)])
-
 
 /****************************************************************************************\
 *                                  Matrix type (CvMat)                                   *
@@ -422,6 +446,7 @@ IplConvKernelFP;
 #define CV_USRTYPE1 7
 
 #define CV_MAKETYPE(depth,cn) ((depth) + (((cn)-1) << CV_CN_SHIFT))
+#define CV_MAKE_TYPE CV_MAKETYPE
 
 #define CV_8UC1 CV_MAKETYPE(CV_8U,1)
 #define CV_8UC2 CV_MAKETYPE(CV_8U,2)
@@ -547,9 +572,8 @@ CvMat;
 
 /* inline constructor. No data is allocated internally!!!
    (use together with cvCreateData, or use cvCreateMat instead to
-   get a matrix with allocated data */
-CV_INLINE CvMat cvMat( int rows, int cols, int type, void* data CV_DEFAULT(NULL));
-CV_INLINE CvMat cvMat( int rows, int cols, int type, void* data )
+   get a matrix with allocated data) */
+CV_INLINE CvMat cvMat( int rows, int cols, int type, void* data CV_DEFAULT(NULL))
 {
     CvMat m;
 
@@ -578,7 +602,6 @@ CV_INLINE CvMat cvMat( int rows, int cols, int type, void* data )
     (*(elemtype*)CV_MAT_ELEM_PTR_FAST( mat, row, col, sizeof(elemtype)))
 
 
-CV_INLINE  double  cvmGet( const CvMat* mat, int row, int col );
 CV_INLINE  double  cvmGet( const CvMat* mat, int row, int col )
 {
     int type;
@@ -597,7 +620,6 @@ CV_INLINE  double  cvmGet( const CvMat* mat, int row, int col )
 }
 
 
-CV_INLINE  void  cvmSet( CvMat* mat, int row, int col, double value );
 CV_INLINE  void  cvmSet( CvMat* mat, int row, int col, double value )
 {
     int type;
@@ -730,8 +752,9 @@ typedef int CvHistType;
 #define CV_HIST_SPARSE        1
 #define CV_HIST_TREE          CV_HIST_SPARSE
 
-#define CV_HIST_UNIFORM       1 /* should be used as a parameter only,
-                                   it turns to CV_HIST_UNIFORM_FLAG of hist->type */
+/* should be used as a parameter only,
+   it turns to CV_HIST_UNIFORM_FLAG of hist->type */
+#define CV_HIST_UNIFORM       1
 
 typedef struct CvHistogram
 {
@@ -772,7 +795,6 @@ typedef struct CvRect
 }
 CvRect;
 
-CV_INLINE  CvRect  cvRect( int x, int y, int width, int height );
 CV_INLINE  CvRect  cvRect( int x, int y, int width, int height )
 {
     CvRect r;
@@ -786,7 +808,6 @@ CV_INLINE  CvRect  cvRect( int x, int y, int width, int height )
 }
 
 
-CV_INLINE  IplROI  cvRectToROI( CvRect rect, int coi CV_DEFAULT(0));
 CV_INLINE  IplROI  cvRectToROI( CvRect rect, int coi )
 {
     IplROI roi;
@@ -800,7 +821,6 @@ CV_INLINE  IplROI  cvRectToROI( CvRect rect, int coi )
 }
 
 
-CV_INLINE  CvRect  cvROIToRect( IplROI roi );
 CV_INLINE  CvRect  cvROIToRect( IplROI roi )
 {
     return cvRect( roi.xOffset, roi.yOffset, roi.width, roi.height );
@@ -822,7 +842,6 @@ typedef struct CvTermCriteria
 }
 CvTermCriteria;
 
-CV_INLINE  CvTermCriteria  cvTermCriteria( int type, int max_iter, double epsilon );
 CV_INLINE  CvTermCriteria  cvTermCriteria( int type, int max_iter, double epsilon )
 {
     CvTermCriteria t;
@@ -845,7 +864,6 @@ typedef struct CvPoint
 CvPoint;
 
 
-CV_INLINE  CvPoint  cvPoint( int x, int y );
 CV_INLINE  CvPoint  cvPoint( int x, int y )
 {
     CvPoint p;
@@ -865,7 +883,6 @@ typedef struct CvPoint2D32f
 CvPoint2D32f;
 
 
-CV_INLINE  CvPoint2D32f  cvPoint2D32f( double x, double y );
 CV_INLINE  CvPoint2D32f  cvPoint2D32f( double x, double y )
 {
     CvPoint2D32f p;
@@ -877,14 +894,12 @@ CV_INLINE  CvPoint2D32f  cvPoint2D32f( double x, double y )
 }
 
 
-CV_INLINE  CvPoint2D32f  cvPointTo32f( CvPoint point );
 CV_INLINE  CvPoint2D32f  cvPointTo32f( CvPoint point )
 {
     return cvPoint2D32f( (float)point.x, (float)point.y );
 }
 
 
-CV_INLINE  CvPoint  cvPointFrom32f( CvPoint2D32f point );
 CV_INLINE  CvPoint  cvPointFrom32f( CvPoint2D32f point )
 {
     CvPoint ipt;
@@ -904,7 +919,6 @@ typedef struct CvPoint3D32f
 CvPoint3D32f;
 
 
-CV_INLINE  CvPoint3D32f  cvPoint3D32f( double x, double y, double z );
 CV_INLINE  CvPoint3D32f  cvPoint3D32f( double x, double y, double z )
 {
     CvPoint3D32f p;
@@ -917,21 +931,44 @@ CV_INLINE  CvPoint3D32f  cvPoint3D32f( double x, double y, double z )
 }
 
 
-typedef struct CvPoint2D64d
+typedef struct CvPoint2D64f
 {
     double x;
     double y;
 }
-CvPoint2D64d;
+CvPoint2D64f;
 
 
-typedef struct CvPoint3D64d
+CV_INLINE  CvPoint2D64f  cvPoint2D64f( double x, double y )
+{
+    CvPoint2D64f p;
+
+    p.x = x;
+    p.y = y;
+
+    return p;
+}
+
+
+typedef struct CvPoint3D64f
 {
     double x;
     double y;
     double z;
 }
-CvPoint3D64d;
+CvPoint3D64f;
+
+
+CV_INLINE  CvPoint3D64f  cvPoint3D64f( double x, double y, double z )
+{
+    CvPoint3D64f p;
+
+    p.x = x;
+    p.y = y;
+    p.z = z;
+
+    return p;
+}
 
 
 /******************************** CvSize's & CvBox **************************************/
@@ -943,7 +980,6 @@ typedef struct
 }
 CvSize;
 
-CV_INLINE  CvSize  cvSize( int width, int height );
 CV_INLINE  CvSize  cvSize( int width, int height )
 {
     CvSize s;
@@ -962,7 +998,6 @@ typedef struct CvSize2D32f
 CvSize2D32f;
 
 
-CV_INLINE  CvSize2D32f  cvSize2D32f( double width, double height );
 CV_INLINE  CvSize2D32f  cvSize2D32f( double width, double height )
 {
     CvSize2D32f s;
@@ -982,6 +1017,24 @@ typedef struct CvBox2D
 }
 CvBox2D;
 
+
+/* Line iterator state */
+typedef struct CvLineIterator
+{
+    /* pointer to the current point */
+    uchar* ptr;
+
+    /* Bresenham algorithm state */
+    int  err;
+    int  plus_delta;
+    int  minus_delta;
+    int  plus_step;
+    int  minus_step;
+}
+CvLineIterator;
+
+
+
 /************************************* CvSlice ******************************************/
 
 typedef struct CvSlice
@@ -990,7 +1043,6 @@ typedef struct CvSlice
 }
 CvSlice;
 
-CV_INLINE  CvSlice  cvSlice( int start, int end );
 CV_INLINE  CvSlice  cvSlice( int start, int end )
 {
     CvSlice slice;
@@ -1013,8 +1065,7 @@ typedef struct CvScalar
 CvScalar;
 
 CV_INLINE  CvScalar  cvScalar( double val0, double val1 CV_DEFAULT(0),
-                                double val2 CV_DEFAULT(0), double val3 CV_DEFAULT(0));
-CV_INLINE  CvScalar  cvScalar( double val0, double val1, double val2, double val3 )
+                               double val2 CV_DEFAULT(0), double val3 CV_DEFAULT(0))
 {
     CvScalar scalar;
     scalar.val[0] = val0; scalar.val[1] = val1;
@@ -1023,7 +1074,6 @@ CV_INLINE  CvScalar  cvScalar( double val0, double val1, double val2, double val
 }
 
 
-CV_INLINE  CvScalar  cvRealScalar( double val0 );
 CV_INLINE  CvScalar  cvRealScalar( double val0 )
 {
     CvScalar scalar;
@@ -1032,11 +1082,13 @@ CV_INLINE  CvScalar  cvRealScalar( double val0 )
     return scalar;
 }
 
-CV_INLINE  CvScalar  cvScalarAll( double val0123 );
 CV_INLINE  CvScalar  cvScalarAll( double val0123 )
 {
     CvScalar scalar;
-    scalar.val[0] = scalar.val[1] = scalar.val[2] = scalar.val[3] = val0123;
+    scalar.val[0] = val0123;
+    scalar.val[1] = val0123;
+    scalar.val[2] = val0123;
+    scalar.val[3] = val0123;
     return scalar;
 }
 
@@ -1057,12 +1109,12 @@ CvMemBlock;
 
 typedef struct CvMemStorage
 {
-    int     signature;
+    int signature;
     CvMemBlock* bottom;/* first allocated block */
     CvMemBlock* top;   /* current memory block - top of the stack */
     struct  CvMemStorage* parent; /* borrows new blocks from */
-    size_t  block_size;  /* block size */
-    size_t  free_space;  /* free space in the current block */
+    int block_size;  /* block size */
+    int free_space;  /* free space in the current block */
 }
 CvMemStorage;
 
@@ -1074,7 +1126,7 @@ CvMemStorage;
 typedef struct CvMemStoragePos
 {
     CvMemBlock* top;
-    size_t  free_space;
+    int free_space;
 }
 CvMemStoragePos;
 
@@ -1128,9 +1180,9 @@ CvSeq;
 /*************************************** Set ********************************************/
 /*
   Set.
-  Order isn't keeped. There can be gaps between sequence elements.
-  After the element has been inserted it stays on the same place all the time.
-  The MSB(most-significant or sign bit) of the first field is 0 iff the element exists.
+  Order is not preserved. There can be gaps between sequence elements.
+  After the element has been inserted it stays in the same place all the time.
+  The MSB(most-significant or sign bit) of the first field (flags) is 0 iff the element exists.
 */
 #define CV_SET_ELEM_FIELDS(elem_type)   \
     int  flags;                         \
@@ -1530,6 +1582,7 @@ typedef struct CvFileStorage CvFileStorage;
 #define CV_STORAGE_WRITE         1
 #define CV_STORAGE_WRITE_TEXT    CV_STORAGE_WRITE
 #define CV_STORAGE_WRITE_BINARY  CV_STORAGE_WRITE
+#define CV_STORAGE_APPEND        2
 
 /* list of attributes */
 typedef struct CvAttrList
@@ -1540,8 +1593,7 @@ typedef struct CvAttrList
 CvAttrList;
 
 CV_INLINE CvAttrList cvAttrList( const char** attr CV_DEFAULT(NULL),
-                                 CvAttrList* next CV_DEFAULT(NULL) );
-CV_INLINE CvAttrList cvAttrList( const char** attr, CvAttrList* next )
+                                 CvAttrList* next CV_DEFAULT(NULL) )
 {
     CvAttrList l;
     l.attr = attr;

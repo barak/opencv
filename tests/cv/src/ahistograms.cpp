@@ -40,13 +40,12 @@
 //M*/
 
 #include "cvtest.h"
-#include <stdint.h>
 
 #define CV_HIST_MAX_DIM CV_MAX_DIM
 
 static int foaHistGetQueryValue(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -133,7 +132,7 @@ static int foaHistGetQueryValue(void* _type)
 
 static int foaHistMinMaxValue(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -232,7 +231,7 @@ static int foaHistMinMaxValue(void* _type)
 
 static int foaNormalizeHist(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -306,7 +305,7 @@ static int foaNormalizeHist(void* _type)
 
 static int foaThreshHist(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -393,7 +392,7 @@ static int icvGetHistSize( const CvHistogram* hist )
 
 static int foaHistCompare(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -401,12 +400,15 @@ static int foaHistCompare(void* _type)
 
     CvHistogram* hist1 = 0;
     CvHistogram* hist2 = 0;
+    CvHistogram* hist1_norm = 0;
+    CvHistogram* hist2_norm = 0;
 
     int c_dims;
     int d[CV_HIST_MAX_DIM + 1];
     double intersect, exp_intersect;
     double correl, exp_correl;
     double chisqr, exp_chisqr;
+    double bhattacharyya, exp_bhattacharyya = 0;
     double m1, m2, m3, mn1, mn2;
     int size;
     int i;
@@ -427,6 +429,8 @@ static int foaHistCompare(void* _type)
         for( i = 0; i < c_dims; i++ ) d[i] = dims;
         hist1 = cvCreateHist( c_dims, d, type );
         hist2 = cvCreateHist( c_dims, d, type );
+        hist1_norm = cvCreateHist( c_dims, d, type );
+        hist2_norm = cvCreateHist( c_dims, d, type );
 
         /*Filling histograms*/
         /*hist1: y = x / size*/
@@ -443,24 +447,36 @@ static int foaHistCompare(void* _type)
         mn1 /= size;
         mn2 /= size;
 
+	/* create normalized histograms for BHATTACHARYYA tests */
+        cvCopyHist( hist1, &hist1_norm );
+        cvCopyHist( hist2, &hist2_norm );
+        cvNormalizeHist( hist1_norm, 1 );
+        cvNormalizeHist( hist2_norm, 1 );
+
         intersect = cvCompareHist( hist1, hist2, CV_COMP_INTERSECT );
         correl = cvCompareHist( hist1, hist2, CV_COMP_CORREL );
         chisqr = cvCompareHist( hist1, hist2, CV_COMP_CHISQR );
+        bhattacharyya = cvCompareHist( hist1_norm, hist2_norm,
+				       CV_COMP_BHATTACHARYYA );
 
         for( i = 0, exp_intersect = 0, exp_chisqr = 0,
              m1 = m2 = m3 = 0; i < size; i++ )
         {
             float a = cvQueryHistValue_1D(hist1, i);
             float b = cvQueryHistValue_1D(hist2, i);
+            float a_norm = cvQueryHistValue_1D(hist1_norm, i);
+            float b_norm = cvQueryHistValue_1D(hist2_norm, i);
             exp_intersect += MIN( a, b );
             if( a + b != 0 )
                 exp_chisqr += (a-b)*(a-b)/(a+b);
             m1 += (a - mn1) * (b - mn2);
             m2 += (b - mn2) * (b - mn2);
             m3 += (a - mn1) * (a - mn1);
+	    exp_bhattacharyya += sqrt (a_norm * b_norm);
         }
 
         exp_correl = m1 / sqrt( m2 * m3 );
+	exp_bhattacharyya = sqrt (1 - exp_bhattacharyya);
 
         if( fabs( intersect - exp_intersect ) > thresh * exp_intersect )
         {
@@ -483,6 +499,13 @@ static int foaHistCompare(void* _type)
             break;
         }
 
+        if( fabs( bhattacharyya - exp_bhattacharyya ) > thresh )
+        {
+            msg = "bhattacharyya gives wrong result"; 
+            code = TRS_FAIL;
+            break;
+        }
+
         cvReleaseHist( &hist1 );
         cvReleaseHist( &hist2 );
     }
@@ -496,7 +519,7 @@ static int foaHistCompare(void* _type)
 
 static int foaCopyHist(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -555,7 +578,7 @@ static int foaCopyHist(void* _type)
 
 static int foaCalcHist(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -603,8 +626,8 @@ static int foaCalcHist(void* _type)
         for( i = 0; i < c_dims; i++ )
         {
             int dims_i = dims;
-            thresh[i] = (float*)icvAlloc( (dims_i + 1) * sizeof(**hist1->thresh));
-            threshe[i] = (float*)icvAlloc( 2 * sizeof(**hist1->thresh));
+            thresh[i] = (float*)cvAlloc( (dims_i + 1) * sizeof(**hist1->thresh));
+            threshe[i] = (float*)cvAlloc( 2 * sizeof(**hist1->thresh));
             thresh[i][0] = threshe[i][0] = 0.5;
             threshe[i][1] = thresh[i][dims_i] = 0.5f + dims_i;
             for( j = 1; j < dims_i; j++ ) thresh[i][j] = 0.5f + j;
@@ -698,8 +721,8 @@ static int foaCalcHist(void* _type)
         {
             cvReleaseImage( &src8u[i] );
             cvReleaseImage( &src32f[i] );
-            icvFree( &thresh[i] );
-            icvFree( &threshe[i] );
+            cvFree( (void**)&thresh[i] );
+            cvFree( (void**)&threshe[i] );
         }
         cvReleaseHist( &hist1 );
         cvReleaseHist( &hist2 );
@@ -710,8 +733,8 @@ static int foaCalcHist(void* _type)
     {
         cvReleaseImage( &src8u[i] );
         cvReleaseImage( &src32f[i] );
-        icvFree( &thresh[i] );
-        icvFree( &threshe[i] );
+        cvFree( (void**)&thresh[i] );
+        cvFree( (void**)&threshe[i] );
     }
     cvReleaseHist( &hist1 );
     cvReleaseHist( &hist2 );
@@ -723,7 +746,7 @@ static int foaCalcHist(void* _type)
 
 static int foaCalcHistMask(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -772,8 +795,8 @@ static int foaCalcHistMask(void* _type)
         for( i = 0; i < c_dims; i++ )
         {
             int dims_i = dims;
-            thresh[i] = (float*)icvAlloc( (dims_i + 1) * sizeof(**hist1->thresh));
-            threshe[i] = (float*)icvAlloc( 2 * sizeof(**hist1->thresh));
+            thresh[i] = (float*)cvAlloc( (dims_i + 1) * sizeof(**hist1->thresh));
+            threshe[i] = (float*)cvAlloc( 2 * sizeof(**hist1->thresh));
             thresh[i][0] = threshe[i][0] = 0.5;
             threshe[i][1] = thresh[i][dims_i] = 0.5f + dims_i;
             for( j = 1; j < dims_i; j++ ) thresh[i][j] = 0.5f + j;
@@ -887,8 +910,8 @@ static int foaCalcHistMask(void* _type)
         {
             cvReleaseImage( &src8u[i] );
             cvReleaseImage( &src32f[i] );
-            icvFree( &thresh[i] );
-            icvFree( &threshe[i] );
+            cvFree( (void**)&thresh[i] );
+            cvFree( (void**)&threshe[i] );
         }
         cvReleaseHist( &hist1 );
         cvReleaseHist( &hist2 );
@@ -902,7 +925,7 @@ static int foaCalcHistMask(void* _type)
 
 static int foaBackProject(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -950,8 +973,8 @@ static int foaBackProject(void* _type)
         for( i = 0; i < c_dims; i++ )
         {
             int dims_i = dims;
-            thresh[i] = (float*)icvAlloc( (dims_i + 1) * sizeof(**hist2->thresh));
-            threshe[i] = (float*)icvAlloc( 2 * sizeof(**hist2->thresh));
+            thresh[i] = (float*)cvAlloc( (dims_i + 1) * sizeof(**hist2->thresh));
+            threshe[i] = (float*)cvAlloc( 2 * sizeof(**hist2->thresh));
             thresh[i][0] = threshe[i][0] = 0.5;
             threshe[i][1] = thresh[i][dims_i] = 0.5f + dims_i;
             for( j = 1; j < dims_i; j++ ) thresh[i][j] = 0.5f + j;
@@ -1062,8 +1085,8 @@ static int foaBackProject(void* _type)
         {
             cvReleaseImage( &src8u[i] );
             cvReleaseImage( &src32f[i] );
-            icvFree( &thresh[i] );
-            icvFree( &threshe[i] );
+            cvFree( (void**)&thresh[i] );
+            cvFree( (void**)&threshe[i] );
         }
 
         cvReleaseImage( &dst8u );
@@ -1078,8 +1101,8 @@ test_exit:
     {
         cvReleaseImage( &src8u[i] );
         cvReleaseImage( &src32f[i] );
-        icvFree( &thresh[i] );
-        icvFree( &threshe[i] );
+        cvFree( (void**)&thresh[i] );
+        cvFree( (void**)&threshe[i] );
     }
 
     cvReleaseImage( &dst8u );
@@ -1117,8 +1140,8 @@ static int myBackProjectPatch(IplImage** src8u, IplImage** src32f,
     CvHistogram* model = 0;
     int c_dims = cvGetDims(hist->bins);
 
-    img8u = (IplImage**)icvAlloc( c_dims * sizeof(img8u[0]));
-    img32f= (IplImage**)icvAlloc( c_dims * sizeof(img32f[0]));
+    img8u = (IplImage**)cvAlloc( c_dims * sizeof(img8u[0]));
+    img32f= (IplImage**)cvAlloc( c_dims * sizeof(img32f[0]));
 
     cvNormalizeHist( hist, norm_factor);
 
@@ -1126,8 +1149,8 @@ static int myBackProjectPatch(IplImage** src8u, IplImage** src32f,
     {
         CvSize img_size = cvSize(range.width * 2 + 1, range.height * 2 + 1);
         
-        _test8u[i] = (uchar*)icvAlloc(step * (roi.height + range.height * 2 + 1));
-        _test32f[i] = (float*)icvAlloc(step * (roi.height + range.height * 2 + 1));
+        _test8u[i] = (uchar*)cvAlloc(step * (roi.height + range.height * 2 + 1));
+        _test32f[i] = (float*)cvAlloc(step * (roi.height + range.height * 2 + 1));
 
         memset(_test8u[i], 0, step * (roi.height + range.height * 2 + 1));
         memset(_test32f[i], 0, step * (roi.height + range.height * 2 + 1));
@@ -1186,14 +1209,14 @@ static int myBackProjectPatch(IplImage** src8u, IplImage** src32f,
     cvReleaseHist(&model);
     for(i = 0; i < c_dims; i++)
     {
-        icvFree(&_test8u[i]);
-        icvFree(&_test32f[i]);
+        cvFree((void**)&_test8u[i]);
+        cvFree((void**)&_test32f[i]);
         cvReleaseImageHeader( img8u + i );
         cvReleaseImageHeader( img32f + i );
     }
 
-    icvFree( &img8u );
-    icvFree( &img32f );
+    cvFree( (void**)&img8u );
+    cvFree( (void**)&img32f );
 
     return TRS_OK;
 }
@@ -1201,7 +1224,7 @@ static int myBackProjectPatch(IplImage** src8u, IplImage** src32f,
 
 static int foaBackProjectPatch(void* _type)
 {
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;
@@ -1247,7 +1270,7 @@ static int foaBackProjectPatch(void* _type)
         for( i = 0; i < c_dims; i++ )
         {
             int dims_i = dims;
-            thresh[i] = (float*)icvAlloc( (dims_i + 1) * sizeof(**hist->thresh));
+            thresh[i] = (float*)cvAlloc( (dims_i + 1) * sizeof(**hist->thresh));
             thresh[i][0] = 0.5;
             for( j = 1; j <= dims_i; j++ ) thresh[i][j] = 0.5f + j;
         }
@@ -1309,7 +1332,7 @@ static int foaBackProjectPatch(void* _type)
         {
             cvReleaseImage( &src8u[i] );
             cvReleaseImage( &src32f[i] );
-            icvFree( &thresh[i] );
+            cvFree( (void**)&thresh[i] );
         }
 
         cvReleaseImage( &_dst8u );
@@ -1328,7 +1351,7 @@ static int foaBayesianProb(void* _type)
 {
     int errors = 0;
 
-    CvHistType type = (CvHistType)(int)(intptr_t)_type;
+    CvHistType type = (CvHistType)(size_t)_type;
     static int c_dimss;
     static int dims;
     static int init = 0;

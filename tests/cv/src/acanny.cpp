@@ -40,7 +40,6 @@
 //M*/
 
 #include "cvtest.h"
-#include <stdint.h>
 
 #define DEPTH_8U 0
 
@@ -88,7 +87,7 @@ static int fmaCanny( void* arg )
 
     }
 
-    if( (int)(intptr_t)arg != data_type && data_type != 2 ) return TRS_UNDEF;
+    if( (int)(size_t)arg != data_type && (int)data_type != 2 ) return TRS_UNDEF;
 
     roi.height = lImageHeight;
     roi.width  = lImageWidth;
@@ -106,7 +105,7 @@ static int fmaCanny( void* arg )
     trsWrite( ATS_CON, " %d connected components were found" , Components );
     /* Run CVL function to check it */
 
-    switch ( (int)(intptr_t)arg )
+    switch ( (int)(size_t)arg )
     {
     case DEPTH_8U:
         {

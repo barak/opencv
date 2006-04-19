@@ -61,7 +61,7 @@ static void DrawEtalon(IplImage *img, CvPoint2D32f *corners,
                        int corner_count, CvSize etalon_size, int draw_ordered);
 static void MultMatrix(float rm[4][4], const float m1[4][4], const float m2[4][4]);
 static void MultVectorMatrix(float rv[4], const float v[4], const float m[4][4]);
-static CvPoint3D32f ImageCStoWorldCS(const Cv3dTrackerCameraInfo &camera_info, CvPoint p);
+static CvPoint3D32f ImageCStoWorldCS(const Cv3dTrackerCameraInfo &camera_info, CvPoint2D32f p);
 static bool intersection(CvPoint3D32f o1, CvPoint3D32f p1,
                          CvPoint3D32f o2, CvPoint3D32f p2,
                          CvPoint3D32f &r1, CvPoint3D32f &r2);
@@ -248,7 +248,7 @@ CV_IMPL CvBool cv3dTrackerCalibrateCameras(int num_cameras,
         CvMat rotVectDescr = cvMat(3, 1, CV_32FC1, rotVect);
 
         /* Calc rotation matrix by Rodrigues Transform */
-        cvRodrigues(&rotMatrDescr, &rotVectDescr, 0, CV_RODRIGUES_V2M);
+        cvRodrigues2( &rotVectDescr, &rotMatrDescr );
 
         //combine the two transformations into one matrix
         //order is important! rotations are not commutative
@@ -330,15 +330,15 @@ static void DrawEtalon(IplImage *img, CvPoint2D32f *corners,
     int x, y;
     CvPoint prev_pt = { 0, 0 };
     static const CvScalar rgb_colors[] = {
-        {0,0,255},
-        {0,128,255},
-        {0,200,200},
-        {0,255,0},
-        {200,200,0},
-        {255,0,0},
-        {255,0,255} };
+        {{0,0,255}},
+        {{0,128,255}},
+        {{0,200,200}},
+        {{0,255,0}},
+        {{200,200,0}},
+        {{255,0,0}},
+        {{255,0,255}} };
     static const CvScalar gray_colors[] = {
-        {80}, {120}, {160}, {200}, {100}, {140}, {180}
+        {{80}}, {{120}}, {{160}}, {{200}}, {{100}}, {{140}}, {{180}}
     };
     const CvScalar* colors = img->nChannels == 3 ? rgb_colors : gray_colors;
 
@@ -495,7 +495,7 @@ static inline double det(CvPoint3D32f v1, CvPoint3D32f v2, CvPoint3D32f v3)
 {
     return v1.x*v2.y*v3.z + v1.z*v2.x*v3.y + v1.y*v2.z*v3.x
            - v1.z*v2.y*v3.x - v1.x*v2.z*v3.y - v1.y*v2.x*v3.z;
-};
+}
 
 static CvPoint3D32f operator +(CvPoint3D32f a, CvPoint3D32f b)
 {
@@ -545,7 +545,7 @@ static bool intersection(CvPoint3D32f o1, CvPoint3D32f p1,
 
 // Convert from image to camera space by transforming point p in
 // the image plane by the camera matrix.
-static CvPoint3D32f ImageCStoWorldCS(const Cv3dTrackerCameraInfo &camera_info, CvPoint p)
+static CvPoint3D32f ImageCStoWorldCS(const Cv3dTrackerCameraInfo &camera_info, CvPoint2D32f p)
 {
     float tp[4];
     tp[0] = (float)p.x - camera_info.principal_point.x;

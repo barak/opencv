@@ -42,26 +42,75 @@
 #ifndef _HIGH_GUI_
 #define _HIGH_GUI_
 
-#include "cxcore.h"
-#ifdef WIN32
-#include <windows.h>
-#endif
+#ifndef SKIP_INCLUDES
+
+  #include "cxcore.h"
+  #if defined WIN32 || defined WIN64
+    #include <windows.h>
+  #endif
+
+#else // SKIP_INCLUDES
+
+  #if defined WIN32 || defined WIN64
+    #define CV_CDECL __cdecl
+    #define CV_STDCALL __stdcall
+  #else
+    #define CV_CDECL
+    #define CV_STDCALL
+  #endif
+
+  #ifndef CV_EXTERN_C
+    #ifdef __cplusplus
+      #define CV_EXTERN_C extern "C"
+      #define CV_DEFAULT(val) = val
+    #else
+      #define CV_EXTERN_C
+      #define CV_DEFAULT(val)
+    #endif
+  #endif
+
+  #ifndef CV_EXTERN_C_FUNCPTR
+    #ifdef __cplusplus
+      #define CV_EXTERN_C_FUNCPTR(x) extern "C" { typedef x; }
+    #else
+      #define CV_EXTERN_C_FUNCPTR(x) typedef x
+    #endif
+  #endif
+
+  #ifndef CV_INLINE
+    #if defined __cplusplus
+      #define CV_INLINE inline
+    #elif (defined WIN32 || defined WIN64) && !defined __GNUC__
+      #define CV_INLINE __inline
+    #else
+      #define CV_INLINE static inline
+    #endif
+  #endif /* CV_INLINE */
+
+  #if (defined WIN32 || defined WIN64) && defined CVAPI_EXPORTS
+    #define CV_EXPORTS __declspec(dllexport)
+  #else
+    #define CV_EXPORTS
+  #endif
+
+  #ifndef CVAPI
+    #define CVAPI(rettype) CV_EXTERN_C CV_EXPORTS rettype CV_CDECL
+  #endif
+
+#endif // SKIP_INCLUDES
 
 #if defined(_CH_)
-#pragma package <opencv>
-#include <chdl.h>
-LOAD_CHDL_CODE(highgui,Highgui)
+  #pragma package <chopencv>
+  #include <chdl.h>
+  LOAD_CHDL(highgui)
 #endif
 
 #ifdef __cplusplus
-extern "C" {
+  extern "C" {
 #endif /* __cplusplus */
 
-typedef void (CV_CDECL *CvTrackbarCallback)(int pos);
-typedef void (CV_CDECL *CvMouseCallback )(int event, int x, int y, int flags);
-
 /****************************************************************************************\
-*                                Basic HighGUI functionality                             *
+*                                  Basic GUI functions                                   *
 \****************************************************************************************/
 
 /* this function is used to set some external parameters in case of X Window */
@@ -90,9 +139,12 @@ CVAPI(void*) cvGetWindowHandle( const char* name );
 /* get name of highgui window given its native handle */
 CVAPI(const char*) cvGetWindowName( void* window_handle );
 
+
+typedef void (CV_CDECL *CvTrackbarCallback)(int pos);
+
 /* create trackbar and display it on top of given window, set callback */
 CVAPI(int) cvCreateTrackbar( const char* trackbar_name, const char* window_name,
-                                  int* value, int count, CvTrackbarCallback on_change );
+                             int* value, int count, CvTrackbarCallback on_change );
 
 /* retrieve or set trackbar position */
 CVAPI(int) cvGetTrackbarPos( const char* trackbar_name, const char* window_name );
@@ -116,8 +168,11 @@ CVAPI(void) cvSetTrackbarPos( const char* trackbar_name, const char* window_name
 #define CV_EVENT_FLAG_SHIFTKEY  16
 #define CV_EVENT_FLAG_ALTKEY    32
 
+typedef void (CV_CDECL *CvMouseCallback )(int event, int x, int y, int flags, void* param);
+
 /* assign callback for mouse events */
-CVAPI(void) cvSetMouseCallback( const char* window_name, CvMouseCallback on_mouse );
+CVAPI(void) cvSetMouseCallback( const char* window_name, CvMouseCallback on_mouse,
+                                void* param CV_DEFAULT(NULL));
 
 /*load image from file 
   iscolor: >0 - output image is always color,
@@ -147,14 +202,24 @@ typedef struct CvCapture CvCapture;
 /* start capturing frames from video file */
 CVAPI(CvCapture*) cvCaptureFromFile( const char* filename );
 
-/* start capturing frames from camera */
+#define CV_CAP_ANY      0
+#define CV_CAP_MIL      100
+#define CV_CAP_VFW      200
+#define CV_CAP_V4L      200
+#define CV_CAP_V4L2     200
+#define CV_CAP_FIREWARE 300
+#define CV_CAP_IEEE1394 300
+#define CV_CAP_DC1394   300
+#define CV_CAP_CMU1394  300
+
+/* start capturing frames from camera: index = camera_index + domain_offset (CV_CAP_*) */
 CVAPI(CvCapture*) cvCaptureFromCAM( int index );
 
-/*just grab frame, return 1 if success, 0 if fail 
+/* grab a frame, return 1 on success, 0 on fail. 
   this function is thought to be fast               */  
 CVAPI(int) cvGrabFrame( CvCapture* capture );
 
-/*get frame grabbed with cvGrabFrame(..) 
+/* get the frame grabbed with cvGrabFrame(..) 
   This function may apply some frame processing like 
   frame decompression, flipping etc.
   !!!DO NOT RELEASE or MODIFY the retrieved frame!!! */
@@ -188,7 +253,8 @@ typedef struct CvVideoWriter CvVideoWriter;
 
 /* initialize video file writer */
 CVAPI(CvVideoWriter*) cvCreateVideoWriter( const char* filename, int fourcc,
-                                           double fps, CvSize frame_size );
+                                           double fps, CvSize frame_size,
+                                           int is_color CV_DEFAULT(1));
 
 /* write frame to video file */
 CVAPI(int) cvWriteFrame( CvVideoWriter* writer, const IplImage* image );

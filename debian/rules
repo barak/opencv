@@ -31,7 +31,7 @@ config.status: configure
 	touch cvconfig.h.in
 	touch `find . -name Makefile.in`
 	touch stamp-h.in
-	CFLAGS="$(CFLAGS)" ./configure $(confflags) --enable-static
+	CFLAGS="$(CFLAGS)" ./configure $(confflags) --enable-static --enable-python --with-apps
 
 build: build-stamp
 build-stamp: patch config.status
@@ -53,7 +53,17 @@ install: build
 	dh_clean -k 
 	dh_installdirs
 	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
-	dh_install --sourcedir=debian/tmp
+	# Move files around
+	mkdir -p debian/tmp/usr/share/doc/opencv-doc
+	mv debian/tmp/usr/share/opencv/doc/* debian/tmp/usr/share/doc/opencv-doc/
+	mv debian/tmp/usr/share/opencv/readme.txt debian/tmp/usr/share/doc/opencv-doc/
+	mv debian/tmp/usr/share/opencv/samples debian/tmp/usr/share/doc/opencv-doc/examples
+	# Remove useless files
+	rm -f `find debian/tmp -name license.txt`
+	rm -f `find debian/tmp -name '*.pyc'`
+	rm -f `find debian/tmp -name '*haar*' -type f`
+	# Install files in their required packages
+	dh_install --sourcedir=debian/tmp --list-missing
 
 binary-indep: build install
 	dh_testdir
@@ -62,11 +72,11 @@ binary-indep: build install
 	dh_installdocs -i AUTHORS THANKS TODO debian/README.Debian
 	dh_installexamples -p opencv-doc samples/c/*.c samples/c/*.png samples/c/*.jpg samples/c/Makefile.debian
 	mv debian/opencv-doc/usr/share/doc/opencv-doc/examples/Makefile.debian debian/opencv-doc/usr/share/doc/opencv-doc/examples/Makefile
-	dh_install -p opencv-doc docs/*.rtf usr/share/doc/opencv-doc
-	dh_install -p opencv-doc docs/*.pdf usr/share/doc/opencv-doc
-	dh_install -p opencv-doc docs/*.htm usr/share/doc/opencv-doc/html
-	dh_install -p opencv-doc docs/*.jpg usr/share/doc/opencv-doc/html
-	dh_install -p opencv-doc docs/ref usr/share/doc/opencv-doc/html
+	#dh_install -p opencv-doc docs/*.rtf usr/share/doc/opencv-doc
+	#dh_install -p opencv-doc docs/*.pdf usr/share/doc/opencv-doc
+	#dh_install -p opencv-doc docs/*.htm usr/share/doc/opencv-doc/html
+	#dh_install -p opencv-doc docs/*.jpg usr/share/doc/opencv-doc/html
+	#dh_install -p opencv-doc docs/ref usr/share/doc/opencv-doc/html
 #	dh_install
 #	dh_installmenu
 #	dh_installdebconf	

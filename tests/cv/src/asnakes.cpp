@@ -46,7 +46,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <stdint.h>
 
 /* Testing parameters */
 static char test_desc[] = "Snakes regression test";
@@ -84,7 +83,7 @@ static char* file_name[] =
 static int data_type = 0;
 static int fmaSnakes( void* arg )
 {
-    int lParam = (int)(intptr_t)arg;
+    int lParam = (int)(size_t)arg;
     FILE* file;
     char abs_file_name[_MAX_PATH];
     char rel_path[_MAX_PATH];

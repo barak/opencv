@@ -1,5 +1,9 @@
-# Script that converts old-style OpenCV docs to new-style.
-# Only matrices are supported right now, base64-encoded data is not supported.
+#!/usr/bin/env python
+#
+"""
+Script that converts old-style OpenCV docs to new-style.
+Only matrices are supported right now, base64-encoded data is not supported.
+"""
 
 import sys,re
 

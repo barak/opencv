@@ -42,6 +42,8 @@
 #include "_cvaux.h"
 #include <stdio.h>
 
+#undef quad
+
 #if _MSC_VER >= 1200
 #pragma warning( disable: 4701 )
 #endif
@@ -527,13 +529,13 @@ void CvCalibFilter::DrawPoints( CvMat** dstarr )
 
                 static const CvScalar line_colors[] =
                 {
-                    {0,0,255},
-                    {0,128,255},
-                    {0,200,200},
-                    {0,255,0},
-                    {200,200,0},
-                    {255,0,0},
-                    {255,0,255}
+                    {{0,0,255}},
+                    {{0,128,255}},
+                    {{0,200,200}},
+                    {{0,255,0}},
+                    {{200,200,0}},
+                    {{255,0,0}},
+                    {{255,0,255}}
                 };
 
                 const int colorCount = sizeof(line_colors)/sizeof(line_colors[0]);
@@ -807,14 +809,14 @@ bool CvCalibFilter::Rectify( CvMat** srcarr, CvMat** dstarr )
 
                     cvComputePerspectiveMap(stereo.coeffs[i], tmpMap);
 
-                    cvConvertMap(src,tmpMap,rectMap[i],1);
+                    //cvConvertMap(src,tmpMap,rectMap[i],1);
 
                     cvReleaseMat(&tmpMap);
 
 
                 }
 
-                cvRemap( src, dst, rectMap[i], 1 );
+                cvUnDistort( src, dst, rectMap[i], 1 );
             }
         }
     }
@@ -882,7 +884,7 @@ bool CvCalibFilter::Undistort( CvMat** srcarr, CvMat** dstarr )
                                      cameraParams[i].distortion, 1 );
                 }
 
-                cvRemap( src, dst, undistMap[i], 1 );
+                cvUnDistort( src, dst, undistMap[i], 1 );
             #else
                 cvUnDistortOnce( src, dst, cameraParams[i].matrix, cameraParams[i].distortion, 1 );
             #endif

@@ -41,8 +41,9 @@
 
 #include "cvtest.h"
 
+#if 0
+
 #include <stdlib.h>
-#include <stdint.h>
 #include <assert.h>
 #include <limits.h>
 #include <float.h>
@@ -119,7 +120,7 @@ static int line_smp_test( void* arg )
     const int success_error_level = 0;
     const char* message = "No errors";
 
-    int   param     = (int)(intptr_t)arg;
+    int   param     = (int)arg;
     int   depth     = param/2;
     int   channels  = (param & 1);
 
@@ -156,8 +157,8 @@ static int line_smp_test( void* arg )
     img_roi.width = img_size;
     img_roi.height = img_size;
 
-    src_buf = (uchar*)icvAlloc( img_size * ((depth & 255)>>3) * channels );
-    dst_buf = (uchar*)icvAlloc( img_size * ((depth & 255)>>3) * channels );
+    src_buf = (uchar*)cvAlloc( img_size * ((depth & 255)>>3) * channels );
+    dst_buf = (uchar*)cvAlloc( img_size * ((depth & 255)>>3) * channels );
     assert( src_buf != 0 && dst_buf != 0 );
 
     atsRandInit( &rng_state, 0, 1, seed );
@@ -438,7 +439,7 @@ static int rect_smp_test( void* arg )
     const int min_img_size = 3;
     const double success_error_level_base = 5e-5;
 
-    int   param = (int)(intptr_t)arg;
+    int   param = (int)arg;
     int   channels  = 1;
     int   depth = param/2;
 
@@ -575,5 +576,6 @@ void InitASamplers( void )
 
 } /* InitASamplers */
 
+#endif
 
 /* End of file. */

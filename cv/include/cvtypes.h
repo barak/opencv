@@ -42,9 +42,10 @@
 #ifndef _CVTYPES_H_
 #define _CVTYPES_H_
 
-#include <assert.h>
-#include <stdlib.h>
-#include <stdint.h>
+#ifndef SKIP_INCLUDES
+  #include <assert.h>
+  #include <stdlib.h>
+#endif
 
 /* spatial and central moments */
 typedef struct CvMoments
@@ -61,18 +62,6 @@ typedef struct CvHuMoments
     double hu1, hu2, hu3, hu4, hu5, hu6, hu7; /* Hu invariants */
 }
 CvHuMoments;
-
-/* Line iterator state */
-typedef struct CvLineIterator
-{
-    uchar* ptr;
-    int  err;
-    int  plus_delta;
-    int  minus_delta;
-    int  plus_step;
-    int  minus_step;
-}
-CvLineIterator;
 
 /**************************** Connected Component  **************************************/
 

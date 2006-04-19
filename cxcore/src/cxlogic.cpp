@@ -108,9 +108,9 @@ IPCVAPI_IMPL( CvStatus, icv##name##_8u_C1R,                                     
 
 
 #define ICV_DEF_UN_LOG_OP_2D( __op__, name )                                            \
-IPCVAPI_IMPL( CvStatus, icv##name##_8u_CnR,                                             \
+static CvStatus CV_STDCALL icv##name##_8u_CnR                                           \
 ( const uchar* src0, int step1, uchar* dst0, int step, CvSize size,                     \
-  const uchar* scalar, int pix_size ), (src0, step1, dst0, step, size, scalar, pix_size) )\
+  const uchar* scalar, int pix_size )                                                   \
 {                                                                                       \
     int delta = 12*pix_size;                                                            \
                                                                                         \
@@ -387,7 +387,6 @@ icvLogic( const void* srcarr1, const void* srcarr2, void* dstarr,
         CvArr* arrs[] = { src1, src2, dst };
         CvMatND stubs[3];
         CvNArrayIterator iterator;
-        int type;
 
         if( maskarr )
             CV_ERROR( CV_StsBadMask,

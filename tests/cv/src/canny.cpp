@@ -123,8 +123,8 @@ int atsCannyStatistics(uchar* src,
 	int stepy = _dY->widthStep/2;
     IplImage* img = cvCreateImageHeader( roi, IPL_DEPTH_8U, 1 );
 
-    float* mag = (float*)icvAlloc(roi.width * roi.height * 4);
-    float* nms = (float*)icvAlloc(roi.width * roi.height * 4);
+    float* mag = (float*)cvAlloc(roi.width * roi.height * 4);
+    float* nms = (float*)cvAlloc(roi.width * roi.height * 4);
 
     memset(dst, 0, roi.height*dstStep);
 
@@ -226,8 +226,8 @@ int atsCannyStatistics(uchar* src,
     cvReleaseImage(&_dX);
     cvReleaseImage(&_dY);
     cvReleaseImageHeader(&img);
-    icvFree(&nms);
-    icvFree(&mag);
+    cvFree((void**)&nms);
+    cvFree((void**)&mag);
 
     return (int)CV_OK;
 }

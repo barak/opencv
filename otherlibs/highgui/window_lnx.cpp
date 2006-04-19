@@ -92,6 +92,7 @@ typedef struct CvWindow
     int flags;
 
     CvMouseCallback on_mouse;
+    void* on_mouse_param;
 
     struct
     {
@@ -102,6 +103,7 @@ typedef struct CvWindow
     toolbar;
 }
 CvWindow;
+
 
 //#ifndef NDEBUG
 #define Assert(exp)                                             \
@@ -200,7 +202,7 @@ CV_IMPL int cvNamedWindow( const char* name, int flags )
     CvWindow* window;
     int len;
 
-    cvInitSystem(0,0);
+    cvInitSystem(1,(char**)&name);
     if( !name )
         CV_ERROR( CV_StsNullPtr, "NULL name string" );
 
@@ -221,6 +223,7 @@ CV_IMPL int cvNamedWindow( const char* name, int flags )
     window->image = 0;
     window->last_key = 0;
     window->on_mouse = 0;
+    window->on_mouse_param = 0;
     memset( &window->toolbar, 0, sizeof(window->toolbar));
     window->next = hg_windows;
     window->prev = 0;
@@ -357,7 +360,7 @@ cvShowImage( const char* name, const CvArr* arr )
         cvReleaseMat( &window->image );
 
     if( !window->image )
-		window->image = cvCreateMat( image->rows, image->cols, CV_8UC3 );
+        window->image = cvCreateMat( image->rows, image->cols, CV_8UC3 );
 
     cvConvertImage( image, window->image,
         (origin != 0 ? CV_CVTIMG_FLIP : 0) + CV_CVTIMG_SWAP_RB );
@@ -510,7 +513,7 @@ cvCreateTrackbar( const char* trackbar_name, const char* window_name,
 
 
 CV_IMPL void
-cvSetMouseCallback( const char* window_name, CvMouseCallback on_mouse )
+cvSetMouseCallback( const char* window_name, CvMouseCallback on_mouse, void* param )
 {
     CV_FUNCNAME( "cvSetMouseCallback" );
 
@@ -526,6 +529,7 @@ cvSetMouseCallback( const char* window_name, CvMouseCallback on_mouse )
         EXIT;
 
     window->on_mouse = on_mouse;
+    window->on_mouse_param = param;
 
     __END__;
 }
@@ -588,10 +592,9 @@ CV_IMPL void cvSetTrackbarPos( const char* trackbar_name, const char* window_nam
 }
 
 
-#if 0
 CV_IMPL void* cvGetWindowHandle( const char* window_name )
 {
-    GtkWidget *widget = NULL;
+    void* widget = 0;
     
     CV_FUNCNAME( "cvGetWindowHandle" );
 
@@ -604,13 +607,12 @@ CV_IMPL void* cvGetWindowHandle( const char* window_name )
 
     window = icvFindWindowByName( window_name );
     if( window )
-        widget = (GtkWidget*)window->area;
+        widget = (void*)window->area;
 
     __END__;
 
-    return (void*)XtWindow(widget);
+    return widget;
 }
-#endif
     
 
 CV_IMPL const char* cvGetWindowName( void* window_handle )
@@ -635,6 +637,7 @@ CV_IMPL const char* cvGetWindowName( void* window_handle )
     return window_name;
 }
 
+
 /* draw image to frame */
 static void icvPutImage( CvWindow* window )
 {
@@ -643,7 +646,7 @@ static void icvPutImage( CvWindow* window )
         return;
 
     gdk_draw_rgb_image( window->area->window, window->area->style->fg_gc[GTK_STATE_NORMAL],
-		                0, 0, window->image->cols, window->image->rows,
+                        0, 0, window->image->cols, window->image->rows,
                         GDK_RGB_DITHER_MAX, window->image->data.ptr, window->image->step );
 }                                                   
                                                     
@@ -774,33 +777,9 @@ static gboolean icvOnMouse( GtkWidget *widget, GdkEvent *event, gpointer user_da
                     (state & GDK_BUTTON1_MASK ? CV_EVENT_FLAG_LBUTTON : 0) |
                     (state & GDK_BUTTON2_MASK ? CV_EVENT_FLAG_MBUTTON : 0) |
                     (state & GDK_BUTTON3_MASK ? CV_EVENT_FLAG_RBUTTON : 0);
-        window->on_mouse( cv_event, pt.x, pt.y, flags );
+        window->on_mouse( cv_event, pt.x, pt.y, flags, window->on_mouse_param );
     }
     
-    return FALSE;    
-}
-
-static gboolean icvOnMouseMotion( GtkWidget *widget, GdkEventMotion *event, gpointer user_data )
-{
-    CvWindow* window = (CvWindow*)user_data;
-    if( window->signature == CV_WINDOW_MAGIC_VAL &&
-        window->area == widget && window->image && window->on_mouse )
-    {
-        CvPoint pt;
-        pt.x = cvRound(event->x);
-        pt.y = cvRound(event->y);
-        
-        int flags = (event->state & GDK_SHIFT_MASK ? CV_EVENT_FLAG_SHIFTKEY : 0) |
-                    (event->state & GDK_CONTROL_MASK ? CV_EVENT_FLAG_CTRLKEY : 0) |
-                    (event->state & (GDK_MOD1_MASK|GDK_MOD2_MASK) ? CV_EVENT_FLAG_ALTKEY : 0) |
-                    (event->state & GDK_BUTTON1_MASK ? CV_EVENT_FLAG_LBUTTON : 0) |
-                    (event->state & GDK_BUTTON2_MASK ? CV_EVENT_FLAG_MBUTTON : 0) |
-                    (event->state & GDK_BUTTON3_MASK ? CV_EVENT_FLAG_RBUTTON : 0);
-        //gtk_widget_translate_coordinates( window->area, window->frame,
-        //                                  pt.x, pt.y, &pt.x, &pt.y );
-        window->on_mouse( CV_EVENT_MOUSEMOVE, pt.x, pt.y, flags );
-    }
-
     return FALSE;    
 }
 
@@ -880,7 +859,7 @@ cvCreateTrackbar( const char*, const char*,
 }
 
 CV_IMPL void
-cvSetMouseCallback( const char*, CvMouseCallback )
+cvSetMouseCallback( const char*, CvMouseCallback, void* )
 {
     CV_NO_GTK_ERROR( "cvSetMouseCallback" );
 }

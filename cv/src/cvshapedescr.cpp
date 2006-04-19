@@ -70,7 +70,7 @@ cvArcLength( const void *array, CvSlice slice, int is_closed )
     else
     {
         is_closed = is_closed > 0;
-        CV_CALL( contour = icvPointSeqFromMat(
+        CV_CALL( contour = cvPointSeqFromMat(
             CV_SEQ_KIND_CURVE | (is_closed ? CV_SEQ_FLAG_CLOSED : 0),
             array, &contour_header, &block ));
     }
@@ -130,7 +130,7 @@ cvArcLength( const void *array, CvSlice slice, int is_closed )
 }
 
 
-CvStatus
+static CvStatus
 icvFindCircle( CvPoint2D32f pt0, CvPoint2D32f pt1,
                CvPoint2D32f pt2, CvPoint2D32f * center, float *radius )
 {
@@ -213,7 +213,8 @@ icvFindEnslosingCicle4pts_32f( CvPoint2D32f * pts, CvPoint2D32f * _center, float
             idxs[k++] = i;
     }
 
-    center = icvMidPoint( pts[idxs[0]], pts[idxs[1]] );
+    center = cvPoint2D32f( (pts[idxs[0]].x + pts[idxs[1]].x)*0.5f,
+                           (pts[idxs[0]].y + pts[idxs[1]].y)*0.5f );
     radius = (float)(icvDistanceL2_32f( pts[idxs[0]], center )*1.03);
     if( radius < 1.f )
         radius = 1.f;
@@ -309,7 +310,7 @@ cvMinEnclosingCircle( const void* array, CvPoint2D32f * _center, float *_radius 
     }
     else
     {
-        CV_CALL( sequence = icvPointSeqFromMat(
+        CV_CALL( sequence = cvPointSeqFromMat(
             CV_SEQ_KIND_GENERIC, array, &contour_header, &block ));
     }
 
@@ -379,14 +380,13 @@ cvMinEnclosingCircle( const void* array, CvPoint2D32f * _center, float *_radius 
     for( k = 0; k < max_iters; k++ )
     {
         double min_delta = 0, delta;
+        CvPoint2D32f ptfl;
         
         icvFindEnslosingCicle4pts_32f( pts, &center, &radius );
         cvStartReadSeq( sequence, &reader, 0 );
 
         for( i = 0; i < count; i++ )
         {
-            CvPoint2D32f ptfl;
-
             if( !is_float )
             {
                 ptfl.x = (float)((CvPoint*)reader.ptr)->x;
@@ -401,14 +401,44 @@ cvMinEnclosingCircle( const void* array, CvPoint2D32f * _center, float *_radius 
             delta = icvIsPtInCircle( ptfl, center, radius );
             if( delta < min_delta )
             {
-                pts[3] = ptfl;
                 min_delta = delta;
-                //break;
+                pts[3] = ptfl;
             }
         }
         result = min_delta >= 0;
         if( result )
             break;
+    }
+
+    if( !result )
+    {
+        cvStartReadSeq( sequence, &reader, 0 );
+        radius = 0.f;
+
+        for( i = 0; i < count; i++ )
+        {
+            CvPoint2D32f ptfl;
+            float t, dx, dy;
+
+            if( !is_float )
+            {
+                ptfl.x = (float)((CvPoint*)reader.ptr)->x;
+                ptfl.y = (float)((CvPoint*)reader.ptr)->y;
+            }
+            else
+            {
+                ptfl = *(CvPoint2D32f*)reader.ptr;
+            }
+
+            CV_NEXT_SEQ_ELEM( sequence->elem_size, reader );
+            dx = center.x - ptfl.x;
+            dy = center.y - ptfl.y;
+            t = dx*dx + dy*dy;
+            radius = MAX(radius,t);
+        }
+
+        radius = (float)sqrt(radius);
+        result = 1;
     }
 
     __END__;
@@ -482,7 +512,7 @@ icvContourArea( const CvSeq* contour, double *area )
 
 \****************************************************************************************/
 
-CvStatus
+static CvStatus
 icvMemCopy( double **buf1, double **buf2, double **buf3, int *b_max )
 {
     int bb;
@@ -714,7 +744,7 @@ cvContourArea( const void *array, CvSlice slice )
     }
     else
     {
-        CV_CALL( contour = icvPointSeqFromMat(
+        CV_CALL( contour = cvPointSeqFromMat(
             CV_SEQ_KIND_CURVE, array, &contour_header, &block ));
     }
 
@@ -745,8 +775,6 @@ cvContourArea( const void *array, CvSlice slice )
 static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
 {
     CvStatus status = CV_OK;
-    CvStatus status1;
-
     float u[6];
 
     CvMatr32f D = 0;
@@ -771,6 +799,8 @@ static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
     int n = points->total;
     CvSeqReader reader;
     int is_float = CV_SEQ_ELTYPE(points) == CV_32FC2;
+
+    CvMat _S, _EIGVECS, _EIGVALS;
 
     /* create matrix D of  input points */
     D = icvCreateMatrix_32f( 6, n );
@@ -835,8 +865,12 @@ static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
     C[12] = 2.f; //icvSetElement_32f( C, 6, 6, 2, 0, 2.f );
     
     /* find eigenvalues */
-    status1 = icvJacobiEigens_32f( S, INVEIGV, eigenvalues, 6, 0.f );
-    assert( status1 == CV_OK );
+    //status1 = icvJacobiEigens_32f( S, INVEIGV, eigenvalues, 6, 0.f );
+    //assert( status1 == CV_OK );
+    _S = cvMat( 6, 6, CV_32F, S );
+    _EIGVECS = cvMat( 6, 6, CV_32F, INVEIGV );
+    _EIGVALS = cvMat( 6, 1, CV_32F, eigenvalues );
+    cvEigenVV( &_S, &_EIGVECS, &_EIGVALS, 0 );
 
     //avoid troubles with small negative values
     for( i = 0; i < 6; i++ )
@@ -856,10 +890,12 @@ static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
     icvMulMatrix_32f( TMP1, 6, 6, INVQ, 6, 6, TMP2 );
 
     /* find its eigenvalues and vectors */
-    status1 = icvJacobiEigens_32f( TMP2, INVEIGV, eigenvalues, 6, 0.f );
-    assert( status1 == CV_OK );
-    /* search for positive eigenvalue */
+    //status1 = icvJacobiEigens_32f( TMP2, INVEIGV, eigenvalues, 6, 0.f );
+    //assert( status1 == CV_OK );
+    _S = cvMat( 6, 6, CV_32F, TMP2 );
+    cvEigenVV( &_S, &_EIGVECS, &_EIGVALS, 0 );
 
+    /* search for positive eigenvalue */
     for( i = 0; i < 3; i++ )
     {
         if( eigenvalues[i] > 0 )
@@ -883,7 +919,6 @@ static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
 
     /* now find truthful eigenvector */
     icvTransformVector_32f( INVQ, &INVEIGV[index * 6], u, 6, 6 );
-    assert( status1 == CV_OK );
     /* extract vector components */
     a = u[0];
     b = u[1];
@@ -955,8 +990,12 @@ static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
     TMP1[1] = TMP1[2] = b * 0.5f;
     TMP1[3] = c;
 
-    status1 = icvJacobiEigens_32f( TMP1, INVEIGV, eigenvalues, 2, 0.f );
-    assert( status1 == CV_OK );
+    //status1 = icvJacobiEigens_32f( TMP1, INVEIGV, eigenvalues, 2, 0.f );
+    //assert( status1 == CV_OK );
+    _S = cvMat( 2, 2, CV_32F, TMP1 );
+    _EIGVECS = cvMat( 2, 2, CV_32F, INVEIGV );
+    _EIGVALS = cvMat( 2, 1, CV_32F, eigenvalues );
+    cvEigenVV( &_S, &_EIGVECS, &_EIGVALS, 0 );
 
     /* exteract axis length from eigenvectors */
     box->size.height = 2 * cvInvSqrt( eigenvalues[0] );
@@ -975,7 +1014,7 @@ error:
     if( D )
         icvDeleteMatrix( D );
 
-    return status1 < 0 ? status1 : status;
+    return status;
 }
 
 
@@ -1002,7 +1041,7 @@ cvFitEllipse2( const CvArr* array )
     }
     else
     {
-        CV_CALL( ptseq = icvPointSeqFromMat(
+        CV_CALL( ptseq = cvPointSeqFromMat(
             CV_SEQ_KIND_GENERIC, array, &contour_header, &block ));
     }
 
@@ -1049,7 +1088,7 @@ cvBoundingRect( CvArr* array, int update )
     }
     else
     {
-        CV_CALL( ptseq = icvPointSeqFromMat(
+        CV_CALL( ptseq = cvPointSeqFromMat(
             CV_SEQ_KIND_GENERIC, array, &contour_header, &block ));
         calculate = 1;
     }
