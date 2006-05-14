@@ -1647,7 +1647,7 @@ The function <code>cvHoughLines2</code> implements a few variants of Hough trans
 int main(int argc, char** argv)
 {
     IplImage* src;
-    if( argc == 2 &amp;&amp; (src=cvLoadImage(argv[1], 0))!= 0)
+    if( argc == 2 && (src=cvLoadImage(argv[1], 0))!= 0)
     {
         IplImage* dst = cvCreateImage( cvGetSize(src), 8, 1 );
         IplImage* color_dst = cvCreateImage( cvGetSize(src), 8, 3 );
@@ -1961,13 +1961,13 @@ Only dense histograms can be initialized this way. The function returns <code>hi
 <p class="Blurb">Queries value of histogram bin</p>
 <pre>
 #define cvQueryHistValue_1D( hist, idx0 ) \
-    cvGetReal1D( (hist)-&gt;bins, (idx0) )
+    cvGetReal1D( (hist)->bins, (idx0) )
 #define cvQueryHistValue_2D( hist, idx0, idx1 ) \
-    cvGetReal2D( (hist)-&gt;bins, (idx0), (idx1) )
+    cvGetReal2D( (hist)->bins, (idx0), (idx1) )
 #define cvQueryHistValue_3D( hist, idx0, idx1, idx2 ) \
-    cvGetReal3D( (hist)-&gt;bins, (idx0), (idx1), (idx2) )
+    cvGetReal3D( (hist)->bins, (idx0), (idx1), (idx2) )
 #define cvQueryHistValue_nD( hist, idx ) \
-    cvGetRealND( (hist)-&gt;bins, (idx) )
+    cvGetRealND( (hist)->bins, (idx) )
 </pre><p><dl>
 <dt>hist<dd>Histogram.
 <dt>idx0, idx1, idx2, idx3<dd>Indices of the bin.
@@ -1983,13 +1983,13 @@ histogram, and no new bin is created.
 <p class="Blurb">Returns pointer to histogram bin</p>
 <pre>
 #define cvGetHistValue_1D( hist, idx0 ) \
-    ((float*)(cvPtr1D( (hist)-&gt;bins, (idx0), 0 ))
+    ((float*)(cvPtr1D( (hist)->bins, (idx0), 0 ))
 #define cvGetHistValue_2D( hist, idx0, idx1 ) \
-    ((float*)(cvPtr2D( (hist)-&gt;bins, (idx0), (idx1), 0 ))
+    ((float*)(cvPtr2D( (hist)->bins, (idx0), (idx1), 0 ))
 #define cvGetHistValue_3D( hist, idx0, idx1, idx2 ) \
-    ((float*)(cvPtr3D( (hist)-&gt;bins, (idx0), (idx1), (idx2), 0 ))
+    ((float*)(cvPtr3D( (hist)->bins, (idx0), (idx1), (idx2), 0 ))
 #define cvGetHistValue_nD( hist, idx ) \
-    ((float*)(cvPtrND( (hist)-&gt;bins, (idx), 0 ))
+    ((float*)(cvPtrND( (hist)->bins, (idx), 0 ))
 </pre><p><dl>
 <dt>hist<dd>Histogram.
 <dt>idx0, idx1, idx2, idx3<dd>Indices of the bin.
@@ -2122,7 +2122,7 @@ location from the corresponding input images.</p>
 int main( int argc, char** argv )
 {
     IplImage* src;
-    if( argc == 2 &amp;&amp; (src=cvLoadImage(argv[1], 1))!= 0)
+    if( argc == 2 && (src=cvLoadImage(argv[1], 1))!= 0)
     {
         IplImage* h_plane = cvCreateImage( cvGetSize(src), 8, 1 );
         IplImage* s_plane = cvCreateImage( cvGetSize(src), 8, 1 );
@@ -2261,8 +2261,8 @@ The function <code>cvCalcProbDensity</code> calculates the object probability de
 the two histograms as:</p>
 <pre>
 dist_hist(I)=0      if hist1(I)==0
-             scale  if hist1(I)!=0 &amp;&amp; hist2(I)&gt;hist1(I)
-             hist2(I)*scale/hist1(I) if hist1(I)!=0 &amp;&amp; hist2(I)&lt;=hist1(I)
+             scale  if hist1(I)!=0 && hist2(I)&gt;hist1(I)
+             hist2(I)*scale/hist1(I) if hist1(I)!=0 && hist2(I)&lt;=hist1(I)
 </pre>
 <p>
 So the destination histogram bins are within less than scale.
@@ -2549,7 +2549,7 @@ calculated.
                 <li>is_closed=0 - the curve is assumed to be unclosed.
                 <li>is_closed&gt;0 - the curve is assumed to be closed.
                 <li>is_closed&lt;0 - if curve is sequence, the flag CV_SEQ_FLAG_CLOSED of
-                    ((CvSeq*)curve)-&gt;flags is checked to determine if the curve is closed or not,
+                    ((CvSeq*)curve)->flags is checked to determine if the curve is closed or not,
                      otherwise (curve is represented by array (CvMat*) of points) it is assumed
                      to be unclosed.
 </ul>
@@ -2826,12 +2826,12 @@ void main( int argc, char** argv )
 
         for( i = 0; i &lt; count; i++ )
         {
-            pt0.x = rand() % (img-&gt;width/2) + img-&gt;width/4;
-            pt0.y = rand() % (img-&gt;height/2) + img-&gt;height/4;
-            cvSeqPush( ptseq, &amp;pt0 );
+            pt0.x = rand() % (img->width/2) + img->width/4;
+            pt0.y = rand() % (img->height/2) + img->height/4;
+            cvSeqPush( ptseq, &pt0 );
         }
         hull = cvConvexHull2( ptseq, 0, CV_CLOCKWISE, 0 );
-        hullcount = hull-&gt;total;
+        hullcount = hull->total;
 #else
         CvPoint* points = (CvPoint*)malloc( count * sizeof(points[0]));
         int* hull = (int*)malloc( count * sizeof(hull[0]));
@@ -2840,8 +2840,8 @@ void main( int argc, char** argv )
 
         for( i = 0; i &lt; count; i++ )
         {
-            pt0.x = rand() % (img-&gt;width/2) + img-&gt;width/4;
-            pt0.y = rand() % (img-&gt;height/2) + img-&gt;height/4;
+            pt0.x = rand() % (img->width/2) + img->width/4;
+            pt0.y = rand() % (img->height/2) + img->height/4;
             points[i] = pt0;
         }
         cvConvexHull2( &point_mat, &hull_mat, CV_CLOCKWISE, 0 );
@@ -3451,7 +3451,7 @@ int cvMeanShift( const CvArr* prob_image, CvRect window,
 <dt>criteria<dd>Criteria applied to determine when the window search should be
 finished.
 <dt>comp<dd>Resultant structure that contains converged search window coordinates
-(<code>comp-&gt;rect</code> field) and sum of all pixels inside the window (<code>comp-&gt;area</code> field).
+(<code>comp->rect</code> field) and sum of all pixels inside the window (<code>comp->area</code> field).
 </dl></p><p>
 The function <code>cvMeanShift</code> iterates to find the object center given its back projection and
 initial position of search window. The iterations are made until the search window
@@ -3472,7 +3472,7 @@ int cvCamShift( const CvArr* prob_image, CvRect window, CvTermCriteria criteria,
 <dt>criteria<dd>Criteria applied to determine when the window search should be
 finished.
 <dt>comp<dd>Resultant structure that contains converged search window coordinates
-(<code>comp-&gt;rect</code> field) and sum of all pixels inside the window (<code>comp-&gt;area</code> field).
+(<code>comp->rect</code> field) and sum of all pixels inside the window (<code>comp->area</code> field).
 <dt>box<dd>Circumscribed box for the object. If not <code>NULL</code>, contains object size and
 orientation.
 </dl></p><p>
@@ -3584,7 +3584,7 @@ void cvCalcOpticalFlowBM( const CvArr* prev, const CvArr* curr, CvSize block_siz
 <dt>max_range<dd>Size of the scanned neighborhood in pixels around block.
 <dt>use_previous<dd>Uses previous (input) velocity field.
 <dt>velx<dd>Horizontal component of the optical flow of<br>
-            floor((prev-&gt;width - block_size.width)/shiftSize.width) &times; floor((prev-&gt;height - block_size.height)/shiftSize.height) size,
+            floor((prev->width - block_size.width)/shiftSize.width) &times; floor((prev->height - block_size.height)/shiftSize.height) size,
             32-bit floating-point, single-channel.
 <dt>vely<dd>Vertical component of the optical flow of the same size <code>velx</code>,
             32-bit floating-point, single-channel.
@@ -3666,17 +3666,17 @@ typedef struct CvKalman
 
     /* backward compatibility fields */
 #if 1
-    float* PosterState;         /* =state_pre-&gt;data.fl */
-    float* PriorState;          /* =state_post-&gt;data.fl */
-    float* DynamMatr;           /* =transition_matrix-&gt;data.fl */
-    float* MeasurementMatr;     /* =measurement_matrix-&gt;data.fl */
-    float* MNCovariance;        /* =measurement_noise_cov-&gt;data.fl */
-    float* PNCovariance;        /* =process_noise_cov-&gt;data.fl */
-    float* KalmGainMatr;        /* =gain-&gt;data.fl */
-    float* PriorErrorCovariance;/* =error_cov_pre-&gt;data.fl */
-    float* PosterErrorCovariance;/* =error_cov_post-&gt;data.fl */
-    float* Temp1;               /* temp1-&gt;data.fl */
-    float* Temp2;               /* temp2-&gt;data.fl */
+    float* PosterState;         /* =state_pre->data.fl */
+    float* PriorState;          /* =state_post->data.fl */
+    float* DynamMatr;           /* =transition_matrix->data.fl */
+    float* MeasurementMatr;     /* =measurement_matrix->data.fl */
+    float* MNCovariance;        /* =measurement_noise_cov->data.fl */
+    float* PNCovariance;        /* =process_noise_cov->data.fl */
+    float* KalmGainMatr;        /* =gain->data.fl */
+    float* PriorErrorCovariance;/* =error_cov_pre->data.fl */
+    float* PosterErrorCovariance;/* =error_cov_post->data.fl */
+    float* Temp1;               /* temp1->data.fl */
+    float* Temp2;               /* temp2->data.fl */
 #endif
 
     CvMat* state_pre;           /* predicted state (x'(k)):
@@ -3809,7 +3809,7 @@ z<sub>k</sub> - given measurement (<code>mesurement</code> parameter)
 K<sub>k</sub> - Kalman "gain" matrix.
 </pre>
 <p>
-The function stores adjusted state at <code>kalman-&gt;state_post</code> and returns it on output.
+The function stores adjusted state at <code>kalman->state_post</code> and returns it on output.
 </p>
 
 <h4>Example. Using Kalman filter to track a rotating point</h4>
@@ -3833,51 +3833,51 @@ int main(int argc, char** argv)
     CvRandState rng;
     int code = -1;
 
-    cvRandInit( &amp;rng, 0, 1, -1, CV_RAND_UNI );
+    cvRandInit( &rng, 0, 1, -1, CV_RAND_UNI );
 
     cvZero( measurement );
     cvNamedWindow( "Kalman", 1 );
 
     for(;;)
     {
-        cvRandSetRange( &amp;rng, 0, 0.1, 0 );
+        cvRandSetRange( &rng, 0, 0.1, 0 );
         rng.disttype = CV_RAND_NORMAL;
 
-        cvRand( &amp;rng, state );
+        cvRand( &rng, state );
 
-        memcpy( kalman-&gt;transition_matrix-&gt;data.fl, A, sizeof(A));
-        cvSetIdentity( kalman-&gt;measurement_matrix, cvRealScalar(1) );
-        cvSetIdentity( kalman-&gt;process_noise_cov, cvRealScalar(1e-5) );
-        cvSetIdentity( kalman-&gt;measurement_noise_cov, cvRealScalar(1e-1) );
-        cvSetIdentity( kalman-&gt;error_cov_post, cvRealScalar(1));
+        memcpy( kalman->transition_matrix->data.fl, A, sizeof(A));
+        cvSetIdentity( kalman->measurement_matrix, cvRealScalar(1) );
+        cvSetIdentity( kalman->process_noise_cov, cvRealScalar(1e-5) );
+        cvSetIdentity( kalman->measurement_noise_cov, cvRealScalar(1e-1) );
+        cvSetIdentity( kalman->error_cov_post, cvRealScalar(1));
         /* choose random initial state */
-        cvRand( &amp;rng, kalman-&gt;state_post );
+        cvRand( &rng, kalman->state_post );
 
         rng.disttype = CV_RAND_NORMAL;
 
         for(;;)
         {
             #define calc_point(angle)                                      \
-                cvPoint( cvRound(img-&gt;width/2 + img-&gt;width/3*cos(angle)),  \
-                         cvRound(img-&gt;height/2 - img-&gt;width/3*sin(angle)))
+                cvPoint( cvRound(img->width/2 + img->width/3*cos(angle)),  \
+                         cvRound(img->height/2 - img->width/3*sin(angle)))
 
-            float state_angle = state-&gt;data.fl[0];
+            float state_angle = state->data.fl[0];
             CvPoint state_pt = calc_point(state_angle);
 
             /* predict point position */
             const CvMat* prediction = cvKalmanPredict( kalman, 0 );
-            float predict_angle = prediction-&gt;data.fl[0];
+            float predict_angle = prediction->data.fl[0];
             CvPoint predict_pt = calc_point(predict_angle);
             float measurement_angle;
             CvPoint measurement_pt;
 
-            cvRandSetRange( &amp;rng, 0, sqrt(kalman-&gt;measurement_noise_cov-&gt;data.fl[0]), 0 );
-            cvRand( &amp;rng, measurement );
+            cvRandSetRange( &rng, 0, sqrt(kalman->measurement_noise_cov->data.fl[0]), 0 );
+            cvRand( &rng, measurement );
 
             /* generate measurement */
-            cvMatMulAdd( kalman-&gt;measurement_matrix, state, measurement, measurement );
+            cvMatMulAdd( kalman->measurement_matrix, state, measurement, measurement );
 
-            measurement_angle = measurement-&gt;data.fl[0];
+            measurement_angle = measurement->data.fl[0];
             measurement_pt = calc_point(measurement_angle);
 
             /* plot points */
@@ -3896,14 +3896,14 @@ int main(int argc, char** argv)
             /* adjust Kalman filter state */
             cvKalmanCorrect( kalman, measurement );
 
-            cvRandSetRange( &amp;rng, 0, sqrt(kalman-&gt;process_noise_cov-&gt;data.fl[0]), 0 );
-            cvRand( &amp;rng, process_noise );
-            cvMatMulAdd( kalman-&gt;transition_matrix, state, process_noise, state );
+            cvRandSetRange( &rng, 0, sqrt(kalman->process_noise_cov->data.fl[0]), 0 );
+            cvRand( &rng, process_noise );
+            cvMatMulAdd( kalman->transition_matrix, state, process_noise, state );
 
             cvShowImage( "Kalman", img );
             code = cvWaitKey( 100 );
 
-            if( code &gt; 0 ) /* break current simulation by pressing a key */
+            if( code > 0 ) /* break current simulation by pressing a key */
                 break;
         }
         if( code == 27 ) /* exit by ESCAPE */

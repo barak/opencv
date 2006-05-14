@@ -1,6 +1,6 @@
-lib_LTLIBRARIES = libcvaux0.9.7.la
+lib_LTLIBRARIES = libcvaux.la
 
-libcvaux0_9_7_la_SOURCES = \
+libcvaux_la_SOURCES = \
     camshift.cpp cv3dtracker.cpp cvaux.cpp cvauxutils.cpp \
     cvbgfg_acmmm2003.cpp cvbgfg_common.cpp cvbgfg_gaussmix.cpp \
     cvcalibfilter.cpp cvclique.cpp cvcorrespond.cpp cvcorrimages.cpp \
@@ -19,7 +19,7 @@ EXTRA_DIST = cvaux.dsp cvaux.vcproj cvaux.rc resource.h
 include_HEADERS =
 noinst_HEADERS = _cvaux.h _cvfacedetection.h _cvvectrack.h _cvvm.h
 
-libcvaux0_9_7_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@
-libcvaux0_9_7_la_LIBADD  = $(top_builddir)/cv/src/libcv0.9.7.la
+libcvaux_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@
+libcvaux_la_LIBADD  = $(top_builddir)/cv/src/libcv.la
 
 INCLUDES = -I. -I$(top_srcdir)/cvaux/include -I$(top_srcdir)/cxcore/include -I$(top_srcdir)/cv/include -I$(top_srcdir)/cv/src -I$(top_srcdir)

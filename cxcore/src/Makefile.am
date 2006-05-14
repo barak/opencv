@@ -1,6 +1,6 @@
-lib_LTLIBRARIES = libcxcore0.9.7.la
+lib_LTLIBRARIES = libcxcore.la
 
-libcxcore0_9_7_la_SOURCES = cxalloc.cpp cxarithm.cpp cxarray.cpp cxcmp.cpp \
+libcxcore_la_SOURCES = cxalloc.cpp cxarithm.cpp cxarray.cpp cxcmp.cpp \
     cxconvert.cpp cxcopy.cpp cxdatastructs.cpp cxdrawing.cpp \
     cxdxt.cpp cxerror.cpp cxjacobieigens.cpp cxlogic.cpp cxlut.cpp \
     cxmathfuncs.cpp cxmatmul.cpp cxmatrix.cpp cxmean.cpp \
@@ -13,7 +13,7 @@ noinst_HEADERS = _cxcore.h _cxipp.h
 
 EXTRA_DIST = cxcore.dsp cxcore.vcproj cxcore.rc  resource.h
 
-libcxcore0_9_7_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@
+libcxcore_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@
 
 LIBS = -ldl -lpthread -lm
 

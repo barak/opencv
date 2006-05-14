@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+
 #########################################################################################
 #
 #  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.

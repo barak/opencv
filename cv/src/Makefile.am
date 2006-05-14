@@ -1,6 +1,6 @@
-lib_LTLIBRARIES = libcv0.9.7.la
+lib_LTLIBRARIES = libcv.la
 
-libcv0_9_7_la_SOURCES = \
+libcv_la_SOURCES = \
     cvaccum.cpp cvadapthresh.cpp cvapprox.cpp cvcalccontrasthistogram.cpp \
     cvcalcimagehomography.cpp cvcalibinit.cpp cvcalibration.cpp \
     cvcamshift.cpp cvcanny.cpp cvcolor.cpp cvcondens.cpp cvcontours.cpp \
@@ -19,8 +19,8 @@ libcv0_9_7_la_SOURCES = \
 noinst_HEADERS = _cv.h _cvgeom.h _cvimgproc.h _cvipp.h _cvlist.h _cvmatrix.h
 EXTRA_DIST = cv.dsp cv.vcproj cv.rc resource.h
 
-libcv0_9_7_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@
-libcv0_9_7_la_LIBADD  = $(top_builddir)/cxcore/src/libcxcore0.9.7.la
+libcv_la_LDFLAGS = -no-undefined -version-info @LT_VERSION@ @LDFLAGS@
+libcv_la_LIBADD  = $(top_builddir)/cxcore/src/libcxcore.la
 
 LIBS = -ldl -lpthread -lm
 

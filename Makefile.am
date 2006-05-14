@@ -6,10 +6,8 @@ ACLOCAL_AMFLAGS = -I ./autotools/aclocal
 ## Any directories that you want built and installed should go here.
 if BUILD_APPS
   APPS_DIR = apps
-  NO_APPS_DIR =
 else
   APPS_DIR =
-  NO_APPS_DIR = apps
 endif
 SUBDIRS = cxcore cv cvaux otherlibs interfaces $(APPS_DIR) tests samples data docs
 
@@ -17,7 +15,7 @@ SUBDIRS = cxcore cv cvaux otherlibs interfaces $(APPS_DIR) tests samples data do
 ## here, as well as have a Makefile generated at the end of configure.in
 ##
 ## This only works for subdirectories one level deep.
-DIST_SUBDIRS = $(SUBDIRS) $(NO_APPS_DIR)
+DIST_SUBDIRS = $(SUBDIRS) apps
 
 # All the rest of the distributed files
 EXTRA_DIST = THANKS COPYING INSTALL README NEWS ChangeLog opencv.spec opencv.spec.in opencv.pc.in opencv.pc _make utils autotools

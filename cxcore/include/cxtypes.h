@@ -115,7 +115,7 @@
 #elif (defined WIN32 || defined WIN64) && !defined __GNUC__
     #define CV_INLINE __inline
 #else
-    #define CV_INLINE static inline
+    #define CV_INLINE static
 #endif
 #endif /* CV_INLINE */
 

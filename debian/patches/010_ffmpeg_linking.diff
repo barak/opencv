@@ -1,0 +1,17 @@
+Index: opencv-0.9.7/configure.in
+===================================================================
+--- opencv-0.9.7.orig/configure.in	2006-05-14 05:24:10.000000000 +0200
++++ opencv-0.9.7/configure.in	2006-05-14 05:24:12.000000000 +0200
+@@ -188,11 +188,9 @@
+ have_ffmpeg=no
+ 
+ AC_CHECK_HEADER(ffmpeg/avcodec.h,
+-    AC_CHECK_LIB(avcodec, avcodec_decode_video,
+-    [AC_CHECK_LIB(avformat, av_open_input_file,
+     [have_ffmpeg=yes
+     AC_DEFINE(HAVE_FFMPEG,,[FFMpeg video codecs library])
+-    FFMPEGLIBS="-lavcodec -lavformat"],,[-lavcodec])]))
++    FFMPEGLIBS="`ffmpeg-config --plugin-libs avcodec avformat`"])
+ 
+ AC_SUBST(FFMPEGLIBS)
+ 

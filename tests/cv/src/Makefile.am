@@ -27,12 +27,12 @@ cvtest_SOURCES = \
     athresh.cpp ats.cpp canny.cpp cvtest.cpp \
     tsysa.cpp ucontours.cpp ugraphics.cpp uiplutils.cpp ureadfile.cpp
 
-cvtest_LDADD =                                               \
-	$(top_builddir)/cv/src/libcv0.9.7.la                 \
-	$(top_builddir)/cxcore/src/libcxcore0.9.7.la         \
-	$(top_builddir)/tests/trs/libtrs.a                   \
-	$(top_builddir)/tests/cxts/libcxts.a                 \
-	$(top_builddir)/cvaux/src/libcvaux0.9.7.la           \
-	$(top_builddir)/otherlibs/highgui/libhighgui0.9.7.la
+cvtest_LDADD =                                          \
+	$(top_builddir)/cv/src/libcv.la                 \
+	$(top_builddir)/cxcore/src/libcxcore.la         \
+	$(top_builddir)/tests/trs/libtrs.a              \
+	$(top_builddir)/tests/cxts/libcxts.a            \
+	$(top_builddir)/cvaux/src/libcvaux.la           \
+	$(top_builddir)/otherlibs/highgui/libhighgui.la
 
 EXTRA_DIST = cvtest.dsp cvtest.vcproj

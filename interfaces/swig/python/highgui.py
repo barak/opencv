@@ -36,6 +36,7 @@ except AttributeError:
 del types
 
 
+import cv
 
 cvInitSystem = _highgui.cvInitSystem
 CV_WINDOW_AUTOSIZE = _highgui.CV_WINDOW_AUTOSIZE

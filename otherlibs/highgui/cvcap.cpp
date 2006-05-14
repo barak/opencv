@@ -1199,7 +1199,7 @@ static void icvCloseAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
 
     if( capture->video_st )
     {
-        avcodec_close( capture->video_st->codec );
+        avcodec_close( &capture->video_st->codec );
     capture->video_st = NULL;
     }
 
@@ -1239,7 +1239,7 @@ static int icvOpenAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture, const char* filename
     goto exit_func;
     }
     for(i = 0; i < ic->nb_streams; i++) {
-        AVCodecContext *enc = ic->streams[i]->codec;
+        AVCodecContext *enc = &ic->streams[i]->codec;
         AVCodec *codec;
     if( CODEC_TYPE_VIDEO == enc->codec_type && video_index < 0) {
         video_index = i;
@@ -1291,7 +1291,7 @@ static int icvGrabFrameAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
     if(ret < 0)
         goto the_end;
 
-    len1 = avcodec_decode_video(capture->video_st->codec, 
+    len1 = avcodec_decode_video(&capture->video_st->codec, 
                     capture->picture, &got_picture, 
                     pkt->data, pkt->size);
     if (got_picture) {
@@ -1312,8 +1312,8 @@ static const IplImage* icvRetrieveFrameAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture 
     if( !capture || !capture->video_st || !capture->picture->data[0] )
     return 0;
     img_convert( (AVPicture*)&capture->rgb_picture, PIX_FMT_BGR24,
-         (AVPicture*)capture->picture, capture->video_st->codec->pix_fmt,
-         capture->video_st->codec->width, capture->video_st->codec->height );
+         (AVPicture*)capture->picture, capture->video_st->codec.pix_fmt,
+         capture->video_st->codec.width, capture->video_st->codec.height );
     return &capture->frame;
 }
 
@@ -1349,14 +1349,12 @@ static double icvGetPropertyAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture, int proper
     case CV_CAP_PROP_FRAME_HEIGHT:
         return capture->frame.height;
     break;
-#if 0
     case CV_CAP_PROP_FPS:
-        return (double)capture->video_st->codec->frame_rate
-        / (double)capture->video_st->codec->frame_rate_base;
+        return (double)capture->video_st->codec.frame_rate
+        / (double)capture->video_st->codec.frame_rate_base;
     break;
-#endif
     case CV_CAP_PROP_FOURCC:
-        return (double)capture->video_st->codec->codec_tag;
+        return (double)capture->video_st->codec.codec_tag;
     break;
     }
     return 0;
@@ -1603,10 +1601,8 @@ CV_IMPL CvVideoWriter* cvCreateVideoWriter( const char * filename, int fourcc,
     writer->context->bit_rate         = 400000;      // TODO: BITRATE SETTINGS!
     writer->context->width            = frameSize.width;  
     writer->context->height           = frameSize.height;
-#if 0
     writer->context->frame_rate       = static_cast<int> (fps);
     writer->context->frame_rate_base  =  1;
-#endif
     writer->context->gop_size         = 10;
     writer->context->max_b_frames     =  0;          // TODO: WHAT TO DO WITH B-FRAMES IN OTHER CODECS?
     

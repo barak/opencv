@@ -11,8 +11,8 @@ cxcoretest_SOURCES =        \
 	adxt.cpp            \
 	amath.cpp           \
 	cxcoretest_main.cpp
-cxcoretest_LDADD =                                   \
-	$(top_builddir)/cxcore/src/libcxcore0.9.7.la \
+cxcoretest_LDADD =                              \
+	$(top_builddir)/cxcore/src/libcxcore.la \
 	$(top_builddir)/tests/cxts/libcxts.a
 
 EXTRA_DIST = precomp.cpp cxcoretest.dsp cxcoretest.vcproj

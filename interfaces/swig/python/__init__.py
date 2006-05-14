@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 # opencv/__init__.py
 
 # 2004-03-16, Mark Asbach       <asbach@ient.rwth-aachen.de>

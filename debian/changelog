@@ -1,3 +1,53 @@
+opencv (0.9.7-2) unstable; urgency=low
+
+  * Switched patch system from dpatch to quilt.
+  * debian/control:
+    + Set policy to 3.7.2.
+    + Build-depend on newer versions of libavcodec-dev so that we can get
+      dynamically linked with it.
+    + Build-depend on quilt instead of dpatch.
+
+  * debian/patches/010_enable_static.diff:
+    + Old patch -- enable static libraries.
+
+  * debian/patches/010_ffmpeg_linking.diff:
+    + Old patch -- correct ffmpeg linking.
+
+  * debian/patches/010_fix_optimisations.diff:
+    + Old patch -- fix optimisation flags for GCC bug workarounds.
+
+  * debian/patches/010_m4_syntax.diff:
+    + Old patch -- fix m4 syntax.
+
+  * debian/patches/010_makefile_syntax.diff:
+    + Old patch -- fix Makefile.am syntax.
+
+  * debian/patches/010_proper_sonames.diff:
+    + Old patch -- fix library sonames.
+
+  * debian/patches/020_rebootstrap.diff:
+    + Old patch -- rebootstrap package.
+
+  * debian/patches/100_amd64.diff:
+    + Fix inclusion of <emmintrin.h> on AMD64 (Closes: #365752, #366105).
+
+  * debian/patches/100_ffmpeg_updates.diff:
+    + Old patch -- update ffmpeg code to get in sync with newer API.
+
+  * debian/patches/100_python_files.diff:
+    + Old patch -- remove shebang from non-executable python files.
+
+  * debian/patches/100_static_inline.diff:
+    + Old patch -- replace inline with static inline in public headers.
+
+  * debian/patches/200_documentation.diff:
+    + Old patch -- get documentation in sync with the API.
+
+  * debian/patches/200_examples_makefile.diff:
+    + Old patch -- add a Makefile to the examples directory.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Sun, 14 May 2006 05:40:42 +0200
+
 opencv (0.9.7-1) unstable; urgency=low
 
   * New upstream release.

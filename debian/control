@@ -2,8 +2,8 @@ Source: opencv
 Priority: optional
 Section: devel
 Maintainer: Sam Hocevar (Debian packages) <sam+deb@zoy.org>
-Build-Depends: debhelper (>= 4.0.0), dpatch, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2), libavformat-dev, python2.3-dev, swig
-Standards-Version: 3.6.2.1
+Build-Depends: debhelper (>= 4.0.0), quilt, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20060329-1), libavformat-dev, python2.3-dev, swig
+Standards-Version: 3.7.2
 
 Package: opencv-doc
 Section: doc

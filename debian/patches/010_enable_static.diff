@@ -1,0 +1,13 @@
+Index: opencv-0.9.7/configure.in
+===================================================================
+--- opencv-0.9.7.orig/configure.in	2005-07-25 14:26:34.000000000 +0200
++++ opencv-0.9.7/configure.in	2006-05-14 05:24:10.000000000 +0200
+@@ -46,7 +46,7 @@
+ AC_SUBST(LT_VERSION, [opencv_lt_version])
+ 
+ # disable building static libraries
+-AC_DISABLE_STATIC
++#AC_DISABLE_STATIC
+ 
+ # checks for programs.
+ AC_PROG_CXX

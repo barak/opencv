@@ -1,0 +1,29 @@
+Index: opencv-0.9.7/configure.in
+===================================================================
+--- opencv-0.9.7.orig/configure.in	2006-05-14 05:24:12.000000000 +0200
++++ opencv-0.9.7/configure.in	2006-05-14 05:24:13.000000000 +0200
+@@ -95,14 +95,19 @@
+         if test x"$ac_cv_c_compiler_gnu" = x"yes"; then
+             CXXFLAGS="-g -march=i686 -ffast-math -fomit-frame-pointer $CXXFLAGS"
+         fi
++        CXXFLAGS="$CXXFLAGS -O3"
++        ;;
++    m68k-*-*)
++        CXXFLAGS="$CXXFLAGS -O2"
+         ;;
+     *-*-*)
+-    if test x"$ac_cv_c_compiler_gnu" = x"yes"; then
+-        CXXFLAGS="-fomit-frame-pointer $CXXFLAGS"
+-    fi
+-    ;;    
++        if test x"$ac_cv_c_compiler_gnu" = x"yes"; then
++            CXXFLAGS="-fomit-frame-pointer $CXXFLAGS"
++        fi
++        CXXFLAGS="$CXXFLAGS -O3"
++        ;;    
+     esac
+-    CXXFLAGS="-O3 -DNDEBUG $CXXFLAGS"
++    CXXFLAGS="-DNDEBUG $CXXFLAGS"
+ fi
+ 
+ if test x"$ac_cv_c_compiler_gnu" = x"yes"; then

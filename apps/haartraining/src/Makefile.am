@@ -2,10 +2,10 @@ lib_LIBRARIES = libcvhaartraining.a
 
 bin_PROGRAMS = opencv-haartraining opencv-createsamples opencv-performance
 
-ALL_CV_LIBS =                                                \
-	$(top_builddir)/otherlibs/highgui/libhighgui0.9.7.la \
-	$(top_builddir)/cv/src/libcv0.9.7.la                 \
-	$(top_builddir)/cxcore/src/libcxcore0.9.7.la         \
+ALL_CV_LIBS =                                           \
+	$(top_builddir)/otherlibs/highgui/libhighgui.la \
+	$(top_builddir)/cv/src/libcv.la                 \
+	$(top_builddir)/cxcore/src/libcxcore.la         \
 	libcvhaartraining.a
 
 libcvhaartraining_a_SOURCES = \

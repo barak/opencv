@@ -46,7 +46,7 @@ AC_SUBST(VERSION,    [opencv_version])
 AC_SUBST(LT_VERSION, [opencv_lt_version])
 
 # disable building static libraries
-#AC_DISABLE_STATIC
+AC_DISABLE_STATIC
 
 # checks for programs.
 AC_PROG_CXX
@@ -95,19 +95,14 @@ else
         if test x"$ac_cv_c_compiler_gnu" = x"yes"; then
             CXXFLAGS="-g -march=i686 -ffast-math -fomit-frame-pointer $CXXFLAGS"
         fi
-        CXXFLAGS="$CXXFLAGS -O3"
-        ;;
-    m68k-*-*)
-        CXXFLAGS="$CXXFLAGS -O2"
         ;;
     *-*-*)
-        if test x"$ac_cv_c_compiler_gnu" = x"yes"; then
-            CXXFLAGS="-fomit-frame-pointer $CXXFLAGS"
-        fi
-        CXXFLAGS="$CXXFLAGS -O3"
-        ;;    
+    if test x"$ac_cv_c_compiler_gnu" = x"yes"; then
+        CXXFLAGS="-fomit-frame-pointer $CXXFLAGS"
+    fi
+    ;;    
     esac
-    CXXFLAGS="-DNDEBUG $CXXFLAGS"
+    CXXFLAGS="-O3 -DNDEBUG $CXXFLAGS"
 fi
 
 if test x"$ac_cv_c_compiler_gnu" = x"yes"; then
@@ -193,9 +188,11 @@ FFMPEGLIBS=""
 have_ffmpeg=no
 
 AC_CHECK_HEADER(ffmpeg/avcodec.h,
+    AC_CHECK_LIB(avcodec, avcodec_decode_video,
+    [AC_CHECK_LIB(avformat, av_open_input_file,
     [have_ffmpeg=yes
     AC_DEFINE(HAVE_FFMPEG,,[FFMpeg video codecs library])
-    FFMPEGLIBS="`ffmpeg-config --plugin-libs avcodec avformat`"])
+    FFMPEGLIBS="-lavcodec -lavformat"],,[-lavcodec])]))
 
 AC_SUBST(FFMPEGLIBS)
 

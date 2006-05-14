@@ -1,0 +1,13 @@
+Index: opencv-0.9.7/cxcore/include/cxtypes.h
+===================================================================
+--- opencv-0.9.7.orig/cxcore/include/cxtypes.h	2005-07-20 12:53:14.000000000 +0200
++++ opencv-0.9.7/cxcore/include/cxtypes.h	2006-05-14 05:24:22.000000000 +0200
+@@ -48,7 +48,7 @@
+   #include <string.h>
+   #include <float.h>
+ 
+-  #if defined WIN64 && defined EM64T && defined _MSC_VER
++  #if (defined WIN64 && defined EM64T && defined _MSC_VER) || defined __x86_64__
+     #include <emmintrin.h>
+   #endif
+ 
