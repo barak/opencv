@@ -9,5 +9,6 @@
 100_ffmpeg_updates.diff
 100_python_files.diff
 100_static_inline.diff
+110_dereferencement.diff
 200_documentation.diff
 200_examples_makefile.diff

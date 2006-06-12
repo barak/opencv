@@ -1,3 +1,10 @@
+opencv (0.9.7-3) unstable; urgency=low
+
+  * debian/patches/110_dereferencement.diff:
+    + Fix compilation warnings due to type-punned pointer dereferencement.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Mon, 12 Jun 2006 12:14:44 +0200
+
 opencv (0.9.7-2) unstable; urgency=low
 
   * Switched patch system from dpatch to quilt.
