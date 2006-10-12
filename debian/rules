@@ -36,7 +36,7 @@ config.status: configure
 build: build-stamp
 build-stamp: config.status
 	dh_testdir
-	$(MAKE)
+	$(MAKE) CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)"
 	touch build-stamp
 
 clean:
@@ -124,7 +124,7 @@ binary-arch: build install
 	dh_compress -a
 	dh_fixperms -a
 #	dh_perl
-#	dh_python
+	dh_pysupport -a
 	dh_makeshlibs
 	dh_installdeb -a
 	dh_shlibdeps -a

@@ -2,8 +2,9 @@ Source: opencv
 Priority: optional
 Section: devel
 Maintainer: Sam Hocevar (Debian packages) <sam+deb@zoy.org>
-Build-Depends: debhelper (>= 4.0.0), quilt, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20060329-1), libavformat-dev, python2.3-dev, swig
+Build-Depends: debhelper (>= 4.0.0), quilt, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20060329-1), libavformat-dev, python-dev, swig, python-support (>= 0.4.1)
 Standards-Version: 3.7.2
+XS-Vcs-Svn: svn://svn.debian.org/svn/sam-hocevar/pkg-misc/unstable/opencv/
 
 Package: opencv-doc
 Section: doc
@@ -133,26 +134,11 @@ Description: computer vision GUI library
 
 Package: python-opencv
 Section: python
-Architecture: all
-Depends: python2.3-opencv, ${python:Depends}
-Description: Python bindings for the computer vision library
- This package contains Python bindings for the OpenCV (Open Computer Vision)
- library.
- .
- The Open Computer Vision Library is a collection of algorithms and sample
- code for various computer vision problems. The library is compatible with
- IPL (Intel's Image Processing Library) and, if available, can use IPP
- (Intel's Integrated Performance Primitives) for better performance.
- .
- OpenCV provides low level portable data types and operators, and a set
- of high level functionalities for video acquisition, image processing and
- analysis, structural analysis, motion analysis and object tracking, object
- recognition, camera calibration and 3D reconstruction.
-
-Package: python2.3-opencv
-Section: python
 Architecture: any
 Depends: ${python:Depends}, ${shlibs:Depends}
+Provides: ${python:Provides}
+Replaces: python2.3-opencv (<= 0.9.7-3)
+Conflicts: python2.3-opencv (<= 0.9.7-3)
 Description: Python bindings for the computer vision library
  This package contains Python bindings for the OpenCV (Open Computer Vision)
  library.

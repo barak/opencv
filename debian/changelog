@@ -1,3 +1,11 @@
+opencv (0.9.7-4) unstable; urgency=low
+
+  * Migrate package to the new python policy (Closes: #373469), thanks to
+    Pierre Habouzit.
+  * debian/control: add XS-Vcs-Svn information.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Thu, 12 Oct 2006 09:21:14 +0200
+
 opencv (0.9.7-3) unstable; urgency=low
 
   * debian/patches/110_dereferencement.diff:
