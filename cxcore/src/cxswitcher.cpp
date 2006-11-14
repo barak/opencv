@@ -50,6 +50,10 @@
 #pragma warning( disable: 4115 )        /* type definition in () */
 #endif
 
+#if defined _MSC_VER && defined WIN64 && !defined EM64T
+#pragma optimize( "", off )
+#endif
+
 #if defined WIN32 || defined WIN64
 #include <windows.h>
 #else
@@ -65,11 +69,11 @@
 #define CV_PROC_SHIFT               10
 #define CV_PROC_ARCH_MASK           ((1 << CV_PROC_SHIFT) - 1)
 #define CV_PROC_IA32_GENERIC        1
-#define CV_PROC_IA32_PII            (CV_PROC_IA32_GENERIC|(2 << CV_PROC_SHIFT))
-#define CV_PROC_IA32_PIII           (CV_PROC_IA32_GENERIC|(3 << CV_PROC_SHIFT))
-#define CV_PROC_IA32_P4             (CV_PROC_IA32_GENERIC|(4 << CV_PROC_SHIFT))
-#define CV_PROC_IA64_ITANIUM        2
-#define CV_PROC_IA64_EM64T          3
+#define CV_PROC_IA32_WITH_MMX       (CV_PROC_IA32_GENERIC|(2 << CV_PROC_SHIFT))
+#define CV_PROC_IA32_WITH_SSE       (CV_PROC_IA32_GENERIC|(3 << CV_PROC_SHIFT))
+#define CV_PROC_IA32_WITH_SSE2      (CV_PROC_IA32_GENERIC|(4 << CV_PROC_SHIFT))
+#define CV_PROC_IA64                2
+#define CV_PROC_EM64T               3
 #define CV_GET_PROC_ARCH(model)     ((model) & CV_PROC_ARCH_MASK)
 
 typedef struct CvProcessorInfo
@@ -79,6 +83,22 @@ typedef struct CvProcessorInfo
     double frequency; // clocks per microsecond
 }
 CvProcessorInfo;
+
+#undef MASM_INLINE_ASSEMBLY
+
+#if defined WIN32 && !defined  WIN64
+
+#if defined _MSC_VER
+#define MASM_INLINE_ASSEMBLY 1
+#elif defined __BORLANDC__
+
+#if __BORLANDC__ >= 0x560
+#define MASM_INLINE_ASSEMBLY 1
+#endif
+
+#endif
+
+#endif
 
 /*
    determine processor type
@@ -122,7 +142,7 @@ icvInitProcessorInfo( CvProcessorInfo* cpu_info )
             RegCloseKey( key );
         }
 
-#if defined WIN32 && !defined WIN64 && (defined _MSC_VER || defined __BORLANDC__ && __BORLANDC__>=0x560)
+#ifdef MASM_INLINE_ASSEMBLY
         __asm
         {
             /* use CPUID to determine the features supported */
@@ -176,25 +196,35 @@ icvInitProcessorInfo( CvProcessorInfo* cpu_info )
         if( family >= 6 && (features & ICV_CPUID_M6) != 0 ) /* Pentium II or higher */
             id = features & ICV_CPUID_W7;
 
-        cpu_info->model = id == ICV_CPUID_W7 ? CV_PROC_IA32_P4 :
-                          id == ICV_CPUID_A6 ? CV_PROC_IA32_PIII :
-                          id == ICV_CPUID_M6 ? CV_PROC_IA32_PII :
+        cpu_info->model = id == ICV_CPUID_W7 ? CV_PROC_IA32_WITH_SSE2 :
+                          id == ICV_CPUID_A6 ? CV_PROC_IA32_WITH_SSE :
+                          id == ICV_CPUID_M6 ? CV_PROC_IA32_WITH_MMX :
                           CV_PROC_IA32_GENERIC;
     }
     else
     {
 #if defined EM64T
         if( sys.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64 )
-            cpu_info->model = CV_PROC_IA64_EM64T;
+            cpu_info->model = CV_PROC_EM64T;
 #elif defined WIN64
         if( sys.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_IA64 )
-            cpu_info->model = CV_PROC_IA64_ITANIUM;
+            cpu_info->model = CV_PROC_IA64;
 #endif
         if( QueryPerformanceFrequency( &freq ) )
             cpu_info->frequency = (double)freq.QuadPart;
     }
 #else
     cpu_info->frequency = 1;
+
+#ifdef __x86_64__
+    cpu_info->model = CV_PROC_EM64T;
+#elif defined __ia64__
+    cpu_info->model = CV_PROC_IA64;
+#elif !defined __i386__
+    cpu_info->model = CV_PROC_GENERIC;
+#else
+    cpu_info->model = CV_PROC_IA32_GENERIC;
+    
     // reading /proc/cpuinfo file (proc file system must be supported)
     FILE *file = fopen( "/proc/cpuinfo", "r" );
 
@@ -212,12 +242,12 @@ icvInitProcessorInfo( CvProcessorInfo* cpu_info )
             {
                 if( strstr( buffer, "mmx" ) && strstr( buffer, "cmov" ))
                 {
-                    cpu_info->model = CV_PROC_IA32_PII;
+                    cpu_info->model = CV_PROC_IA32_WITH_MMX;
                     if( strstr( buffer, "xmm" ) || strstr( buffer, "sse" ))
                     {
-                        cpu_info->model = CV_PROC_IA32_PIII;
+                        cpu_info->model = CV_PROC_IA32_WITH_SSE;
                         if( strstr( buffer, "emm" ))
-                            cpu_info->model = CV_PROC_IA32_P4;
+                            cpu_info->model = CV_PROC_IA32_WITH_SSE2;
                     }
                 }
             }
@@ -235,6 +265,7 @@ icvInitProcessorInfo( CvProcessorInfo* cpu_info )
         else
             assert( cpu_info->frequency > 1 );
     }
+#endif
 #endif
 }
 
@@ -259,11 +290,11 @@ icvGetProcessorInfo()
 
 #undef IPCVAPI_EX
 #define IPCVAPI_EX(type,func_name,names,modules,arg) \
-    { &(void*&)func_name##_p, (void*)(size_t)-1, names, modules, 0 },
+    { (void**)&func_name##_p, (void*)(size_t)-1, names, modules, 0 },
 
 #undef IPCVAPI_C_EX
 #define IPCVAPI_C_EX(type,func_name,names,modules,arg) \
-    { &(void*&)func_name##_p, (void*)(size_t)-1, names, modules, 0 },
+    { (void**)&func_name##_p, (void*)(size_t)-1, names, modules, 0 },
 
 static CvPluginFuncInfo cxcore_ipp_tab[] =
 {
@@ -313,9 +344,33 @@ typedef struct CvPluginInfo
 CvPluginInfo;
 
 static CvPluginInfo plugins[CV_PLUGIN_MAX];
-static CvModuleInfo cxcore_module = { 0, "cxcore", "beta 5 (0.9.7)", cxcore_ipp_tab };
+static CvModuleInfo cxcore_info = { 0, "cxcore", CV_VERSION, cxcore_ipp_tab };
 
-static CvModuleInfo *icvFirstModule = 0, *icvLastModule = 0;
+CvModuleInfo *CvModule::first = 0, *CvModule::last = 0;
+
+CvModule::CvModule( CvModuleInfo* _info )
+{
+    cvRegisterModule( _info );
+    info = last;
+}
+
+CvModule::~CvModule()
+{
+    if( info )
+    {
+        CvModuleInfo* p = first;
+        for( ; p != 0 && p->next != info; p = p->next )
+            ;
+        if( p )
+            p->next = info->next;
+        if( first == info )
+            first = info->next;
+        if( last == info )
+            last = p;
+        cvFree( &info );
+        info = 0;
+    }
+}
 
 static int
 icvUpdatePluginFuncTab( CvPluginFuncInfo* func_tab )
@@ -458,13 +513,13 @@ cvRegisterModule( const CvModuleInfo* module )
     memcpy( (void*)module_copy->version, module->version, version_len + 1 );
     module_copy->next = 0;
 
-    if( icvFirstModule == 0 )
-        icvFirstModule = module_copy;
+    if( CvModule::first == 0 )
+        CvModule::first = module_copy;
     else
-        icvLastModule->next = module_copy;
-    icvLastModule = module_copy;
+        CvModule::last->next = module_copy;
+    CvModule::last = module_copy;
 
-    if( icvFirstModule == icvLastModule )
+    if( CvModule::first == CvModule::last )
     {
         CV_CALL( cvUseOptimized(1));
     }
@@ -476,7 +531,7 @@ cvRegisterModule( const CvModuleInfo* module )
     __END__;
 
     if( cvGetErrStatus() < 0 && module_copy )
-        cvFree( (void**)&module_copy );
+        cvFree( &module_copy );
 
     return module_copy ? 0 : -1;
 }
@@ -489,14 +544,20 @@ cvUseOptimized( int load_flag )
     CvModuleInfo* module;
     const CvProcessorInfo* cpu_info = icvGetProcessorInfo();
     int arch = CV_GET_PROC_ARCH(cpu_info->model);
-    const char* opencv_suffix = "097";
-    const char* ipp_suffix = arch == CV_PROC_IA32_GENERIC ? "20" :
-                             arch == CV_PROC_IA64_ITANIUM ? "6420" :
-                             arch == CV_PROC_IA64_EM64T ? "em64t" : "";
-    const char* mkl_suffix = arch == CV_PROC_IA32_GENERIC ?
-                (cpu_info->model >= CV_PROC_IA32_P4 ? "p4" :
-                 cpu_info->model >= CV_PROC_IA32_PIII ? "p3" : "def") :
-                 arch == CV_PROC_IA64_ITANIUM ? "itp" : "";
+    
+    // TODO: implement some more elegant way
+    // to find the latest and the greatest IPP/MKL libraries
+    static const char* opencv_sfx[] = { "100", "099", "097", 0 };
+    static const char* ipp_sfx_ia32[] = { "-6.1", "-6.0", "-5.2", "-5.1", "", 0 };
+    static const char* ipp_sfx_ia64[] = { "64-6.1", "64-6.0", "64-5.2", "64-5.1", "64", 0 };
+    static const char* ipp_sfx_em64t[] = { "em64t-6.1", "em64t-6.0", "em64t-5.2", "em64t-5.1", "em64t", 0 };
+    static const char* mkl_sfx_ia32[] = { "p4", "p3", "def", 0 };
+    static const char* mkl_sfx_ia64[] = { "i2p", "itp", 0 };
+    static const char* mkl_sfx_em64t[] = { "def", 0 };
+    const char** ipp_suffix = arch == CV_PROC_IA64 ? ipp_sfx_ia64 :
+                              arch == CV_PROC_EM64T ? ipp_sfx_em64t : ipp_sfx_ia32;
+    const char** mkl_suffix = arch == CV_PROC_IA64 ? mkl_sfx_ia64 :
+                              arch == CV_PROC_EM64T ? mkl_sfx_em64t : mkl_sfx_ia32;
 
     for( i = 0; i < CV_PLUGIN_MAX; i++ )
         plugins[i].basename = 0;
@@ -525,14 +586,14 @@ cvUseOptimized( int load_flag )
             continue;
 
         if( load_flag && plugins[i].basename &&
-            (arch == CV_PROC_IA32_GENERIC || arch == CV_PROC_IA64_ITANIUM || arch == CV_PROC_IA64_EM64T) )
+            (arch == CV_PROC_IA32_GENERIC || arch == CV_PROC_IA64 || arch == CV_PROC_EM64T) )
         {
-            const char* suffix = i == CV_PLUGIN_OPTCV ? opencv_suffix :
+            const char** suffix = i == CV_PLUGIN_OPTCV ? opencv_sfx :
                             i < CV_PLUGIN_MKL ? ipp_suffix : mkl_suffix;
-            for(;;)
+            for( ; *suffix != 0; suffix++ )
             {
                 sprintf( plugins[i].name, DLL_PREFIX "%s%s" DLL_DEBUG_FLAG DLL_SUFFIX,
-                    plugins[i].basename, suffix );
+                    plugins[i].basename, *suffix );
 
                 ICV_PRINTF(("loading %s...\n", plugins[i].name ));
                 plugins[i].handle = LoadLibrary( plugins[i].name );
@@ -540,31 +601,33 @@ cvUseOptimized( int load_flag )
                 {
                     ICV_PRINTF(("%s loaded\n", plugins[i].name ));
                     loaded_modules++;
+                    break;
                 }
-                if( plugins[i].handle != 0 )
-                    break;
+                #ifndef WIN32
+                // temporary workaround for MacOSX 
+                sprintf( plugins[i].name, DLL_PREFIX "%s%s" DLL_DEBUG_FLAG ".dylib",
+                    plugins[i].basename, *suffix );
 
-                if( strcmp( suffix, "p4" ) == 0 )
-                    suffix = "p3";
-                else if( strcmp( suffix, "p3" ) == 0 )
-                    suffix = "def";
-                else if( strcmp( suffix, "20" ) == 0 )
-                    suffix = "";
-                else if( strcmp( suffix, "6420" ) == 0 )
-                    suffix = "64";
-                else
+                ICV_PRINTF(("loading %s...\n", plugins[i].name ));
+                plugins[i].handle = LoadLibrary( plugins[i].name );
+                if( plugins[i].handle != 0 )
+                {
+                    ICV_PRINTF(("%s loaded\n", plugins[i].name ));
+                    loaded_modules++;
                     break;
+                }
+                #endif
             }
         }
     }
 
-    for( module = icvFirstModule; module != 0; module = module->next )
+    for( module = CvModule::first; module != 0; module = module->next )
         loaded_functions += icvUpdatePluginFuncTab( module->func_tab );
 
     return loaded_functions;
 }
 
-static int loaded_functions = cvRegisterModule( &cxcore_module );
+CvModule cxcore_module( &cxcore_info );
 
 CV_IMPL void
 cvGetModuleInfo( const char* name, const char **version, const char **plugin_list )
@@ -590,7 +653,7 @@ cvGetModuleInfo( const char* name, const char **version, const char **plugin_lis
         {
             size_t i, name_len = strlen(name);
 
-            for( module = icvFirstModule; module != 0; module = module->next )
+            for( module = CvModule::first; module != 0; module = module->next )
             {
                 if( strlen(module->name) == name_len )
                 {
@@ -613,11 +676,10 @@ cvGetModuleInfo( const char* name, const char **version, const char **plugin_lis
         {
             char* ptr = joint_verinfo;
 
-            for( module = icvFirstModule; module != 0; module = module->next )
+            for( module = CvModule::first; module != 0; module = module->next )
             {
-                int n = 0;
-                sprintf( ptr, "%s: %s%s%n", module->name, module->version, module->next ? ", " : "", &n );
-                ptr += n;
+                sprintf( ptr, "%s: %s%s", module->name, module->version, module->next ? ", " : "" );
+                ptr += strlen(ptr);
             }
 
             *version = joint_verinfo;
@@ -632,9 +694,8 @@ cvGetModuleInfo( const char* name, const char **version, const char **plugin_lis
         for( i = 0; i < CV_PLUGIN_MAX; i++ )
             if( plugins[i].handle != 0 )
             {
-                int n = 0;
-                sprintf( ptr, "%s, %n", plugins[i].name, &n );
-                ptr += n;
+                sprintf( ptr, "%s, ", plugins[i].name );
+                ptr += strlen(ptr);
             }
 
         if( ptr > plugin_list_buf )
@@ -657,9 +718,10 @@ CV_IMPL  int64  cvGetTickCount( void )
 {
     const CvProcessorInfo* cpu_info = icvGetProcessorInfo();
 
-    if( CV_GET_PROC_ARCH(cpu_info->model) == CV_PROC_IA32_GENERIC )
+    if( cpu_info->frequency > 1 &&
+        CV_GET_PROC_ARCH(cpu_info->model) == CV_PROC_IA32_GENERIC )
     {
-#if defined WIN32 && !defined WIN64 && (defined _MSC_VER || defined __BORLANDC__ && __BORLANDC__>=0x560)
+#ifdef MASM_INLINE_ASSEMBLY
     #ifdef __BORLANDC__
         __asm db 0fh
         __asm db 31h
@@ -696,5 +758,47 @@ CV_IMPL  double  cvGetTickFrequency()
 {
     return icvGetProcessorInfo()->frequency;
 }
+
+
+static int icvNumThreads = 0;
+static int icvNumProcs = 0;
+
+CV_IMPL int cvGetNumThreads(void)
+{
+    if( !icvNumProcs )
+        cvSetNumThreads(0);
+    return icvNumThreads;
+}
+
+CV_IMPL void cvSetNumThreads( int threads )
+{
+    if( !icvNumProcs )
+    {
+#ifdef _OPENMP
+        icvNumProcs = omp_get_num_procs();
+        icvNumProcs = MIN( icvNumProcs, CV_MAX_THREADS );
+#else
+        icvNumProcs = 1;
+#endif
+    }
+
+    if( threads <= 0 )
+        threads = icvNumProcs;
+    else
+        threads = MIN( threads, icvNumProcs );
+
+    icvNumThreads = threads;
+}
+
+
+CV_IMPL int cvGetThreadNum(void)
+{
+#ifdef _OPENMP
+    return omp_get_thread_num();
+#else
+    return 0;
+#endif
+}
+
 
 /* End of file. */

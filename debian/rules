@@ -61,8 +61,7 @@ install: build
 	mv debian/tmp/usr/share/opencv/samples debian/tmp/usr/share/doc/opencv-doc/examples
 	# Remove useless files
 	rm -f `find debian/tmp -name license.txt`
-	rm -f `find debian/tmp -name '*.pyc'`
-	rm -f `find debian/tmp -name '*haar*' -type f`
+	rm -f `find debian/tmp -name '*.py[co]'`
 	# Install files in their required packages
 	dh_install --sourcedir=debian/tmp --list-missing
 
@@ -73,6 +72,7 @@ binary-indep: build install
 	dh_installdocs -i AUTHORS THANKS TODO debian/README.Debian
 	dh_installexamples -p opencv-doc samples/c/*.c samples/c/*.png samples/c/*.jpg samples/c/Makefile.debian
 	mv debian/opencv-doc/usr/share/doc/opencv-doc/examples/Makefile.debian debian/opencv-doc/usr/share/doc/opencv-doc/examples/Makefile
+	(cd debian/opencv-doc/usr/share/doc/opencv-doc/examples/python/; cp minidemo.py tmp ; echo '#!/usr/bin/python' >| minidemo.py ; cat tmp >> minidemo.py ; rm -f tmp)
 	#dh_install -p opencv-doc docs/*.rtf usr/share/doc/opencv-doc
 	#dh_install -p opencv-doc docs/*.pdf usr/share/doc/opencv-doc
 	#dh_install -p opencv-doc docs/*.htm usr/share/doc/opencv-doc/html

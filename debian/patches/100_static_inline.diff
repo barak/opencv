@@ -1,8 +1,8 @@
-Index: opencv-0.9.7/cxcore/include/cxtypes.h
+Index: opencv-1.0.0/cxcore/include/cxtypes.h
 ===================================================================
---- opencv-0.9.7.orig/cxcore/include/cxtypes.h	2006-05-14 05:24:22.000000000 +0200
-+++ opencv-0.9.7/cxcore/include/cxtypes.h	2006-05-14 05:24:25.000000000 +0200
-@@ -115,7 +115,7 @@
+--- opencv-1.0.0.orig/cxcore/include/cxtypes.h	2006-11-14 10:18:21.000000000 +0100
++++ opencv-1.0.0/cxcore/include/cxtypes.h	2006-11-14 10:19:01.000000000 +0100
+@@ -123,7 +123,7 @@
  #elif (defined WIN32 || defined WIN64) && !defined __GNUC__
      #define CV_INLINE __inline
  #else
@@ -11,10 +11,10 @@ Index: opencv-0.9.7/cxcore/include/cxtypes.h
  #endif
  #endif /* CV_INLINE */
  
-Index: opencv-0.9.7/otherlibs/highgui/highgui.h
+Index: opencv-1.0.0/otherlibs/highgui/highgui.h
 ===================================================================
---- opencv-0.9.7.orig/otherlibs/highgui/highgui.h	2005-07-05 17:52:50.000000000 +0200
-+++ opencv-0.9.7/otherlibs/highgui/highgui.h	2006-05-14 05:24:25.000000000 +0200
+--- opencv-1.0.0.orig/otherlibs/highgui/highgui.h	2006-10-11 18:51:43.000000000 +0200
++++ opencv-1.0.0/otherlibs/highgui/highgui.h	2006-11-14 10:19:03.000000000 +0100
 @@ -83,7 +83,7 @@
      #elif (defined WIN32 || defined WIN64) && !defined __GNUC__
        #define CV_INLINE __inline

@@ -48,7 +48,7 @@ RSC=rc.exe
 # PROP Target_Dir ""
 LIB32=link.exe -lib
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MD /W4 /Zi /O2 /Ob2 /I "..\..\cxcore\include" /I "." /I "..\include" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "CVAPI_EXPORTS" /FR /Yu"_cv.h" /FD /Zm200 /c
+# ADD CPP /nologo /G6 /MD /W4 /Zi /O2 /Ob2 /I "..\..\cxcore\include" /I "." /I "..\include" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "CVAPI_EXPORTS" /FR /Yu"_cv.h" /FD /Zm200 /Qopenmp /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
@@ -58,7 +58,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcore.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv097.pdb" /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cv097.dll" /implib:"../../lib/cv.lib" /libpath:"..\..\lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcore.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv100.pdb" /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cv100.dll" /implib:"../../lib/cv.lib" /libpath:"..\..\lib"
 # SUBTRACT LINK32 /profile /pdb:none /map
 
 !ELSEIF  "$(CFG)" == "cv - Win32 Debug"
@@ -86,7 +86,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcored.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv097d.pdb" /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cv097d.dll" /implib:"../../lib/cvd.lib" /libpath:"..\..\lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcored.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv100d.pdb" /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cv100d.dll" /implib:"../../lib/cvd.lib" /libpath:"..\..\lib"
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cv - Win32 Release64"
@@ -114,9 +114,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib cxcore.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cv097.dll" /implib:"../../lib/cv.lib" /libpath:"..\..\lib" /machine:AMD64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib cxcore.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cv100.dll" /implib:"../../lib/cv.lib" /libpath:"..\..\lib" /machine:AMD64
 # SUBTRACT BASE LINK32 /profile /map
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcore_64.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cv097_64.dll" /implib:"../../lib/cv_64.lib" /libpath:"..\..\lib" /machine:AMD64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcore_64.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cv100_64.dll" /implib:"../../lib/cv_64.lib" /libpath:"..\..\lib" /machine:AMD64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cv - Win32 Debug64"
@@ -144,9 +144,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib cxcored.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cv097d.dll" /implib:"../../lib/cvd.lib" /libpath:"..\..\lib" /machine:AMD64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib cxcored.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cv100d.dll" /implib:"../../lib/cvd.lib" /libpath:"..\..\lib" /machine:AMD64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcored_64.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv097d_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cv097d_64.dll" /implib:"../../lib/cvd_64.lib" /libpath:"..\..\lib" /machine:AMD64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcored_64.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv100d_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cv100d_64.dll" /implib:"../../lib/cvd_64.lib" /libpath:"..\..\lib" /machine:AMD64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cv - Win32 Release64 Itanium"
@@ -174,9 +174,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib cxcore_i7.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cv097_i7.dll" /implib:"../../lib/cv_i7.lib" /libpath:"..\..\lib" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib cxcore_i7.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cv100_i7.dll" /implib:"../../lib/cv_i7.lib" /libpath:"..\..\lib" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcore_i7.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /out:"..\..\bin\cv097_i7.dll" /implib:"../../lib/cv_i7.lib" /libpath:"..\..\lib" /machine:IA64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcore_i7.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /out:"..\..\bin\cv100_i7.dll" /implib:"../../lib/cv_i7.lib" /libpath:"..\..\lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cv - Win32 Debug64 Itanium"
@@ -204,9 +204,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib cxcored_i7.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv097d_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cv097d_i7.dll" /implib:"../../lib/cvd_i7.lib" /libpath:"..\..\lib" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib cxcored_i7.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv100d_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cv100d_i7.dll" /implib:"../../lib/cvd_i7.lib" /libpath:"..\..\lib" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcored_i7.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv097d_i7.pdb" /debug /machine:IX86 /out:"..\..\bin\cv097d_i7.dll" /implib:"../../lib/cvd_i7.lib" /libpath:"..\..\lib" /machine:IA64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib cxcored_i7.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cv100d_i7.pdb" /debug /machine:IX86 /out:"..\..\bin\cv100d_i7.dll" /implib:"../../lib/cvd_i7.lib" /libpath:"..\..\lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 
@@ -247,10 +247,6 @@ SOURCE=.\cvcontours.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\cvconvolve.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\cvcorner.cpp
 # End Source File
 # Begin Source File
@@ -267,6 +263,10 @@ SOURCE=.\cvfeatureselect.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\cvfilter.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\cvfloodfill.cpp
 # End Source File
 # Begin Source File
@@ -276,6 +276,10 @@ SOURCE=.\cvhistogram.cpp
 # Begin Source File
 
 SOURCE=.\cvimgwarp.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\cvinpaint.cpp
 # End Source File
 # Begin Source File
 
@@ -292,6 +296,10 @@ SOURCE=.\cvpyramids.cpp
 # Begin Source File
 
 SOURCE=.\cvsamplers.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\cvsegmentation.cpp
 # End Source File
 # Begin Source File
 

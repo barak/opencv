@@ -92,9 +92,10 @@ icvPyrDownG5x5_##flavor##_CnR( const type* src, int srcstep, type* dst,         
     int  fst = 0, lst = size.height <= PD_SZ/2 ? size.height : PD_SZ/2 + 1;             \
                                                                                         \
     assert( Cs == 1 || Cs == 3 );                                                       \
+    srcstep /= sizeof(src[0]); dststep /= sizeof(dst[0]);                               \
                                                                                         \
     /* main loop */                                                                     \
-    for( y = 0; y < size.height; y += 2, (char*&)dst += dststep )                       \
+    for( y = 0; y < size.height; y += 2, dst += dststep )                               \
     {                                                                                   \
         /* set first and last indices of buffer rows which are need to be filled */     \
         int x, y1, k = top_row;                                                         \
@@ -117,7 +118,7 @@ icvPyrDownG5x5_##flavor##_CnR( const type* src, int srcstep, type* dst,         
         if( Cs == 1 )                                                                   \
         {                                                                               \
             if( size.width > PD_SZ/2 )                                                  \
-                for( y1 = fst; y1 < lst; y1++, (char*&)src += srcstep )                 \
+                for( y1 = fst; y1 < lst; y1++, src += srcstep )                         \
                 {                                                                       \
                     worktype *row = rows[y1];                                           \
                                                                                         \
@@ -133,14 +134,14 @@ icvPyrDownG5x5_##flavor##_CnR( const type* src, int srcstep, type* dst,         
                     }                                                                   \
                 }                                                                       \
             else                                                                        \
-                for( y1 = fst; y1 < lst; y1++, (char*&)src += srcstep )                 \
+                for( y1 = fst; y1 < lst; y1++, src += srcstep )                         \
                 {                                                                       \
                     rows[y1][0] = PD_SINGULAR( src[0], src[1] );                        \
                 }                                                                       \
         }                                                                               \
         else /* Cs == 3 */                                                              \
         {                                                                               \
-            for( y1 = fst; y1 < lst; y1++, (char*&)src += srcstep )                     \
+            for( y1 = fst; y1 < lst; y1++, src += srcstep )                             \
             {                                                                           \
                 worktype *row = rows[y1];                                               \
                                                                                         \
@@ -215,6 +216,8 @@ icvPyrDownG5x5_##flavor##_CnR( const type* src, int srcstep, type* dst,         
 
 
 ICV_DEF_PYR_DOWN_FUNC( 8u, uchar, int, PD_SCALE_INT )
+ICV_DEF_PYR_DOWN_FUNC( 16s, short, int, PD_SCALE_INT )
+ICV_DEF_PYR_DOWN_FUNC( 16u, ushort, int, PD_SCALE_INT )
 ICV_DEF_PYR_DOWN_FUNC( 32f, float, float, PD_SCALE_FLT )
 ICV_DEF_PYR_DOWN_FUNC( 64f, double, double, PD_SCALE_FLT )
 
@@ -287,9 +290,10 @@ icvPyrUpG5x5_##flavor##_CnR( const type* src, int srcstep, type* dst,           
     int fst = 0, lst = size.height <= PU_SZ/2 ? size.height : PU_SZ/2 + 1;              \
                                                                                         \
     assert( Cs == 1 || Cs == 3 );                                                       \
+    srcstep /= sizeof(src[0]); dststep /= sizeof(dst[0]);                               \
                                                                                         \
     /* main loop */                                                                     \
-    for( y = 0; y < size.height; y++, (char*&)dst += 2 * dststep )                      \
+    for( y = 0; y < size.height; y++, dst += 2 * dststep )                              \
     {                                                                                   \
         int x, y1, k = top_row;                                                         \
         worktype *row0, *row1, *row2;                                                   \
@@ -306,12 +310,12 @@ icvPyrUpG5x5_##flavor##_CnR( const type* src, int srcstep, type* dst,           
         row0 = rows[0];                                                                 \
         row1 = rows[1];                                                                 \
         row2 = rows[2];                                                                 \
-        dst1 = (type*)((char*)dst + dststep);                                           \
+        dst1 = dst + dststep;                                                           \
                                                                                         \
         /* fill new buffer rows with filtered source (horizontal conv) */               \
         if( Cs == 1 )                                                                   \
             if( size.width > PU_SZ / 2 )                                                \
-                for( y1 = fst; y1 < lst; y1++, (char*&)src += srcstep )                 \
+                for( y1 = fst; y1 < lst; y1++, src += srcstep )                         \
                 {                                                                       \
                     worktype *row = rows[y1];                                           \
                                                                                         \
@@ -329,7 +333,7 @@ icvPyrUpG5x5_##flavor##_CnR( const type* src, int srcstep, type* dst,           
                     }                                                                   \
                 }                                                                       \
             else                /* size.width <= PU_SZ/2 */                             \
-                for( y1 = fst; y1 < lst; y1++, (char*&)src += srcstep )                 \
+                for( y1 = fst; y1 < lst; y1++, src += srcstep )                         \
                 {                                                                       \
                     worktype *row = rows[y1];                                           \
                     worktype val = src[0];                                              \
@@ -338,7 +342,7 @@ icvPyrUpG5x5_##flavor##_CnR( const type* src, int srcstep, type* dst,           
                     row[1] = PU_SINGULAR_ZI( val );                                     \
                 }                                                                       \
         else                    /* Cs == 3 */                                           \
-            for( y1 = fst; y1 < lst; y1++, (char*&)src += srcstep )                     \
+            for( y1 = fst; y1 < lst; y1++, src += srcstep )                             \
             {                                                                           \
                 worktype *row = rows[y1];                                               \
                                                                                         \
@@ -424,6 +428,8 @@ icvPyrUpG5x5_##flavor##_CnR( const type* src, int srcstep, type* dst,           
 
 
 ICV_DEF_PYR_UP_FUNC( 8u, uchar, int, PU_SCALE_INT )
+ICV_DEF_PYR_UP_FUNC( 16s, short, int, PU_SCALE_INT )
+ICV_DEF_PYR_UP_FUNC( 16u, ushort, int, PU_SCALE_INT )
 ICV_DEF_PYR_UP_FUNC( 32f, float, float, PU_SCALE_FLT )
 ICV_DEF_PYR_UP_FUNC( 64f, double, double, PU_SCALE_FLT )
 
@@ -445,20 +451,10 @@ icvPyrUpG5x5_GetBufSize( int roiWidth, CvDataType dataType,
 
     bufStep = 2*roiWidth*channels;
 
-    switch( dataType )
-    {
-    case cv8u: case cv8s:
-        bufStep *= sizeof(int);
-        break;
-    case cv32f:
-        //bufStep *= sizeof(float);
-        //break;
-    case cv64f:
+    if( dataType == cv64f )
         bufStep *= sizeof(double);
-        break;
-    default:
-        return CV_BADARG_ERR;
-    }
+    else
+        bufStep *= sizeof(int);
 
     *bufSize = bufStep * PU_SZ;
     return CV_OK;
@@ -482,20 +478,10 @@ icvPyrDownG5x5_GetBufSize( int roiWidth, CvDataType dataType,
 
     bufStep = 2*roiWidth*channels;
 
-    switch( dataType )
-    {
-    case cv8u: case cv8s:
-        bufStep *= sizeof(int);
-        break;
-    case cv32f:
-        bufStep *= sizeof(float);
-        break;
-    case cv64f:
+    if( dataType == cv64f )
         bufStep *= sizeof(double);
-        break;
-    default:
-        return CV_BADARG_ERR;
-    }
+    else
+        bufStep *= sizeof(int);
 
     *bufSize = bufStep * (PD_SZ + 1);
     return CV_OK;
@@ -883,7 +869,7 @@ icvPyrDownBorder_##flavor##_CnR( const arrtype *src, int src_step, CvSize src_si
     }                                                                                   \
                                                                                         \
     if( !local_alloc )                                                                  \
-        cvFree( (void**)&buf0 );                                                        \
+        cvFree( &buf0 );                                                                \
                                                                                         \
     return CV_OK;                                                                       \
 }
@@ -894,6 +880,8 @@ static void icvInit##FUNCNAME##Table( CvFuncTable* tab )            \
 {                                                                   \
     tab->fn_2d[CV_8U] = (void*)icv##FUNCNAME##_8u_CnR;              \
     tab->fn_2d[CV_8S] = 0;                                          \
+    tab->fn_2d[CV_16S] = (void*)icv##FUNCNAME##_16s_CnR;            \
+    tab->fn_2d[CV_16U] = (void*)icv##FUNCNAME##_16u_CnR;            \
     tab->fn_2d[CV_32F] = (void*)icv##FUNCNAME##_32f_CnR;            \
     tab->fn_2d[CV_64F] = (void*)icv##FUNCNAME##_64f_CnR;            \
 }
@@ -1156,6 +1144,8 @@ cvPyrDown( const void* srcarr, void* dstarr, int _filter )
 #endif
 
 ICV_DEF_PYR_BORDER_FUNC( 8u, uchar, int, PD_SCALE_INT )
+ICV_DEF_PYR_BORDER_FUNC( 16u, ushort, int, PD_SCALE_INT )
+ICV_DEF_PYR_BORDER_FUNC( 16s, short, int, PD_SCALE_INT )
 ICV_DEF_PYR_BORDER_FUNC( 32f, float, float, PD_SCALE_FLT )
 ICV_DEF_PYR_BORDER_FUNC( 64f, double, double, PD_SCALE_FLT )
 
@@ -1164,6 +1154,8 @@ static void icvInit##FUNCNAME##Table( CvFuncTable* tab )            \
 {                                                                   \
     tab->fn_2d[CV_8U] = (void*)icv##FUNCNAME##_8u_CnR;              \
     tab->fn_2d[CV_8S] = 0;                                          \
+    tab->fn_2d[CV_16U] = (void*)icv##FUNCNAME##_16u_CnR;            \
+    tab->fn_2d[CV_16S] = (void*)icv##FUNCNAME##_16s_CnR;            \
     tab->fn_2d[CV_32F] = (void*)icv##FUNCNAME##_32f_CnR;            \
     tab->fn_2d[CV_64F] = (void*)icv##FUNCNAME##_64f_CnR;            \
 }

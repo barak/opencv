@@ -1,4 +1,4 @@
 usr/include/opencv/highgui.*
-usr/lib/libhighgui*.a
-usr/lib/libhighgui*.la
-usr/lib/libhighgui*.so
+usr/lib/libhighgui.a
+usr/lib/libhighgui.la
+usr/lib/libhighgui.so

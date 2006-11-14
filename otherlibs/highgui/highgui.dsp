@@ -48,7 +48,7 @@ RSC=rc.exe
 # PROP Target_Dir ""
 LIB32=link.exe -lib
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "HIGHGUI_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /MD /W4 /Zi /O2 /I "..\..\cxcore\include" /I "..\..\cv\include" /I ".\\" /I "..\_graphics\include" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "CVAPI_EXPORTS" /D "HAVE_JPEG" /D "HAVE_PNG" /D "HAVE_TIFF" /FR /Yu"_highgui.h" /FD /c
+# ADD CPP /nologo /MD /W4 /Zi /O2 /I "..\..\cxcore\include" /I "..\..\cv\include" /I ".\\" /I "..\_graphics\include" /D "NDEBUG" /D "HAVE_JPEG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "CVAPI_EXPORTS" /D "HAVE_PNG" /D "HAVE_TIFF" /D "HAVE_JASPER" /FR /Yu"_highgui.h" /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
@@ -58,7 +58,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /machine:I386
-# ADD LINK32 cxcore.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib libjpeg.lib libpng.lib libtiff.lib zlib.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui097.pdb" /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/highgui097.dll" /implib:"..\..\lib/highgui.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib"
+# ADD LINK32 cxcore.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib libjpeg.lib libjasper.lib libpng.lib libtiff.lib zlib.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui100.pdb" /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/highgui100.dll" /implib:"..\..\lib/highgui.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib"
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "highgui - Win32 Debug"
@@ -76,7 +76,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 LIB32=link.exe -lib
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "HIGHGUI_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W4 /Gm /Zi /Od /I "..\..\cxcore\include" /I "..\..\cv\include" /I ".\\" /I "..\_graphics\include" /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "CVAPI_EXPORTS" /D "HAVE_JPEG" /D "HAVE_PNG" /D "HAVE_TIFF" /FR /Yu"_highgui.h" /FD /GZ /c
+# ADD CPP /nologo /MDd /W4 /Gm /Zi /Od /I "..\..\cxcore\include" /I "..\..\cv\include" /I ".\\" /I "..\_graphics\include" /D "_DEBUG" /D "WIN32" /D "_WINDOWS" /D "_MBCS" /D "CVAPI_EXPORTS" /D "HAVE_PNG" /D "HAVE_TIFF" /D "HAVE_JASPER" /FR /Yu"_highgui.h" /FD /GZ /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x419 /d "_DEBUG"
@@ -86,7 +86,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 cxcored.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib libjpeg.lib libpng.lib libtiff.lib zlib.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui097d.pdb" /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/highgui097d.dll" /implib:"..\..\lib/highguid.lib" /pdbtype:sept /libpath:"..\..\lib" /libpath:"..\_graphics\lib"
+# ADD LINK32 cxcored.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib libjpeg.lib libjasper.lib libpng.lib libtiff.lib zlib.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui100d.pdb" /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/highgui100d.dll" /implib:"..\..\lib/highguid.lib" /pdbtype:sept /libpath:"..\..\lib" /libpath:"..\_graphics\lib"
 # SUBTRACT LINK32 /pdb:none /nodefaultlib
 
 !ELSEIF  "$(CFG)" == "highgui - Win32 Release64"
@@ -114,9 +114,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 cxcore.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/highgui097.dll" /implib:"..\..\lib/highgui.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:AMD64
+# ADD BASE LINK32 cxcore.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/highgui100.dll" /implib:"..\..\lib/highgui.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:AMD64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 cxcore_64.lib zlib_64.lib libpng_64.lib libjpeg_64.lib libtiff_64.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/highgui097_64.dll" /implib:"..\..\lib/highgui_64.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:AMD64
+# ADD LINK32 cxcore_64.lib zlib_64.lib libpng_64.lib libjpeg_64.lib libtiff_64.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/highgui100_64.dll" /implib:"..\..\lib/highgui_64.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:AMD64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "highgui - Win32 Debug64"
@@ -144,9 +144,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 cxcored.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/highgui097d.dll" /implib:"..\..\lib/highguid.lib" /pdbtype:sept /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:AMD64
+# ADD BASE LINK32 cxcored.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/highgui100d.dll" /implib:"..\..\lib/highguid.lib" /pdbtype:sept /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:AMD64
 # SUBTRACT BASE LINK32 /pdb:none /nodefaultlib
-# ADD LINK32 cxcored_64.lib zlibd_64.lib libpngd_64.lib libjpegd_64.lib libtiffd_64.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui097d_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/highgui097d_64.dll" /implib:"..\..\lib/highguid_64.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:AMD64
+# ADD LINK32 cxcored_64.lib zlibd_64.lib libpngd_64.lib libjpegd_64.lib libtiffd_64.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui100d_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/highgui100d_64.dll" /implib:"..\..\lib/highguid_64.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:AMD64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "highgui - Win32 Release64 Itanium"
@@ -174,9 +174,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 cxcore_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/highgui097_i7.dll" /implib:"..\..\lib/highgui_i7.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:IA64
+# ADD BASE LINK32 cxcore_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/highgui100_i7.dll" /implib:"..\..\lib/highgui_i7.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 cxcore_i7.lib zlib_i7.lib libpng_i7.lib libjpeg_i7.lib libtiff_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /out:"..\..\bin/highgui097_i7.dll" /implib:"..\..\lib/highgui_i7.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:IA64
+# ADD LINK32 cxcore_i7.lib zlib_i7.lib libpng_i7.lib libjpeg_i7.lib libtiff_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /debug /machine:IX86 /out:"..\..\bin/highgui100_i7.dll" /implib:"..\..\lib/highgui_i7.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "highgui - Win32 Debug64 Itanium"
@@ -204,9 +204,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 cxcored_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui097d_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/highgui097d_i7.dll" /implib:"..\..\lib/highguid_i7.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:IA64
+# ADD BASE LINK32 cxcored_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui100d_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/highgui100d_i7.dll" /implib:"..\..\lib/highguid_i7.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 cxcored_i7.lib zlibd_i7.lib libpngd_i7.lib libjpegd_i7.lib libtiffd_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui097d_i7.pdb" /debug /machine:IX86 /out:"..\..\bin/highgui097d_i7.dll" /implib:"..\..\lib/highguid_i7.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:IA64
+# ADD LINK32 cxcored_i7.lib zlibd_i7.lib libpngd_i7.lib libjpegd_i7.lib libtiffd_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib comctl32.lib vfw32.lib /nologo /dll /pdb:"..\..\bin/highgui100d_i7.pdb" /debug /machine:IX86 /out:"..\..\bin/highgui100d_i7.dll" /implib:"..\..\lib/highguid_i7.lib" /libpath:"..\..\lib" /libpath:"..\_graphics\lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 
@@ -254,12 +254,28 @@ SOURCE=.\grfmt_bmp.h
 # End Source File
 # Begin Source File
 
+SOURCE=.\grfmt_exr.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\grfmt_exr.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\grfmt_jpeg.cpp
 # ADD CPP /Yu"_highgui.h"
 # End Source File
 # Begin Source File
 
 SOURCE=.\grfmt_jpeg.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\grfmt_jpeg2000.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\grfmt_jpeg2000.h
 # End Source File
 # Begin Source File
 
@@ -303,6 +319,14 @@ SOURCE=.\cvcap.cpp
 # End Source File
 # Begin Source File
 
+SOURCE=.\cvcap_cmu.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\cvcap_vfw.cpp
+# End Source File
+# Begin Source File
+
 SOURCE=.\highgui.rc
 # End Source File
 # Begin Source File
@@ -323,10 +347,6 @@ SOURCE=.\precomp.cpp
 
 SOURCE=.\utils.cpp
 # ADD CPP /Yu"_highgui.h"
-# End Source File
-# Begin Source File
-
-SOURCE=.\window_lnx.cpp
 # End Source File
 # Begin Source File
 
@@ -362,6 +382,14 @@ SOURCE=.\window_w32.cpp
 # Begin Source File
 
 SOURCE=.\_highgui.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\cvcap_cmu.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\cvcap_tyzx.h
 # End Source File
 # Begin Source File
 

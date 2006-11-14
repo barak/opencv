@@ -24,7 +24,7 @@
 <hr><h3><a name="decl_cvNamedWindow">cvNamedWindow</a></h3>
 <p class="Blurb">Creates window</p>
 <pre>
-int cvNamedWindow( const char* name, int flags );
+int cvNamedWindow( const char* name, int flags=CV_WINDOW_AUTOSIZE );
 </pre><dl>
 <dt>name<dd>Name of the window which is used as window identifier and appears in
 the window caption.
@@ -244,14 +244,43 @@ within some environment that takes care of event processing.
 <hr><h3><a name="decl_cvLoadImage">cvLoadImage</a></h3>
 <p class="Blurb">Loads an image from file</p>
 <pre>
-IplImage* cvLoadImage( const char* filename, int iscolor=1 );
+/* 8 bit, color or gray - deprecated, use CV_LOAD_IMAGE_ANYCOLOR */
+#define CV_LOAD_IMAGE_UNCHANGED  -1
+/* 8 bit, gray */
+#define CV_LOAD_IMAGE_GRAYSCALE   0
+/* 8 bit unless combined with CV_LOAD_IMAGE_ANYDEPTH, color */
+#define CV_LOAD_IMAGE_COLOR       1
+/* any depth, if specified on its own gray */
+#define CV_LOAD_IMAGE_ANYDEPTH    2
+/* by itself equivalent to CV_LOAD_IMAGE_UNCHANGED
+   but can be modified with CV_LOAD_IMAGE_ANYDEPTH */
+#define CV_LOAD_IMAGE_ANYCOLOR    4
+
+IplImage* cvLoadImage( const char* filename, int flags=CV_LOAD_IMAGE_COLOR );
 </pre><dl>
 <dt>filename<dd>Name of file to be loaded.
-<dt>iscolor<dd>Specifies colorness of the loaded image:<br>
-       if &gt;0, the loaded image is forced to be color 3-channel image;<br>
-       if 0, the loaded image is forced to be grayscale;<br>
-       if &lt;0, the loaded image will be loaded as is
-       (with number of channels depends on the file).
+<dt>flags<dd>Specifies colorness and depth of the loaded image:<br>
+       The colorness specifies whether the loaded image is to be converted to
+       3 channels (CV_LOAD_IMAGE_COLOR), 1 channel (CV_LOAD_IMAGE_GRAYSCALE),
+       or left as it was in the input file (CV_LOAD_IMAGE_ANYCOLOR).<br>
+       Depth specifies whether the loaded image is to be converted to 8 bits
+       per pixel per color channel as was customary in previous versions of
+       OpenCV or left as they were in the input file.
+       If CV_LOAD_IMAGE_ANYDEPTH is passed the
+       pixel format can be 8 bit unsigned, 16 bit unsigned, 32 bit signed or
+       32 bit floating point.<br>
+
+       If conflicting flags are passed the flag with the smaller numerical
+       value wins. That is if
+       CV_LOAD_IMAGE_COLOR | CV_LOAD_IMAGE_ANYCOLOR
+       is passed the image is loaded with 3 channels.
+       CV_LOAD_IMAGE_ANYCOLOR is equivalent to specifying
+       CV_LOAD_IMAGE_UNCHANGED. However, CV_LOAD_IMAGE_ANYCOLOR has the
+       advantage that it can be combined with CV_LOAD_IMAGE_ANYDEPTH. So
+       CV_LOAD_IMAGE_UNCHANGED should not be used any longer.<br>
+
+       If you want to load the image as truthfully as possible pass
+       CV_LOAD_IMAGE_ANYDEPTH | CV_LOAD_IMAGE_ANYCOLOR.
 </dl><p>
 The function <code>cvLoadImage</code> loads an image
 from the specified file and returns the pointer to the loaded image.
@@ -262,7 +291,9 @@ Currently the following file formats are supported:
 <li>Portable Network Graphics - PNG;
 <li>Portable image format - PBM, PGM, PPM;
 <li>Sun rasters - SR, RAS;
-<li>TIFF files - TIFF, TIF.
+<li>TIFF files - TIFF, TIF;
+<li>OpenEXR HDR images - EXR;
+<li>JPEG 2000 images - jp2.
 </ul>
 </p>
 
@@ -301,14 +332,14 @@ capturing functions.
 
 
 <hr>
-<h3><a name="decl_cvCaptureFromFile">cvCaptureFromFile</a></h3>
+<h3><a name="decl_cvCreateFileCapture">cvCreateFileCapture</a></h3>
 <p class="Blurb">Initializes capturing video from file</p>
 <pre>
-CvCapture* cvCaptureFromFile( const char* filename );
+CvCapture* cvCreateFileCapture( const char* filename );
 </pre><dl>
 <dt>filename<dd>Name of the video file.
 </dl><p>
-The function <code>cvCaptureFromFile</code>
+The function <code>cvCreateFileCapture</code>
 allocates and initialized the CvCapture structure for reading the video stream
 from the specified file.
 </p>
@@ -317,15 +348,15 @@ from the specified file.
 </p>
 
 
-<hr><h3><a name="decl_cvCaptureFromCAM">cvCaptureFromCAM</a></h3>
+<hr><h3><a name="decl_cvCreateCameraCapture">cvCreateCameraCapture</a></h3>
 <p class="Blurb">Initializes capturing video from camera</p>
 <pre>
-CvCapture* cvCaptureFromCAM( int index );
+CvCapture* cvCreateCameraCapture( int index );
 </pre><dl>
 <dt>index<dd>Index of the camera to be used. If there is only one camera or it
 does not matter what camera to use -1 may be passed.
 </dl><p>
-The function <code>cvCaptureFromCAM</code>
+The function <code>cvCreateCameraCapture</code>
 allocates and initialized the CvCapture structure for reading a video stream
 from the camera. Currently two camera interfaces can be used on Windows: Video for
 Windows (VFW) and Matrox Imaging Library (MIL); and two on Linux:
@@ -342,8 +373,8 @@ void cvReleaseCapture( CvCapture** capture );
 <dt>capture<dd>pointer to video capturing structure.
 </dl><p>
 The function <code>cvReleaseCapture</code>
-releases the CvCapture structure allocated by <a href="#decl_cvCaptureFromFile">cvCaptureFromFile</a>
-or <a href="#decl_cvCaptureFromCAM">cvCaptureFromCAM</a>.
+releases the CvCapture structure allocated by <a href="#decl_cvCreateFileCapture">cvCreateFileCapture</a>
+or <a href="#decl_cvCreateCameraCapture">cvCreateCameraCapture</a>.
 </p>
 
 
@@ -431,7 +462,7 @@ int cvSetCaptureProperty( CvCapture* capture, int property_id, double value );
 </dl><p>
 The function <code>cvSetCaptureProperty</code>
 sets the specified property of video capturing. Currently the function supports only
-video files: <code>CV_CAP_PROP_POS_MSEC, CV_CAP_PROP_POS_FRAMES, CV_CAP_PROP_POS_AVI_RATIO<code>
+video files: <code>CV_CAP_PROP_POS_MSEC, CV_CAP_PROP_POS_FRAMES, CV_CAP_PROP_POS_AVI_RATIO</code>
 </p>
 
 
@@ -525,12 +556,12 @@ The function is used by <a href="#decl_cvShowImage">cvShowImage</a>.</p>
 <hr><h3>C</h3>
 <table width="100%">
 <tr>
-<td width="25%"><a href="#decl_cvCaptureFromCAM">CaptureFromCAM</a></td>
 <td width="25%"><a href="#decl_cvConvertImage">ConvertImage</a></td>
+<td width="25%"><a href="#decl_cvCreateFileCapture">CreateFileCapture</a></td>
 <td width="25%"><a href="#decl_cvCreateVideoWriter">CreateVideoWriter</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvCaptureFromFile">CaptureFromFile</a></td>
+<td width="25%"><a href="#decl_cvCreateCameraCapture">CreateCameraCapture</a></td>
 <td width="25%"><a href="#decl_cvCreateTrackbar">CreateTrackbar</a></td>
 <td width="25%%"></td>
 </tr>

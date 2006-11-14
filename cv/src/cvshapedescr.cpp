@@ -278,6 +278,7 @@ CV_IMPL int
 cvMinEnclosingCircle( const void* array, CvPoint2D32f * _center, float *_radius )
 {
     const int max_iters = 100;
+    const float eps = FLT_EPSILON*2;
     CvPoint2D32f center = { 0, 0 };
     float radius = 0;
     int result = 0;
@@ -437,7 +438,7 @@ cvMinEnclosingCircle( const void* array, CvPoint2D32f * _center, float *_radius 
             radius = MAX(radius,t);
         }
 
-        radius = (float)sqrt(radius);
+        radius = (float)(sqrt(radius)*(1 + eps));
         result = 1;
     }
 
@@ -532,7 +533,7 @@ icvMemCopy( double **buf1, double **buf2, double **buf3, int *b_max )
         memcpy( *buf2, *buf3, bb * sizeof( double ));
 
         *buf3 = *buf2;
-        cvFree( (void**)buf1 );
+        cvFree( buf1 );
         *buf1 = NULL;
     }
     else
@@ -546,7 +547,7 @@ icvMemCopy( double **buf1, double **buf2, double **buf3, int *b_max )
         memcpy( *buf1, *buf3, bb * sizeof( double ));
 
         *buf3 = *buf1;
-        cvFree( (void**)buf2 );
+        cvFree( buf2 );
         *buf2 = NULL;
     }
     return CV_OK;
@@ -711,9 +712,9 @@ static CvStatus icvContourSecArea( CvSeq * contour, CvSlice slice, double *area 
             (*area) += fabs( p_are[i] );
 
         if( p_are1 != NULL )
-            cvFree( (void**)&p_are1 );
+            cvFree( &p_are1 );
         else if( p_are2 != NULL )
-            cvFree( (void**)&p_are2 );
+            cvFree( &p_are2 );
 
         return CV_OK;
     }
@@ -772,40 +773,32 @@ cvContourArea( const void *array, CvSlice slice )
    box filled with zero values is returned.
    However in general function works fine.
 */
-static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
+static void
+icvFitEllipse_F( CvSeq* points, CvBox2D* box )
 {
-    CvStatus status = CV_OK;
-    float u[6];
+    CvMat* D = 0;
+    
+    CV_FUNCNAME( "icvFitEllipse_F" );
 
-    CvMatr32f D = 0;
-    float S[36];            /*  S = D' * D  */
-    float C[36];
+    __BEGIN__;
 
-    float INVQ[36];
+    double S[36], C[36], T[36];
 
-    /* transposed eigenvectors */
-    float INVEIGV[36];
-
-    /* auxulary matrices */
-    float TMP1[36];
-    float TMP2[36];
-
-    int i, index = -1;
-    float eigenvalues[6];
-    float a, b, c, d, e, f;
-    float offx, offy;
-    float *matr;
+    int i, j;
+    double eigenvalues[6], eigenvectors[36];
+    double a, b, c, d, e, f;
+    double x0, y0, idet, scale, offx = 0, offy = 0;
 
     int n = points->total;
     CvSeqReader reader;
     int is_float = CV_SEQ_ELTYPE(points) == CV_32FC2;
 
-    CvMat _S, _EIGVECS, _EIGVALS;
+    CvMat _S = cvMat(6,6,CV_64F,S), _C = cvMat(6,6,CV_64F,C), _T = cvMat(6,6,CV_64F,T);
+    CvMat _EIGVECS = cvMat(6,6,CV_64F,eigenvectors), _EIGVALS = cvMat(6,1,CV_64F,eigenvalues);
 
     /* create matrix D of  input points */
-    D = icvCreateMatrix_32f( 6, n );
-
-    offx = offy = 0;
+    CV_CALL( D = cvCreateMat( n, 6, CV_64F ));
+    
     cvStartReadSeq( points, &reader );
 
     /* shift all points to zero */
@@ -813,8 +806,8 @@ static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
     {
         if( !is_float )
         {
-            offx += (float)((CvPoint*)reader.ptr)->x;
-            offy += (float)((CvPoint*)reader.ptr)->y;
+            offx += ((CvPoint*)reader.ptr)->x;
+            offy += ((CvPoint*)reader.ptr)->y;
         }
         else
         {
@@ -824,20 +817,19 @@ static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
         CV_NEXT_SEQ_ELEM( points->elem_size, reader );
     }
 
-    c = 1.f / n;
-    offx *= c;
-    offy *= c;
+    offx /= n;
+    offy /= n;
 
-    /* fill matrix rows as (x*x, x*y, y*y, x, y, 1 ) */
-    matr = D;
+    // fill matrix rows as (x*x, x*y, y*y, x, y, 1 )
     for( i = 0; i < n; i++ )
     {
-        float x, y;
+        double x, y;
+        double* Dptr = D->data.db + i*6;
         
         if( !is_float )
         {
-            x = (float)((CvPoint*)reader.ptr)->x - offx;
-            y = (float)((CvPoint*)reader.ptr)->y - offy;
+            x = ((CvPoint*)reader.ptr)->x - offx;
+            y = ((CvPoint*)reader.ptr)->y - offy;
         }
         else
         {
@@ -846,175 +838,137 @@ static CvStatus icvFitEllipse_32f( CvSeq* points, CvBox2D* box )
         }
         CV_NEXT_SEQ_ELEM( points->elem_size, reader );
         
-        matr[0] = x * x;
-        matr[1] = x * y;
-        matr[2] = y * y;
-        matr[3] = x;
-        matr[4] = y;
-        matr[5] = 1.f;
-        matr += 6;
+        Dptr[0] = x * x;
+        Dptr[1] = x * y;
+        Dptr[2] = y * y;
+        Dptr[3] = x;
+        Dptr[4] = y;
+        Dptr[5] = 1.;
     }
 
-    /* compute S */
-    icvMulTransMatrixR_32f( D, 6, n, S );
-
-    /* fill matrix C */
-    icvSetZero_32f( C, 6, 6 );
-    C[2] = 2.f;  //icvSetElement_32f( C, 6, 6, 0, 2, 2.f );
-    C[7] = -1.f; //icvSetElement_32f( C, 6, 6, 1, 1, -1.f );
-    C[12] = 2.f; //icvSetElement_32f( C, 6, 6, 2, 0, 2.f );
-    
-    /* find eigenvalues */
-    //status1 = icvJacobiEigens_32f( S, INVEIGV, eigenvalues, 6, 0.f );
-    //assert( status1 == CV_OK );
-    _S = cvMat( 6, 6, CV_32F, S );
-    _EIGVECS = cvMat( 6, 6, CV_32F, INVEIGV );
-    _EIGVALS = cvMat( 6, 1, CV_32F, eigenvalues );
-    cvEigenVV( &_S, &_EIGVECS, &_EIGVALS, 0 );
-
-    //avoid troubles with small negative values
-    for( i = 0; i < 6; i++ )
-        eigenvalues[i] = (float)fabs(eigenvalues[i]);
-
-    cvbSqrt( eigenvalues, eigenvalues, 6 );
-    cvbInvSqrt( eigenvalues, eigenvalues, 6 );
+    // S = D^t*D
+    cvMulTransposed( D, &_S, 1 );
+    cvSVD( &_S, &_EIGVALS, &_EIGVECS, 0, CV_SVD_MODIFY_A + CV_SVD_U_T );
 
     for( i = 0; i < 6; i++ )
-        icvScaleVector_32f( &INVEIGV[i * 6], &INVEIGV[i * 6], 6, eigenvalues[i] );
-
-    // INVQ = transp(INVEIGV) * INVEIGV
-    icvMulTransMatrixR_32f( INVEIGV, 6, 6, INVQ );
-    
-    /* create matrix INVQ*C*INVQ */
-    icvMulMatrix_32f( INVQ, 6, 6, C, 6, 6, TMP1 );
-    icvMulMatrix_32f( TMP1, 6, 6, INVQ, 6, 6, TMP2 );
-
-    /* find its eigenvalues and vectors */
-    //status1 = icvJacobiEigens_32f( TMP2, INVEIGV, eigenvalues, 6, 0.f );
-    //assert( status1 == CV_OK );
-    _S = cvMat( 6, 6, CV_32F, TMP2 );
-    cvEigenVV( &_S, &_EIGVECS, &_EIGVALS, 0 );
-
-    /* search for positive eigenvalue */
-    for( i = 0; i < 3; i++ )
     {
-        if( eigenvalues[i] > 0 )
-        {
-            index = i;
-            break;
-        }
+        double a = eigenvalues[i];
+        a = a < DBL_EPSILON ? 0 : 1./sqrt(sqrt(a));
+        for( j = 0; j < 6; j++ )
+            eigenvectors[i*6 + j] *= a;
     }
 
-    /* only 3 eigenvalues must be not zero 
-       and only one of them must be positive 
-       if it is not true - return zero result
-    */
-    if( index == -1 )
+    // C = Q^-1 = transp(INVEIGV) * INVEIGV
+    cvMulTransposed( &_EIGVECS, &_C, 1 );
+    
+    cvZero( &_S );
+    S[2] = 2.;
+    S[7] = -1.;
+    S[12] = 2.;
+
+    // S = Q^-1*S*Q^-1
+    cvMatMul( &_C, &_S, &_T );
+    cvMatMul( &_T, &_C, &_S );
+
+    // and find its eigenvalues and vectors too
+    //cvSVD( &_S, &_EIGVALS, &_EIGVECS, 0, CV_SVD_MODIFY_A + CV_SVD_U_T );
+    cvEigenVV( &_S, &_EIGVECS, &_EIGVALS, 0 );
+
+    for( i = 0; i < 3; i++ )
+        if( eigenvalues[i] > 0 )
+            break;
+
+    if( i >= 3 /*eigenvalues[0] < DBL_EPSILON*/ )
     {
         box->center.x = box->center.y = 
         box->size.width = box->size.height = 
         box->angle = 0.f;
-        goto error;
+        EXIT;
     }
 
-    /* now find truthful eigenvector */
-    icvTransformVector_32f( INVQ, &INVEIGV[index * 6], u, 6, 6 );
-    /* extract vector components */
-    a = u[0];
-    b = u[1];
-    c = u[2];
-    d = u[3];
-    e = u[4];
-    f = u[5];
+    // now find truthful eigenvector
+    _EIGVECS = cvMat( 6, 1, CV_64F, eigenvectors + 6*i );
+    _T = cvMat( 6, 1, CV_64F, T );
+    // Q^-1*eigenvecs[0]
+    cvMatMul( &_C, &_EIGVECS, &_T );
+    
+    // extract vector components
+    a = T[0]; b = T[1]; c = T[2]; d = T[3]; e = T[4]; f = T[5];
+    
+    ///////////////// extract ellipse axes from above values ////////////////
+
+    /* 
+       1) find center of ellipse 
+       it satisfy equation  
+       | a     b/2 | *  | x0 | +  | d/2 | = |0 |
+       | b/2    c  |    | y0 |    | e/2 |   |0 |
+
+     */
+    idet = a * c - b * b * 0.25;
+    idet = idet > DBL_EPSILON ? 1./idet : 0;
+
+    // we must normalize (a b c d e f ) to fit (4ac-b^2=1)
+    scale = sqrt( 0.25 * idet );
+
+    if( scale < DBL_EPSILON ) 
     {
-        /* extract ellipse axes from above values */
-
-        /* 
-           1) find center of ellipse 
-           it satisfy equation  
-           | a     b/2 | *  | x0 | +  | d/2 | = |0 |
-           | b/2    c  |    | y0 |    | e/2 |   |0 |
-
-         */
-        float x0, y0;
-        float idet = 1.f / (a * c - b * b * 0.25f);
-
-        /* we must normalize (a b c d e f ) to fit (4ac-b^2=1) */
-        float scale = cvSqrt( 0.25f * idet );
-
-        if (!scale) 
-        {
-            box->center.x = box->center.y = 
-            box->size.width = box->size.height = 
-            box->angle = 0.f;
-            goto error;
-        }
-           
-        a *= scale;
-        b *= scale;
-        c *= scale;
-        d *= scale;
-        e *= scale;
-        f *= scale;
-
-        //x0 = box->center.x = (-d * c * 0.5f + e * b * 0.25f) * 4.f;
-        //y0 = box->center.y = (-a * e * 0.5f + d * b * 0.25f) * 4.f;
-        x0 = box->center.x = (-d * c + e * b * 0.5f) * 2.f;
-        y0 = box->center.y = (-a * e + d * b * 0.5f) * 2.f;
-
-        /* offset ellipse to (x0,y0) */
-        /* new f == F(x0,y0) */
-        f += a * x0 * x0 + b * x0 * y0 + c * y0 * y0 + d * x0 + e * y0;
-
-        if (!f) 
-        {
-            box->center.x = box->center.y = 
-            box->size.width = box->size.height = 
-            box->angle = 0.f;
-            goto error;
-        }
-
-        scale = -1.f / f;
-        /* normalize to f = 1 */
-        a *= scale;
-        b *= scale;
-        c *= scale;
+        box->center.x = (float)offx;
+        box->center.y = (float)offy;
+        box->size.width = box->size.height = box->angle = 0.f;
+        EXIT;
     }
-    /* recover center */
-    box->center.x += offx;
-    box->center.y += offy;
+       
+    a *= scale;
+    b *= scale;
+    c *= scale;
+    d *= scale;
+    e *= scale;
+    f *= scale;
 
-    /* extract axis of ellipse */
-    /* one more eigenvalue operation */
-    TMP1[0] = a;
-    TMP1[1] = TMP1[2] = b * 0.5f;
-    TMP1[3] = c;
+    x0 = (-d * c + e * b * 0.5) * 2.;
+    y0 = (-a * e + d * b * 0.5) * 2.;
 
-    //status1 = icvJacobiEigens_32f( TMP1, INVEIGV, eigenvalues, 2, 0.f );
-    //assert( status1 == CV_OK );
-    _S = cvMat( 2, 2, CV_32F, TMP1 );
-    _EIGVECS = cvMat( 2, 2, CV_32F, INVEIGV );
-    _EIGVALS = cvMat( 2, 1, CV_32F, eigenvalues );
-    cvEigenVV( &_S, &_EIGVECS, &_EIGVALS, 0 );
+    // recover center
+    box->center.x = (float)(x0 + offx);
+    box->center.y = (float)(y0 + offy);
 
-    /* exteract axis length from eigenvectors */
-    box->size.height = 2 * cvInvSqrt( eigenvalues[0] );
-    box->size.width = 2 * cvInvSqrt( eigenvalues[1] );
+    // offset ellipse to (x0,y0)
+    // new f == F(x0,y0)
+    f += a * x0 * x0 + b * x0 * y0 + c * y0 * y0 + d * x0 + e * y0;
 
-    if ( !(box->size.height && box->size.width) )
+    if( fabs(f) < DBL_EPSILON ) 
     {
-        assert(0);
+        box->size.width = box->size.height = box->angle = 0.f;
+        EXIT;
     }
 
-    /* calc angle */
-    box->angle = cvFastArctan( INVEIGV[3], INVEIGV[2] );
+    scale = -1. / f;
+    // normalize to f = 1
+    a *= scale;
+    b *= scale;
+    c *= scale;
 
-error:
+    // extract axis of ellipse
+    // one more eigenvalue operation
+    S[0] = a;
+    S[1] = S[2] = b * 0.5;
+    S[3] = c;
 
-    if( D )
-        icvDeleteMatrix( D );
+    _S = cvMat( 2, 2, CV_64F, S );
+    _EIGVECS = cvMat( 2, 2, CV_64F, eigenvectors );
+    _EIGVALS = cvMat( 1, 2, CV_64F, eigenvalues );
+    cvSVD( &_S, &_EIGVALS, &_EIGVECS, 0, CV_SVD_MODIFY_A + CV_SVD_U_T );
 
-    return status;
+    // exteract axis length from eigenvectors
+    box->size.width = (float)(2./sqrt(eigenvalues[0]));
+    box->size.height = (float)(2./sqrt(eigenvalues[1]));
+
+    // calc angle
+    box->angle = (float)(180 - atan2(eigenvectors[2], eigenvectors[3])*180/CV_PI);
+
+    __END__;
+
+    cvReleaseMat( &D );
 }
 
 
@@ -1022,7 +976,8 @@ CV_IMPL CvBox2D
 cvFitEllipse2( const CvArr* array )
 {
     CvBox2D box;
-    
+    double* Ad = 0, *bd = 0;
+
     CV_FUNCNAME( "cvFitEllipse2" );
 
     memset( &box, 0, sizeof(box));
@@ -1032,6 +987,7 @@ cvFitEllipse2( const CvArr* array )
     CvContour contour_header;
     CvSeq* ptseq = 0;
     CvSeqBlock block;
+    int n;
 
     if( CV_IS_SEQ( array ))
     {
@@ -1045,12 +1001,123 @@ cvFitEllipse2( const CvArr* array )
             CV_SEQ_KIND_GENERIC, array, &contour_header, &block ));
     }
 
-    if( ptseq->total < 6 )
+    n = ptseq->total;
+    if( n < 5 )
         CV_ERROR( CV_StsBadSize, "Number of points should be >= 6" );
+#if 1
+    icvFitEllipse_F( ptseq, &box );
+#else
+    /*
+     *	New fitellipse algorithm, contributed by Dr. Daniel Weiss
+     */
+    {
+    double gfp[5], rp[5], t;
+    CvMat A, b, x;
+    const double min_eps = 1e-6;
+    int i, is_float;
+    CvSeqReader reader;
 
-    IPPI_CALL( icvFitEllipse_32f( ptseq, &box ));
+    CV_CALL( Ad = (double*)cvAlloc( n*5*sizeof(Ad[0]) ));
+    CV_CALL( bd = (double*)cvAlloc( n*sizeof(bd[0]) ));
 
+    // first fit for parameters A - E
+    A = cvMat( n, 5, CV_64F, Ad );
+    b = cvMat( n, 1, CV_64F, bd );
+    x = cvMat( 5, 1, CV_64F, gfp );
+
+    cvStartReadSeq( ptseq, &reader );
+    is_float = CV_SEQ_ELTYPE(ptseq) == CV_32FC2;
+
+    for( i = 0; i < n; i++ )
+    {
+        CvPoint2D32f p;
+        if( is_float )
+            p = *(CvPoint2D32f*)(reader.ptr);
+        else
+        {
+            p.x = (float)((int*)reader.ptr)[0];
+            p.y = (float)((int*)reader.ptr)[1];
+        }
+        CV_NEXT_SEQ_ELEM( sizeof(p), reader );
+
+        bd[i] = 10000.0; // 1.0?
+        Ad[i*5] = -(double)p.x * p.x; // A - C signs inverted as proposed by APP
+        Ad[i*5 + 1] = -(double)p.y * p.y;
+        Ad[i*5 + 2] = -(double)p.x * p.y;
+        Ad[i*5 + 3] = p.x;
+        Ad[i*5 + 4] = p.y;
+    }
+    
+    cvSolve( &A, &b, &x, CV_SVD );
+
+    // now use general-form parameters A - E to find the ellipse center:
+    // differentiate general form wrt x/y to get two equations for cx and cy
+    A = cvMat( 2, 2, CV_64F, Ad );
+    b = cvMat( 2, 1, CV_64F, bd );
+    x = cvMat( 2, 1, CV_64F, rp );
+    Ad[0] = 2 * gfp[0];
+    Ad[1] = Ad[2] = gfp[2];
+    Ad[3] = 2 * gfp[1];
+    bd[0] = gfp[3];
+    bd[1] = gfp[4];
+    cvSolve( &A, &b, &x, CV_SVD );
+
+    // re-fit for parameters A - C with those center coordinates
+    A = cvMat( n, 3, CV_64F, Ad );
+    b = cvMat( n, 1, CV_64F, bd );
+    x = cvMat( 3, 1, CV_64F, gfp );
+    for( i = 0; i < n; i++ )
+    {
+        CvPoint2D32f p;
+        if( is_float )
+            p = *(CvPoint2D32f*)(reader.ptr);
+        else
+        {
+            p.x = (float)((int*)reader.ptr)[0];
+            p.y = (float)((int*)reader.ptr)[1];
+        }
+        CV_NEXT_SEQ_ELEM( sizeof(p), reader );
+        bd[i] = 1.0;
+        Ad[i * 3] = (p.x - rp[0]) * (p.x - rp[0]);
+        Ad[i * 3 + 1] = (p.y - rp[1]) * (p.y - rp[1]);
+        Ad[i * 3 + 2] = (p.x - rp[0]) * (p.y - rp[1]);
+    }
+    cvSolve(&A, &b, &x, CV_SVD);
+
+    // store angle and radii
+    rp[4] = -0.5 * atan2(gfp[2], gfp[1] - gfp[0]); // convert from APP angle usage
+    t = sin(-2.0 * rp[4]);
+    if( fabs(t) > fabs(gfp[2])*min_eps )
+        t = gfp[2]/t;
+    else
+        t = gfp[1] - gfp[0];
+    rp[2] = fabs(gfp[0] + gfp[1] - t);
+    if( rp[2] > min_eps )
+        rp[2] = sqrt(2.0 / rp[2]);
+    rp[3] = fabs(gfp[0] + gfp[1] + t);
+    if( rp[3] > min_eps )
+        rp[3] = sqrt(2.0 / rp[3]);
+
+    box.center.x = (float)rp[0];
+    box.center.y = (float)rp[1];
+    box.size.width = (float)(rp[2]*2);
+    box.size.height = (float)(rp[3]*2);
+    if( box.size.width > box.size.height )
+    {
+        float tmp;
+        CV_SWAP( box.size.width, box.size.height, tmp );
+        box.angle = (float)(90 + rp[4]*180/CV_PI);
+    }
+    if( box.angle < -180 )
+        box.angle += 360;
+    if( box.angle > 360 )
+        box.angle -= 360;
+    }
+#endif
     __END__;
+
+    cvFree( &Ad );
+    cvFree( &bd );
 
     return box;
 }
@@ -1070,6 +1137,8 @@ cvBoundingRect( CvArr* array, int update )
 
     __BEGIN__;
 
+    CvMat stub, *mat = 0;
+    int  xmin = 0, ymin = 0, xmax = -1, ymax = -1, i, j, k;
     int calculate = update;
 
     if( CV_IS_SEQ( array ))
@@ -1080,106 +1149,203 @@ cvBoundingRect( CvArr* array, int update )
 
         if( ptseq->header_size < (int)sizeof(CvContour))
         {
-            if( update == 1 )
+            /*if( update == 1 )
                 CV_ERROR( CV_StsBadArg, "The header is too small to fit the rectangle, "
-                                        "so it could not be updated" );
+                                        "so it could not be updated" );*/
+            update = 0;
             calculate = 1;
         }
     }
     else
     {
-        CV_CALL( ptseq = cvPointSeqFromMat(
-            CV_SEQ_KIND_GENERIC, array, &contour_header, &block ));
+        CV_CALL( mat = cvGetMat( array, &stub ));
+        if( CV_MAT_TYPE(mat->type) == CV_32SC1 ||
+            CV_MAT_TYPE(mat->type) == CV_32FC1 )
+        {
+            CV_CALL( ptseq = cvPointSeqFromMat(
+                CV_SEQ_KIND_GENERIC, mat, &contour_header, &block ));
+            mat = 0;
+        }
+        else if( CV_MAT_TYPE(mat->type) != CV_8UC1 &&
+                CV_MAT_TYPE(mat->type) != CV_8SC1 )
+            CV_ERROR( CV_StsUnsupportedFormat,
+                "The image/matrix format is not supported by the function" );
+        update = 0;
         calculate = 1;
     }
 
-    if( calculate )
-    {
-        if( ptseq->total )
-        {   
-            int  is_float = CV_SEQ_ELTYPE(ptseq) == CV_32FC2;
-            int  xmin, ymin, xmax, ymax, i;
-            cvStartReadSeq( ptseq, &reader, 0 );
-
-            if( !is_float )
-            {
-                CvPoint pt;
-                /* init values */
-                CV_READ_SEQ_ELEM( pt, reader );
-                xmin = xmax = pt.x;
-                ymin = ymax = pt.y;
-    
-                for( i = 1; i < ptseq->total; i++ )
-                {            
-                    CV_READ_SEQ_ELEM( pt, reader );
-            
-                    if( xmin > pt.x )
-                        xmin = pt.x;
-            
-                    if( xmax < pt.x )
-                        xmax = pt.x;
-
-                    if( ymin > pt.y )
-                        ymin = pt.y;
-
-                    if( ymax < pt.y )
-                        ymax = pt.y;
-                }
-            }
-            else
-            {
-                CvPoint pt;
-                /* init values */
-                CV_READ_SEQ_ELEM( pt, reader );
-                xmin = xmax = CV_TOGGLE_FLT(pt.x);
-                ymin = ymax = CV_TOGGLE_FLT(pt.y);
-    
-                for( i = 1; i < ptseq->total; i++ )
-                {            
-                    CV_READ_SEQ_ELEM( pt, reader );
-                    pt.x = CV_TOGGLE_FLT(pt.x);
-                    pt.y = CV_TOGGLE_FLT(pt.y);
-            
-                    if( xmin > pt.x )
-                        xmin = pt.x;
-            
-                    if( xmax < pt.x )
-                        xmax = pt.x;
-
-                    if( ymin > pt.y )
-                        ymin = pt.y;
-
-                    if( ymax < pt.y )
-                        ymax = pt.y;
-                }
-
-                xmin = CV_TOGGLE_FLT(xmin);
-                ymin = CV_TOGGLE_FLT(ymin);
-                xmax = CV_TOGGLE_FLT(xmax);
-                ymax = CV_TOGGLE_FLT(ymax);
-
-                xmin = cvFloor( (float&)xmin );
-                ymin = cvFloor( (float&)ymin );
-                /* because right and bottom sides of
-                   the bounding rectangle are not inclusive,
-                   cvFloor is used here (instead of cvCeil) */
-                xmax = cvFloor( (float&)xmax );
-                ymax = cvFloor( (float&)ymax );
-            }
-
-            rect.x = xmin;
-            rect.y = ymin;
-            rect.width = xmax - xmin + 1;
-            rect.height = ymax - ymin + 1;
-        }
-
-        if( update )
-            ((CvContour*)ptseq)->rect = rect;
-    }
-    else
+    if( !calculate )
     {
         rect = ((CvContour*)ptseq)->rect;
+        EXIT;
     }
+
+    if( mat )
+    {
+        CvSize size = cvGetMatSize(mat);
+        xmin = size.width;
+        ymin = -1;
+
+        for( i = 0; i < size.height; i++ )
+        {
+            uchar* _ptr = mat->data.ptr + i*mat->step;
+            uchar* ptr = (uchar*)cvAlignPtr(_ptr, 4);
+            int have_nz = 0, k_min, offset = (int)(ptr - _ptr);
+            j = 0;
+            offset = MIN(offset, size.width);
+            for( ; j < offset; j++ )
+                if( _ptr[j] )
+                {
+                    have_nz = 1;
+                    break;
+                }
+            if( j < offset )
+            {
+                if( j < xmin )
+                    xmin = j;
+                if( j > xmax )
+                    xmax = j;
+            }
+            if( offset < size.width )
+            {
+                xmin -= offset;
+                xmax -= offset;
+                size.width -= offset;
+                j = 0;
+                for( ; j <= xmin - 4; j += 4 )
+                    if( *((int*)(ptr+j)) )
+                        break;
+                for( ; j < xmin; j++ )
+                    if( ptr[j] )
+                    {
+                        xmin = j;
+                        if( j > xmax )
+                            xmax = j;
+                        have_nz = 1;
+                        break;
+                    }
+                k_min = MAX(j-1, xmax);
+                k = size.width - 1;
+                for( ; k > k_min && (k&3) != 3; k-- )
+                    if( ptr[k] )
+                        break;
+                if( k > k_min && (k&3) == 3 )
+                {
+                    for( ; k > k_min+3; k -= 4 )
+                        if( *((int*)(ptr+k-3)) )
+                            break;
+                }
+                for( ; k > k_min; k-- )
+                    if( ptr[k] )
+                    {
+                        xmax = k;
+                        have_nz = 1;
+                        break;
+                    }
+                if( !have_nz )
+                {
+                    j &= ~3;
+                    for( ; j <= k - 3; j += 4 )
+                        if( *((int*)(ptr+j)) )
+                            break;
+                    for( ; j <= k; j++ )
+                        if( ptr[j] )
+                        {
+                            have_nz = 1;
+                            break;
+                        }
+                }
+                xmin += offset;
+                xmax += offset;
+                size.width += offset;
+            }
+            if( have_nz )
+            {
+                if( ymin < 0 )
+                    ymin = i;
+                ymax = i;
+            }
+        }
+
+        if( xmin >= size.width )
+            xmin = ymin = 0;
+    }
+    else if( ptseq->total )
+    {   
+        int  is_float = CV_SEQ_ELTYPE(ptseq) == CV_32FC2;
+        cvStartReadSeq( ptseq, &reader, 0 );
+
+        if( !is_float )
+        {
+            CvPoint pt;
+            /* init values */
+            CV_READ_SEQ_ELEM( pt, reader );
+            xmin = xmax = pt.x;
+            ymin = ymax = pt.y;
+
+            for( i = 1; i < ptseq->total; i++ )
+            {            
+                CV_READ_SEQ_ELEM( pt, reader );
+        
+                if( xmin > pt.x )
+                    xmin = pt.x;
+        
+                if( xmax < pt.x )
+                    xmax = pt.x;
+
+                if( ymin > pt.y )
+                    ymin = pt.y;
+
+                if( ymax < pt.y )
+                    ymax = pt.y;
+            }
+        }
+        else
+        {
+            CvPoint pt;
+            Cv32suf v;
+            /* init values */
+            CV_READ_SEQ_ELEM( pt, reader );
+            xmin = xmax = CV_TOGGLE_FLT(pt.x);
+            ymin = ymax = CV_TOGGLE_FLT(pt.y);
+
+            for( i = 1; i < ptseq->total; i++ )
+            {            
+                CV_READ_SEQ_ELEM( pt, reader );
+                pt.x = CV_TOGGLE_FLT(pt.x);
+                pt.y = CV_TOGGLE_FLT(pt.y);
+        
+                if( xmin > pt.x )
+                    xmin = pt.x;
+        
+                if( xmax < pt.x )
+                    xmax = pt.x;
+
+                if( ymin > pt.y )
+                    ymin = pt.y;
+
+                if( ymax < pt.y )
+                    ymax = pt.y;
+            }
+
+            v.i = CV_TOGGLE_FLT(xmin); xmin = cvFloor(v.f);
+            v.i = CV_TOGGLE_FLT(ymin); ymin = cvFloor(v.f);
+            /* because right and bottom sides of
+               the bounding rectangle are not inclusive
+               (note +1 in width and height calculation below),
+               cvFloor is used here instead of cvCeil */
+            v.i = CV_TOGGLE_FLT(xmax); xmax = cvFloor(v.f);
+            v.i = CV_TOGGLE_FLT(ymax); ymax = cvFloor(v.f);
+        }
+    }
+
+    rect.x = xmin;
+    rect.y = ymin;
+    rect.width = xmax - xmin + 1;
+    rect.height = ymax - ymin + 1;
+
+    if( update )
+        ((CvContour*)ptseq)->rect = rect;
 
     __END__;
 

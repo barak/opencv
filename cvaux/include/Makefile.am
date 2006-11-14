@@ -2,4 +2,4 @@
 libcvauxincludedir = $(includedir)/opencv
 
 # Which header files to install
-libcvauxinclude_HEADERS = cvaux.h cvmat.hpp cvaux.hpp
+libcvauxinclude_HEADERS = cvaux.h cvmat.hpp cvaux.hpp cvvidsurv.hpp

@@ -1,4 +1,4 @@
 usr/include/opencv/cvaux.*
-usr/lib/libcvaux*.a
-usr/lib/libcvaux*.la
-usr/lib/libcvaux*.so
+usr/lib/libcvaux.a
+usr/lib/libcvaux.la
+usr/lib/libcvaux.so

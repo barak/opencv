@@ -1,3 +1,20 @@
+opencv (1.0.0-1) experimental; urgency=low
+
+  * New upstream release.
+  * debian/control:
+    + Depend on pkg-config now that opencv-config is deprecated.
+  * debian/rules:
+    + Do not remove haartraining files (Closes: #368568).
+
+  * debian/patches/010_python_cspec.diff:
+    + New patch. Add -fno-strict-aliasing because of numerous aliasing
+      issues in the code (Closes: #388129).
+
+  * debian/patches/110_dc1394.diff:
+    + Fix a few bugs in the dc1394 code.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Tue, 14 Nov 2006 17:12:26 +0100
+
 opencv (0.9.7-4) unstable; urgency=low
 
   * Migrate package to the new python policy (Closes: #373469), thanks to

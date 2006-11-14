@@ -82,6 +82,10 @@ void icvCvt_BGR5552BGR_8u_C2C3R( const uchar* bgr555, int bgr555_step,
                                  uchar* bgr, int bgr_step, CvSize size );
 void icvCvt_BGR5652BGR_8u_C2C3R( const uchar* bgr565, int bgr565_step,
                                  uchar* bgr, int bgr_step, CvSize size );
+void icvCvt_CMYK2BGR_8u_C4C3R( const uchar* cmyk, int cmyk_step,
+                               uchar* bgr, int bgr_step, CvSize size );
+void icvCvt_CMYK2Gray_8u_C4C1R( const uchar* ycck, int ycck_step,
+                                uchar* gray, int gray_step, CvSize size );
 
 void  FillGrayPalette( PaletteEntry* palette, int bpp, bool negative = false );
 bool  IsColorPalette( PaletteEntry* palette, int bpp );
@@ -97,5 +101,10 @@ uchar* FillColorRow4( uchar* data, uchar* indices, int len, PaletteEntry* palett
 uchar* FillGrayRow4( uchar* data, uchar* indices, int len, uchar* palette );
 uchar* FillColorRow1( uchar* data, uchar* indices, int len, PaletteEntry* palette );
 uchar* FillGrayRow1( uchar* data, uchar* indices, int len, uchar* palette );
+
+CV_INLINE bool  isBigEndian( void )
+{
+    return (((const int*)"\0\x1\x2\x3\x4\x5\x6\x7")[0] & 255) != 0;
+}
 
 #endif/*_UTILS_H_*/

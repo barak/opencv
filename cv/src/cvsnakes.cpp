@@ -101,10 +101,13 @@ icvSnake8uC1R( unsigned char *src,
     uchar *map = NULL;
     int map_width = ((roi.width - 1) >> 3) + 1;
     int map_height = ((roi.height - 1) >> 3) + 1;
-    short *dx = NULL;
-    short *dy = NULL;
-    _CvConvState *pX;
-    _CvConvState *pY;
+    CvSepFilter pX, pY;
+    #define WTILE_SIZE 8
+    #define TILE_SIZE (WTILE_SIZE + 2)        
+    short dx[TILE_SIZE*TILE_SIZE], dy[TILE_SIZE*TILE_SIZE];
+    CvMat _dx = cvMat( TILE_SIZE, TILE_SIZE, CV_16SC1, dx );
+    CvMat _dy = cvMat( TILE_SIZE, TILE_SIZE, CV_16SC1, dy );
+    CvMat _src = cvMat( roi.height, roi.width, CV_8UC1, src );
 
     /* inner buffer of convolution process */
     //char ConvBuffer[400];
@@ -140,8 +143,8 @@ icvSnake8uC1R( unsigned char *src,
 
     if( scheme == _CV_SNAKE_GRAD )
     {
-        dx = (short *) cvAlloc( 10 * 10 * sizeof( short ));
-        dy = (short *) cvAlloc( 10 * 10 * sizeof( short ));
+        pX.init_deriv( TILE_SIZE+2, CV_8UC1, CV_16SC1, 1, 0, 3 );
+        pY.init_deriv( TILE_SIZE+2, CV_8UC1, CV_16SC1, 0, 1, 3 );
 
         gradient = (float *) cvAlloc( roi.height * roi.width * sizeof( float ));
 
@@ -150,7 +153,7 @@ icvSnake8uC1R( unsigned char *src,
         map = (uchar *) cvAlloc( map_width * map_height );
         if( !map )
         {
-            cvFree( (void**)&gradient );
+            cvFree( &gradient );
             return CV_OUTOFMEM_ERR;
         }
         /* clear map - no gradient computed */
@@ -285,44 +288,35 @@ icvSnake8uC1R( unsigned char *src,
                     if( scheme == _CV_SNAKE_GRAD )
                     {
                         /* look at map and check status */
-                        int x = (pt[i].x + k) >> 3;
-                        int y = (pt[i].y + j) >> 3;
+                        int x = (pt[i].x + k)/WTILE_SIZE;
+                        int y = (pt[i].y + j)/WTILE_SIZE;
 
                         if( map[y * map_width + x] == 0 )
                         {
                             int l, m;							
-                            CvSize g_roi;
-                            uchar *source;
 
                             /* evaluate block location */
                             int upshift = y ? 1 : 0;
                             int leftshift = x ? 1 : 0;
-                            int bottomshift = MIN( 1, roi.height - ((y + 1) << 3) );
-                            int rightshift = MIN( 1, roi.width - ((x + 1) << 3) );
+                            int bottomshift = MIN( 1, roi.height - (y + 1)*WTILE_SIZE );
+                            int rightshift = MIN( 1, roi.width - (x + 1)*WTILE_SIZE );
+                            CvRect g_roi = { x*WTILE_SIZE - leftshift, y*WTILE_SIZE - upshift,
+                                leftshift + WTILE_SIZE + rightshift, upshift + WTILE_SIZE + bottomshift };
+                            CvMat _src1;
+                            cvGetSubArr( &_src, &_src1, g_roi );
 
-                            source =
-                                src + ((y << 3) - upshift) * srcStep + (x << 3) - leftshift;
-                            g_roi.height = upshift + 8 + bottomshift;
-                            g_roi.width = leftshift + 8 + rightshift;
+                            pX.process( &_src1, &_dx );
+                            pY.process( &_src1, &_dy );
 
-                            
-							pX = icvSobelInitAlloc( g_roi.width, cv8u, 3, CV_ORIGIN_TL, 1, 0 );
-							pY = icvSobelInitAlloc( g_roi.width, cv8u, 3, CV_ORIGIN_TL, 0, 1 );
-
-                            icvSobel_8u16s_C1R( source, srcStep, dx, 20, &g_roi, pX, 0 );
-                            icvSobel_8u16s_C1R( source, srcStep, dy, 20, &g_roi, pY, 0 );
-
-                            icvFilterFree( &pX );
-                            icvFilterFree( &pY );
-                            for( l = 0; l < 8 + bottomshift; l++ )
+                            for( l = 0; l < WTILE_SIZE + bottomshift; l++ )
                             {
-                                for( m = 0; m < 8 + rightshift; m++ )
+                                for( m = 0; m < WTILE_SIZE + rightshift; m++ )
                                 {
-                                    gradient[((y << 3) + l) * roi.width + (x << 3) + m] =
-                                        (float) (dx[(l + upshift) * 10 + m + leftshift] *
-                                                 dx[(l + upshift) * 10 + m + leftshift] +
-                                                 dy[(l + upshift) * 10 + m + leftshift] *
-                                                 dy[(l + upshift) * 10 + m + leftshift]);
+                                    gradient[(y*WTILE_SIZE + l) * roi.width + x*WTILE_SIZE + m] =
+                                        (float) (dx[(l + upshift) * TILE_SIZE + m + leftshift] *
+                                                 dx[(l + upshift) * TILE_SIZE + m + leftshift] +
+                                                 dy[(l + upshift) * TILE_SIZE + m + leftshift] *
+                                                 dy[(l + upshift) * TILE_SIZE + m + leftshift]);
                                 }
                             }
                             map[y * map_width + x] = 1;
@@ -397,17 +391,15 @@ icvSnake8uC1R( unsigned char *src,
             converged = 1;
     }
 
-    cvFree( (void**)&Econt );
-    cvFree( (void**)&Ecurv );
-    cvFree( (void**)&Eimg );
-    cvFree( (void**)&E );
+    cvFree( &Econt );
+    cvFree( &Ecurv );
+    cvFree( &Eimg );
+    cvFree( &E );
 
     if( scheme == _CV_SNAKE_GRAD )
     {
-        cvFree( (void**)&gradient );
-        cvFree( (void**)&map );
-        cvFree( (void**)&dx );
-        cvFree( (void**)&dy );
+        cvFree( &gradient );
+        cvFree( &map );
     }
     return CV_OK;
 }

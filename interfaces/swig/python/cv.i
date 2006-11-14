@@ -39,21 +39,34 @@
 //
 //M*/
 
-
 // 2004-03-16, Gabriel Schreiber <schreiber@ient.rwth-aachen.de>
 //             Mark Asbach       <asbach@ient.rwth-aachen.de>
 //             Institute of Communications Engineering, RWTH Aachen University
-
-
-%include "../general/cv.i"
-%include "../general/nointpb.i"
-
 %{
-#include "error.h"
-#include "pycvseq.h"
+	#include "pyhelpers.h"
+	#include "pycvseq.hpp"
+	#include "error.h"
 %}
 
-// Accessors for the IplImage data structure are defined here
+
+// direct SWIG to generate python docstrings
+%feature("autodoc", 1);
+
+// include python-specific files
+%include "./nointpb.i"
+%include "./pytypemaps.i"
+%include "./cvshadow.i" 
+
+// parse OpenCV headers
+%include "../general/cv.i"
+
+// Accessors for the CvMat and IplImage data structure are defined here
+%include "./cvarr.i"
+
+// Python sequence compatibility for CvSeq
+%include "./cvseq.i"
+
+
 %include "./imagedata.i"
 
 // We integrate OpenCV error handling into the Python exception mechanism
@@ -61,7 +74,10 @@
 
 
 // include some wrappers to manipulate CvSeq types
-%include "./pycvseq.h"
+%include "./pycvseq.hpp"
+
+// aliases from #defines
+%include "./cvaliases.i"
 
 %pythoncode 
 %{

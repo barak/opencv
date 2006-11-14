@@ -41,6 +41,11 @@
 
 #include "_cxcore.h"
 
+// On Win64 (IA64) optimized versions of DFT and DCT fail the tests
+#if defined WIN64 && !defined EM64T
+#pragma optimize("", off)
+#endif
+
 icvDFTInitAlloc_C_32fc_t icvDFTInitAlloc_C_32fc_p = 0;
 icvDFTFree_C_32fc_t icvDFTFree_C_32fc_p = 0;
 icvDFTGetBufSize_C_32fc_t icvDFTGetBufSize_C_32fc_p = 0;
@@ -250,6 +255,8 @@ icvDFTInit( int n0, int nf, int* factors, int* itab, int elem_size, void* _wave,
     }
     else
     {
+	// radix[] is initialized from index 'nf' down to zero
+        assert (nf < 34);
         radix[nf] = 1;
         digits[nf] = 0;
         for( i = 0; i < nf; i++ )
@@ -298,6 +305,8 @@ icvDFTInit( int n0, int nf, int* factors, int* itab, int elem_size, void* _wave,
             }
 
             digits[1]++;
+
+            assert (nf >= 2); // because we read radix[2] which is uninitialized otherwise
             for( i = n, j = radix[2]; i < n0; )
             {
                 for( k = 0; k < n; k++ )
@@ -928,27 +937,32 @@ icvDFT_32fc( const CvComplex32f* src, CvComplex32f* dst, int n,
             }
             else
             {
-                for( i = 0; i < n; i++, itab += tab_step )
+                for( i = 0; 
+                i < n; 
+                i++)
                 {
                     j = itab[0];
                     assert( (unsigned)j < (unsigned)n );
                     if( j > i )
                         CV_SWAP(dst[i], dst[j], t);
+                    itab += tab_step;
                 }
             }
         }
 
         if( inv )
         {
+            // conjugate the vector - i.e. invert sign of the imaginary part
+            int* idst = (int*)dst;
             for( i = 0; i <= n - 2; i += 2 )
             {
-                int t0 = *((int*)&dst[i].im) ^ 0x80000000;
-                int t1 = *((int*)&dst[i+1].im) ^ 0x80000000;
-                *((int*)&dst[i].im) = t0; *((int*)&dst[i+1].im) = t1;
+                int t0 = idst[i*2+1] ^ 0x80000000;
+                int t1 = idst[i*2+3] ^ 0x80000000;
+                idst[i*2+1] = t0; idst[i*2+3] = t1;
             }
 
             if( i < n )
-                *((int*)&dst[i].im) ^= 0x80000000;
+                idst[2*i+1] ^= 0x80000000;
         }
     }
 
@@ -1777,7 +1791,7 @@ cvDFT( const CvArr* srcarr, CvArr* dstarr, int flags, int nonzero_rows )
     }
 
     src0 = src;
-    elem_size = icvPixSize[src->type & CV_MAT_DEPTH_MASK];
+    elem_size = CV_ELEM_SIZE1(src->type);
     complex_elem_size = elem_size*2;
 
     // check types and sizes
@@ -2167,7 +2181,7 @@ cvDFT( const CvArr* srcarr, CvArr* dstarr, int flags, int nonzero_rows )
     __END__;
 
     if( buffer && !local_alloc )
-        cvFree( (void**)&buffer );
+        cvFree( &buffer );
 
     if( spec_c )
     {
@@ -2214,7 +2228,7 @@ cvMulSpectrums( const CvArr* srcAarr, const CvArr* srcBarr,
     if( !CV_ARE_TYPES_EQ( srcA, srcB ) || !CV_ARE_TYPES_EQ( srcA, dst ))
         CV_ERROR( CV_StsUnmatchedFormats, "" );
 
-    if( !CV_ARE_SIZES_EQ( srcA, dst ) || !CV_ARE_SIZES_EQ( srcA, dst ))
+    if( !CV_ARE_SIZES_EQ( srcA, srcB ) || !CV_ARE_SIZES_EQ( srcA, dst ))
         CV_ERROR( CV_StsUnmatchedSizes, "" );
 
     type = CV_MAT_TYPE( dst->type );
@@ -2617,7 +2631,7 @@ cvDCT( const CvArr* srcarr, CvArr* dstarr, int flags )
     }
 
     depth = CV_MAT_DEPTH(src->type);
-    elem_size = icvPixSize[depth];
+    elem_size = CV_ELEM_SIZE1(depth);
     complex_elem_size = elem_size*2;
 
     // check types and sizes
@@ -2779,7 +2793,7 @@ cvDCT( const CvArr* srcarr, CvArr* dstarr, int flags )
     }
 
     if( buffer && !local_alloc )
-        cvFree( (void**)&buffer );
+        cvFree( &buffer );
 }
 
 

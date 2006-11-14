@@ -51,11 +51,7 @@
 #include <cxcore.h>
 #include <math.h>
 
-#ifdef __cplusplus
-#define CV_BOOST_API extern "C"
-#else
 #define CV_BOOST_API
-#endif
 
 /* Convert matrix to vector */
 #define CV_MAT2VEC( mat, vdata, vstep, num )       \
@@ -726,6 +722,6 @@ void cvWriteTrainData( const char* filename,
  *     Must have CV_8UC1, CV_16SC1, CV_32SC1 or CV_32FC1 type.
  */
 CV_BOOST_API
-void cvRandShuffle( CvMat* vector );
+void cvRandShuffleVec( CvMat* vector );
 
 #endif /* _CVCLASSIFIER_H_ */

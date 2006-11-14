@@ -43,7 +43,7 @@
 
 #undef IPCVAPI_EX
 #define IPCVAPI_EX(type,func_name,names,modules,arg) \
-    { &(void*&)func_name##_p, (void*)(size_t)-1, names, modules, 0 },
+    { (void**)&func_name##_p, (void*)(size_t)-1, names, modules, 0 },
 
 static CvPluginFuncInfo cv_ipp_tab[] =
 {
@@ -53,7 +53,7 @@ static CvPluginFuncInfo cv_ipp_tab[] =
     {0, 0, 0, 0, 0}
 };
 
-static CvModuleInfo cv_module = { 0, "cv", "beta 5 (0.9.7)", cv_ipp_tab };
-static int loaded_functions = cvRegisterModule( &cv_module );
+static CvModuleInfo cv_info = { 0, "cv", CV_VERSION, cv_ipp_tab };
+CvModule cv_module( &cv_info );
 
 /* End of file. */

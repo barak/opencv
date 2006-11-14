@@ -11,12 +11,12 @@ for fn in sys.argv[1:]:
     f = open( fn, "r" )
     in_define = 0
     for l in f.xreadlines():
-        if re.match( r"^#define\s+(CV_|IPL_)\w+\s+", l ):
+        if re.match( r"^#define\s+(CV_|IPL_|cv)\w+\s+", l ):
             in_define = 1
         if re.match (r"^#define\s+CV_MAKETYPE", l):
             in_define = 1
         if in_define:
-            print l[:-1]
+            print l[:l.find ('/*')]
             if not l.endswith( "\\\n" ):
                 in_define = 0
                 print

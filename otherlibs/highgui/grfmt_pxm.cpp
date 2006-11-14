@@ -200,7 +200,7 @@ bool  GrFmtPxMReader::ReadData( uchar* data, int step, int color )
     uchar* gray_palette = pal_buffer;
     uchar* bgr = bgr_buffer;
     int  src_pitch = (m_width*m_bpp + 7)/8;
-    int  nch = color ? 3 : 1;
+    int  nch = m_iscolor ? 3 : 1;
     int  width3 = m_width*nch;
     int  i, x, y;
 
@@ -222,7 +222,7 @@ bool  GrFmtPxMReader::ReadData( uchar* data, int step, int color )
         gray_palette[i] = (uchar)((i*255/m_maxval)^(m_bpp == 1 ? 255 : 0));
     }
 
-    FillGrayPalette( palette, 8, m_bpp == 1 );
+    FillGrayPalette( palette, m_bpp==1 ? 1 : 8 , m_bpp == 1 );
     
     if( setjmp( m_strm.JmpBuf()) == 0 )
     {
@@ -330,7 +330,7 @@ static char PxMLUT[256][5];
 static bool isPxMLUTInitialized = false;
 
 bool  GrFmtPxMWriter::WriteImage( const uchar* data, int step,
-                                  int width, int height, int _channels )
+                                  int width, int height, int /*depth*/, int _channels )
 {
     bool isBinary = false;
     bool result = false;

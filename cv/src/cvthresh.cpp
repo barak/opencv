@@ -116,8 +116,11 @@ icvThresh_32f_C1R( const float *src, int src_step, float *dst, int dst_step,
     int i, j;
     const int* isrc = (const int*)src;
     int* idst = (int*)dst;
-    int iThresh = CV_TOGGLE_FLT( (int &) thresh );
-    int iMax = (int &) maxval;
+    Cv32suf v;
+    int iThresh, iMax;
+
+    v.f = thresh; iThresh = CV_TOGGLE_FLT(v.i);
+    v.f = maxval; iMax = v.i;
 
     src_step /= sizeof(src[0]);
     dst_step /= sizeof(dst[0]);
@@ -190,8 +193,101 @@ icvThresh_32f_C1R( const float *src, int src_step, float *dst, int dst_step,
 }
 
 
+static double
+icvGetThreshVal_Otsu( const CvHistogram* hist )
+{
+    double max_val = 0;
+    
+    CV_FUNCNAME( "icvGetThreshVal_Otsu" );
+
+    __BEGIN__;
+
+    int i, count;
+    const float* h;
+    double sum = 0, mu = 0;
+    bool uniform = false;
+    double low = 0, high = 0, delta = 0;
+    float* nu_thresh = 0;
+    double mu1 = 0, q1 = 0;
+    double max_sigma = 0;
+
+    if( !CV_IS_HIST(hist) || CV_IS_SPARSE_HIST(hist) || hist->mat.dims != 1 )
+        CV_ERROR( CV_StsBadArg,
+        "The histogram in Otsu method must be a valid dense 1D histogram" );
+
+    count = hist->mat.dim[0].size;
+    h = (float*)cvPtr1D( hist->bins, 0 );
+
+    if( !CV_HIST_HAS_RANGES(hist) || CV_IS_UNIFORM_HIST(hist) )
+    {
+        if( CV_HIST_HAS_RANGES(hist) )
+        {
+            low = hist->thresh[0][0];
+            high = hist->thresh[0][1];
+        }
+        else
+        {
+            low = 0;
+            high = count;
+        }
+
+        delta = (high-low)/count;
+        low += delta*0.5;
+        uniform = true;
+    }
+    else
+        nu_thresh = hist->thresh2[0];
+
+    for( i = 0; i < count; i++ )
+    {
+        sum += h[i];
+        if( uniform )
+            mu += (i*delta + low)*h[i];
+        else
+            mu += (nu_thresh[i*2] + nu_thresh[i*2+1])*0.5*h[i];
+    }
+    
+    sum = fabs(sum) > FLT_EPSILON ? 1./sum : 0;
+    mu *= sum;
+
+    mu1 = 0;
+    q1 = 0;
+
+    for( i = 0; i < count; i++ )
+    {
+        double p_i, q2, mu2, val_i, sigma;
+
+        p_i = h[i]*sum;
+        mu1 *= q1;
+        q1 += p_i;
+        q2 = 1. - q1;
+
+        if( MIN(q1,q2) < FLT_EPSILON || MAX(q1,q2) > 1. - FLT_EPSILON )
+            continue;
+
+        if( uniform )
+            val_i = i*delta + low;
+        else
+            val_i = (nu_thresh[i*2] + nu_thresh[i*2+1])*0.5;
+
+        mu1 = (mu1 + val_i*p_i)/q1;
+        mu2 = (mu - q1*mu1)/q2;
+        sigma = q1*q2*(mu1 - mu2)*(mu1 - mu2);
+        if( sigma > max_sigma )
+        {
+            max_sigma = sigma;
+            max_val = val_i;
+        }
+    }
+
+    __END__;
+
+    return max_val;
+}
+
+
 icvAndC_8u_C1R_t icvAndC_8u_C1R_p = 0;
-icvCompareC_8u_C1R_t icvCompareC_8u_C1R_p = 0;
+icvCompareC_8u_C1R_cv_t icvCompareC_8u_C1R_cv_p = 0;
 icvThreshold_GTVal_8u_C1R_t icvThreshold_GTVal_8u_C1R_p = 0;
 icvThreshold_GTVal_32f_C1R_t icvThreshold_GTVal_32f_C1R_p = 0;
 icvThreshold_LTVal_8u_C1R_t icvThreshold_LTVal_8u_C1R_p = 0;
@@ -200,6 +296,8 @@ icvThreshold_LTVal_32f_C1R_t icvThreshold_LTVal_32f_C1R_p = 0;
 CV_IMPL void
 cvThreshold( const void* srcarr, void* dstarr, double thresh, double maxval, int type )
 {
+    CvHistogram* hist = 0;
+    
     CV_FUNCNAME( "cvThreshold" );
 
     __BEGIN__;
@@ -211,6 +309,7 @@ cvThreshold( const void* srcarr, void* dstarr, double thresh, double maxval, int
     CvMat src0, dst0;
     int coi1 = 0, coi2 = 0;
     int ithresh, imaxval, cn;
+    bool use_otsu;
 
     CV_CALL( src = cvGetMat( src, &src_stub, &coi1 ));
     CV_CALL( dst = cvGetMat( dst, &dst_stub, &coi2 ));
@@ -226,6 +325,24 @@ cvThreshold( const void* srcarr, void* dstarr, double thresh, double maxval, int
     {
         src = cvReshape( src, &src0, 1 );
         dst = cvReshape( dst, &dst0, 1 );
+    }
+
+    use_otsu = (type & ~CV_THRESH_MASK) == CV_THRESH_OTSU;
+    type &= CV_THRESH_MASK;
+
+    if( use_otsu )
+    {
+        float _ranges[] = { 0, 256 };
+        float* ranges = _ranges;
+        int hist_size = 256;
+        void* srcarr0 = src;
+
+        if( CV_MAT_TYPE(src->type) != CV_8UC1 )
+            CV_ERROR( CV_StsNotImplemented, "Otsu method can only be used with 8uC1 images" );
+
+        CV_CALL( hist = cvCreateHist( 1, &hist_size, CV_HIST_ARRAY, &ranges ));
+        cvCalcArrHist( &srcarr0, hist );
+        thresh = cvFloor(icvGetThreshVal_Otsu( hist ));
     }
 
     if( !CV_ARE_DEPTHS_EQ( src, dst ) )
@@ -299,9 +416,9 @@ cvThreshold( const void* srcarr, void* dstarr, double thresh, double maxval, int
 
         if( type == CV_THRESH_BINARY || type == CV_THRESH_BINARY_INV )
         {
-            if( icvCompareC_8u_C1R_p && icvAndC_8u_C1R_p )
+            if( icvCompareC_8u_C1R_cv_p && icvAndC_8u_C1R_p )
             {
-                IPPI_CALL( icvCompareC_8u_C1R_p( src->data.ptr, src_step,
+                IPPI_CALL( icvCompareC_8u_C1R_cv_p( src->data.ptr, src_step,
                     (uchar)ithresh, dst->data.ptr, dst_step, roi,
                     type == CV_THRESH_BINARY ? cvCmpGreater : cvCmpLessEq ));
 
@@ -368,6 +485,9 @@ cvThreshold( const void* srcarr, void* dstarr, double thresh, double maxval, int
     }
 
     __END__;
+
+    if( hist )
+        cvReleaseHist( &hist );
 }
 
 /* End of file. */

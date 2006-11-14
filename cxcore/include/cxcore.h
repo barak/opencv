@@ -68,6 +68,7 @@
 
 #include "cxtypes.h"
 #include "cxerror.h"
+#include "cvver.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,7 +90,8 @@ CVAPI(void*)  cvAlloc( size_t size );
    to clear pointer to the data after releasing it.
    Passing pointer to NULL pointer is Ok: nothing happens in this case
 */
-CVAPI(void)   cvFree( void** ptr );
+CVAPI(void)   cvFree_( void* ptr );
+#define cvFree(ptr) (cvFree_(*(ptr)), *(ptr)=0)
 
 /* Allocates and initializes IplImage header */
 CVAPI(IplImage*)  cvCreateImageHeader( CvSize size, int depth, int channels );
@@ -148,12 +150,20 @@ CVAPI(void)  cvReleaseMat( CvMat** mat );
    it reaches 0 */
 CV_INLINE  void  cvDecRefData( CvArr* arr )
 {
-    if( CV_IS_MAT( arr ) || CV_IS_MATND( arr ))
+    if( CV_IS_MAT( arr ))
     {
-        CvMat* mat = (CvMat*)arr; /* the first few fields of CvMat and CvMatND are the same */
+        CvMat* mat = (CvMat*)arr;
         mat->data.ptr = NULL;
         if( mat->refcount != NULL && --*mat->refcount == 0 )
-            cvFree( (void**)&mat->refcount );
+            cvFree( &mat->refcount );
+        mat->refcount = NULL;
+    }
+    else if( CV_IS_MATND( arr ))
+    {
+        CvMatND* mat = (CvMatND*)arr;
+        mat->data.ptr = NULL;
+        if( mat->refcount != NULL && --*mat->refcount == 0 )
+            cvFree( &mat->refcount );
         mat->refcount = NULL;
     }
 }
@@ -162,9 +172,15 @@ CV_INLINE  void  cvDecRefData( CvArr* arr )
 CV_INLINE  int  cvIncRefData( CvArr* arr )
 {
     int refcount = 0;
-    if( CV_IS_MAT( arr ) || CV_IS_MATND( arr ))
+    if( CV_IS_MAT( arr ))
     {
         CvMat* mat = (CvMat*)arr;
+        if( mat->refcount != NULL )
+            refcount = ++*mat->refcount;
+    }
+    else if( CV_IS_MATND( arr ))
+    {
+        CvMatND* mat = (CvMatND*)arr;
         if( mat->refcount != NULL )
             refcount = ++*mat->refcount;
     }
@@ -328,7 +344,7 @@ CVAPI(uchar*) cvPtr3D( const CvArr* arr, int idx0, int idx1, int idx2,
    (row index (y) goes first, column index (x) goes next).
    For CvMatND or CvSparseMat number of infices should match number of <dims> and
    indices order should match the array dimension order. */
-CVAPI(uchar*) cvPtrND( const CvArr* arr, int* idx, int* type CV_DEFAULT(NULL),
+CVAPI(uchar*) cvPtrND( const CvArr* arr, const int* idx, int* type CV_DEFAULT(NULL),
                       int create_node CV_DEFAULT(1),
                       unsigned* precalc_hashval CV_DEFAULT(NULL));
 
@@ -336,30 +352,30 @@ CVAPI(uchar*) cvPtrND( const CvArr* arr, int* idx, int* type CV_DEFAULT(NULL),
 CVAPI(CvScalar) cvGet1D( const CvArr* arr, int idx0 );
 CVAPI(CvScalar) cvGet2D( const CvArr* arr, int idx0, int idx1 );
 CVAPI(CvScalar) cvGet3D( const CvArr* arr, int idx0, int idx1, int idx2 );
-CVAPI(CvScalar) cvGetND( const CvArr* arr, int* idx );
+CVAPI(CvScalar) cvGetND( const CvArr* arr, const int* idx );
 
 /* for 1-channel arrays */
 CVAPI(double) cvGetReal1D( const CvArr* arr, int idx0 );
 CVAPI(double) cvGetReal2D( const CvArr* arr, int idx0, int idx1 );
 CVAPI(double) cvGetReal3D( const CvArr* arr, int idx0, int idx1, int idx2 );
-CVAPI(double) cvGetRealND( const CvArr* arr, int* idx );
+CVAPI(double) cvGetRealND( const CvArr* arr, const int* idx );
 
 /* arr(idx0,idx1,...) = value */
 CVAPI(void) cvSet1D( CvArr* arr, int idx0, CvScalar value );
 CVAPI(void) cvSet2D( CvArr* arr, int idx0, int idx1, CvScalar value );
 CVAPI(void) cvSet3D( CvArr* arr, int idx0, int idx1, int idx2, CvScalar value );
-CVAPI(void) cvSetND( CvArr* arr, int* idx, CvScalar value );
+CVAPI(void) cvSetND( CvArr* arr, const int* idx, CvScalar value );
 
 /* for 1-channel arrays */
 CVAPI(void) cvSetReal1D( CvArr* arr, int idx0, double value );
 CVAPI(void) cvSetReal2D( CvArr* arr, int idx0, int idx1, double value );
 CVAPI(void) cvSetReal3D( CvArr* arr, int idx0,
                         int idx1, int idx2, double value );
-CVAPI(void) cvSetRealND( CvArr* arr, int* idx, double value );
+CVAPI(void) cvSetRealND( CvArr* arr, const int* idx, double value );
 
 /* clears element of ND dense array,
    in case of sparse arrays it deletes the specified node */
-CVAPI(void) cvClearND( CvArr* arr, int* idx );
+CVAPI(void) cvClearND( CvArr* arr, const int* idx );
 
 /* Converts CvArr (IplImage or CvMat,...) to CvMat.
    If the last parameter is non-zero, function can
@@ -444,6 +460,12 @@ CVAPI(void)  cvSplit( const CvArr* src, CvArr* dst0, CvArr* dst1,
 CVAPI(void)  cvMerge( const CvArr* src0, const CvArr* src1,
                       const CvArr* src2, const CvArr* src3,
                       CvArr* dst );
+
+/* Copies several channels from input arrays to
+   certain channels of output arrays */
+CVAPI(void)  cvMixChannels( const CvArr** src, int src_count,
+                            CvArr** dst, int dst_count,
+                            const int* from_to, int pair_count );
 
 /* Performs linear transformation on every source array element:
    dst(x,y,c) = scale*src(x,y,c)+shift.
@@ -651,6 +673,9 @@ CVAPI(int)  cvCheckArr( const CvArr* arr, int flags CV_DEFAULT(0),
 CVAPI(void) cvRandArr( CvRNG* rng, CvArr* arr, int dist_type,
                       CvScalar param1, CvScalar param2 );
 
+CVAPI(void) cvRandShuffle( CvArr* mat, CvRNG* rng,
+                           double iter_factor CV_DEFAULT(1.));
+
 /* Finds real roots of a cubic equation */
 CVAPI(int) cvSolveCubic( const CvMat* coeffs, CvMat* roots );
 
@@ -688,7 +713,8 @@ CVAPI(void)  cvPerspectiveTransform( const CvArr* src, CvArr* dst,
 
 /* Calculates (A-delta)*(A-delta)^T (order=0) or (A-delta)^T*(A-delta) (order=1) */
 CVAPI(void) cvMulTransposed( const CvArr* src, CvArr* dst, int order,
-                            const CvArr* delta CV_DEFAULT(NULL) );
+                             const CvArr* delta CV_DEFAULT(NULL),
+                             double scale CV_DEFAULT(1.) );
 
 /* Tranposes matrix. Square matrices can be transposed in-place */
 CVAPI(void)  cvTranspose( const CvArr* src, CvArr* dst );
@@ -743,6 +769,9 @@ CVAPI(void)  cvEigenVV( CvArr* mat, CvArr* evects,
 /* Makes an identity matrix (mat_ij = i == j) */
 CVAPI(void)  cvSetIdentity( CvArr* mat, CvScalar value CV_DEFAULT(cvRealScalar(1)) );
 
+/* Fills matrix with given range of numbers */
+CVAPI(CvArr*)  cvRange( CvArr* mat, double start, double end );
+
 /* Calculates covariation matrix for a set of vectors */
 /* transpose([v1-avg, v2-avg,...]) * [v1-avg,v2-avg,...] */
 #define CV_COVAR_SCRAMBLED 0
@@ -757,8 +786,26 @@ CVAPI(void)  cvSetIdentity( CvArr* mat, CvScalar value CV_DEFAULT(cvRealScalar(1
 /* scale the covariance matrix coefficients by number of the vectors */
 #define CV_COVAR_SCALE     4
 
+/* all the input vectors are stored in a single matrix, as its rows */
+#define CV_COVAR_ROWS      8
+
+/* all the input vectors are stored in a single matrix, as its columns */
+#define CV_COVAR_COLS     16
+
 CVAPI(void)  cvCalcCovarMatrix( const CvArr** vects, int count,
                                 CvArr* cov_mat, CvArr* avg, int flags );
+
+#define CV_PCA_DATA_AS_ROW 0 
+#define CV_PCA_DATA_AS_COL 1
+#define CV_PCA_USE_AVG 2
+CVAPI(void)  cvCalcPCA( const CvArr* data, CvArr* mean,
+                        CvArr* eigenvals, CvArr* eigenvects, int flags );
+
+CVAPI(void)  cvProjectPCA( const CvArr* data, const CvArr* mean,
+                           const CvArr* eigenvects, CvArr* result );
+
+CVAPI(void)  cvBackProjectPCA( const CvArr* proj, const CvArr* mean,
+                               const CvArr* eigenvects, CvArr* result );
 
 /* Calculates Mahalanobis(weighted) distance */
 CVAPI(double)  cvMahalanobis( const CvArr* vec1, const CvArr* vec2, CvArr* mat );
@@ -794,6 +841,7 @@ CVAPI(void)  cvMinMaxLoc( const CvArr* arr, double* min_val, double* max_val,
 #define CV_NORM_MASK    7
 #define CV_RELATIVE     8
 #define CV_DIFF         16
+#define CV_MINMAX       32
 
 #define CV_DIFF_C       (CV_DIFF | CV_C)
 #define CV_DIFF_L1      (CV_DIFF | CV_L1)
@@ -806,6 +854,20 @@ CVAPI(void)  cvMinMaxLoc( const CvArr* arr, double* min_val, double* max_val,
 CVAPI(double)  cvNorm( const CvArr* arr1, const CvArr* arr2 CV_DEFAULT(NULL),
                        int norm_type CV_DEFAULT(CV_L2),
                        const CvArr* mask CV_DEFAULT(NULL) );
+
+CVAPI(void)  cvNormalize( const CvArr* src, CvArr* dst,
+                          double a CV_DEFAULT(1.), double b CV_DEFAULT(0.),
+                          int norm_type CV_DEFAULT(CV_L2),
+                          const CvArr* mask CV_DEFAULT(NULL) );
+
+
+#define CV_REDUCE_SUM 0
+#define CV_REDUCE_AVG 1
+#define CV_REDUCE_MAX 2
+#define CV_REDUCE_MIN 3
+
+CVAPI(void)  cvReduce( const CvArr* src, CvArr* dst, int dim CV_DEFAULT(-1),
+                       int op CV_DEFAULT(CV_REDUCE_SUM) );
 
 /****************************************************************************************\
 *                      Discrete Linear Transforms and Related Functions                  *
@@ -1021,7 +1083,7 @@ CVAPI(int)  cvSeqPartition( const CvSeq* seq, CvMemStorage* storage,
                             CvSeq** labels, CvCmpFunc is_equal, void* userdata );
 
 /************ Internal sequence functions ************/
-CVAPI(void)  cvChangeSeqBlock( CvSeqReader* reader, int direction );
+CVAPI(void)  cvChangeSeqBlock( void* reader, int direction );
 CVAPI(void)  cvCreateSeqBlock( CvSeqWriter* writer );
 
 
@@ -1237,7 +1299,7 @@ CV_INLINE  void  cvEllipseBox( CvArr* img, CvBox2D box, CvScalar color,
     axes.width = cvRound(box.size.height*0.5);
     axes.height = cvRound(box.size.width*0.5);
     
-    cvEllipse( img, cvPointFrom32f( box.center ), axes, box.angle*180/CV_PI,
+    cvEllipse( img, cvPointFrom32f( box.center ), axes, box.angle,
                0, 360, color, thickness, line_type, shift );
 }
 
@@ -1253,6 +1315,12 @@ CVAPI(void)  cvFillPoly( CvArr* img, CvPoint** pts, int* npts, int contours, CvS
 CVAPI(void)  cvPolyLine( CvArr* img, CvPoint** pts, int* npts, int contours,
                          int is_closed, CvScalar color, int thickness CV_DEFAULT(1),
                          int line_type CV_DEFAULT(8), int shift CV_DEFAULT(0) );
+
+#define cvDrawRect cvRectangle
+#define cvDrawLine cvLine
+#define cvDrawCircle cvCircle
+#define cvDrawEllipse cvEllipse
+#define cvDrawPolyLine cvPolyLine
 
 /* Clips the line segment connecting *pt1 and *pt2
    by the rectangular window
@@ -1314,6 +1382,13 @@ CVAPI(void)  cvInitFont( CvFont* font, int font_face,
                          double shear CV_DEFAULT(0),
                          int thickness CV_DEFAULT(1),
                          int line_type CV_DEFAULT(8));
+
+CV_INLINE CvFont cvFont( double scale, int thickness CV_DEFAULT(1) )
+{
+    CvFont font;
+    cvInitFont( &font, CV_FONT_HERSHEY_PLAIN, scale, scale, 0, thickness, CV_AA );
+    return font;
+}
 
 /* Renders text stroke with specified font and color at specified location.
    CvFont should be initialized with cvInitFont */
@@ -1656,10 +1731,20 @@ CVAPI(void*) cvLoad( const char* filename,
 /* helper functions for RNG initialization and accurate time measurement:
    uses internal clock counter on x86 */
 CVAPI(int64)  cvGetTickCount( void );
-CVAPI(double) cvGetTickFrequency( void ); 
+CVAPI(double) cvGetTickFrequency( void );
+
+/*********************************** Multi-Threading ************************************/
+
+/* retrieve/set the number of threads used in OpenMP implementations */
+CVAPI(int)  cvGetNumThreads( void );
+CVAPI(void) cvSetNumThreads( int threads CV_DEFAULT(0) );
+/* get index of the thread being executed */
+CVAPI(int)  cvGetThreadNum( void );
 
 #ifdef __cplusplus
 }
+
+#include "cxcore.hpp"
 #endif
 
 #endif /*_CXCORE_H_*/

@@ -64,7 +64,7 @@ CvCalibFilter::CvCalibFilter()
     memset( undistMap, 0, sizeof(undistMap));
     undistImg = 0;
     memset( latestCounts, 0, sizeof(latestCounts));
-    memset( latestPoints, 0, sizeof(latestCounts));
+    memset( latestPoints, 0, sizeof(latestPoints));
     maxPoints = 0;
     framesTotal = 15;
     framesAccepted = 0;
@@ -82,8 +82,8 @@ CvCalibFilter::CvCalibFilter()
 CvCalibFilter::~CvCalibFilter()
 {
     SetCameraCount(0);
-    cvFree( (void**)(&etalonParams));
-    cvFree( (void**)(&etalonPoints));
+    cvFree( &etalonParams );
+    cvFree( &etalonPoints );
     cvReleaseMat( &grayImg );
     cvReleaseMat( &tempImg );
     cvReleaseMat( &undistImg );
@@ -99,11 +99,11 @@ bool CvCalibFilter::SetEtalon( CvCalibEtalonType type, double* params,
     Stop();
 
     for( i = 0; i < MAX_CAMERAS; i++ )
-        cvFree( (void**)(latestPoints + i) );
+        cvFree( latestPoints + i );
 
     if( type == CV_CALIB_ETALON_USER || type != etalonType )
     {
-        cvFree( (void**)&etalonParams );
+        cvFree( &etalonParams );
     }
 
     etalonType = type;
@@ -147,7 +147,7 @@ bool CvCalibFilter::SetEtalon( CvCalibEtalonType type, double* params,
 
     if( etalonPointCount != pointCount )
     {
-        cvFree( (void**)&etalonPoints );
+        cvFree( &etalonPoints );
         etalonPointCount = pointCount;
         etalonPoints = (CvPoint2D32f*)cvAlloc( arrSize );
     }
@@ -215,10 +215,12 @@ void CvCalibFilter::SetCameraCount( int count )
     {
         for( int i = 0; i < cameraCount; i++ )
         {
-            cvFree( (void**)(points + i) );
-            cvFree( (void**)(latestPoints + i) );
-            cvReleaseMat( undistMap + i );
-            cvReleaseMat( rectMap + i );
+            cvFree( points + i );
+            cvFree( latestPoints + i );
+            cvReleaseMat( &undistMap[i][0] );
+            cvReleaseMat( &undistMap[i][1] );
+            cvReleaseMat( &rectMap[i][0] );
+            cvReleaseMat( &rectMap[i][1] );
         }
 
         memset( latestCounts, 0, sizeof(latestPoints) );
@@ -249,8 +251,10 @@ void CvCalibFilter::Stop( bool calibrate )
     // deallocate undistortion maps
     for( i = 0; i < cameraCount; i++ )
     {
-        cvReleaseMat( undistMap + i );
-        cvReleaseMat( rectMap + i );
+        cvReleaseMat( &undistMap[i][0] );
+        cvReleaseMat( &undistMap[i][1] );
+        cvReleaseMat( &rectMap[i][0] );
+        cvReleaseMat( &rectMap[i][1] );
     }
 
     if( calibrate && framesAccepted > 0 )
@@ -327,10 +331,10 @@ void CvCalibFilter::Stop( bool calibrate )
 
         }
 
-        cvFree( (void**)&buffer );
-        cvFree( (void**)&counts );
-        cvFree( (void**)&rotMatr );
-        cvFree( (void**)&transVect );
+        cvFree( &buffer );
+        cvFree( &counts );
+        cvFree( &rotMatr );
+        cvFree( &transVect );
     }
 
     framesAccepted = 0;
@@ -398,8 +402,10 @@ bool CvCalibFilter::FindEtalon( CvMat** mats )
             switch( etalonType )
             {
             case CV_CALIB_ETALON_CHESSBOARD:
-                {
-                cvCvtColor( mats[i], grayImg, CV_BGR2GRAY );
+                if( CV_MAT_CN(cvGetElemType(mats[i])) == 1 )
+                    cvCopy( mats[i], grayImg );
+                else
+                    cvCvtColor( mats[i], grayImg, CV_BGR2GRAY );
                 found = cvFindChessBoardCornerGuesses( grayImg, tempImg, storage,
                                                        cvSize( cvRound(etalonParams[0]),
                                                        cvRound(etalonParams[1])),
@@ -408,7 +414,6 @@ bool CvCalibFilter::FindEtalon( CvMat** mats )
                     cvFindCornerSubPix( grayImg, latestPoints[i], tempPointCount,
                                         cvSize(5,5), cvSize(-1,-1),
                                         cvTermCriteria(CV_TERMCRIT_ITER|CV_TERMCRIT_EPS,10,0.1));
-                }
                 break;
             default:
                 assert(0);
@@ -454,7 +459,7 @@ bool CvCalibFilter::Push( const CvPoint2D32f** pts )
         if( maxPoints < newMaxPoints )
         {
             CvPoint2D32f* prev = points[i];
-            cvFree( (void**)(points + i) );
+            cvFree( points + i );
             points[i] = (CvPoint2D32f*)cvAlloc( newMaxPoints * sizeof(prev[0]));
             memcpy( points[i], prev, maxPoints * sizeof(prev[0]));
         }
@@ -690,7 +695,7 @@ bool CvCalibFilter::SaveCameraParams( const char* filename )
         return true;
     }
 
-    return false;
+    return true;
 }
 
 
@@ -748,7 +753,7 @@ bool CvCalibFilter::LoadCameraParams( const char* filename )
 
     isCalibrated = true;
     
-    return false;
+    return true;
 }
 
 
@@ -796,27 +801,16 @@ bool CvCalibFilter::Rectify( CvMat** srcarr, CvMat** dstarr )
 
                 cvZero( dst );
 
-                if( !rectMap[i] || rectMap[i]->width != src->width ||
-                    rectMap[i]->height != src->height )
+                if( !rectMap[i][0] || rectMap[i][0]->width != src->width ||
+                    rectMap[i][0]->height != src->height )
                 {
-
-                    cvReleaseMat( &rectMap[i] );
-
-                    CvMat* tmpMap;
-                    tmpMap = cvCreateMat(stereo.warpSize.height,stereo.warpSize.width,CV_32FC2);
-
-                    rectMap[i] = cvCreateMat(stereo.warpSize.height,stereo.warpSize.width,CV_32SC3);
-
-                    cvComputePerspectiveMap(stereo.coeffs[i], tmpMap);
-
-                    //cvConvertMap(src,tmpMap,rectMap[i],1);
-
-                    cvReleaseMat(&tmpMap);
-
-
+                    cvReleaseMat( &rectMap[i][0] );
+                    cvReleaseMat( &rectMap[i][1] );
+                    rectMap[i][0] = cvCreateMat(stereo.warpSize.height,stereo.warpSize.width,CV_32FC1);
+                    rectMap[i][1] = cvCreateMat(stereo.warpSize.height,stereo.warpSize.width,CV_32FC1);
+                    cvComputePerspectiveMap(stereo.coeffs[i], rectMap[i][0], rectMap[i][1]);
                 }
-
-                cvUnDistort( src, dst, rectMap[i], 1 );
+                cvRemap( src, dst, rectMap[i][0], rectMap[i][1] );
             }
         }
     }
@@ -829,7 +823,7 @@ bool CvCalibFilter::Rectify( CvMat** srcarr, CvMat** dstarr )
         }
     }
 
-    return false;
+    return true;
 }
 
 bool CvCalibFilter::Undistort( IplImage** srcarr, IplImage** dstarr )
@@ -875,19 +869,25 @@ bool CvCalibFilter::Undistort( CvMat** srcarr, CvMat** dstarr )
                 }
 
             #if 1
-                if( !undistMap[i] || undistMap[i]->width != src->width ||
-                    undistMap[i]->height != src->height )
                 {
-                    cvReleaseMat( undistMap + i );
-                    undistMap[i] = cvCreateMat( src->height, src->width, CV_32SC3 );
-                    cvUnDistortInit( src, undistMap[i], cameraParams[i].matrix,
-                                     cameraParams[i].distortion, 1 );
+                CvMat A = cvMat( 3, 3, CV_32FC1, cameraParams[i].matrix );
+                CvMat k = cvMat( 1, 4, CV_32FC1, cameraParams[i].distortion );
+
+                if( !undistMap[i][0] || undistMap[i][0]->width != src->width ||
+                     undistMap[i][0]->height != src->height )
+                {
+                    cvReleaseMat( &undistMap[i][0] );
+                    cvReleaseMat( &undistMap[i][1] );
+                    undistMap[i][0] = cvCreateMat( src->height, src->width, CV_32FC1 );
+                    undistMap[i][1] = cvCreateMat( src->height, src->width, CV_32FC1 );
+                    cvInitUndistortMap( &A, &k, undistMap[i][0], undistMap[i][1] );
                 }
 
-                cvUnDistort( src, dst, undistMap[i], 1 );
+                cvRemap( src, dst, undistMap[i][0], undistMap[i][1] );
             #else
-                cvUnDistortOnce( src, dst, cameraParams[i].matrix, cameraParams[i].distortion, 1 );
+                cvUndistort2( src, dst, &A, &k );
             #endif
+                }
             }
         }
     }
@@ -901,5 +901,5 @@ bool CvCalibFilter::Undistort( CvMat** srcarr, CvMat** dstarr )
     }
 
 
-    return false;
+    return true;
 }

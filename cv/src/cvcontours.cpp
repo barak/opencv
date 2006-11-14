@@ -323,7 +323,7 @@ cvStartFindContours( void* _img, CvMemStorage* storage,
     __END__;
 
     if( cvGetErrStatus() < 0 )
-        cvFree( (void **)&scanner );
+        cvFree( &scanner );
 
     return scanner;
 }
@@ -979,7 +979,10 @@ cvFindNextContour( CvContourScanner scanner )
                 }
                 else
                 {
-                    cvSetAdd( scanner->cinfo_set, 0, (CvSetElem **) & l_cinfo );
+                    union { _CvContourInfo* ci; CvSetElem* se; } v;
+                    v.ci = l_cinfo;
+                    cvSetAdd( scanner->cinfo_set, 0, &v.se );
+                    l_cinfo = v.ci;
 
                     result = icvFetchContourEx( img + x - is_hole, step,
                                                 cvPoint( origin.x + scanner->offset.x,
@@ -1103,7 +1106,7 @@ cvEndFindContours( CvContourScanner * _scanner )
             cvReleaseMemStorage( &(scanner->cinfo_storage) );
 
         first = scanner->frame.v_next;
-        cvFree( (void**)_scanner );
+        cvFree( _scanner );
     }
 
     __END__;

@@ -46,6 +46,8 @@
 #include <limits.h>
 //#include "cv.h"
 
+#include <stdio.h>
+
 void icvReconstructPoints4DStatus(CvMat** projPoints, CvMat **projMatrs, CvMat** presPoints, CvMat *points4D,int numImages,CvMat **projError=0);
 
 /* Valery Mosyagin */
@@ -426,7 +428,7 @@ void icvComputeMatrixVAll(int numImages,CvMat **pointDeriv,CvMat **presPoints, C
     }
 
     __END__;
-    cvFree((void**)&shifts);
+    cvFree( &shifts);
     
     return;
 }
@@ -727,7 +729,7 @@ void icvComputeJacErrorPoint(int numImages,CvMat **pointDeriv,CvMat **projErrors
 
 
     __END__;
-    cvFree((void**)&shifts);
+    cvFree( &shifts);
 
 }
 /*======================================================================================*/
@@ -887,8 +889,8 @@ void icvReconstructPoints4DStatus(CvMat** projPoints, CvMat **projMatrs, CvMat**
 
     __END__;
 
-    cvFree((void**)&matrA_dat);
-    cvFree((void**)&matrW_dat);
+    cvFree( &matrA_dat);
+    cvFree( &matrW_dat);
 
     return;
 }
@@ -1007,7 +1009,7 @@ void icvFreeMatrixArray(CvMat ***matrArray,int numMatr)
         {
             cvReleaseMat((*matrArray)+currMatr);
         }
-        cvFree((void**)matrArray);
+        cvFree( matrArray);
     }
     return;
 }
@@ -1748,21 +1750,21 @@ void cvOptimizeLevenbergMarquardtBundle( CvMat** projMatrs, CvMat** observProjPo
     /* Free allocated memory */
 
     /* Free simple matrices */
-    cvFree((void**)&vectorX_points4D);
-    cvFree((void**)&newVectorX_points4D);
-    cvFree((void**)&changeVectorX_points4D);
-    cvFree((void**)&changeVectorX_projMatrs);
-    cvFree((void**)&matrW);
-    cvFree((void**)&workMatrVi);
-    cvFree((void**)&jacProjErr);
-    cvFree((void**)&jacPointErr);
-    cvFree((void**)&matrTmpSys1);
-    cvFree((void**)&matrSysDeltaP);
-    cvFree((void**)&vectTmpSys3);
-    cvFree((void**)&vectSysDeltaP);
-    cvFree((void**)&deltaP);
-    cvFree((void**)&deltaM);
-    cvFree((void**)&vectTmpSysM);
+    cvFree(&vectorX_points4D);
+    cvFree(&newVectorX_points4D);
+    cvFree(&changeVectorX_points4D);
+    cvFree(&changeVectorX_projMatrs);
+    cvFree(&matrW);
+    cvFree(&workMatrVi);
+    cvFree(&jacProjErr);
+    cvFree(&jacPointErr);
+    cvFree(&matrTmpSys1);
+    cvFree(&matrSysDeltaP);
+    cvFree(&vectTmpSys3);
+    cvFree(&vectSysDeltaP);
+    cvFree(&deltaP);
+    cvFree(&deltaM);
+    cvFree(&vectTmpSysM);
 
     /* Free arrays of matrices */
     icvFreeMatrixArray(&vectorX_projMatrs,numImages);

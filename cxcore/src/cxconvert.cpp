@@ -42,7 +42,7 @@
 #include "_cxcore.h"
 
 /****************************************************************************************\
-*                             Conversion pixel -> plane                                  *
+*                            Splitting/extracting array channels                         *
 \****************************************************************************************/
 
 #define  ICV_DEF_PX2PL2PX_ENTRY_C2( arrtype_ptr, ptr )  \
@@ -157,8 +157,8 @@ IPCVAPI_IMPL( CvStatus, icvCopy_##flavor##_C##cn##P##cn##R,\
   (src, srcstep, dst, dststep, size))                   \
 {                                                       \
     entry_macro(arrtype*, dst);                         \
-    srcstep /= sizeof(arrtype);                         \
-    dststep /= sizeof(arrtype);                         \
+    srcstep /= sizeof(src[0]);                          \
+    dststep /= sizeof(dst[0][0]);                       \
                                                         \
     for( ; size.height--; src += srcstep )              \
     {                                                   \
@@ -177,8 +177,8 @@ IPCVAPI_IMPL( CvStatus, icvCopy_##flavor##_CnC1CR,      \
   (src, srcstep, dst, dststep, size, cn, coi))          \
 {                                                       \
     src += coi - 1;                                     \
-    srcstep /= sizeof(arrtype);                         \
-    dststep /= sizeof(arrtype);                         \
+    srcstep /= sizeof(src[0]);                          \
+    dststep /= sizeof(dst[0]);                          \
                                                         \
     for( ; size.height--; src += srcstep, dst += dststep )\
     {                                                   \
@@ -211,7 +211,7 @@ ICV_DEF_COPY_PX2PL_FUNC_2D_COI( int64, 64f )
 
 
 /****************************************************************************************\
-*                             Conversion plane -> pixel                                  *
+*                            Merging/inserting array channels                            *
 \****************************************************************************************/
 
 
@@ -303,40 +303,43 @@ ICV_DEF_COPY_PX2PL_FUNC_2D_COI( int64, 64f )
 }
 
 
-#define  ICV_DEF_COPY_PL2PX_FUNC_2D( arrtype, flavor, cn, entry_macro )         \
-IPCVAPI_IMPL( CvStatus,                                                         \
-icvCopy_##flavor##_P##cn##C##cn##R,( const arrtype** src, int srcstep,          \
-                                    arrtype* dst, int dststep, CvSize size ),   \
-                                    (src, srcstep, dst, dststep, size))         \
-{                                                                               \
-    entry_macro(const arrtype*, src);                                           \
-    srcstep /= sizeof(arrtype);                                                 \
-    dststep /= sizeof(arrtype);                                                 \
-                                                                                \
-    for( ; size.height--; dst += dststep )                                      \
-    {                                                                           \
-        ICV_DEF_PL2PX_C##cn( arrtype, size.width );                             \
-        dst -= size.width*(cn);                                                 \
-    }                                                                           \
-                                                                                \
-    return CV_OK;                                                               \
+#define  ICV_DEF_COPY_PL2PX_FUNC_2D( arrtype, flavor, cn, entry_macro ) \
+IPCVAPI_IMPL( CvStatus, icvCopy_##flavor##_P##cn##C##cn##R, \
+( const arrtype** src, int srcstep,                         \
+  arrtype* dst, int dststep, CvSize size ),                 \
+  (src, srcstep, dst, dststep, size))                       \
+{                                                           \
+    entry_macro(const arrtype*, src);                       \
+    srcstep /= sizeof(src[0][0]);                           \
+    dststep /= sizeof(dst[0]);                              \
+                                                            \
+    for( ; size.height--; dst += dststep )                  \
+    {                                                       \
+        ICV_DEF_PL2PX_C##cn( arrtype, size.width );         \
+        dst -= size.width*(cn);                             \
+    }                                                       \
+                                                            \
+    return CV_OK;                                           \
 }
 
 
-#define  ICV_DEF_COPY_PL2PX_FUNC_2D_COI( arrtype, flavor )              \
-IPCVAPI_IMPL( CvStatus, icvCopy_##flavor##_C1CnCR,                      \
-( const arrtype* src, int srcstep, arrtype* dst, int dststep,           \
-  CvSize size, int cn, int coi ), (src, srcstep, dst, dststep, size, cn, coi))\
-{                                                                       \
-    dst += coi - 1;                                                     \
-    for( ; size.height--; (char*&)src += srcstep,                       \
-                          (char*&)dst += dststep )                      \
-    {                                                                   \
-        ICV_DEF_PL2PX_COI( arrtype, size.width, cn );                   \
-        dst -= size.width*(cn);                                         \
-    }                                                                   \
-                                                                        \
-    return CV_OK;                                                       \
+#define  ICV_DEF_COPY_PL2PX_FUNC_2D_COI( arrtype, flavor )  \
+IPCVAPI_IMPL( CvStatus, icvCopy_##flavor##_C1CnCR,          \
+( const arrtype* src, int srcstep,                          \
+  arrtype* dst, int dststep,                                \
+  CvSize size, int cn, int coi ),                           \
+  (src, srcstep, dst, dststep, size, cn, coi))              \
+{                                                           \
+    dst += coi - 1;                                         \
+    srcstep /= sizeof(src[0]); dststep /= sizeof(dst[0]);   \
+                                                            \
+    for( ; size.height--; src += srcstep, dst += dststep )  \
+    {                                                       \
+        ICV_DEF_PL2PX_COI( arrtype, size.width, cn );       \
+        dst -= size.width*(cn);                             \
+    }                                                       \
+                                                            \
+    return CV_OK;                                           \
 }
 
 
@@ -639,47 +642,303 @@ cvMerge( const void* srcarr0, const void* srcarr1, const void* srcarr2,
 }
 
 
+/****************************************************************************************\
+*                       Generalized split/merge: mixing channels                         *
+\****************************************************************************************/
+
+#define  ICV_DEF_MIX_CH_FUNC_2D( arrtype, flavor )              \
+static CvStatus CV_STDCALL                                      \
+icvMixChannels_##flavor( const arrtype** src, int* sdelta0,     \
+                         int* sdelta1, arrtype** dst,           \
+                         int* ddelta0, int* ddelta1,            \
+                         int n, CvSize size )                   \
+{                                                               \
+    int i, k;                                                   \
+    int block_size0 = n == 1 ? size.width : 1024;               \
+                                                                \
+    for( ; size.height--; )                                     \
+    {                                                           \
+        int remaining = size.width;                             \
+        for( ; remaining > 0; )                                 \
+        {                                                       \
+            int block_size = MIN( remaining, block_size0 );     \
+            for( k = 0; k < n; k++ )                            \
+            {                                                   \
+                const arrtype* s = src[k];                      \
+                arrtype* d = dst[k];                            \
+                int ds = sdelta1[k], dd = ddelta1[k];           \
+                if( s )                                         \
+                {                                               \
+                    for( i = 0; i <= block_size - 2; i += 2,    \
+                                        s += ds*2, d += dd*2 )  \
+                    {                                           \
+                        arrtype t0 = s[0], t1 = s[ds];          \
+                        d[0] = t0; d[dd] = t1;                  \
+                    }                                           \
+                    if( i < block_size )                        \
+                        d[0] = s[0], s += ds, d += dd;          \
+                    src[k] = s;                                 \
+                }                                               \
+                else                                            \
+                {                                               \
+                    for( i=0; i <= block_size-2; i+=2, d+=dd*2 )\
+                        d[0] = d[dd] = 0;                       \
+                    if( i < block_size )                        \
+                        d[0] = 0, d += dd;                      \
+                }                                               \
+                dst[k] = d;                                     \
+            }                                                   \
+            remaining -= block_size;                            \
+        }                                                       \
+        for( k = 0; k < n; k++ )                                \
+            src[k] += sdelta0[k], dst[k] += ddelta0[k];         \
+    }                                                           \
+                                                                \
+    return CV_OK;                                               \
+}
+
+
+ICV_DEF_MIX_CH_FUNC_2D( uchar, 8u )
+ICV_DEF_MIX_CH_FUNC_2D( ushort, 16u )
+ICV_DEF_MIX_CH_FUNC_2D( int, 32s )
+ICV_DEF_MIX_CH_FUNC_2D( int64, 64s )
+
+static void
+icvInitMixChannelsTab( CvFuncTable* tab )
+{
+    tab->fn_2d[CV_8U] = (void*)icvMixChannels_8u;
+    tab->fn_2d[CV_8S] = (void*)icvMixChannels_8u;
+    tab->fn_2d[CV_16U] = (void*)icvMixChannels_16u;
+    tab->fn_2d[CV_16S] = (void*)icvMixChannels_16u;
+    tab->fn_2d[CV_32S] = (void*)icvMixChannels_32s;
+    tab->fn_2d[CV_32F] = (void*)icvMixChannels_32s;
+    tab->fn_2d[CV_64F] = (void*)icvMixChannels_64s;
+}
+
+typedef CvStatus (CV_STDCALL * CvMixChannelsFunc)( const void** src, int* sdelta0,
+        int* sdelta1, void** dst, int* ddelta0, int* ddelta1, int n, CvSize size );
+
+CV_IMPL void
+cvMixChannels( const CvArr** src, int src_count,
+               CvArr** dst, int dst_count,
+               const int* from_to, int pair_count )
+{
+    static CvFuncTable mixcn_tab;
+    static int inittab = 0;
+    uchar* buffer = 0;
+    int heap_alloc = 0;
+    
+    CV_FUNCNAME( "cvMixChannels" );
+
+    __BEGIN__;
+    
+    CvSize size = {0,0};
+    int depth = -1, elem_size = 1;
+    int *sdelta0 = 0, *sdelta1 = 0, *ddelta0 = 0, *ddelta1 = 0;
+    uchar **sptr = 0, **dptr = 0;
+    uchar **src0 = 0, **dst0 = 0;
+    int* src_cn = 0, *dst_cn = 0;
+    int* src_step = 0, *dst_step = 0;
+    int buf_size, i, k;
+    int cont_flag = CV_MAT_CONT_FLAG;
+    CvMixChannelsFunc func;
+
+    if( !inittab )
+    {
+        icvInitMixChannelsTab( &mixcn_tab );
+        inittab = 1;
+    }
+
+    src_count = MAX( src_count, 0 );
+
+    if( !src && src_count > 0 )
+        CV_ERROR( CV_StsNullPtr, "The input array of arrays is NULL" );
+
+    if( !dst )
+        CV_ERROR( CV_StsNullPtr, "The output array of arrays is NULL" );
+
+    if( dst_count <= 0 || pair_count <= 0 )
+        CV_ERROR( CV_StsOutOfRange,
+        "The number of output arrays and the number of copied channels must be positive" );
+
+    if( !from_to )
+        CV_ERROR( CV_StsNullPtr, "The array of copied channel indices is NULL" );
+
+    buf_size = (src_count + dst_count + 2)*
+        (sizeof(src0[0]) + sizeof(src_cn[0]) + sizeof(src_step[0])) + 
+        pair_count*2*(sizeof(sptr[0]) + sizeof(sdelta0[0]) + sizeof(sdelta1[0]));
+
+    if( buf_size > CV_MAX_LOCAL_SIZE )
+    {
+        CV_CALL( buffer = (uchar*)cvAlloc( buf_size ) );
+        heap_alloc = 1;
+    }
+    else
+        buffer = (uchar*)cvStackAlloc( buf_size );
+
+    src0 = (uchar**)buffer;
+    dst0 = src0 + src_count;
+    src_cn = (int*)(dst0 + dst_count);
+    dst_cn = src_cn + src_count + 1;
+    src_step = dst_cn + dst_count + 1;
+    dst_step = src_step + src_count;
+
+    sptr = (uchar**)cvAlignPtr( dst_step + dst_count, (int)sizeof(void*) );
+    dptr = sptr + pair_count;
+    sdelta0 = (int*)(dptr + pair_count);
+    sdelta1 = sdelta0 + pair_count;
+    ddelta0 = sdelta1 + pair_count;
+    ddelta1 = ddelta0 + pair_count;
+
+    src_cn[0] = dst_cn[0] = 0;
+
+    for( k = 0; k < 2; k++ )
+    {
+        for( i = 0; i < (k == 0 ? src_count : dst_count); i++ )
+        {
+            CvMat stub, *mat = (CvMat*)(k == 0 ? src[i] : dst[i]);
+            int cn;
+        
+            if( !CV_IS_MAT(mat) )
+                CV_CALL( mat = cvGetMat( mat, &stub ));
+        
+            if( depth < 0 )
+            {
+                depth = CV_MAT_DEPTH(mat->type);
+                elem_size = CV_ELEM_SIZE1(depth);
+                size = cvGetMatSize(mat);
+            }
+
+            if( CV_MAT_DEPTH(mat->type) != depth )
+                CV_ERROR( CV_StsUnmatchedFormats, "All the arrays must have the same bit depth" );
+
+            if( mat->cols != size.width || mat->rows != size.height )
+                CV_ERROR( CV_StsUnmatchedSizes, "All the arrays must have the same size" );
+
+            if( k == 0 )
+            {
+                src0[i] = mat->data.ptr;
+                cn = CV_MAT_CN(mat->type);
+                src_cn[i+1] = src_cn[i] + cn;
+                src_step[i] = mat->step / elem_size - size.width * cn;
+            }
+            else
+            {
+                dst0[i] = mat->data.ptr;
+                cn = CV_MAT_CN(mat->type);
+                dst_cn[i+1] = dst_cn[i] + cn;
+                dst_step[i] = mat->step / elem_size - size.width * cn;
+            }
+
+            cont_flag &= mat->type;
+        }
+    }
+
+    if( cont_flag )
+    {
+        size.width *= size.height;
+        size.height = 1;
+    }
+
+    for( i = 0; i < pair_count; i++ )
+    {
+        for( k = 0; k < 2; k++ )
+        {
+            int cn = from_to[i*2 + k];
+            const int* cn_arr = k == 0 ? src_cn : dst_cn;
+            int a = 0, b = k == 0 ? src_count-1 : dst_count-1;
+
+            if( cn < 0 || cn >= cn_arr[b+1] )
+            {
+                if( k == 0 && cn < 0 )
+                {
+                    sptr[i] = 0;
+                    sdelta0[i] = sdelta1[i] = 0;
+                    continue;
+                }
+                else
+                {
+                    char err_str[100];
+                    sprintf( err_str, "channel index #%d in the array of pairs is negative "
+                        "or exceeds the total number of channels in all the %s arrays", i*2+k,
+                        k == 0 ? "input" : "output" );
+                    CV_ERROR( CV_StsOutOfRange, err_str );
+                }
+            }
+
+            for( ; cn >= cn_arr[a+1]; a++ )
+                ;
+            
+            if( k == 0 )
+            {
+                sptr[i] = src0[a] + (cn - cn_arr[a])*elem_size;
+                sdelta1[i] = cn_arr[a+1] - cn_arr[a];
+                sdelta0[i] = src_step[a];
+            }
+            else
+            {
+                dptr[i] = dst0[a] + (cn - cn_arr[a])*elem_size;
+                ddelta1[i] = cn_arr[a+1] - cn_arr[a];
+                ddelta0[i] = dst_step[a];
+            }
+        }
+    }
+
+    func = (CvMixChannelsFunc)mixcn_tab.fn_2d[depth];
+    if( !func )
+        CV_ERROR( CV_StsUnsupportedFormat, "The data type is not supported by the function" );
+
+    IPPI_CALL( func( (const void**)sptr, sdelta0, sdelta1, (void**)dptr,
+                     ddelta0, ddelta1, pair_count, size )); 
+
+    __END__;
+
+    if( buffer && heap_alloc )
+        cvFree( &buffer );
+}
+
 
 /****************************************************************************************\
 *                                   cvConvertScaleAbs                                    *
 \****************************************************************************************/
 
-#define ICV_DEF_CVT_SCALE_ABS_CASE( worktype, cast_macro1,              \
-                                    scale_macro, abs_macro,             \
-                                    cast_macro2, src, a, b )            \
+#define ICV_DEF_CVT_SCALE_ABS_CASE( srctype, worktype,                  \
+            scale_macro, abs_macro, cast_macro, a, b )                  \
                                                                         \
 {                                                                       \
-    for( ; size.height--; (char*&)(src) += srcstep,                     \
-                          (char*&)(dst) += dststep )                    \
+    const srctype* _src = (const srctype*)src;                          \
+    srcstep /= sizeof(_src[0]); /*dststep /= sizeof(_dst[0]);*/         \
+                                                                        \
+    for( ; size.height--; _src += srcstep, dst += dststep )             \
     {                                                                   \
         int i;                                                          \
                                                                         \
         for( i = 0; i <= size.width - 4; i += 4 )                       \
         {                                                               \
-            worktype t0 = scale_macro((a)*cast_macro1((src)[i]) + (b)); \
-            worktype t1 = scale_macro((a)*cast_macro1((src)[i+1])+(b)); \
+            worktype t0 = scale_macro((a)*_src[i] + (b));               \
+            worktype t1 = scale_macro((a)*_src[i+1] + (b));             \
                                                                         \
             t0 = (worktype)abs_macro(t0);                               \
             t1 = (worktype)abs_macro(t1);                               \
                                                                         \
-            dst[i] = cast_macro2(t0);                                   \
-            dst[i+1] = cast_macro2(t1);                                 \
+            dst[i] = cast_macro(t0);                                    \
+            dst[i+1] = cast_macro(t1);                                  \
                                                                         \
-            t0 = scale_macro((a)*cast_macro1((src)[i+2]) + (b));        \
-            t1 = scale_macro((a)*cast_macro1((src)[i+3]) + (b));        \
+            t0 = scale_macro((a)*_src[i+2] + (b));                      \
+            t1 = scale_macro((a)*_src[i+3] + (b));                      \
                                                                         \
             t0 = (worktype)abs_macro(t0);                               \
             t1 = (worktype)abs_macro(t1);                               \
                                                                         \
-            dst[i+2] = cast_macro2(t0);                                 \
-            dst[i+3] = cast_macro2(t1);                                 \
+            dst[i+2] = cast_macro(t0);                                  \
+            dst[i+3] = cast_macro(t1);                                  \
         }                                                               \
                                                                         \
         for( ; i < size.width; i++ )                                    \
         {                                                               \
-            worktype t0 = scale_macro((a)*cast_macro1((src)[i]) + (b)); \
+            worktype t0 = scale_macro((a)*_src[i] + (b));               \
             t0 = (worktype)abs_macro(t0);                               \
-            dst[i] = cast_macro2(t0);                                   \
+            dst[i] = cast_macro(t0);                                    \
         }                                                               \
     }                                                                   \
 }
@@ -695,56 +954,36 @@ icvCvtScaleAbsTo_8u_C1R( const uchar* src, int srcstep,
                          int param )
 {
     int srctype = param;
+    int srcdepth = CV_MAT_DEPTH(srctype);
 
     size.width *= CV_MAT_CN(srctype);
 
-    switch( CV_MAT_DEPTH(srctype) )
+    switch( srcdepth )
     {
     case  CV_8S:
-        if( fabs( scale ) <= 128. &&
-            fabs( shift ) <= (INT_MAX*0.5)/(1 << ICV_FIX_SHIFT))
-        {
-            int iscale = cvRound(scale*(1 << ICV_FIX_SHIFT));
-            int ishift = cvRound(shift*(1 << ICV_FIX_SHIFT));
-
-            if( iscale == ICV_FIX_SHIFT && ishift == 0 )
-            {
-                ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, CV_NOP, CV_IABS,
-                                            CV_CAST_8U, (char*&)src, 1, 0 )
-            }
-            else
-            {
-                ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, ICV_SCALE, CV_IABS,
-                                       CV_CAST_8U, (char*&)src, iscale, ishift )
-            }
-        }
-        else
-        {
-            ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, cvRound, CV_IABS,
-                                   CV_CAST_8U, (char*&)src, scale, shift )
-        }
-        break;
     case  CV_8U:
-        if( fabs( scale ) <= 128. &&
-            fabs( shift ) <= (INT_MAX*0.5)/(1 << ICV_FIX_SHIFT))
         {
-            int iscale = cvRound(scale*(1 << ICV_FIX_SHIFT));
-            int ishift = cvRound(shift*(1 << ICV_FIX_SHIFT));
-
-            if( iscale == ICV_FIX_SHIFT && ishift == 0 )
-            {
-                icvCopy_8u_C1R( src, srcstep, dst, dststep, size );
-            }
-            else
-            {
-                ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, ICV_SCALE, CV_IABS,
-                                   CV_CAST_8U, (uchar*&)src, iscale, ishift );
-            }
+        uchar lut[256];
+        int i;
+        double val = shift;
+        
+        for( i = 0; i < 128; i++, val += scale )
+        {
+            int t = cvRound(fabs(val));
+            lut[i] = CV_CAST_8U(t);
         }
-        else
+        
+        if( srcdepth == CV_8S )
+            val = -val;
+        
+        for( ; i < 256; i++, val += scale )
         {
-            ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, cvRound, CV_IABS,
-                                   CV_CAST_8U, (uchar*&)src, scale, shift );
+            int t = cvRound(fabs(val));
+            lut[i] = CV_CAST_8U(t);
+        }
+
+        icvLUT_Transform8u_8u_C1R( src, srcstep, dst,
+                                   dststep, size, lut );
         }
         break;
     case  CV_16U:
@@ -754,19 +993,19 @@ icvCvtScaleAbsTo_8u_C1R( const uchar* src, int srcstep,
 
             if( iscale == ICV_FIX_SHIFT )
             {
-                ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, CV_NOP, CV_IABS,
-                                       CV_CAST_8U, (ushort*&)src, 1, 0 );
+                ICV_DEF_CVT_SCALE_ABS_CASE( ushort, int, CV_NOP, CV_IABS,
+                                            CV_CAST_8U, 1, 0 );
             }
             else
             {
-                ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, ICV_SCALE, CV_IABS,
-                                       CV_CAST_8U, (ushort*&)src, iscale, 0 );
+                ICV_DEF_CVT_SCALE_ABS_CASE( ushort, int, ICV_SCALE, CV_IABS,
+                                            CV_CAST_8U, iscale, 0 );
             }
         }
         else
         {
-            ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, cvRound, CV_IABS,
-                                   CV_CAST_8U, (ushort*&)src, scale, shift );
+            ICV_DEF_CVT_SCALE_ABS_CASE( ushort, int, cvRound, CV_IABS,
+                                        CV_CAST_8U, scale, shift );
         }
         break;
     case  CV_16S:
@@ -778,32 +1017,32 @@ icvCvtScaleAbsTo_8u_C1R( const uchar* src, int srcstep,
 
             if( iscale == ICV_FIX_SHIFT && ishift == 0 )
             {
-                ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, CV_NOP, CV_IABS,
-                                       CV_CAST_8U, (short*&)src, 1, 0 );
+                ICV_DEF_CVT_SCALE_ABS_CASE( short, int, CV_NOP, CV_IABS,
+                                            CV_CAST_8U, 1, 0 );
             }
             else
             {
-                ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, ICV_SCALE, CV_IABS,
-                                    CV_CAST_8U, (short*&)src, iscale, ishift );
+                ICV_DEF_CVT_SCALE_ABS_CASE( short, int, ICV_SCALE, CV_IABS,
+                                            CV_CAST_8U, iscale, ishift );
             }
         }
         else
         {
-            ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, cvRound, CV_IABS,
-                                   CV_CAST_8U, (short*&)src, scale, shift );
+            ICV_DEF_CVT_SCALE_ABS_CASE( short, int, cvRound, CV_IABS,
+                                        CV_CAST_8U, scale, shift );
         }
         break;
     case  CV_32S:
-        ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, cvRound, CV_IABS,
-                                    CV_CAST_8U, (int*&)src, scale, shift );
+        ICV_DEF_CVT_SCALE_ABS_CASE( int, int, cvRound, CV_IABS,
+                                    CV_CAST_8U, scale, shift );
         break;
     case  CV_32F:
-        ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, cvRound, CV_IABS,
-                                    CV_CAST_8U, (float*&)src, scale, shift );
+        ICV_DEF_CVT_SCALE_ABS_CASE( float, int, cvRound, CV_IABS,
+                                    CV_CAST_8U, scale, shift );
         break;
     case  CV_64F:
-        ICV_DEF_CVT_SCALE_ABS_CASE( int, CV_NOP, cvRound, CV_IABS,
-                                    CV_CAST_8U, (double*&)src, scale, shift );
+        ICV_DEF_CVT_SCALE_ABS_CASE( double, int, cvRound, CV_IABS,
+                                    CV_CAST_8U, scale, shift );
         break;
     default:
         assert(0);
@@ -864,59 +1103,63 @@ cvConvertScaleAbs( const void* srcarr, void* dstarr,
 *                                      cvConvertScale                                    *
 \****************************************************************************************/
 
-#define ICV_DEF_CVT_SCALE_CASE( worktype, cast_macro1,                  \
-                                scale_macro, cast_macro2, src, a, b )   \
-                                                                        \
-{                                                                       \
-    for( ; size.height--; (char*&)(src) += srcstep,                     \
-                          (char*&)(dst) += dststep )                    \
-    {                                                                   \
-        for( i = 0; i <= size.width - 4; i += 4 )                       \
-        {                                                               \
-            worktype t0 = scale_macro((a)*cast_macro1((src)[i])+(b));   \
-            worktype t1 = scale_macro((a)*cast_macro1((src)[i+1])+(b)); \
-                                                                        \
-            dst[i] = cast_macro2(t0);                                   \
-            dst[i+1] = cast_macro2(t1);                                 \
-                                                                        \
-            t0 = scale_macro((a)*cast_macro1((src)[i+2]) + (b));        \
-            t1 = scale_macro((a)*cast_macro1((src)[i+3]) + (b));        \
-                                                                        \
-            dst[i+2] = cast_macro2(t0);                                 \
-            dst[i+3] = cast_macro2(t1);                                 \
-        }                                                               \
-                                                                        \
-        for( ; i < size.width; i++ )                                    \
-        {                                                               \
-            worktype t0 = scale_macro((a)*cast_macro1((src)[i]) + (b)); \
-            dst[i] = cast_macro2(t0);                                   \
-        }                                                               \
-    }                                                                   \
+#define ICV_DEF_CVT_SCALE_CASE( srctype, worktype,          \
+                            scale_macro, cast_macro, a, b ) \
+                                                            \
+{                                                           \
+    const srctype* _src = (const srctype*)src;              \
+    srcstep /= sizeof(_src[0]);                             \
+                                                            \
+    for( ; size.height--; _src += srcstep, dst += dststep ) \
+    {                                                       \
+        for( i = 0; i <= size.width - 4; i += 4 )           \
+        {                                                   \
+            worktype t0 = scale_macro((a)*_src[i]+(b));     \
+            worktype t1 = scale_macro((a)*_src[i+1]+(b));   \
+                                                            \
+            dst[i] = cast_macro(t0);                        \
+            dst[i+1] = cast_macro(t1);                      \
+                                                            \
+            t0 = scale_macro((a)*_src[i+2] + (b));          \
+            t1 = scale_macro((a)*_src[i+3] + (b));          \
+                                                            \
+            dst[i+2] = cast_macro(t0);                      \
+            dst[i+3] = cast_macro(t1);                      \
+        }                                                   \
+                                                            \
+        for( ; i < size.width; i++ )                        \
+        {                                                   \
+            worktype t0 = scale_macro((a)*_src[i] + (b));   \
+            dst[i] = cast_macro(t0);                        \
+        }                                                   \
+    }                                                       \
 }
 
 
 #define  ICV_DEF_CVT_SCALE_FUNC_INT( flavor, dsttype, cast_macro )      \
 static  CvStatus  CV_STDCALL                                            \
-icvCvtScaleTo_##flavor##_C1R( const char* src, int srcstep,             \
+icvCvtScaleTo_##flavor##_C1R( const uchar* src, int srcstep,            \
                               dsttype* dst, int dststep, CvSize size,   \
                               double scale, double shift, int param )   \
 {                                                                       \
     int i, srctype = param;                                             \
     dsttype lut[256];                                                   \
+    dststep /= sizeof(dst[0]);                                          \
                                                                         \
     switch( CV_MAT_DEPTH(srctype) )                                     \
     {                                                                   \
     case  CV_8U:                                                        \
         if( size.width*size.height >= 256 )                             \
         {                                                               \
-            for( i = 0; i < 256; i++ )                                  \
+            double val = shift;                                         \
+            for( i = 0; i < 256; i++, val += scale )                    \
             {                                                           \
-                int t = cvRound( i*scale + shift );                     \
+                int t = cvRound(val);                                   \
                 lut[i] = cast_macro(t);                                 \
             }                                                           \
                                                                         \
             icvLUT_Transform8u_##flavor##_C1R( src, srcstep, dst,       \
-                                               dststep, size, lut );    \
+                                dststep*sizeof(dst[0]), size, lut );    \
         }                                                               \
         else if( fabs( scale ) <= 128. &&                               \
                  fabs( shift ) <= (INT_MAX*0.5)/(1 << ICV_FIX_SHIFT))   \
@@ -924,13 +1167,13 @@ icvCvtScaleTo_##flavor##_C1R( const char* src, int srcstep,             \
             int iscale = cvRound(scale*(1 << ICV_FIX_SHIFT));           \
             int ishift = cvRound(shift*(1 << ICV_FIX_SHIFT));           \
                                                                         \
-            ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, ICV_SCALE, cast_macro, \
-                                    (uchar*&)src, iscale, ishift );     \
+            ICV_DEF_CVT_SCALE_CASE( uchar, int, ICV_SCALE,              \
+                                    cast_macro, iscale, ishift );       \
         }                                                               \
         else                                                            \
         {                                                               \
-            ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, cvRound, cast_macro,   \
-                                    (uchar*&)src, scale, shift );       \
+            ICV_DEF_CVT_SCALE_CASE( uchar, int, cvRound,                \
+                                    cast_macro, scale, shift );         \
         }                                                               \
         break;                                                          \
     case  CV_8S:                                                        \
@@ -943,7 +1186,7 @@ icvCvtScaleTo_##flavor##_C1R( const char* src, int srcstep,             \
             }                                                           \
                                                                         \
             icvLUT_Transform8u_##flavor##_C1R( src, srcstep, dst,       \
-                                               dststep, size, lut );    \
+                                dststep*sizeof(dst[0]), size, lut );    \
         }                                                               \
         else if( fabs( scale ) <= 128. &&                               \
                  fabs( shift ) <= (INT_MAX*0.5)/(1 << ICV_FIX_SHIFT))   \
@@ -951,13 +1194,13 @@ icvCvtScaleTo_##flavor##_C1R( const char* src, int srcstep,             \
             int iscale = cvRound(scale*(1 << ICV_FIX_SHIFT));           \
             int ishift = cvRound(shift*(1 << ICV_FIX_SHIFT));           \
                                                                         \
-            ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, ICV_SCALE, cast_macro, \
-                                    (char*&)src, iscale, ishift );      \
+            ICV_DEF_CVT_SCALE_CASE( char, int, ICV_SCALE,               \
+                                    cast_macro, iscale, ishift );       \
         }                                                               \
         else                                                            \
         {                                                               \
-            ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, cvRound, cast_macro,   \
-                                    (char*&)src, scale, shift );        \
+            ICV_DEF_CVT_SCALE_CASE( char, int, cvRound,                 \
+                                    cast_macro, scale, shift );         \
         }                                                               \
         break;                                                          \
     case  CV_16U:                                                       \
@@ -965,13 +1208,13 @@ icvCvtScaleTo_##flavor##_C1R( const char* src, int srcstep,             \
         {                                                               \
             int iscale = cvRound(scale*(1 << ICV_FIX_SHIFT));           \
                                                                         \
-            ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, ICV_SCALE, cast_macro, \
-                                    (ushort*&)src, iscale, 0 );         \
+            ICV_DEF_CVT_SCALE_CASE( ushort, int, ICV_SCALE,             \
+                                    cast_macro, iscale, 0 );            \
         }                                                               \
         else                                                            \
         {                                                               \
-            ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, cvRound, cast_macro,   \
-                                    (ushort*&)src, scale, shift );      \
+            ICV_DEF_CVT_SCALE_CASE( ushort, int, cvRound,               \
+                                    cast_macro, scale, shift );         \
         }                                                               \
         break;                                                          \
     case  CV_16S:                                                       \
@@ -981,26 +1224,26 @@ icvCvtScaleTo_##flavor##_C1R( const char* src, int srcstep,             \
             int iscale = cvRound(scale*(1 << ICV_FIX_SHIFT));           \
             int ishift = cvRound(shift*(1 << ICV_FIX_SHIFT));           \
                                                                         \
-            ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, ICV_SCALE, cast_macro, \
-                                    (short*&)src, iscale, ishift );     \
+            ICV_DEF_CVT_SCALE_CASE( short, int, ICV_SCALE,              \
+                                    cast_macro, iscale, ishift );       \
         }                                                               \
         else                                                            \
         {                                                               \
-            ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, cvRound, cast_macro,   \
-                                    (short*&)src, scale, shift );       \
+            ICV_DEF_CVT_SCALE_CASE( short, int, cvRound,                \
+                                    cast_macro, scale, shift );         \
         }                                                               \
         break;                                                          \
     case  CV_32S:                                                       \
-        ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, cvRound, cast_macro,       \
-                                (int*&)src, scale, shift )              \
+        ICV_DEF_CVT_SCALE_CASE( int, int, cvRound,                      \
+                                cast_macro, scale, shift );             \
         break;                                                          \
     case  CV_32F:                                                       \
-        ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, cvRound, cast_macro,       \
-                                (float*&)src, scale, shift )            \
+        ICV_DEF_CVT_SCALE_CASE( float, int, cvRound,                    \
+                                cast_macro, scale, shift );             \
         break;                                                          \
     case  CV_64F:                                                       \
-        ICV_DEF_CVT_SCALE_CASE( int, CV_NOP, cvRound, cast_macro,       \
-                                (double*&)src, scale, shift )           \
+        ICV_DEF_CVT_SCALE_CASE( double, int, cvRound,                   \
+                                cast_macro, scale, shift );             \
         break;                                                          \
     default:                                                            \
         assert(0);                                                      \
@@ -1013,68 +1256,66 @@ icvCvtScaleTo_##flavor##_C1R( const char* src, int srcstep,             \
 
 #define  ICV_DEF_CVT_SCALE_FUNC_FLT( flavor, dsttype, cast_macro )      \
 static  CvStatus  CV_STDCALL                                            \
-icvCvtScaleTo_##flavor##_C1R( const char* src, int srcstep,             \
+icvCvtScaleTo_##flavor##_C1R( const uchar* src, int srcstep,            \
                               dsttype* dst, int dststep, CvSize size,   \
                               double scale, double shift, int param )   \
 {                                                                       \
     int i, srctype = param;                                             \
     dsttype lut[256];                                                   \
+    dststep /= sizeof(dst[0]);                                          \
                                                                         \
     switch( CV_MAT_DEPTH(srctype) )                                     \
     {                                                                   \
     case  CV_8U:                                                        \
         if( size.width*size.height >= 256 )                             \
         {                                                               \
-            for( i = 0; i < 256; i++ )                                  \
-            {                                                           \
-                lut[i] = (dsttype)(i*scale + shift);                    \
-            }                                                           \
+            double val = shift;                                         \
+            for( i = 0; i < 256; i++, val += scale )                    \
+                lut[i] = (dsttype)val;                                  \
                                                                         \
             icvLUT_Transform8u_##flavor##_C1R( src, srcstep, dst,       \
-                                               dststep, size, lut );    \
+                                dststep*sizeof(dst[0]), size, lut );    \
         }                                                               \
         else                                                            \
         {                                                               \
-            ICV_DEF_CVT_SCALE_CASE( dsttype, CV_8TO32F, cast_macro,     \
-                                CV_NOP, (uchar*&)src, scale, shift );   \
+            ICV_DEF_CVT_SCALE_CASE( uchar, double, CV_NOP,              \
+                                    cast_macro, scale, shift );         \
         }                                                               \
         break;                                                          \
     case  CV_8S:                                                        \
         if( size.width*size.height >= 256 )                             \
         {                                                               \
             for( i = 0; i < 256; i++ )                                  \
-            {                                                           \
                 lut[i] = (dsttype)((char)i*scale + shift);              \
-            }                                                           \
                                                                         \
             icvLUT_Transform8u_##flavor##_C1R( src, srcstep, dst,       \
-                                               dststep, size, lut );    \
+                                dststep*sizeof(dst[0]), size, lut );    \
         }                                                               \
         else                                                            \
         {                                                               \
-            ICV_DEF_CVT_SCALE_CASE( dsttype, CV_8TO32F, cast_macro,     \
-                                CV_NOP, (char*&)src, scale, shift );    \
+            ICV_DEF_CVT_SCALE_CASE( char, double, CV_NOP,               \
+                                    cast_macro, scale, shift );         \
         }                                                               \
         break;                                                          \
     case  CV_16U:                                                       \
-        ICV_DEF_CVT_SCALE_CASE( dsttype, CV_NOP, cast_macro, CV_NOP,    \
-                                (ushort*&)src, scale, shift );          \
+        ICV_DEF_CVT_SCALE_CASE( ushort, double, CV_NOP,                 \
+                                cast_macro, scale, shift );             \
         break;                                                          \
     case  CV_16S:                                                       \
-        ICV_DEF_CVT_SCALE_CASE( dsttype, CV_NOP, cast_macro, CV_NOP,    \
-                                (short*&)src, scale, shift );           \
+        ICV_DEF_CVT_SCALE_CASE( short, double, CV_NOP,                  \
+                                cast_macro, scale, shift );             \
         break;                                                          \
     case  CV_32S:                                                       \
-        ICV_DEF_CVT_SCALE_CASE( dsttype, CV_NOP, cast_macro, CV_NOP,    \
-                                (int*&)src, scale, shift )              \
+        ICV_DEF_CVT_SCALE_CASE( int, double, CV_NOP,                    \
+                                cast_macro, scale, shift );             \
         break;                                                          \
     case  CV_32F:                                                       \
-        ICV_DEF_CVT_SCALE_CASE( dsttype, CV_NOP, cast_macro, CV_NOP,    \
-                                (float*&)src, scale, shift )            \
+        ICV_DEF_CVT_SCALE_CASE( float, double, CV_NOP,                  \
+                                cast_macro, scale, shift );             \
         break;                                                          \
     case  CV_64F:                                                       \
-        ICV_DEF_CVT_SCALE_CASE( dsttype, CV_NOP, cast_macro, CV_NOP,    \
-                                (double*&)src, scale, shift )           \
+        ICV_DEF_CVT_SCALE_CASE( double, double, CV_NOP,                 \
+                                cast_macro, scale, shift );             \
         break;                                                          \
     default:                                                            \
         assert(0);                                                      \
@@ -1101,84 +1342,80 @@ CV_DEF_INIT_FUNC_TAB_2D( CvtScaleTo, C1R )
 *                             Conversion w/o scaling macros                              *
 \****************************************************************************************/
 
-#define ICV_DEF_CVT_CASE_2D( src_type, dst_type, work_type, cast_macro1, cast_macro2, \
-                             src_ptr, src_step, dst_ptr, dst_step, size )           \
-{                                                                                   \
-    for( ; (size).height--; (src_ptr) += (src_step), (dst_ptr) += (dst_step))       \
-    {                                                                               \
-        int i;                                                                      \
-                                                                                    \
-        for( i = 0; i <= (size).width - 4; i += 4 )                                 \
-        {                                                                           \
-            work_type t0 = cast_macro1(((src_type*)(src_ptr))[i]);                  \
-            work_type t1 = cast_macro1(((src_type*)(src_ptr))[i+1]);                \
-                                                                                    \
-            ((dst_type*)(dst_ptr))[i] = cast_macro2(t0);                            \
-            ((dst_type*)(dst_ptr))[i+1] = cast_macro2(t1);                          \
-                                                                                    \
-            t0 = cast_macro1(((src_type*)(src_ptr))[i+2]);                          \
-            t1 = cast_macro1(((src_type*)(src_ptr))[i+3]);                          \
-                                                                                    \
-            ((dst_type*)(dst_ptr))[i+2] = cast_macro2(t0);                          \
-            ((dst_type*)(dst_ptr))[i+3] = cast_macro2(t1);                          \
-        }                                                                           \
-                                                                                    \
-        for( ; i < (size).width; i++ )                                              \
-        {                                                                           \
-            work_type t0 = cast_macro1(((src_type*)(src_ptr))[i]);                  \
-            ((dst_type*)(dst_ptr))[i] = cast_macro2(t0);                            \
-        }                                                                           \
-    }                                                                               \
+#define ICV_DEF_CVT_CASE_2D( srctype, worktype,             \
+                             cast_macro1, cast_macro2 )     \
+{                                                           \
+    const srctype* _src = (const srctype*)src;              \
+    srcstep /= sizeof(_src[0]);                             \
+                                                            \
+    for( ; size.height--; _src += srcstep, dst += dststep ) \
+    {                                                       \
+        int i;                                              \
+                                                            \
+        for( i = 0; i <= size.width - 4; i += 4 )           \
+        {                                                   \
+            worktype t0 = cast_macro1(_src[i]);             \
+            worktype t1 = cast_macro1(_src[i+1]);           \
+                                                            \
+            dst[i] = cast_macro2(t0);                       \
+            dst[i+1] = cast_macro2(t1);                     \
+                                                            \
+            t0 = cast_macro1(_src[i+2]);                    \
+            t1 = cast_macro1(_src[i+3]);                    \
+                                                            \
+            dst[i+2] = cast_macro2(t0);                     \
+            dst[i+3] = cast_macro2(t1);                     \
+        }                                                   \
+                                                            \
+        for( ; i < size.width; i++ )                        \
+        {                                                   \
+            worktype t0 = cast_macro1(_src[i]);             \
+            dst[i] = cast_macro2(t0);                       \
+        }                                                   \
+    }                                                       \
 }
 
 
-#define ICV_DEF_CVT_FUNC_2D( flavor, dst_type, work_type, cast_macro2,  \
-                             src_depth1, src_type1, cast_macro11,       \
-                             src_depth2, src_type2, cast_macro12,       \
-                             src_depth3, src_type3, cast_macro13,       \
-                             src_depth4, src_type4, cast_macro14,       \
-                             src_depth5, src_type5, cast_macro15,       \
-                             src_depth6, src_type6, cast_macro16 )      \
+#define ICV_DEF_CVT_FUNC_2D( flavor, dsttype, worktype, cast_macro2,    \
+                             srcdepth1, srctype1, cast_macro11,         \
+                             srcdepth2, srctype2, cast_macro12,         \
+                             srcdepth3, srctype3, cast_macro13,         \
+                             srcdepth4, srctype4, cast_macro14,         \
+                             srcdepth5, srctype5, cast_macro15,         \
+                             srcdepth6, srctype6, cast_macro16 )        \
 static CvStatus CV_STDCALL                                              \
-icvCvtTo_##flavor##_C1R( const void* pSrc, int step1,                   \
-                         void* pDst, int step,                          \
+icvCvtTo_##flavor##_C1R( const uchar* src, int srcstep,                 \
+                         dsttype* dst, int dststep,                     \
                          CvSize size, int param )                       \
 {                                                                       \
     int srctype = param;                                                \
-    const char* src = (const char*)pSrc;                                \
-    char* dst = (char*)pDst;                                            \
+    dststep /= sizeof(dst[0]);                                          \
                                                                         \
     switch( CV_MAT_DEPTH(srctype) )                                     \
     {                                                                   \
-    case src_depth1:                                                    \
-        ICV_DEF_CVT_CASE_2D( src_type1, dst_type, work_type,            \
-                             cast_macro11, cast_macro2,                 \
-                             src, step1, dst, step, size );             \
+    case srcdepth1:                                                     \
+        ICV_DEF_CVT_CASE_2D( srctype1, worktype,                        \
+                             cast_macro11, cast_macro2 );               \
         break;                                                          \
-    case src_depth2:                                                    \
-        ICV_DEF_CVT_CASE_2D( src_type2, dst_type, work_type,            \
-                             cast_macro12, cast_macro2,                 \
-                             src, step1, dst, step, size );             \
+    case srcdepth2:                                                     \
+        ICV_DEF_CVT_CASE_2D( srctype2, worktype,                        \
+                             cast_macro12, cast_macro2 );               \
         break;                                                          \
-    case src_depth3:                                                    \
-        ICV_DEF_CVT_CASE_2D( src_type3, dst_type, work_type,            \
-                             cast_macro13, cast_macro2,                 \
-                             src, step1, dst, step, size );             \
+    case srcdepth3:                                                     \
+        ICV_DEF_CVT_CASE_2D( srctype3, worktype,                        \
+                             cast_macro13, cast_macro2 );               \
         break;                                                          \
-    case src_depth4:                                                    \
-        ICV_DEF_CVT_CASE_2D( src_type4, dst_type, work_type,            \
-                             cast_macro14, cast_macro2,                 \
-                             src, step1, dst, step, size );             \
+    case srcdepth4:                                                     \
+        ICV_DEF_CVT_CASE_2D( srctype4, worktype,                        \
+                             cast_macro14, cast_macro2 );               \
         break;                                                          \
-    case src_depth5:                                                    \
-        ICV_DEF_CVT_CASE_2D( src_type5, dst_type, work_type,            \
-                             cast_macro15, cast_macro2,                 \
-                             src, step1, dst, step, size );             \
+    case srcdepth5:                                                     \
+        ICV_DEF_CVT_CASE_2D( srctype5, worktype,                        \
+                             cast_macro15, cast_macro2 );               \
         break;                                                          \
-    case src_depth6:                                                    \
-        ICV_DEF_CVT_CASE_2D( src_type6, dst_type, work_type,            \
-                             cast_macro16, cast_macro2,                 \
-                             src, step1, dst, step, size );             \
+    case srcdepth6:                                                     \
+        ICV_DEF_CVT_CASE_2D( srctype6, worktype,                        \
+                             cast_macro16, cast_macro2 );               \
         break;                                                          \
     }                                                                   \
                                                                         \
@@ -1271,6 +1508,7 @@ cvConvertScale( const void* srcarr, void* dstarr,
     CvMat  dststub, *dst = (CvMat*)dstarr;
     CvSize size;
     int src_step, dst_step;
+    int no_scale = scale == 1 && shift == 0;
 
     if( !CV_IS_MAT(src) )
     {
@@ -1320,7 +1558,7 @@ cvConvertScale( const void* srcarr, void* dstarr,
             inittab = 1;
         }
 
-        if( scale == 1 && shift == 0 )
+        if( no_scale )
         {
             CvCvtFunc func = (CvCvtFunc)(cvt_tab.fn_2d[CV_MAT_DEPTH(dsttype)]);
             if( !func )
@@ -1349,6 +1587,13 @@ cvConvertScale( const void* srcarr, void* dstarr,
             }
             while( cvNextNArraySlice( &iterator ));
         }
+        EXIT;
+    }
+
+    if( no_scale && CV_ARE_TYPES_EQ( src, dst ) )
+    {
+        if( src != dst )
+          cvCopy( src, dst );
         EXIT;
     }
 
@@ -1411,20 +1656,15 @@ cvConvertScale( const void* srcarr, void* dstarr,
     if( !CV_ARE_CNS_EQ( src, dst ))
         CV_ERROR( CV_StsUnmatchedFormats, "" );
 
-    if( scale == 1 && shift == 0 )
+    if( no_scale )
     {
-        if( !CV_ARE_DEPTHS_EQ( src, dst ))
-        {
-            CvCvtFunc func = (CvCvtFunc)(cvt_tab.fn_2d[CV_MAT_DEPTH(dst->type)]);
+        CvCvtFunc func = (CvCvtFunc)(cvt_tab.fn_2d[CV_MAT_DEPTH(dst->type)]);
 
-            if( !func )
-                CV_ERROR( CV_StsUnsupportedFormat, "" );
+        if( !func )
+            CV_ERROR( CV_StsUnsupportedFormat, "" );
 
-            IPPI_CALL( func( src->data.ptr, src_step,
-                       dst->data.ptr, dst_step, size, type ));
-        }
-        else
-            cvCopy( src, dst );
+        IPPI_CALL( func( src->data.ptr, src_step,
+                   dst->data.ptr, dst_step, size, type ));
     }
     else
     {

@@ -42,15 +42,15 @@
 #ifndef _CXCORE_TYPES_H_
 #define _CXCORE_TYPES_H_
 
+#if !defined _CRT_SECURE_NO_DEPRECATE && _MSC_VER > 1300
+#define _CRT_SECURE_NO_DEPRECATE /* to avoid multiple Visual Studio 2005 warnings */
+#endif
+
 #ifndef SKIP_INCLUDES
   #include <assert.h>
   #include <stdlib.h>
   #include <string.h>
   #include <float.h>
-
-  #if defined WIN64 && defined EM64T && defined _MSC_VER
-    #include <emmintrin.h>
-  #endif
 
   #if defined __ICL
     #define CV_ICC   __ICL
@@ -60,6 +60,14 @@
     #define CV_ICC   __ECL
   #elif defined __ECC
     #define CV_ICC   __ECC
+  #endif
+
+  #if defined WIN64 && defined EM64T && (defined _MSC_VER || defined CV_ICC) \
+      || defined __SSE2__ || defined _MM_SHUFFLE2
+    #include <emmintrin.h>
+    #define CV_SSE2 1
+  #else
+    #define CV_SSE2 0
   #endif
 
   #if defined __BORLANDC__
@@ -142,18 +150,26 @@ typedef unsigned char uchar;
 typedef unsigned short ushort;
 #endif
 
-#ifndef CV_SSE2
-  #if defined __SSE2__ || defined _MM_SHUFFLE2 || (defined WIN64 && defined EM64T && defined _MSC_VER)
-    #define CV_SSE2 1
-  #else
-    #define CV_SSE2 0
-  #endif
-#endif
-
 /* CvArr* is used to pass arbitrary array-like data structures
    into the functions where the particular
    array type is recognized at runtime */
 typedef void CvArr;
+
+typedef union Cv32suf
+{
+    int i;
+    unsigned u;
+    float f;
+}
+Cv32suf;
+
+typedef union Cv64suf
+{
+    int64 i;
+    uint64 u;
+    double f;
+}
+Cv64suf;
 
 /****************************************************************************************\
 *                             Common macros and inline functions                         *
@@ -199,15 +215,16 @@ CV_INLINE  int  cvRound( double value )
         fistp t;
     }
     return t;
-#elif (defined __GNUC__ && __GNUC__ > 2) || (defined WIN64 && !defined EM64T && defined CV_ICC)
+#elif (defined HAVE_LRINT) || (defined WIN64 && !defined EM64T && defined CV_ICC)
     return (int)lrint(value);
 #else
     /*
      the algorithm was taken from Agner Fog's optimization guide
      at http://www.agner.org/assem
      */
-    double temp = value + 6755399441055744.0;
-    return (int)*((uint64*)&temp);
+    Cv64suf temp;
+    temp.f = value + 6755399441055744.0;
+    return (int)temp.u;
 #endif
 }
 
@@ -220,8 +237,9 @@ CV_INLINE  int  cvFloor( double value )
     return i - _mm_movemask_pd(_mm_cmplt_sd(t,_mm_cvtsi32_sd(t,i)));
 #else
     int temp = cvRound(value);
-    float diff = (float)(value - temp);
-    return temp - (*(int*)&diff < 0);
+    Cv32suf diff;
+    diff.f = (float)(value - temp);
+    return temp - (diff.i < 0);
 #endif
 }
 
@@ -231,11 +249,12 @@ CV_INLINE  int  cvCeil( double value )
 #if CV_SSE2
     __m128d t = _mm_load_sd( &value );
     int i = _mm_cvtsd_si32(t);
-    return i + _mm_movemask_pd(_mm_cmpgt_sd(t,_mm_cvtsi32_sd(t,i)));
+    return i + _mm_movemask_pd(_mm_cmplt_sd(_mm_cvtsi32_sd(t,i),t));
 #else
     int temp = cvRound(value);
-    float diff = (float)(temp - value);
-    return temp + (*(int*)&diff < 0);
+    Cv32suf diff;
+    diff.f = (float)(temp - value);
+    return temp + (diff.i < 0);
 #endif
 }
 
@@ -249,9 +268,10 @@ CV_INLINE int cvIsNaN( double value )
 #elif defined __GNUC__
     return isnan(value);
 #else*/
-    unsigned lo = (unsigned)*(uint64*)&value;
-    unsigned hi = (unsigned)(*(uint64*)&value >> 32);
-    return (hi & 0x7fffffff) + (lo != 0) > 0x7ff00000;
+    Cv64suf ieee754;
+    ieee754.f = value;
+    return ((unsigned)(ieee754.u >> 32) & 0x7fffffff) +
+           ((unsigned)ieee754.u != 0) > 0x7ff00000;
 #endif
 }
 
@@ -263,9 +283,10 @@ CV_INLINE int cvIsInf( double value )
 #elif defined __GNUC__
     return isinf(value);
 #else*/
-    unsigned lo = (unsigned)*(uint64*)&value;
-    unsigned hi = (unsigned)(*(uint64*)&value >> 32);
-    return (hi & 0x7fffffff) == 0x7ff00000 && lo == 0;
+    Cv64suf ieee754;
+    ieee754.f = value;
+    return ((unsigned)(ieee754.u >> 32) & 0x7fffffff) == 0x7ff00000 &&
+           (unsigned)ieee754.u == 0;
 #endif
 }
 
@@ -276,7 +297,7 @@ typedef uint64 CvRNG;
 
 CV_INLINE CvRNG cvRNG( int64 seed CV_DEFAULT(-1))
 {
-    CvRNG rng = (uint64)(seed ? seed : (int64)-1);
+    CvRNG rng = seed ? (uint64)seed : (uint64)(int64)-1;
     return rng;
 }
 
@@ -410,6 +431,9 @@ IplConvKernelFP;
 
 #endif/*HAVE_IPL*/
 
+/* extra border mode */
+#define IPL_BORDER_REFLECT_101    4
+
 #define IPL_IMAGE_MAGIC_VAL  ((int)sizeof(IplImage))
 #define CV_TYPE_NAME_IMAGE "opencv-image"
 
@@ -432,7 +456,7 @@ IplConvKernelFP;
 *                                  Matrix type (CvMat)                                   *
 \****************************************************************************************/
 
-#define CV_CN_MAX     4
+#define CV_CN_MAX     64
 #define CV_CN_SHIFT   3
 #define CV_DEPTH_MAX  (1 << CV_CN_SHIFT)
 
@@ -452,36 +476,43 @@ IplConvKernelFP;
 #define CV_8UC2 CV_MAKETYPE(CV_8U,2)
 #define CV_8UC3 CV_MAKETYPE(CV_8U,3)
 #define CV_8UC4 CV_MAKETYPE(CV_8U,4)
+#define CV_8UC(n) CV_MAKETYPE(CV_8U,(n))
 
 #define CV_8SC1 CV_MAKETYPE(CV_8S,1)
 #define CV_8SC2 CV_MAKETYPE(CV_8S,2)
 #define CV_8SC3 CV_MAKETYPE(CV_8S,3)
 #define CV_8SC4 CV_MAKETYPE(CV_8S,4)
+#define CV_8SC(n) CV_MAKETYPE(CV_8S,(n))
 
 #define CV_16UC1 CV_MAKETYPE(CV_16U,1)
 #define CV_16UC2 CV_MAKETYPE(CV_16U,2)
 #define CV_16UC3 CV_MAKETYPE(CV_16U,3)
 #define CV_16UC4 CV_MAKETYPE(CV_16U,4)
+#define CV_16UC(n) CV_MAKETYPE(CV_16U,(n))
 
 #define CV_16SC1 CV_MAKETYPE(CV_16S,1)
 #define CV_16SC2 CV_MAKETYPE(CV_16S,2)
 #define CV_16SC3 CV_MAKETYPE(CV_16S,3)
 #define CV_16SC4 CV_MAKETYPE(CV_16S,4)
+#define CV_16SC(n) CV_MAKETYPE(CV_16S,(n))
 
 #define CV_32SC1 CV_MAKETYPE(CV_32S,1)
 #define CV_32SC2 CV_MAKETYPE(CV_32S,2)
 #define CV_32SC3 CV_MAKETYPE(CV_32S,3)
 #define CV_32SC4 CV_MAKETYPE(CV_32S,4)
+#define CV_32SC(n) CV_MAKETYPE(CV_32S,(n))
 
 #define CV_32FC1 CV_MAKETYPE(CV_32F,1)
 #define CV_32FC2 CV_MAKETYPE(CV_32F,2)
 #define CV_32FC3 CV_MAKETYPE(CV_32F,3)
 #define CV_32FC4 CV_MAKETYPE(CV_32F,4)
+#define CV_32FC(n) CV_MAKETYPE(CV_32F,(n))
 
 #define CV_64FC1 CV_MAKETYPE(CV_64F,1)
 #define CV_64FC2 CV_MAKETYPE(CV_64F,2)
 #define CV_64FC3 CV_MAKETYPE(CV_64F,3)
 #define CV_64FC4 CV_MAKETYPE(CV_64F,4)
+#define CV_64FC(n) CV_MAKETYPE(CV_64F,(n))
 
 #define CV_AUTO_STEP  0x7fffffff
 #define CV_WHOLE_ARR  cvSlice( 0, 0x3fffffff )
@@ -492,11 +523,11 @@ IplConvKernelFP;
 #define CV_MAT_DEPTH(flags)     ((flags) & CV_MAT_DEPTH_MASK)
 #define CV_MAT_TYPE_MASK        (CV_DEPTH_MAX*CV_CN_MAX - 1)
 #define CV_MAT_TYPE(flags)      ((flags) & CV_MAT_TYPE_MASK)
-#define CV_MAT_CONT_FLAG_SHIFT  9
+#define CV_MAT_CONT_FLAG_SHIFT  14
 #define CV_MAT_CONT_FLAG        (1 << CV_MAT_CONT_FLAG_SHIFT)
 #define CV_IS_MAT_CONT(flags)   ((flags) & CV_MAT_CONT_FLAG)
 #define CV_IS_CONT_MAT          CV_IS_MAT_CONT
-#define CV_MAT_TEMP_FLAG_SHIFT  10
+#define CV_MAT_TEMP_FLAG_SHIFT  15
 #define CV_MAT_TEMP_FLAG        (1 << CV_MAT_TEMP_FLAG_SHIFT)
 #define CV_IS_TEMP_MAT(flags)   ((flags) & CV_MAT_TEMP_FLAG)
 
@@ -511,6 +542,7 @@ typedef struct CvMat
 
     /* for internal use only */
     int* refcount;
+    int hdr_refcount;
 
     union
     {
@@ -543,7 +575,9 @@ CvMat;
 
 
 #define CV_IS_MAT_HDR(mat) \
-    ((mat) != NULL && (((const CvMat*)(mat))->type & CV_MAGIC_MASK) == CV_MAT_MAGIC_VAL)
+    ((mat) != NULL && \
+    (((const CvMat*)(mat))->type & CV_MAGIC_MASK) == CV_MAT_MAGIC_VAL && \
+    ((const CvMat*)(mat))->cols > 0 && ((const CvMat*)(mat))->rows > 0)
 
 #define CV_IS_MAT(mat) \
     (CV_IS_MAT_HDR(mat) && ((const CvMat*)(mat))->data.ptr != NULL)
@@ -566,6 +600,11 @@ CvMat;
 #define CV_IS_MAT_CONST(mat)  \
     (((mat)->height|(mat)->width) == 1)
 
+/* size of each channel item,
+   0x124489 = 1000 0100 0100 0010 0010 0001 0001 ~ array of sizeof(arr_type_elem) */
+#define CV_ELEM_SIZE1(type) \
+    ((((sizeof(size_t)<<28)|0x8442211) >> CV_MAT_DEPTH(type)*4) & 15)
+
 /* 0x3a50 = 11 10 10 01 01 00 00 ~ array of log2(sizeof(arr_type_elem)) */
 #define CV_ELEM_SIZE(type) \
     (CV_MAT_CN(type) << ((((sizeof(size_t)/4+1)*16384|0x3a50) >> CV_MAT_DEPTH(type)*2) & 3))
@@ -585,6 +624,7 @@ CV_INLINE CvMat cvMat( int rows, int cols, int type, void* data CV_DEFAULT(NULL)
     m.step = rows > 1 ? m.cols*CV_ELEM_SIZE(type) : 0;
     m.data.ptr = (uchar*)data;
     m.refcount = NULL;
+    m.hdr_refcount = 0;
 
     return m;
 }
@@ -640,7 +680,7 @@ CV_INLINE  void  cvmSet( CvMat* mat, int row, int col, double value )
 CV_INLINE int cvCvToIplDepth( int type )
 {
     int depth = CV_MAT_DEPTH(type);
-    return CV_ELEM_SIZE(depth)*8 | (depth == CV_8S || depth == CV_16S ||
+    return CV_ELEM_SIZE1(depth)*8 | (depth == CV_8S || depth == CV_16S ||
            depth == CV_32S ? IPL_DEPTH_SIGN : 0);
 }
 
@@ -661,6 +701,8 @@ typedef struct CvMatND
     int dims;
 
     int* refcount;
+    int hdr_refcount;
+
     union
     {
         uchar* ptr;
@@ -700,6 +742,8 @@ typedef struct CvSparseMat
     int type;
     int dims;
     int* refcount;
+    int hdr_refcount;
+
     struct CvSet* heap;
     void** hashtable;
     int hashsize;
@@ -1013,7 +1057,7 @@ typedef struct CvBox2D
     CvPoint2D32f center;  /* center of the box */
     CvSize2D32f  size;    /* box width and length */
     float angle;          /* angle between the horizontal axis
-                             and the first side (i.e. length) in radians */
+                             and the first side (i.e. length) in degrees */
 }
 CvBox2D;
 
@@ -1206,7 +1250,7 @@ typedef struct CvSet
 CvSet;
 
 
-#define CV_SET_ELEM_IDX_MASK   ((1 << 24) - 1)
+#define CV_SET_ELEM_IDX_MASK   ((1 << 26) - 1)
 #define CV_SET_ELEM_FREE_FLAG  (1 << (sizeof(int)*8-1))
 
 /* Checks whether the element pointed by ptr belongs to a set or not */
@@ -1312,7 +1356,7 @@ typedef CvContour CvPoint2DSeq;
 #define CV_IS_SET(set) \
     ((set) != NULL && (((CvSeq*)(set))->flags & CV_MAGIC_MASK) == CV_SET_MAGIC_VAL)
 
-#define CV_SEQ_ELTYPE_BITS           5
+#define CV_SEQ_ELTYPE_BITS           9
 #define CV_SEQ_ELTYPE_MASK           ((1 << CV_SEQ_ELTYPE_BITS) - 1)
 
 #define CV_SEQ_ELTYPE_POINT          CV_32SC2  /* (x,y) */
@@ -1327,7 +1371,7 @@ typedef CvContour CvPoint2DSeq;
 #define CV_SEQ_ELTYPE_CONNECTED_COMP 0  /* connected component  */
 #define CV_SEQ_ELTYPE_POINT3D        CV_32FC3  /* (x,y,z)  */
 
-#define CV_SEQ_KIND_BITS        5
+#define CV_SEQ_KIND_BITS        3
 #define CV_SEQ_KIND_MASK        (((1 << CV_SEQ_KIND_BITS) - 1)<<CV_SEQ_ELTYPE_BITS)
 
 /* types of sequences */
@@ -1438,7 +1482,6 @@ typedef CvContour CvPoint2DSeq;
 typedef struct CvSeqWriter
 {
     CV_SEQ_WRITER_FIELDS()
-    int  reserved[4]; /* some reserved fields */
 }
 CvSeqWriter;
 
@@ -1457,7 +1500,6 @@ CvSeqWriter;
 typedef struct CvSeqReader
 {
     CV_SEQ_READER_FIELDS()
-    int  reserved[4];
 }
 CvSeqReader;
 
@@ -1540,7 +1582,7 @@ CvSeqReader;
     (_pt) = (reader).pt;                                                \
     if( (reader).ptr )                                                  \
     {                                                                   \
-        CV_READ_SEQ_ELEM( (reader).code, (*((CvSeqReader*)&(reader)))); \
+        CV_READ_SEQ_ELEM( (reader).code, (reader));                     \
         assert( ((reader).code & ~7) == 0 );                            \
         (reader).pt.x += (reader).deltas[(int)(reader).code][0];        \
         (reader).pt.y += (reader).deltas[(int)(reader).code][1];        \

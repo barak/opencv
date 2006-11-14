@@ -57,6 +57,11 @@ int main( int argc, char** argv )
         return -1;
     }
 
+    /* print a welcome message, and the OpenCV version */
+    printf ("Welcome to lkdemo, using OpenCV version %s (%d.%d.%d)\n",
+	    CV_VERSION,
+	    CV_MAJOR_VERSION, CV_MINOR_VERSION, CV_SUBMINOR_VERSION);
+
     printf( "Hot keys: \n"
             "\tESC - quit the program\n"
             "\tr - auto-initialize tracking\n"
@@ -161,9 +166,9 @@ int main( int argc, char** argv )
         cvShowImage( "LkDemo", image );
 
         c = cvWaitKey(10);
-        if( c == 27 )
+        if( (char)c == 27 )
             break;
-        switch( c )
+        switch( (char) c )
         {
         case 'r':
             need_to_init = 1;

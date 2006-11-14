@@ -1,5 +1,3 @@
-#! /usr/bin/env python
-
 #########################################################################################
 #
 #  IMPORTANT: READ BEFORE DOWNLOADING, COPYING, INSTALLING OR USING.
@@ -48,7 +46,7 @@
 
 """
 This module provides explicit conversion methods for
-    - IplImage:  OpenCV / IPL image data
+    - CvMat:  OpenCV / IPL image data
     - PIL:       Python Imaging Library
     - Numeric:   Python's Numeric Library
 
@@ -77,8 +75,8 @@ def Ipl2PIL(input):
        IPL_DEPTH_32F x 1 channel
     """
     
-    if not isinstance(input, cv.IplImagePtr):
-        raise TypeError, 'must be called with a highgui.IplImagePtr!'
+    if not isinstance(input, cv.CvMat):
+        raise TypeError, 'must be called with a cv.CvMat!'
 
     # assert that the channels are interleaved
     if input.dataOrder != 0:
@@ -106,23 +104,20 @@ def Ipl2PIL(input):
         
     modes = mode_list[key]
 
-    # calculate stride
-    stride = input.widthStep - (modes[2] * input.width)
-
     return PIL.Image.fromstring(
         modes[1], # mode
         (input.width, input.height), # size tuple
-        input.imageData_get(), # data
+        input.imageData, # data
         "raw",
         modes[0], # raw mode
-        stride, # stride
+        input.widthStep, # stride
         orientation # orientation
         )
 
 
 ###########################################################################
 def PIL2Ipl(input):
-    """Converts a PIL image to the OpenCV/IPL IplImage data format.
+    """Converts a PIL image to the OpenCV/IPL CvMat data format.
     
     Supported input image formats are:
         RGB
@@ -155,7 +150,7 @@ def PIL2Ipl(input):
         )
     
     # set imageData
-    result.imageData_set(input.tostring())
+    result.imageData=input.tostring()
     
     return result    
  
@@ -186,7 +181,10 @@ def PIL2NumPy(input):
     
     modes = mode_list[input.mode]    
     
-    shape = (input.size[0], input.size[1], modes[1])
+    if modes[1]>1:
+        shape = (input.size[1], input.size[0], modes[1])
+    else:
+        shape = (input.size[1], input.size[0])
     
     result = Numeric.array_constructor(
         shape,
@@ -241,7 +239,7 @@ def NumPy2PIL(input):
  
 ###########################################################################
 def NumPy2Ipl(input):
-    """Converts a Numeric array to the OpenCV/IPL IplImage data format.
+    """Converts a Numeric array to the OpenCV/IPL CvMat data format.
     
     Supported input array layouts:
        2 dimensions of Numeric.UnsignedInt8

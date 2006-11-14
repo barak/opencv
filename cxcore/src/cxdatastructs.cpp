@@ -119,7 +119,7 @@ cvCreateMemStorage( int block_size )
     __END__;
 
     if( cvGetErrStatus() < 0 )
-        cvFree( (void**)&storage );
+        cvFree( &storage );
 
     return storage;
 }
@@ -143,7 +143,7 @@ cvCreateChildMemStorage( CvMemStorage * parent )
     __END__;
 
     if( cvGetErrStatus() < 0 )
-        cvFree( (void**)&storage );
+        cvFree( &storage );
 
     return storage;
 }
@@ -192,7 +192,7 @@ icvDestroyMemStorage( CvMemStorage* storage )
         }
         else
         {
-            cvFree( (void**)&temp );
+            cvFree( &temp );
         }
     }
 
@@ -221,7 +221,7 @@ cvReleaseMemStorage( CvMemStorage** storage )
     if( st )
     {
         CV_CALL( icvDestroyMemStorage( st ));
-        cvFree( (void**)&st );
+        cvFree( &st );
     }
 
     __END__;
@@ -463,7 +463,7 @@ cvCreateSeq( int seq_flags, int header_size, int elem_size, CvMemStorage * stora
     seq->flags = (seq_flags & ~CV_MAGIC_MASK) | CV_SEQ_MAGIC_VAL;
     {
         int elemtype = CV_MAT_TYPE(seq_flags);
-        int typesize = icvPixSize[elemtype];
+        int typesize = CV_ELEM_SIZE(elemtype);
 
         if( elemtype != CV_SEQ_ELTYPE_GENERIC &&
             typesize != 0 && typesize != elem_size )
@@ -703,7 +703,7 @@ cvMakeSeqHeaderForArray( int seq_flags, int header_size, int elem_size,
     seq->flags = (seq_flags & ~CV_MAGIC_MASK) | CV_SEQ_MAGIC_VAL;
     {
         int elemtype = CV_MAT_TYPE(seq_flags);
-        int typesize = icvPixSize[elemtype];
+        int typesize = CV_ELEM_SIZE(elemtype);
 
         if( elemtype != CV_SEQ_ELTYPE_GENERIC &&
             typesize != 0 && typesize != elem_size )
@@ -1091,6 +1091,13 @@ cvStartReadSeq( const CvSeq *seq, CvSeqReader * reader, int reverse )
 
     CV_FUNCNAME( "cvStartReadSeq" );
 
+    if( reader )
+    {
+        reader->seq = 0;
+        reader->block = 0;
+        reader->ptr = reader->block_max = reader->block_min = 0;
+    }
+
     __BEGIN__;
 
     if( !seq || !reader )
@@ -1139,11 +1146,13 @@ cvStartReadSeq( const CvSeq *seq, CvSeqReader * reader, int reverse )
 
 /* changes the current reading block to the previous or to the next */
 CV_IMPL void
-cvChangeSeqBlock( CvSeqReader * reader, int direction )
+cvChangeSeqBlock( void* _reader, int direction )
 {
     CV_FUNCNAME( "cvChangeSeqBlock" );
 
     __BEGIN__;
+
+    CvSeqReader* reader = (CvSeqReader*)_reader;
     
     if( !reader )
         CV_ERROR( CV_StsNullPtr, "" );
@@ -1424,7 +1433,7 @@ cvSeqPopFront( CvSeq *seq, void *element )
     block = seq->first;
 
     if( element )
-        memcpy( element, block->data, elem_size );
+        CV_MEMCPY_AUTO( element, block->data, elem_size );
     block->data += elem_size;
     block->start_index++;
     seq->total--;
@@ -2006,7 +2015,7 @@ cvSeqInsertSlice( CvSeq* seq, int index, const CvArr* from_arr )
             CV_ERROR( CV_StsBadArg, "The source array must be 1d coninuous vector" );
 
         CV_CALL( from = cvMakeSeqHeaderForArray( CV_SEQ_KIND_GENERIC, sizeof(from_header),
-                                                 icvPixSize[CV_MAT_TYPE(mat->type)],
+                                                 CV_ELEM_SIZE(mat->type),
                                                  mat->data.ptr, mat->cols + mat->rows - 1,
                                                  &from_header, &block ));
     }
@@ -3463,7 +3472,7 @@ cvCreateGraphScanner( CvGraph* graph, CvGraphVtx* vtx, int mask )
     if( cvGetErrStatus() < 0 )
     {
         cvReleaseMemStorage( &child_storage );
-        cvFree( (void**)&scanner );
+        cvFree( &scanner );
     }
 
     return scanner;
@@ -3484,7 +3493,7 @@ cvReleaseGraphScanner( CvGraphScanner** scanner )
     {
         if( (*scanner)->stack )
             CV_CALL( cvReleaseMemStorage( &((*scanner)->stack->storage)));
-        cvFree( (void**)scanner );
+        cvFree( scanner );
     }
 
     __END__;
@@ -3555,6 +3564,7 @@ cvNextGraphItem( CvGraphScanner* scanner )
                             if( scanner->mask & CV_GRAPH_TREE_EDGE )
                             {
                                 code = CV_GRAPH_TREE_EDGE;
+                                scanner->vtx = vtx;
                                 scanner->dst = dst;
                                 scanner->edge = edge;
                                 EXIT;
@@ -3594,7 +3604,7 @@ cvNextGraphItem( CvGraphScanner* scanner )
                 edge = CV_NEXT_GRAPH_EDGE( edge, vtx );
             }
 
-            if( !edge ) // need to backtrack
+            if( !edge ) /* need to backtrack */
             {
                 if( scanner->stack->total == 0 )
                 {
@@ -3731,8 +3741,8 @@ cvCloneGraph( const CvGraph* graph, CvMemStorage* storage )
 
     __END__;
 
-    cvFree( (void**)&flag_buffer );
-    cvFree( (void**)&ptr_buffer );
+    cvFree( &flag_buffer );
+    cvFree( &ptr_buffer );
 
     if( cvGetErrStatus() < 0 )
         result = 0;
