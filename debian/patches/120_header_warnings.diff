@@ -1,0 +1,16 @@
+Index: opencv-1.0.0/cv/include/cvcompat.h
+===================================================================
+--- opencv-1.0.0.orig/cv/include/cvcompat.h	2007-03-29 14:41:26.000000000 +0200
++++ opencv-1.0.0/cv/include/cvcompat.h	2007-03-29 14:41:50.000000000 +0200
+@@ -422,7 +422,10 @@
+     vect2->x = pt[3].x - pt[0].x;
+     vect2->y = pt[3].y - pt[0].y;
+ 
+-    CV_UNREFERENCED( (left, bottom, right, top) );
++    CV_UNREFERENCED((void)left);
++    CV_UNREFERENCED((void)bottom);
++    CV_UNREFERENCED((void)right);
++    CV_UNREFERENCED((void)top);
+ }
+ 
+ typedef int CvDisType;

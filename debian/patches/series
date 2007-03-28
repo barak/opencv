@@ -8,5 +8,6 @@
 100_amd64.diff
 100_static_inline.diff
 110_dc1394.diff
+120_header_warnings.diff
 200_documentation.diff
 200_examples_makefile.diff
