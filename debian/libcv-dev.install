@@ -1,7 +1,6 @@
 usr/include/opencv/cv.*
 usr/include/opencv/cx*.*
 usr/include/opencv/cvcompat.*
-usr/include/opencv/cverror.*
 usr/include/opencv/cvmat.*
 usr/include/opencv/cvtypes.*
 usr/include/opencv/cvver.*
@@ -17,7 +16,7 @@ usr/lib/libcxcore.so
 usr/lib/libml.a
 usr/lib/libml.la
 usr/lib/libml.so
-usr/lib/libhaar*
+usr/lib/libcvhaar*
 usr/lib/pkgconfig
 /usr/share/opencv/haarcascades/
 usr/bin

@@ -1,3 +1,13 @@
+opencv (1.0.0-3) unstable; urgency=low
+
+  * debian/control:
+    + Set maintainer to the pkg-scicomp team.
+    + Updated Vcs fields.
+  * debian/compat:
+    + Set compat version to 5.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Sun,  1 Apr 2007 15:19:15 +0200
+
 opencv (1.0.0-2) unstable; urgency=low
 
   * Upload to unstable.

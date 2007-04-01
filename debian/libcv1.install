@@ -1,4 +1,3 @@
 usr/lib/libcv.so.*
-usr/lib/libcv1*.so.*
-usr/lib/libcxcore*.so.*
-usr/lib/libml*.so.*
+usr/lib/libcxcore.so.*
+usr/lib/libml.so.*
