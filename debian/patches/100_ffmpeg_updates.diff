@@ -40,32 +40,30 @@ Index: opencv-0.9.7/otherlibs/highgui/cvcap.cpp
      return &capture->frame;
  }
  
-@@ -1349,12 +1349,14 @@
+@@ -1349,12 +1349,12 @@
      case CV_CAP_PROP_FRAME_HEIGHT:
          return capture->frame.height;
      break;
-+#if 0
      case CV_CAP_PROP_FPS:
 -        return (double)capture->video_st->codec.frame_rate
 -        / (double)capture->video_st->codec.frame_rate_base;
-+        return (double)capture->video_st->codec->frame_rate
-+        / (double)capture->video_st->codec->frame_rate_base;
++        return (double)capture->video_st->time_base.num
++        / (double)capture->video_st->time_base.den;
      break;
-+#endif
      case CV_CAP_PROP_FOURCC:
 -        return (double)capture->video_st->codec.codec_tag;
 +        return (double)capture->video_st->codec->codec_tag;
      break;
      }
      return 0;
-@@ -1601,8 +1603,10 @@
+@@ -1601,8 +1603,8 @@
      writer->context->bit_rate         = 400000;      // TODO: BITRATE SETTINGS!
      writer->context->width            = frameSize.width;  
      writer->context->height           = frameSize.height;
-+#if 0
-     writer->context->frame_rate       = static_cast<int> (fps);
-     writer->context->frame_rate_base  =  1;
-+#endif
+-    writer->context->frame_rate       = static_cast<int> (fps);
+-    writer->context->frame_rate_base  =  1;
++    writer->context->time_base.num    = static_cast<int> (fps * 36000);
++    writer->context->time_base.den    =  36000;
      writer->context->gop_size         = 10;
      writer->context->max_b_frames     =  0;          // TODO: WHAT TO DO WITH B-FRAMES IN OTHER CODECS?
      

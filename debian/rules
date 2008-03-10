@@ -21,6 +21,9 @@ endif
 ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
 	INSTALL_PROGRAM += -s
 endif
+ifneq (,$(CONCURRENCY_LEVEL))
+	MAKE_FLAGS += -j $(CONCURRENCY_LEVEL)
+endif
 
 config.status: configure
 	dh_testdir
@@ -36,14 +39,14 @@ config.status: configure
 build: build-stamp
 build-stamp: config.status
 	dh_testdir
-	$(MAKE) CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)"
+	$(MAKE) $(MAKE_FLAGS) CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)"
 	touch build-stamp
 
 clean:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp 
-	-$(MAKE) distclean
+	[ ! -f Makefile ] || $(MAKE) distclean
 	rm -f tests/cv/src/lt-cvtest.lst tests/cv/src/lt-cvtest.sum
 	QUILT_PATCHES=debian/patches quilt pop -a -R || test $$? = 2
 	dh_clean 

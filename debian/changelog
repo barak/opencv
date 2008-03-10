@@ -1,3 +1,22 @@
+opencv (1.0.0-4) unstable; urgency=low
+
+  * debian/rules:
+    + Support CONCURRENCY_LEVEL.
+    + Don't ignore make distclean errors.
+
+  * debian/control:
+    + Add ${shlibs:Depends} to -dev packages, to get a proper dependency
+      when these packages ship binaries.
+    + Use ${binary:Version} instead of ${Source-Version} (Closes: 430726).
+    + Set policy to 3.7.3.
+    + Use Vcs-Svn: instead of XS-Vcs-Svn: fields.
+
+  * debian/patches/100_ffmpeg_updates.diff:
+    + Updated patch. Getting and setting framerate in FFmpeg streams now
+      works properly again. Thanks to Eric Beets for half the fix.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Mon, 10 Mar 2008 16:41:56 +0000
+
 opencv (1.0.0-3) unstable; urgency=low
 
   * debian/control:
