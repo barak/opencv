@@ -1,1 +1,2 @@
 usr/share/doc/opencv-doc
+../../samples/c/Makefile.debian	usr/share/doc/opencv-doc/examples/c/

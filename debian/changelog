@@ -1,3 +1,41 @@
+opencv (1.0.0-5) unstable; urgency=high
+
+  [ Daniel Leidert ]
+
+  * debian/control: Added Homepage field.
+    (Vcs-Svn): Fixed.
+    (Depends, Build-Depends): Added libjasper-dev (closes: #428474).
+  * debian/dirs: Removed (useless). Avoids empty directories.
+  * debian/libcv-dev.install: Small cosmetic fix.
+  * debian/libcv-dev.manpages: Added for haartraining utilities.
+  * debian/opencv-createsamples.1: Initially added.
+  * debian/opencv-haartraining.1: Ditto.
+  * debian/opencv-performance.1: Ditto.
+  * debian/opencv-doc.install: Install Makefile.debian here.
+  * debian/rules (install, binary-arch, binary-indep): Removed most of the
+    unused debhelper calls. Let dh_install exclude files we don't want. Don't
+    install examples twice. Removed installation of opencv-config.1 (closes:
+    #407946).
+  * debian/watch: Added.
+  * debian/patches/300_fix_segfault_in_window_gtk.diff: Added. Merged from
+    Ubuntu.
+  * debian/patches/series: Adjusted.
+
+  [ Sam Hocevar ]
+
+  * High urgency to ease testing propagations.
+  * debian/patches/100_ffmpeg_updates.diff:
+    + Updated patch to latest ffmpeg version (Closes: #482217).
+  * debian/patches/020_python_linking.diff:
+    + Link python bindings with required libraries.
+  * debian/patches/030_install_hook.diff:
+    + Use install-exec-hook instead of install-hook.
+
+  * debian/control:
+    + Build-depend on more recent libavcodec-dev.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Sun, 08 Jun 2008 15:01:18 +0000
+
 opencv (1.0.0-4) unstable; urgency=low
 
   * debian/rules:

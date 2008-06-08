@@ -12,7 +12,7 @@ else
   confflags += --build $(DEB_BUILD_GNU_TYPE) --host $(DEB_HOST_GNU_TYPE)
 endif
 
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -fopenmp
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -O0
 else
@@ -62,45 +62,28 @@ install: build
 	mv debian/tmp/usr/share/opencv/doc/* debian/tmp/usr/share/doc/opencv-doc/
 	mv debian/tmp/usr/share/opencv/readme.txt debian/tmp/usr/share/doc/opencv-doc/
 	mv debian/tmp/usr/share/opencv/samples debian/tmp/usr/share/doc/opencv-doc/examples
-	# Remove useless files
-	rm -f `find debian/tmp -name license.txt`
-	rm -f `find debian/tmp -name '*.py[co]'`
 	# Install files in their required packages
-	dh_install --sourcedir=debian/tmp --list-missing
+	dh_install --sourcedir=debian/tmp --list-missing -Xlicense.txt -X.pyc -X.pyo
 
 binary-indep: build install
 	dh_testdir
 	dh_testroot
 	dh_installchangelogs -i ChangeLog
 	dh_installdocs -i AUTHORS THANKS TODO debian/README.Debian
-	dh_installexamples -p opencv-doc samples/c/*.c samples/c/*.png samples/c/*.jpg samples/c/Makefile.debian
-	mv debian/opencv-doc/usr/share/doc/opencv-doc/examples/Makefile.debian debian/opencv-doc/usr/share/doc/opencv-doc/examples/Makefile
+	dh_installexamples -i
+	mv debian/opencv-doc/usr/share/doc/opencv-doc/examples/c/Makefile.debian debian/opencv-doc/usr/share/doc/opencv-doc/examples/c/Makefile
 	(cd debian/opencv-doc/usr/share/doc/opencv-doc/examples/python/; cp minidemo.py tmp ; echo '#!/usr/bin/python' >| minidemo.py ; cat tmp >> minidemo.py ; rm -f tmp)
 	#dh_install -p opencv-doc docs/*.rtf usr/share/doc/opencv-doc
 	#dh_install -p opencv-doc docs/*.pdf usr/share/doc/opencv-doc
 	#dh_install -p opencv-doc docs/*.htm usr/share/doc/opencv-doc/html
 	#dh_install -p opencv-doc docs/*.jpg usr/share/doc/opencv-doc/html
 	#dh_install -p opencv-doc docs/ref usr/share/doc/opencv-doc/html
-#	dh_install
-#	dh_installmenu
-#	dh_installdebconf	
-#	dh_installlogrotate
-#	dh_installemacsen
-#	dh_installpam
-#	dh_installmime
-#	dh_installinit
-#	dh_installcron
-#	dh_installinfo
 	dh_installman -i
 	dh_link -i
 	dh_strip -i
 	dh_compress -i -Xexamples
 	dh_fixperms -i
-#	dh_perl
-#	dh_python
-#	dh_makeshlibs
 	dh_installdeb -i
-#	dh_shlibdeps -i
 	dh_gencontrol -i
 	dh_md5sums -i
 	dh_builddeb -i
@@ -111,22 +94,11 @@ binary-arch: build install
 	dh_installchangelogs -a ChangeLog
 	dh_installdocs -a AUTHORS THANKS TODO debian/README.Debian
 	dh_installexamples -a
-#	dh_install
-#	dh_installmenu
-#	dh_installdebconf	
-#	dh_installlogrotate
-#	dh_installemacsen
-#	dh_installpam
-#	dh_installmime
-#	dh_installinit
-#	dh_installcron
-#	dh_installinfo
-	dh_installman -p libcv-dev debian/opencv-config.1
+	dh_installman -a 
 	dh_link -a
 	dh_strip -a
 	dh_compress -a
 	dh_fixperms -a
-#	dh_perl
 	dh_pysupport -a
 	dh_makeshlibs
 	dh_installdeb -a

@@ -3,10 +3,14 @@ Priority: optional
 Section: devel
 Maintainer: Debian Scientific Computing Team <pkg-scicomp-devel@lists.alioth.debian.org>
 Uploaders: Sam Hocevar (Debian packages) <sam+deb@zoy.org>
-Build-Depends: debhelper (>= 5.0), quilt, libjpeg62-dev, zlib1g-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-13-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20060329), libavformat-dev, python-dev, swig, python-support (>= 0.4.1)
+Build-Depends: debhelper (>= 5.0), quilt,
+ libavcodec-dev (>= 0.svn20080206), libavformat-dev, libdc1394-13-dev,
+ libgtk2.0-dev, libjasper-dev, libjpeg62-dev, libpng12-dev, libraw1394-dev,
+ libtiff4-dev, zlib1g-dev, python-dev, swig, python-support (>= 0.4.1)
 Standards-Version: 3.7.3
-Vcs-Svn: svn://svn.debian.org/svn/pkg-scicomp/opencv/
+Vcs-Svn: svn://svn.debian.org/svn/pkg-scicomp/opencv/trunk/
 Vcs-Browser: http://svn.debian.org/wsvn/pkg-scicomp/opencv/
+Homepage: http://opencvlibrary.sourceforge.net/
 
 Package: opencv-doc
 Section: doc
@@ -67,7 +71,7 @@ Description: development files for libcvaux
 Package: libhighgui-dev
 Section: libdevel
 Architecture: any
-Depends: ${shlibs:Depends}, libhighgui1 (= ${binary:Version}), libcv-dev (>= ${binary:Version}), libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2), libavformat-dev, pkg-config
+Depends: ${shlibs:Depends}, libhighgui1 (= ${binary:Version}), libcv-dev (>= ${binary:Version}), libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2), libavformat-dev, libjasper-dev, pkg-config
 Description: development files for libhighgui
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) GUI.

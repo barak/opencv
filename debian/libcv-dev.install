@@ -18,5 +18,5 @@ usr/lib/libml.la
 usr/lib/libml.so
 usr/lib/libcvhaar*
 usr/lib/pkgconfig
-/usr/share/opencv/haarcascades/
+usr/share/opencv/haarcascades
 usr/bin
