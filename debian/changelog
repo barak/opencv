@@ -1,3 +1,10 @@
+opencv (1.0.0-6) unstable; urgency=low
+
+  * debian/patches/120_header_warnings.diff:
+    + Fix more warnings in shipped headers.
+
+ -- Sam Hocevar (Debian packages) <sam+deb@zoy.org>  Thu, 28 Aug 2008 22:53:43 +0000
+
 opencv (1.0.0-5) unstable; urgency=high
 
   [ Daniel Leidert ]
