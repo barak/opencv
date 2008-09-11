@@ -1,3 +1,12 @@
+opencv (1.0.0-6.1) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * debian/control:
+    + Dropped build dependency on libdc1394-22-dev (Closes: #497689)
+    + Added ${misc:Depends} where missing
+
+ -- Raphael Geissert <atomo64@gmail.com>  Thu, 11 Sep 2008 14:36:06 -0500
+
 opencv (1.0.0-6) unstable; urgency=low
 
   * debian/patches/120_header_warnings.diff:
