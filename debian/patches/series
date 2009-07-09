@@ -16,3 +16,5 @@
 200_examples_makefile.diff
 210_openmp_compilation.diff
 300_fix_segfault_in_window_gtk.diff
+400_ffmpeg_splitting_autofoo.diff
+410_ffmpeg_use_swscale.diff

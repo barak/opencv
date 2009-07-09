@@ -1,3 +1,11 @@
+opencv (1.0.0-6.2) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Port to newer ffmpeg. Closes: #487638, #490700, #493915
+    Loosely based on patch Gijs Molenaar, thanks.
+
+ -- Thomas Viehmann <tv@beamnet.de>  Thu, 09 Jul 2009 21:43:02 +0200
+
 opencv (1.0.0-6.1) unstable; urgency=low
 
   * Non-maintainer upload.
