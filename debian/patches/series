@@ -18,3 +18,6 @@
 300_fix_segfault_in_window_gtk.diff
 400_ffmpeg_splitting_autofoo.diff
 410_ffmpeg_use_swscale.diff
+420_typedef_longint.diff
+430_highgui_jpeg_camera.diff
+500_ftbfs_gcc44.diff

@@ -1,0 +1,14 @@
+Index: opencv-1.0.0/otherlibs/highgui/cvcap_v4l.cpp
+===================================================================
+--- opencv-1.0.0.orig/otherlibs/highgui/cvcap_v4l.cpp	2009-11-14 17:13:46.000000000 +0100
++++ opencv-1.0.0/otherlibs/highgui/cvcap_v4l.cpp	2009-11-14 17:14:34.000000000 +0100
+@@ -544,7 +544,8 @@
+       /* support for MJPEG is only available with libjpeg and gcc,
+ 	 because it's use libjepg and fmemopen()
+       */
+-  if (try_palette_v4l2(capture, V4L2_PIX_FMT_MJPEG) == 0)
++  if (try_palette_v4l2(capture, V4L2_PIX_FMT_MJPEG) == 0 ||
++      try_palette_v4l2(capture, V4L2_PIX_FMT_JPEG) == 0)
+   {
+     PALETTE_MJPEG = 1;
+   }

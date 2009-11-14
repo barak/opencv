@@ -1,3 +1,22 @@
+opencv (1.0.0-6.3) unstable; urgency=low
+
+  * Non-maintainer upload.
+  * Rebuild against new libraw1394 (Closes: #516646, #516920)
+  * Add libhighgui-dev dependency on libswscale-dev thanks Giel van Schijndel
+    (Closes: #547729)
+  * debian/patches/420_typedef_longint.diff: define int64/uint64 as int64_t
+    and uint64_t respectively, patch pulled from upstream r2163
+    (Closes: #543546)
+  * debian/patches/410_ffmpeg_use_swscale.diff: move
+    #define __STDC_CONSTANT_MACROS before #include <stdint.h> into
+    debian/patches/420_typedef_longint.diff
+  * debian/patches/500_ftbfs_gcc44.diff: fix FTBFS with gcc-4.4
+    thanks to Martin Michlmayr (Closes: #504831)
+  * debian/patches/430_highgui_jpeg_camera.diff: recognize JPEG cameras
+    (Closes: #536041)
+
+ -- Filippo Giunchedi <filippo@debian.org>  Sat, 14 Nov 2009 17:04:41 +0100
+
 opencv (1.0.0-6.2) unstable; urgency=low
 
   * Non-maintainer upload.

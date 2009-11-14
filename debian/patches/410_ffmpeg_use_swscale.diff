@@ -1,21 +1,19 @@
 Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
 ===================================================================
---- opencv-1.0.0.orig/otherlibs/highgui/cvcap_ffmpeg.cpp	2009-07-09 21:44:29.000000000 +0200
-+++ opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp	2009-07-09 22:36:52.000000000 +0200
-@@ -43,7 +43,11 @@
+--- opencv-1.0.0.orig/otherlibs/highgui/cvcap_ffmpeg.cpp	2009-11-13 16:00:46.000000000 +0100
++++ opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp	2009-11-13 16:13:24.000000000 +0100
+@@ -43,7 +43,9 @@
  
  
  extern "C" {
 -#include <ffmpeg/avformat.h>
-+#define __STDC_CONSTANT_MACROS // avformat needs INT64_C fro stdint which needs this
-+#include <stdint.h>
 +#include <libavformat/avformat.h>
 +#include <libavcodec/avcodec.h>
 +#include <libswscale/swscale.h>
  }
  
  #ifdef NDEBUG
-@@ -62,6 +66,7 @@
+@@ -62,6 +64,7 @@
      AVFrame           * picture;
      int64_t             picture_pts;
      AVFrame             rgb_picture;
@@ -23,7 +21,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
  
      IplImage            frame;
  } CvCaptureAVI_FFMPEG;
-@@ -89,6 +94,12 @@
+@@ -89,6 +92,12 @@
          capture->ic = NULL;
      }
  
@@ -36,7 +34,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
      if( capture->rgb_picture.data[0] )
          cvFree( &capture->rgb_picture.data[0] );
  
-@@ -104,6 +115,7 @@
+@@ -104,6 +113,7 @@
      capture->ic = NULL;
      capture->video_stream = -1;
      capture->video_st = NULL;
@@ -44,7 +42,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
      /* register all codecs, demux and protocols */
      av_register_all();
  
-@@ -145,6 +157,16 @@
+@@ -145,6 +155,16 @@
                                     enc->height ), 8, 3, 0, 4 );
          cvSetData( &capture->frame, capture->rgb_picture.data[0],
                             capture->rgb_picture.linesize[0] );
@@ -61,7 +59,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
          break;
      }
      }
-@@ -212,21 +234,12 @@
+@@ -212,21 +232,12 @@
  
  static const IplImage* icvRetrieveFrameAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
  {
@@ -88,7 +86,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
      return &capture->frame;
  }
  
-@@ -373,6 +386,7 @@
+@@ -373,6 +384,7 @@
      AVFrame         * picture;
      AVFrame         * rgb_picture;
      uint8_t         * picbuf;
@@ -96,7 +94,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
  	AVStream        * video_st;
  } CvAVI_FFMPEG_Writer;
  
-@@ -389,6 +403,7 @@
+@@ -389,6 +401,7 @@
  	picture = avcodec_alloc_frame();
  	if (!picture)
  		return NULL;
@@ -104,7 +102,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
  	size = avpicture_get_size(pix_fmt, width, height);
  	if(alloc){
  		picture_buf = (uint8_t *) cvAlloc(size);
-@@ -530,7 +545,7 @@
+@@ -530,7 +543,7 @@
  	}
  
  	// alloc memory for context 
@@ -113,7 +111,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
  	assert (writer->oc);
  
  	/* set file name */
-@@ -590,6 +605,7 @@
+@@ -590,6 +603,7 @@
  	bool need_color_convert;
          need_color_convert = c->pix_fmt != PIX_FMT_BGR24;
  
@@ -121,7 +119,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
      /* allocate the encoded raw picture */
      writer->picture = icv_alloc_picture_FFMPEG(c->pix_fmt, c->width, c->height, need_color_convert);
      if (!writer->picture) {
-@@ -713,10 +729,23 @@
+@@ -713,10 +727,23 @@
  				PIX_FMT_BGR24, image->width, image->height);
  
  		// convert to the color format needed by the codec
@@ -149,7 +147,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
  		}
  	}
  	else{
-@@ -738,7 +767,7 @@
+@@ -738,7 +765,7 @@
  	// nothing to do if already released
  	if ( !(*writer) )
  		return;
@@ -158,7 +156,7 @@ Index: opencv-1.0.0/otherlibs/highgui/cvcap_ffmpeg.cpp
  	// release data structures in reverse order
  	CvAVI_FFMPEG_Writer * mywriter = (CvAVI_FFMPEG_Writer*)(*writer);
  
-@@ -759,7 +788,7 @@
+@@ -759,7 +786,7 @@
  		cvFree(&(mywriter->picture->data[0]));
  	}
  	av_free(mywriter->picture);

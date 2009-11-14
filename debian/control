@@ -71,7 +71,7 @@ Description: development files for libcvaux
 Package: libhighgui-dev
 Section: libdevel
 Architecture: any
-Depends: ${shlibs:Depends}, libhighgui1 (= ${binary:Version}), libcv-dev (>= ${binary:Version}), libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2), libavformat-dev, libjasper-dev, pkg-config, ${misc:Depends}
+Depends: ${shlibs:Depends}, libhighgui1 (= ${binary:Version}), libcv-dev (>= ${binary:Version}), libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2), libavformat-dev, libswscale-dev, libjasper-dev, pkg-config, ${misc:Depends}
 Description: development files for libhighgui
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) GUI.
