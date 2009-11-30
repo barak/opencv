@@ -443,6 +443,12 @@ protected:
     // changes the path to test data files
     virtual void set_data_path( const char* data_path );
 
+    // prints the information about command-line parameters
+    virtual void print_help();
+    
+    // changes the text color in console
+    virtual void set_color(int color);
+
     // a sequence of tests to run
     CvTestPtrVec* selected_tests;
 
@@ -454,7 +460,7 @@ protected:
 
     // base name for output streams
     char* ostrm_base_name;
-    char* ostrm_suffixes[MAX_IDX];
+    const char* ostrm_suffixes[MAX_IDX];
 
     // parameters that can be read from file storage
     CvFileStorage* fs;
@@ -506,6 +512,9 @@ protected:
 
         // the path to data files used by tests
         char* data_path;
+        
+        // whether the output to console should be colored
+        int color_terminal;
     }
     params;
 
@@ -640,7 +649,7 @@ inline  double cvTsRandReal( CvRNG* rng )
 }
 
 // fills c with zeros
-CV_EXPORTS void cvTsZero( CvMat* c );
+CV_EXPORTS void cvTsZero( CvMat* c, const CvMat* mask=0 );
 
 // initializes scaled identity matrix
 CV_EXPORTS void cvTsSetIdentity( CvMat* c, CvScalar diag_value );

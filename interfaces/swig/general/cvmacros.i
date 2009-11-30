@@ -5,6 +5,11 @@
 // incorrect, it is likely that a name->type mapping will have to be added to the script 
 /////////////////////////////////////////////////////////////////////////////////////////////////M*/
 
+// This file was generated from the following header files: 
+// ../../../include/opencv/cxtypes.h
+// ../../../include/opencv/cxcore.h
+// ../../../include/opencv/cvtypes.h
+// ../../../include/opencv/cv.h
 void cvFree(void ** ptr);
 void CV_READ_CHAIN_POINT(CvPoint _pt, CvChainPtReader reader);
 void * CV_MAT_ELEM_PTR(CvMat mat,int row,int col);
@@ -23,6 +28,7 @@ void cvInvSqrt(double value);
 void cvSqrt(double value);
 int CV_IS_IMAGE_HDR(CvArr * img);
 int CV_IS_IMAGE(CvArr * img);
+int CV_MAT_DEPTH(int flags);
 int CV_MAKETYPE(int depth,int cn);
 int CV_8UC(int n);
 int CV_8SC(int n);
@@ -32,7 +38,6 @@ int CV_32SC(int n);
 int CV_32FC(int n);
 int CV_64FC(int n);
 int CV_MAT_CN(int flags);
-int CV_MAT_DEPTH(int flags);
 int CV_MAT_TYPE(int flags);
 int CV_IS_MAT_CONT(int flags);
 int CV_IS_TEMP_MAT(int flags);
@@ -114,7 +119,9 @@ int CV_IS_GRAPH_VERTEX_VISITED(CvGraphVtx * vtx);
 int CV_IS_GRAPH_EDGE_VISITED(CvGraphEdge * edge);
 CvScalar CV_RGB(double r,double g,int b);
 void CV_NEXT_LINE_POINT(CvLineIterator line_iterator);
+void CV_SET_IMAGE_IO_FUNCTIONS();
 void CV_INIT_3X3_DELTAS(double * deltas,int step,int nch);
 int CV_IS_HAAR_CLASSIFIER(void * haar);
+double cvContourPerimeter(CvSeq * contour);
 void cvCalcBackProject(IplImage * image,CvArr * dst,CvHistogram * hist);
 void cvCalcBackProjectPatch(IplImage * image,CvArr * dst,CvSize range,CvHistogram * hist,int method,double factor);

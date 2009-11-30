@@ -2,9 +2,12 @@
 #pragma package <opencv>
 #endif
 
+#define CV_NO_BACKWARD_COMPATIBILITY
+
 #ifndef _EiC
 #include "cv.h"
 #include "highgui.h"
+#include <stdio.h>
 #endif
 
 int main( int argc, char** argv )
@@ -22,7 +25,7 @@ int main( int argc, char** argv )
     color_tab[4] = CV_RGB(255,255,0);
 
     cvNamedWindow( "clusters", 1 );
-        
+
     for(;;)
     {
         char key;
@@ -30,7 +33,8 @@ int main( int argc, char** argv )
         int i, sample_count = cvRandInt(&rng)%1000 + 1;
         CvMat* points = cvCreateMat( sample_count, 1, CV_32FC2 );
         CvMat* clusters = cvCreateMat( sample_count, 1, CV_32SC1 );
-        
+        cluster_count = MIN(cluster_count, sample_count);
+
         /* generate random sample from multigaussian distribution */
         for( k = 0; k < cluster_count; k++ )
         {
@@ -41,7 +45,7 @@ int main( int argc, char** argv )
             cvGetRows( points, &point_chunk, k*sample_count/cluster_count,
                        k == cluster_count - 1 ? sample_count :
                        (k+1)*sample_count/cluster_count, 1 );
-                        
+
             cvRandArr( &rng, &point_chunk, CV_RAND_NORMAL,
                        cvScalar(center.x,center.y,0,0),
                        cvScalar(img->width*0.1,img->height*0.1,0,0));
@@ -56,8 +60,9 @@ int main( int argc, char** argv )
             CV_SWAP( *pt1, *pt2, temp );
         }
 
-        cvKMeans2( points, cluster_count, clusters,
-                   cvTermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 10, 1.0 ));
+        printf( "iterations=%d\n", cvKMeans2( points, cluster_count, clusters,
+                cvTermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 10, 1.0 ),
+                5, 0, 0, 0, 0 ));
 
         cvZero( img );
 
@@ -78,7 +83,7 @@ int main( int argc, char** argv )
         if( key == 27 || key == 'q' || key == 'Q' ) // 'ESC'
             break;
     }
-    
+
     cvDestroyWindow( "clusters" );
     return 0;
 }

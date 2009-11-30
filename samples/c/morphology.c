@@ -1,3 +1,5 @@
+#define CV_NO_BACKWARD_COMPATIBILITY
+
 #include <cv.h>
 #include <highgui.h>
 #include <stdlib.h>
@@ -9,13 +11,13 @@ IplImage* dst = 0;
 IplConvKernel* element = 0;
 int element_shape = CV_SHAPE_RECT;
 
-//the address of variable which receives trackbar position update 
+//the address of variable which receives trackbar position update
 int max_iters = 10;
 int open_close_pos = 0;
 int erode_dilate_pos = 0;
 
 // callback function for open/close trackbar
-void OpenClose(int pos)   
+void OpenClose(int pos)
 {
     int n = open_close_pos - max_iters;
     int an = n > 0 ? n : -n;
@@ -32,10 +34,10 @@ void OpenClose(int pos)
     }
     cvReleaseStructuringElement(&element);
     cvShowImage("Open/Close",dst);
-}   
+}
 
 // callback function for erode/dilate trackbar
-void ErodeDilate(int pos)   
+void ErodeDilate(int pos)
 {
     int n = erode_dilate_pos - max_iters;
     int an = n > 0 ? n : -n;
@@ -50,7 +52,7 @@ void ErodeDilate(int pos)
     }
     cvReleaseStructuringElement(&element);
     cvShowImage("Erode/Dilate",dst);
-}   
+}
 
 
 int main( int argc, char** argv )
@@ -64,7 +66,7 @@ int main( int argc, char** argv )
         "\tr - use rectangle structuring element\n"
         "\te - use elliptic structuring element\n"
         "\tc - use cross-shaped structuring element\n"
-        "\tENTER - loop through all the options\n" );
+        "\tSPACE - loop through all the options\n" );
 
     dst = cvCloneImage(src);
 
@@ -79,7 +81,7 @@ int main( int argc, char** argv )
     for(;;)
     {
         int c;
-        
+
         OpenClose(open_close_pos);
         ErodeDilate(erode_dilate_pos);
         c = cvWaitKey(0);
@@ -92,7 +94,7 @@ int main( int argc, char** argv )
             element_shape = CV_SHAPE_RECT;
         else if( (char)c == 'c' )
             element_shape = CV_SHAPE_CROSS;
-        else if( (char)c == '\n' )
+        else if( (char)c == ' ' )
             element_shape = (element_shape + 1) % 3;
     }
 
@@ -100,9 +102,9 @@ int main( int argc, char** argv )
     cvReleaseImage(&src);
     cvReleaseImage(&dst);
 
-    //destroy windows 
-    cvDestroyWindow("Open/Close"); 
-    cvDestroyWindow("Erode/Dilate"); 
+    //destroy windows
+    cvDestroyWindow("Open/Close");
+    cvDestroyWindow("Erode/Dilate");
 
     return 0;
 }

@@ -1,7 +1,5 @@
-Index: opencv-1.0.0/cv/include/cvcompat.h
-===================================================================
---- opencv-1.0.0.orig/cv/include/cvcompat.h	2006-07-12 15:48:54.000000000 +0000
-+++ opencv-1.0.0/cv/include/cvcompat.h	2008-08-28 22:52:08.000000000 +0000
+--- a/include/opencv/cvcompat.h	2006-07-12 15:48:54.000000000 +0000
++++ b/include/opencv/cvcompat.h	2008-08-28 22:52:08.000000000 +0000
 @@ -181,7 +181,7 @@
  
  /* Changes RNG range while preserving RNG state */
@@ -155,11 +153,9 @@ Index: opencv-1.0.0/cv/include/cvcompat.h
  
      return cvCalcEMD2( &sign1, &sign2, dist_type, dist_func, 0, 0, lower_bound, user_param ); 
  }
-Index: opencv-1.0.0/cxcore/include/cxcore.h
-===================================================================
---- opencv-1.0.0.orig/cxcore/include/cxcore.h	2008-08-28 22:47:50.000000000 +0000
-+++ opencv-1.0.0/cxcore/include/cxcore.h	2008-08-28 22:48:00.000000000 +0000
-@@ -1126,9 +1126,9 @@
+--- a/include/opencv/cxcore.h	2009-11-29 12:41:25.000000000 +0900
++++ b/include/opencv/cxcore.h	2009-11-29 12:42:59.000000000 +0900
+@@ -1152,9 +1152,9 @@
  
  /* Returns a set element by index. If the element doesn't belong to the set,
     NULL is returned */
@@ -167,20 +163,18 @@ Index: opencv-1.0.0/cxcore/include/cxcore.h
 +CV_INLINE CvSetElem* cvGetSetElem( const CvSet* set_header, int idx )
  {
 -    CvSetElem* elem = (CvSetElem*)cvGetSeqElem( (CvSeq*)set_header, index );
-+    CvSetElem* elem = (CvSetElem*)cvGetSeqElem( (CvSeq const*)set_header, idx );
++    CvSetElem* elem = (CvSetElem*)cvGetSeqElem( (CvSeq*)set_header, idx );
      return elem && CV_IS_SET_ELEM( elem ) ? elem : 0;
  }
  
-Index: opencv-1.0.0/otherlibs/highgui/highgui.h
-===================================================================
---- opencv-1.0.0.orig/otherlibs/highgui/highgui.h	2008-08-28 22:47:51.000000000 +0000
-+++ opencv-1.0.0/otherlibs/highgui/highgui.h	2008-08-28 22:52:56.000000000 +0000
+--- a/include/opencv/highgui.h	2009-11-29 12:45:02.000000000 +0900
++++ b/include/opencv/highgui.h	2009-11-29 12:45:13.000000000 +0900
 @@ -116,7 +116,7 @@
  /* this function is used to set some external parameters in case of X Window */
  CVAPI(int) cvInitSystem( int argc, char** argv );
  
 -CVAPI(int) cvStartWindowThread();
-+CVAPI(int) cvStartWindowThread( void );
++CVAPI(int) cvStartWindowThread(void);
  
  #define CV_WINDOW_AUTOSIZE  1
  /* create window */

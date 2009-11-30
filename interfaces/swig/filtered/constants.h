@@ -40,6 +40,14 @@
 
 #define CV_RAND_NORMAL   1
 
+#define CV_SORT_EVERY_ROW 0
+
+#define CV_SORT_EVERY_COLUMN 1
+
+#define CV_SORT_ASCENDING 0
+
+#define CV_SORT_DESCENDING 16
+
 #define CV_GEMM_A_T 1
 
 #define CV_GEMM_B_T 2
@@ -66,6 +74,12 @@
 
 #define CV_SVD_SYM 2
 
+#define CV_CHOLESKY 3
+
+#define CV_QR  4
+
+#define CV_NORMAL 16
+
 #define cvInv cvInvert
 
 #define CV_COVAR_SCRAMBLED 0
@@ -80,7 +94,7 @@
 
 #define CV_COVAR_COLS     16
 
-#define CV_PCA_DATA_AS_ROW 0 
+#define CV_PCA_DATA_AS_ROW 0
 
 #define CV_PCA_DATA_AS_COL 1
 
@@ -192,7 +206,7 @@
 
 #define CV_FONT_HERSHEY_DUPLEX          2
 
-#define CV_FONT_HERSHEY_COMPLEX         3 
+#define CV_FONT_HERSHEY_COMPLEX         3
 
 #define CV_FONT_HERSHEY_TRIPLEX         4
 
@@ -202,9 +216,11 @@
 
 #define CV_FONT_HERSHEY_SCRIPT_COMPLEX  7
 
-#define CV_FONT_ITALIC                 16  
+#define CV_FONT_ITALIC                 16
 
 #define CV_FONT_VECTOR0    CV_FONT_HERSHEY_SIMPLEX
+
+#define CV_KMEANS_USE_INITIAL_LABELS    1
 
 #define CV_ErrModeLeaf     0   
 
@@ -212,13 +228,13 @@
 
 #define CV_ErrModeSilent   2   
 
-#define CV_MAJOR_VERSION    1
+#define CV_MAJOR_VERSION    2
 
 #define CV_MINOR_VERSION    0
 
 #define CV_SUBMINOR_VERSION 0
 
-#define CV_VERSION          "1.0.0"
+#define CV_VERSION          CVAUX_STR(CV_MAJOR_VERSION) "." CVAUX_STR(CV_MINOR_VERSION) "." CVAUX_STR(CV_SUBMINOR_VERSION)
 
 #define CV_PI   3.1415926535897932384626433832795
 
@@ -304,7 +320,11 @@
 
 #define CV_USRTYPE1 7
 
-#define CV_MAKETYPE(depth,cn) ((depth) + (((cn)-1) << CV_CN_SHIFT))
+#define CV_MAT_DEPTH_MASK       (CV_DEPTH_MAX - 1)
+
+#define CV_MAT_DEPTH(flags)     ((flags) & CV_MAT_DEPTH_MASK)
+
+#define CV_MAKETYPE(depth,cn) (CV_MAT_DEPTH(depth) + (((cn)-1) << CV_CN_SHIFT))
 
 #define CV_MAKE_TYPE CV_MAKETYPE
 
@@ -370,9 +390,9 @@
 
 #define CV_MAT_CN_MASK          ((CV_CN_MAX - 1) << CV_CN_SHIFT)
 
-#define CV_MAT_DEPTH_MASK       (CV_DEPTH_MAX - 1)
-
 #define CV_MAT_TYPE_MASK        (CV_DEPTH_MAX*CV_CN_MAX - 1)
+
+#define CV_MAT_TYPE(flags)      ((flags) & CV_MAT_TYPE_MASK)
 
 #define CV_MAT_CONT_FLAG_SHIFT  14
 
@@ -654,6 +674,8 @@
 
 #define CV_StsBadMemBlock            -214 
 
+#define CV_StsAssert                 -215 
+
 #define CV_BLUR_NO_SCALE 0
 
 #define CV_BLUR  1
@@ -866,6 +888,8 @@
 
 #define  CV_LKFLOW_INITIAL_GUESSES   4
 
+#define  CV_LKFLOW_GET_MIN_EIGENVALS 8
+
 #define CV_POLY_APPROX_DP 0
 
 #define CV_DOMINANT_IPAN 1
@@ -932,9 +956,23 @@
 
 #define CV_HOUGH_GRADIENT 3
 
-#define CV_HAAR_DO_CANNY_PRUNING 1
+#define CV_HAAR_DO_CANNY_PRUNING    1
 
-#define CV_HAAR_SCALE_IMAGE      2
+#define CV_HAAR_SCALE_IMAGE         2
+
+#define CV_HAAR_FIND_BIGGEST_OBJECT 4
+
+#define CV_HAAR_DO_ROUGH_SEARCH     8
+
+#define CV_LMEDS 4
+
+#define CV_RANSAC 8
+
+#define CV_CALIB_CB_ADAPTIVE_THRESH  1
+
+#define CV_CALIB_CB_NORMALIZE_IMAGE  2
+
+#define CV_CALIB_CB_FILTER_QUADS     4
 
 #define CV_CALIB_USE_INTRINSIC_GUESS  1
 
@@ -944,23 +982,41 @@
 
 #define CV_CALIB_ZERO_TANGENT_DIST    8
 
-#define CV_CALIB_CB_ADAPTIVE_THRESH  1
+#define CV_CALIB_FIX_FOCAL_LENGTH 16
 
-#define CV_CALIB_CB_NORMALIZE_IMAGE  2
+#define CV_CALIB_FIX_K1  32
 
-#define CV_CALIB_CB_FILTER_QUADS     4 
+#define CV_CALIB_FIX_K2  64
+
+#define CV_CALIB_FIX_K3  128
+
+#define CV_CALIB_FIX_INTRINSIC  256
+
+#define CV_CALIB_SAME_FOCAL_LENGTH 512
+
+#define CV_CALIB_ZERO_DISPARITY 1024
 
 #define CV_FM_7POINT 1
 
 #define CV_FM_8POINT 2
 
-#define CV_FM_LMEDS_ONLY  4
+#define CV_FM_LMEDS_ONLY  CV_LMEDS
 
-#define CV_FM_RANSAC_ONLY 8
+#define CV_FM_RANSAC_ONLY CV_RANSAC
 
-#define CV_FM_LMEDS (CV_FM_LMEDS_ONLY + CV_FM_8POINT)
+#define CV_FM_LMEDS CV_LMEDS
 
-#define CV_FM_RANSAC (CV_FM_RANSAC_ONLY + CV_FM_8POINT)
+#define CV_FM_RANSAC CV_RANSAC
+
+#define CV_STEREO_BM_NORMALIZED_RESPONSE  0
+
+#define CV_STEREO_BM_BASIC 0
+
+#define CV_STEREO_BM_FISH_EYE 1
+
+#define CV_STEREO_BM_NARROW 2
+
+#define CV_STEREO_GC_OCCLUDED  SHRT_MAX
 
 #define CV_RETR_EXTERNAL 0
 

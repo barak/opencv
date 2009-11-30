@@ -2,6 +2,8 @@
 #pragma package <opencv>
 #endif
 
+#define CV_NO_BACKWARD_COMPATIBILITY
+
 #ifndef _EiC
 #include "cv.h"
 #include "highgui.h"
@@ -43,6 +45,7 @@ int main( int argc, char** argv )
     cvNamedWindow(wndname, 1 );
     cvZero( image );
     cvShowImage(wndname,image);
+    cvWaitKey(DELAY);
 
     rng = cvRNG((unsigned)-1);
     pt[0] = &(ptt[0]);
@@ -60,7 +63,7 @@ int main( int argc, char** argv )
 
         cvLine( image, pt1, pt2, random_color(&rng), cvRandInt(&rng)%10, line_type, 0 );
         cvShowImage(wndname,image);
-        cvWaitKey(DELAY);
+        if(cvWaitKey(DELAY) >= 0) return 0;
     }
 
     for (i = 0; i< NUMBER; i++)
@@ -72,7 +75,7 @@ int main( int argc, char** argv )
 
         cvRectangle( image,pt1, pt2, random_color(&rng), cvRandInt(&rng)%10-1, line_type, 0 );
         cvShowImage(wndname,image);
-        cvWaitKey(DELAY);
+        if(cvWaitKey(DELAY) >= 0) return 0;
     }
 
     for (i = 0; i< NUMBER; i++)
@@ -86,7 +89,7 @@ int main( int argc, char** argv )
         cvEllipse( image, pt1, sz, angle, angle - 100, angle + 200,
                    random_color(&rng), cvRandInt(&rng)%10-1, line_type, 0 );
         cvShowImage(wndname,image);
-        cvWaitKey(DELAY);
+        if(cvWaitKey(DELAY) >= 0) return 0;
     }
 
     for (i = 0; i< NUMBER; i++)
@@ -106,7 +109,7 @@ int main( int argc, char** argv )
 
         cvPolyLine( image, pt, arr, 2, 1, random_color(&rng), cvRandInt(&rng)%10, line_type, 0 );
         cvShowImage(wndname,image);
-        cvWaitKey(DELAY);
+        if(cvWaitKey(DELAY) >= 0) return 0;
     }
 
     for (i = 0; i< NUMBER; i++)
@@ -126,7 +129,7 @@ int main( int argc, char** argv )
 
         cvFillPoly( image, pt, arr, 2, random_color(&rng), line_type, 0 );
         cvShowImage(wndname,image);
-        cvWaitKey(DELAY);
+        if(cvWaitKey(DELAY) >= 0) return 0;
     }
 
     for (i = 0; i< NUMBER; i++)
@@ -137,7 +140,7 @@ int main( int argc, char** argv )
         cvCircle( image, pt1, cvRandInt(&rng)%300, random_color(&rng),
                   cvRandInt(&rng)%10-1, line_type, 0 );
         cvShowImage(wndname,image);
-        cvWaitKey(DELAY);
+        if(cvWaitKey(DELAY) >= 0) return 0;
     }
 
     for (i = 1; i< NUMBER; i++)
@@ -146,12 +149,12 @@ int main( int argc, char** argv )
         pt1.y=cvRandInt(&rng) % height3 - height;
 
         cvInitFont( &font, cvRandInt(&rng) % 8,
-                    (cvRandInt(&rng)%100)*0.05+0.1, (cvRandInt(&rng)%100)*0.05+0.1, 
+                    (cvRandInt(&rng)%100)*0.05+0.1, (cvRandInt(&rng)%100)*0.05+0.1,
                     (cvRandInt(&rng)%5)*0.1, cvRound(cvRandInt(&rng)%10), line_type );
 
         cvPutText( image, "Testing text rendering!", pt1, &font, random_color(&rng));
         cvShowImage(wndname,image);
-        cvWaitKey(DELAY);
+        if(cvWaitKey(DELAY) >= 0) return 0;
     }
 
     cvInitFont( &font, CV_FONT_HERSHEY_COMPLEX, 3, 3, 0.0, 5, line_type );
@@ -167,7 +170,7 @@ int main( int argc, char** argv )
         cvSubS( image2, cvScalarAll(i), image, 0 );
         cvPutText( image, "OpenCV forever!", pt1, &font, CV_RGB(255,i,i));
         cvShowImage(wndname,image);
-        cvWaitKey(DELAY);
+        if(cvWaitKey(DELAY) >= 0) return 0;
     }
 
     // Wait for a key stroke; the same function arranges events processing

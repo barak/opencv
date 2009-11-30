@@ -41,6 +41,7 @@
 
 // 2006-02-17  Roman Stanchak <rstancha@cse.wustl.edu>
 // 2006-07-19  Moved most operators to general/cvarr_operators.i for use with other languages
+// 2009-01-07  Added numpy array interface, Mark Asbach <asbach@ient.rwth-aachen.de>
 
 /*M//////////////////////////////////////////////////////////////////////////////////////////
 // Macros for extending CvMat and IplImage -- primarily for operator overloading 
@@ -103,29 +104,29 @@
 
 // Macro to map logical operations to cvCmp
 %define %wrap_cvCmp(pyfunc, cmp_op)
-%wrap_cvGeneric_CvArr(CvMat, CvArr *, pyfunc, CvMat *, 
+%wrap_cvGeneric_CvArr(CvMat, CvMat *, pyfunc, CvMat *, 
                       cvCmp(self, arg, retarg, cmp_op), 
 					  cvCreateMat(self->rows, self->cols, CV_8U));
-%wrap_cvGeneric_CvArr(IplImage, CvArr *, pyfunc, IplImage *, 
+%wrap_cvGeneric_CvArr(IplImage, IplImage *, pyfunc, IplImage *, 
                       cvCmp(self, arg, retarg, cmp_op), 
 					  cvCreateImage(cvGetSize(self), 8, 1));
 %enddef
 
 %define %wrap_cvCmpS(pyfunc, cmp_op)
-%wrap_cvGeneric_CvArr(CvMat, CvArr *, pyfunc, double, 
+%wrap_cvGeneric_CvArr(CvMat, CvMat *, pyfunc, double, 
                       cvCmpS(self, arg, retarg, cmp_op), 
 					  cvCreateMat(self->rows, self->cols, CV_8U));
-%wrap_cvGeneric_CvArr(IplImage, CvArr *, pyfunc, double, 
+%wrap_cvGeneric_CvArr(IplImage, IplImage *, pyfunc, double, 
                       cvCmpS(self, arg, retarg, cmp_op), 
 					  cvCreateImage(cvGetSize(self), 8, 1));
 %enddef
 
 // special case for cvScale, /, * 
 %define %wrap_cvScale(pyfunc, scale)
-%wrap_cvGeneric_CvArr(CvMat, CvArr *, pyfunc, double,
+%wrap_cvGeneric_CvArr(CvMat, CvMat *, pyfunc, double,
 		cvScale(self, retarg, scale),
 		cvCreateMat(self->rows, self->cols, self->type));
-%wrap_cvGeneric_CvArr(IplImage, CvArr *, pyfunc, double,
+%wrap_cvGeneric_CvArr(IplImage, IplImage *, pyfunc, double,
 		cvScale(self, retarg, scale),
 		cvCreateImage(cvGetSize(self), self->depth, self->nChannels));
 %enddef
@@ -140,14 +141,12 @@
 // special case for reverse operations
 %wrap_cvArr_binaryop(__rsub__, CvArr *, cvSub(arg, self, retarg));
 %wrap_cvArr_binaryop(__rdiv__, CvArr *, cvDiv(arg, self, retarg));
-%wrap_cvArr_binaryop(__rmul__, CvArr *, cvMatMul(arg, self, retarg));
+%wrap_cvArr_binaryop(__rmul__, CvArr *, cvMul(arg, self, retarg));
 
 %wrap_cvArithS(__radd__, cvAddS);
 %wrap_cvArithS(__rsub__, cvSubRS);
 
-
 %wrap_cvScale(__rmul__, arg);
-%wrap_cvScale(__rdiv__, 1.0/arg);
 
 %wrap_cvLogicS(__ror__, cvOrS)
 %wrap_cvLogicS(__rand__, cvAndS)
@@ -160,6 +159,10 @@
 %wrap_cvCmpS(__rle__, CV_CMP_LE);
 %wrap_cvCmpS(__rne__, CV_CMP_NE);
 
+// special case for scalar-array division
+%wrap_cvGeneric_CvArr(CvMat, CvMat *, __rdiv__, double, 
+    cvDiv(NULL, self, retarg, arg),
+    cvCreateMat(self->rows, self->cols, self->type));
 
 // misc operators for python
 %wrap_cvArr_binaryop(__pow__, double, cvPow(self, retarg, arg))
@@ -203,23 +206,30 @@
 %newobject CvMat::__getitem__(PyObject * object);
 %newobject _IplImage::__getitem__(PyObject * object);
 
-// Macro to check bounds of slice and throw error if outside
-%define CHECK_SLICE_BOUNDS(rect,w,h,retval)
+%header %{
+int checkSliceBounds(const CvRect & rect, int w, int h){
 	//printf("__setitem__ slice(%d:%d, %d:%d) array(%d,%d)", rect.x, rect.y, rect.x+rect.width, rect.y+rect.height, w, h);
 	if(rect.width<=0 || rect.height<=0 ||
 	   	rect.width>w || rect.height>h ||
 	   	rect.x<0 || rect.y<0 ||
 	   	rect.x>= w || rect.y >=h){
 	   	char errstr[256];
+
 		// previous function already set error string
-		if(rect.width==0 && rect.height==0 && rect.x==0 && rect.y==0) return retval;
+		if(rect.width==0 && rect.height==0 && rect.x==0 && rect.y==0) return -1;
+
 	   	sprintf(errstr, "Requested slice [ %d:%d %d:%d ] oversteps array sized [ %d %d ]", 
 	   		rect.x, rect.y, rect.x+rect.width, rect.y+rect.height, w, h);
 		PyErr_SetString(PyExc_IndexError, errstr);
 		//PyErr_SetString(PyExc_ValueError, errstr);
-		return retval;
+		return -1;
 	}
-else{}
+    return 0;
+}
+%}
+// Macro to check bounds of slice and throw error if outside
+%define CHECK_SLICE_BOUNDS(rect,w,h,retval)
+    if(CheckSliceBounds(&rect,w,h)==-1){ return retval; } else{}
 %enddef
 
 // slice access and assignment for CvMat
@@ -231,6 +241,7 @@ else{}
 		str[0]=0;
 		return str;
 	}
+    
 
 	// scalar assignment
 	void __setitem__(PyObject * object, double val){
@@ -318,6 +329,14 @@ else{}
 
 		return SWIG_NewPointerObj( mat, $descriptor(CvMat *), 1 );
 	}
+
+	// ~ operator -- swig doesn't generate this from the C++ equivalent
+	CvMat * __invert__(){
+		CvMat * res = cvCreateMat(self->rows, self->cols, self->type);
+		cvNot( self, res );
+		return res;
+	}
+
 %pythoncode %{
 def __iter__(self):
    	"""
@@ -367,9 +386,66 @@ def __ne__(self, arg):
 	if not arg:
 		return True
 	return _cv.CvMat___ne__(self, arg)
+
+def __get_array_interface__ (self):
+  """Compose numpy array interface
+  
+  Via the numpy array interface, OpenCV data structures can be directly passed to numpy
+  methods without copying / converting. This tremendously speeds up mixing code from
+  OpenCV and numpy.
+  
+  See: http://numpy.scipy.org/array_interface.shtml
+  
+  @author Mark Asbach <asbach@ient.rwth-aachen.de>
+  @date   2009-01-07
+  """
+  
+  if   self.depth == IPL_DEPTH_8U:
+    typestr = '|u1'
+    bytes_per_pixel = 1
+  elif self.depth == IPL_DEPTH_8S:
+    typestr = '|i1'
+    bytes_per_pixel = 1
+  elif self.depth == IPL_DEPTH_16U:
+    typestr = '|u2'
+    bytes_per_pixel = 2
+  elif self.depth == IPL_DEPTH_16S:
+    typestr = '|i2'
+    bytes_per_pixel = 2
+  elif self.depth == IPL_DEPTH_32S:
+    typestr = '|i4'
+    bytes_per_pixel = 4
+  elif self.depth == IPL_DEPTH_32F:
+    typestr = '|f4'
+    bytes_per_pixel = 4
+  elif self.depth == IPL_DEPTH_64F:
+    typestr = '|f8'
+    bytes_per_pixel = 8
+  else:
+    raise TypeError("unknown resp. unhandled OpenCV image/matrix format")
+  
+  if self.nChannels == 1:
+    # monochrome image, matrix with a single channel
+    return {'shape':  (self.height, self.width), 
+           'typestr': typestr, 
+           'version': 3,
+           
+           'data':    (int (self.data.ptr), False),
+           'strides': (int (self.widthStep), int (bytes_per_pixel))}
+  else:
+    # color image, image with alpha, matrix with multiple channels
+    return {'shape':  (self.height, self.width, self.nChannels), 
+           'typestr': typestr, 
+           'version': 3,
+           
+           'data':    (int (self.data.ptr), False),
+           'strides': (int (self.widthStep), int (self.nChannels * bytes_per_pixel), int (bytes_per_pixel))}
+
+__array_interface__ = property (__get_array_interface__, doc = "numpy array interface description")
+
 %}
 
-}
+} //extend CvMat
 
 // slice access and assignment for IplImage 
 %extend _IplImage

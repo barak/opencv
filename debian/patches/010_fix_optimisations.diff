@@ -1,41 +1,50 @@
-Index: opencv-1.0.0/configure.in
-===================================================================
---- opencv-1.0.0.orig/configure.in	2006-11-14 16:26:01.000000000 +0100
-+++ opencv-1.0.0/configure.in	2006-11-14 16:26:41.000000000 +0100
-@@ -197,28 +197,35 @@
-             # apples g++ fails with '-march=i686' and there are no apple machines older than prescott/core anyway
-             CXXFLAGS="-g -march=prescott -ffast-math -fomit-frame-pointer $CXXFLAGS"
-         fi
-+        CXXFLAGS="-O3 $CXXFLAGS"
-         ;;
-     i686-*-*)
-         if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
-           # default to i686/pentiumpro -- people can override this
-           CXXFLAGS="-g -march=i686 -ffast-math -fomit-frame-pointer $CXXFLAGS"
-         fi
-+        CXXFLAGS="-O3 $CXXFLAGS"
-         ;;
-     powerpc-*-*)
-         if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
-             # default to G3 processors -- people can override this
-             CXXFLAGS="-g -mcpu=G3 -mtune=G5 -fomit-frame-pointer $CXXFLAGS"
-         fi
-+        CXXFLAGS="-O3 $CXXFLAGS"
-+        ;;
+--- a/configure.in	2009-11-29 17:06:39.000000000 +0900
++++ b/configure.in	2009-11-29 17:11:10.000000000 +0900
+@@ -290,42 +290,16 @@
+     # Due to a misconception, until SVN revision r1713, the case statement
+     # used the value of '--target', not of '--host'
+     case $host in
+-    i386-apple-*)
+-      # all intel macs have at least prescott instruction set
+-      OPTIMIZATION_CXXFLAGS="-fast -g"
+-      ;;
+-    x86_64-apple-*)
+-      # all 64bit intel macs have at least nocona instruction set
+-      OPTIMIZATION_CXXFLAGS="-fast -g -march=nocona"
+-      ;;
+-    i?86-*-*)
+-      # okay, we use this default together with the specification of the target architecture
+-      # let us just assume, a Pentium 4 would be the minimum platform for OpenCV,
+-      # then SSE2 instruction set is available also
+-      OPTIMIZATION_CXXFLAGS="-O3 -g -march=pentium4 -ffast-math -fomit-frame-pointer"
+-      ;;
+-    amd64-*-* | x86_64-*-*)
+-      OPTIMIZATION_CXXFLAGS="-O3 -g -march=x86-64 -ffast-math -fomit-frame-pointer"
+-      ;;
+-    powerpc-apple-*)
+-      # Mac OS X 10.4 runs on CPUs >= G4 only
+-      OPTIMIZATION_CXXFLAGS="-O3 -falign-loops-max-skip=15 -falign-jumps-max-skip=15 -falign-loops=16 -falign-jumps=16 -falign-functions=16 -ffast-math -fstrict-aliasing -funroll-loops -ftree-loop-linear -ftree-loop-memset -mcpu=G4 -mpowerpc-gpopt -mtune=G5 -fsched-interblock -fgcse-sm -g"
+-      ;;
+-    powerpc64-apple-*)
+-      # There are no 64bit Macs with a CPU that's not a G5
+-      OPTIMIZATION_CXXFLAGS="-O3 -falign-loops-max-skip=15 -falign-jumps-max-skip=15 -falign-loops=16 -falign-jumps=16 -falign-functions=16 -ffast-math -fstrict-aliasing -funroll-loops -ftree-loop-linear -ftree-loop-memset -mcpu=G5 -mpowerpc-gpopt -fsched-interblock -fgcse-sm -m64 -g"
+-      ;;
+-    powerpc-*-*)
+-      # generic PowerPCs don't have Apple's 'fast' or 'fastf' switch
+-      OPTIMIZATION_CXXFLAGS="-O3 -g -mcpu=G3 -mtune=G4 -fomit-frame-pointer"
 +    m68k-*-*)
-+        CXXFLAGS="-O2 $CXXFLAGS"
-         ;;
++      OPTIMIZATION_CXXFLAGS="-O2 -fomit-frame-pointer"
+       ;;
      *-*-*)
-         if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
-             CXXFLAGS="-fomit-frame-pointer $CXXFLAGS"
-         fi
-+        CXXFLAGS="-O3 $CXXFLAGS"
-         ;;
+-      OPTIMIZATION_CXXFLAGS="-O2 -fomit-frame-pointer"
++      OPTIMIZATION_CXXFLAGS="-O3 -fomit-frame-pointer"
+       ;;
      esac
-     
-     CPPFLAGS="-DNDEBUG $CPPFLAGS"
--    CXXFLAGS="-O3 $CXXFLAGS"
-+    CPPFLAGS="$CPPFLAGS -fno-strict-aliasing"
+   fi
+-  
+-  OPTIMIZATION_CPPFLAGS="-DNDEBUG"
++ 
++  OPTIMIZATION_CPPFLAGS="$CPPFLAGS -fno-strict-aliasing"
+ else
+   AC_MSG_RESULT([no])
  fi
- 
- if test x"$ac_cv_c_compiler_gnu" = "xyes"; then

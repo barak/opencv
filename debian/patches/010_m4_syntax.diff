@@ -1,10 +1,8 @@
-Index: opencv-1.0.0/configure.in
-===================================================================
---- opencv-1.0.0.orig/configure.in	2006-11-14 10:13:30.000000000 +0100
-+++ opencv-1.0.0/configure.in	2006-11-14 10:14:13.000000000 +0100
-@@ -18,9 +18,9 @@
- # init autotools
- AC_PREREQ(2.59)
+--- a/configure.in	2009-11-25 17:13:10.000000000 +0900
++++ b/configure.in	2009-11-25 17:17:08.000000000 +0900
+@@ -36,9 +36,9 @@
+ # we need autoconf >= 2.62 beause of several macros in there
+ AC_PREREQ(2.63)
  AC_INIT([opencv],[opencv_version],[opencvlibrary-devel@lists.sourceforge.net])
 -AC_CONFIG_SRCDIR([opencv.pc.in])
 -AC_CONFIG_AUX_DIR([autotools])
@@ -14,13 +12,13 @@ Index: opencv-1.0.0/configure.in
 +AC_CONFIG_MACRO_DIR(autotools/aclocal)
  
  # put CVS revision of this configure.in into the resulting configure script
- AC_REVISION($Revision: 1.39 $)
-@@ -31,7 +31,7 @@
+ AC_REVISION($Revision: 1.60 $)
+@@ -49,7 +49,7 @@
  
  # setup automake - we need >= 1.6 because of python and aclocal support
  #                  we updated to 1.9 because of cross-platform issues
--AM_CONFIG_HEADER([cvconfig.h])
-+AM_CONFIG_HEADER(cvconfig.h)
+-AC_CONFIG_HEADERS([cvconfig.h])
++AC_CONFIG_HEADERS(cvconfig.h)
  AM_INIT_AUTOMAKE([1.9])
  AC_PROG_MAKE_SET
  

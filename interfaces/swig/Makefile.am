@@ -5,14 +5,18 @@
 # script language interfaces that SWIG is capable of generating wrappers for
 
 CV_INCLUDES = \
-  -I$(top_srcdir)/cv/include         \
-  -I$(top_srcdir)/cxcore/include     \
-  -I$(top_srcdir)/otherlibs/highgui
+  -I$(top_srcdir)/include/opencv
 
 AM_CPPFLAGS = \
   $(CV_INCLUDES)                     \
   -DCV_NO_BACKWARD_COMPATIBILITY
 
-SUBDIRS = filtered general python
+if BUILD_OCTAVE_WRAPPERS
+  TMP_OCTAVE_DIR = octave
+else
+  TMP_OCTAVE_DIR =
+endif
 
-EXTRA_DIST = README
+SUBDIRS = filtered general python $(TMP_OCTAVE_DIR)
+
+EXTRA_DIST = README CMakeLists.txt

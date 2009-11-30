@@ -1,3 +1,44 @@
+opencv (2.0.0-1) unstable; urgency=low
+
+  * New upstream release. (Closes: #507588, #549997, #492445)
+  * Update Standards-Version to 3.8.3
+  * Add debian/README.source
+  * Add libdc1394-22-dev to Build-Depends. (Closes: #507584, #516794)
+  * Remove libcvaux-dev and libhighgui-dev from Depends of libcv-dev.
+    (Closes: #525023)
+  * Remove all .la files.
+  * Update debian/watch file. (Closes: #557140)
+  * Update debian/rules file.
+    Add --disable-sse and --disable-optimization to configure.
+  * Remove bashism. (Closes: #530153)
+    500_remove_bashism.patch
+  * Update debian/patches
+    010_m4_syntax.diff
+    010_fix_optimisations.diff
+    010_makefile_syntax.diff
+    010_python_cspec.diff
+    020_python_linking.diff
+    100_static_inline.diff
+    100_amd64.diff
+    120_header_warnings.diff
+  * Remove debian/patches
+    - Merge to upstream
+      030_install_hook.diff      
+      100_ffmpeg_updates.diff
+      210_openmp_compilation.diff
+      300_fix_segfault_in_window_gtk.diff
+      400_ffmpeg_splitting_autofoo.diff
+      410_ffmpeg_use_swscale.diff
+      420_typedef_longint.diff
+      430_highgui_jpeg_camera.diff 
+    - Don't need new version
+      010_ffmpeg_linking.diff
+      050_rebootstrap.diff
+      200_documentation.diff
+      500_ftbfs_gcc44.diff
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Tue, 01 Dec 2009 01:13:18 +0900
+
 opencv (1.0.0-6.3) unstable; urgency=low
 
   * Non-maintainer upload.

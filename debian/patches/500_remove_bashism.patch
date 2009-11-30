@@ -1,0 +1,12 @@
+# http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=530153
+
+--- a/samples/c/build_all.sh	2009-11-29 15:57:55.000000000 +0900
++++ b/samples/c/build_all.sh	2009-11-29 15:58:01.000000000 +0900
+@@ -1,6 +1,6 @@
+ #!/bin/sh
+ 
+-if [[ $# > 0 ]] ; then
++if [ $# > 0 ] ; then
+ 	base=`basename $1 .c`
+ 	echo "compiling $base"
+ 	gcc -ggdb `pkg-config opencv --cflags --libs` $base.c -o $base 

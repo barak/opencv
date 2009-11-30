@@ -34,7 +34,8 @@ config.status: configure
 	touch cvconfig.h.in
 	touch `find . -name Makefile.in`
 	touch stamp-h.in
-	CFLAGS="$(CFLAGS)" ./configure $(confflags) --enable-static --enable-python --with-apps
+	CFLAGS="$(CFLAGS)" ./configure $(confflags) --enable-static --enable-python \
+		--with-apps --disable-optimization --disable-sse
 
 build: build-stamp
 build-stamp: config.status
@@ -49,7 +50,8 @@ clean:
 	[ ! -f Makefile ] || $(MAKE) distclean
 	rm -f tests/cv/src/lt-cvtest.lst tests/cv/src/lt-cvtest.sum
 	QUILT_PATCHES=debian/patches quilt pop -a -R || test $$? = 2
-	dh_clean 
+	dh_clean
+	rm -rf stamp-h.in .pc
 
 install: build
 	dh_testdir
@@ -59,7 +61,7 @@ install: build
 	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
 	# Move files around
 	mkdir -p debian/tmp/usr/share/doc/opencv-doc
-	mv debian/tmp/usr/share/opencv/doc/* debian/tmp/usr/share/doc/opencv-doc/
+	# mv debian/tmp/usr/share/opencv/doc/* debian/tmp/usr/share/doc/opencv-doc/
 	mv debian/tmp/usr/share/opencv/readme.txt debian/tmp/usr/share/doc/opencv-doc/
 	mv debian/tmp/usr/share/opencv/samples debian/tmp/usr/share/doc/opencv-doc/examples
 	# Install files in their required packages
