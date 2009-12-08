@@ -1,3 +1,9 @@
+opencv (2.0.0-2) unstable; urgency=low
+
+  * Add cvconfig.h to libcv-dev. (Closes: #559857)
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Tue, 08 Dec 2009 10:00:14 +0900
+
 opencv (2.0.0-1) unstable; urgency=low
 
   * New upstream release. (Closes: #507588, #549997, #492445)
