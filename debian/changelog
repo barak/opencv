@@ -1,3 +1,17 @@
+opencv (2.0.0-3) unstable; urgency=low
+
+  * Remove libcv1, libhighgui1 and libcvaux1 from Conflicts and Replaces.
+    (Closes: #560283)
+  * Remove cvconfig.h from libcv-dev package. (Closes: #559857)
+    Update libcv-dev.install and backport r2242 of commit from upstream.
+    Thanks to Filippo Giunchedi.
+    debian/patches/110_backport_r2242.diff 
+  * Fix FTBFS with GCC 4.4. (Closes: #562742)
+    Backport r2255 of commit from upstream. Thanks to Filippo Giunchedi.
+    debian/patches/110_backport_r2255.diff
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Thu, 07 Jan 2010 20:48:47 +0900
+
 opencv (2.0.0-2) unstable; urgency=low
 
   * Add cvconfig.h to libcv-dev. (Closes: #559857)

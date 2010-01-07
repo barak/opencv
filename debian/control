@@ -15,6 +15,7 @@ Homepage: http://opencvlibrary.sourceforge.net/
 Package: opencv-doc
 Section: doc
 Architecture: all
+Depends: ${misc:Depends}
 Conflicts: libopencv-doc
 Replaces: libopencv-doc
 Description: OpenCV documentation and examples
@@ -89,8 +90,6 @@ Description: development files for libhighgui
 Package: libcv4
 Section: libs
 Architecture: any
-Conflicts: libcv1
-Replaces: libcv1
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: computer vision library
  This package contains the OpenCV (Open Computer Vision) runtime libraries.
@@ -108,8 +107,6 @@ Description: computer vision library
 Package: libcvaux4
 Section: libs
 Architecture: any
-Conflicts: libcvaux1
-Replaces: libcvaux1
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: computer vision extension library
  This package contains the OpenCV (Open Computer Vision) extensions runtime
@@ -128,8 +125,6 @@ Description: computer vision extension library
 Package: libhighgui4
 Section: libs
 Architecture: any
-Conflicts: libhighgui1
-Replaces: libhighgui1
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: computer vision GUI library
  This package contains the OpenCV (Open Computer Vision) GUI library.

@@ -7,6 +7,8 @@
 100_amd64.diff
 100_static_inline.diff
 110_dc1394.diff
+110_backport_r2242.diff
+110_backport_r2255.diff
 120_header_warnings.diff
 200_examples_makefile.diff
 500_remove_bashism.patch

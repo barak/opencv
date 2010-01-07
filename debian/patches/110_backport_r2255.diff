@@ -1,0 +1,12 @@
+--- a/include/opencv/cxcore.hpp	2009-12-28 16:18:41.000000000 +0900
++++ b/include/opencv/cxcore.hpp	2009-12-28 16:19:11.000000000 +0900
+@@ -60,7 +60,8 @@
+ namespace cv {
+ 
+ #undef min
+-#undef max    
++#undef max
++#undef Complex   
+ 
+ using std::vector;
+ using std::string;
