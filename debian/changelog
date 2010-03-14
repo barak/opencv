@@ -1,3 +1,11 @@
+opencv (2.0.0-4) unstable; urgency=low
+
+  * Update debian/control.
+    - Bumped standards-version to 3.8.4. No changes needed.
+  * Change install path of python-opencv. (Closes: #565121)  
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Sun, 14 Mar 2010 13:19:00 +0900
+
 opencv (2.0.0-3) unstable; urgency=low
 
   * Remove libcv1, libhighgui1 and libcvaux1 from Conflicts and Replaces.
