@@ -16,7 +16,7 @@ foreach(h ${aux_hdr_names})
     list(APPEND aux_hdrs_ext "${CMAKE_CURRENT_SOURCE_DIR}/../../include/opencv/${h}")
 endforeach()
 
-file(GLOB_RECURSE aux_hdrs_int *.h*)
+file(GLOB_RECURSE aux_hdrs_int *.h)
 set(lib_hdrs ${lib_hdrs} ${aux_hdrs_ext} ${aux_hdrs_int})
 
 source_group("Include\\External" FILES ${aux_hdrs_ext})
@@ -34,7 +34,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../../include/opencv"
 # ----------------------------------------------------------------------------------
 set(the_target "cvaux")
 
-add_library(${the_target} SHARED ${lib_srcs} ${lib_hdrs})
+add_library(${the_target} ${lib_srcs} ${lib_hdrs})
 
 if(PCHSupport_FOUND)
     set(pch_header ${CMAKE_CURRENT_SOURCE_DIR}/_cvaux.h)

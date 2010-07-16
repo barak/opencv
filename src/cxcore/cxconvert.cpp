@@ -576,10 +576,11 @@ void convertScaleAbs( const Mat& src, Mat& dst, double scale, double shift )
         cvtScale_<double, OpCvtAbs<double, uchar> >, 0
     };
 
+    Mat src0 = src;
     dst.create( src.size(), CV_8UC(src.channels()) );
-    CvtScaleFunc func = tab[src.depth()];
+    CvtScaleFunc func = tab[src0.depth()];
     CV_Assert( func != 0 );
-    func( src, dst, scale, shift );
+    func( src0, dst, scale, shift );
 }
 
 
@@ -701,18 +702,23 @@ void Mat::convertTo(Mat& dst, int _type, double alpha, double beta) const
         return;
     }
 
+    Mat temp;
+    const Mat* psrc = this;
+    if( sdepth != ddepth && psrc == &dst )
+        psrc = &(temp = *this);
+        
     dst.create( size(), _type );
     if( noScale )
     {
         CvtFunc func = tab[sdepth][ddepth];
         CV_Assert( func != 0 );
-        func( *this, dst );
+        func( *psrc, dst );
     }
     else
     {
         CvtScaleFunc func = stab[sdepth][ddepth];
         CV_Assert( func != 0 );
-        func( *this, dst, alpha, beta );
+        func( *psrc, dst, alpha, beta );
     }
 }
 
@@ -924,7 +930,6 @@ cvMixChannels( const CvArr** src, int src_count,
                CvArr** dst, int dst_count,
                const int* from_to, int pair_count )
 {
-    CV_Assert( src_count == dst_count && src_count == pair_count );
     cv::AutoBuffer<cv::Mat, 32> buf;
 
     int i;

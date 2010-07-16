@@ -3,11 +3,15 @@ Priority: optional
 Section: devel
 Maintainer: Debian Scientific Computing Team <pkg-scicomp-devel@lists.alioth.debian.org>
 Uploaders: Sam Hocevar (Debian packages) <sam+deb@zoy.org>, Nobuhiro Iwamatsu <iwamatsu@debian.org>
-Build-Depends: debhelper (>= 5.0), quilt,
+Build-Depends: debhelper (>= 7.0.50~), quilt (>= 0.46-7~), cmake,
  libavcodec-dev (>= 0.svn20080206), libavformat-dev, libswscale-dev, libgtk2.0-dev,
- libjasper-dev, libjpeg62-dev, libpng12-dev, libtiff4-dev, libraw1394-dev, libdc1394-22-dev,
- zlib1g-dev, python-dev, swig, python-support (>= 0.4.1)
-Standards-Version: 3.8.4
+ libjasper-dev, libjpeg62-dev, libpng12-dev, libtiff4-dev,
+ libraw1394-dev [!kfreebsd-amd64 !kfreebsd-i386 !hurd-i386],
+ libdc1394-22-dev [!kfreebsd-amd64 !kfreebsd-i386 !hurd-i386],
+ zlib1g-dev, liblapack-dev, python-dev, swig, python-support (>= 0.4.1),
+ texlive-fonts-extra, texlive-latex-extra, texlive-latex-recommended,
+ latex-xcolor, texlive-fonts-recommended
+Standards-Version: 3.9.0
 Vcs-Svn: svn://svn.debian.org/svn/pkg-scicomp/opencv/trunk/
 Vcs-Browser: http://svn.debian.org/wsvn/pkg-scicomp/opencv/
 Homepage: http://opencvlibrary.sourceforge.net/
@@ -34,7 +38,7 @@ Description: OpenCV documentation and examples
 Package: libcv-dev
 Section: libdevel
 Architecture: any
-Depends: ${shlibs:Depends}, libcv4 (= ${binary:Version}), pkg-config, ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}, libcv2.1 (= ${binary:Version}), pkg-config
 Conflicts: libopencv-dev
 Replaces: libopencv-dev
 Description: development files for libcv
@@ -54,7 +58,7 @@ Description: development files for libcv
 Package: libcvaux-dev
 Section: libdevel
 Architecture: any
-Depends: ${shlibs:Depends}, libcvaux4 (= ${binary:Version}), libcv-dev (>= ${binary:Version}), pkg-config, ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}, libcvaux2.1 (= ${binary:Version}), libcv-dev (>= ${binary:Version}), pkg-config
 Description: development files for libcvaux
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) extensions.
@@ -72,7 +76,10 @@ Description: development files for libcvaux
 Package: libhighgui-dev
 Section: libdevel
 Architecture: any
-Depends: ${shlibs:Depends}, libhighgui4 (= ${binary:Version}), libcv-dev (>= ${binary:Version}), libpng12-dev, libjpeg-dev, zlib1g-dev, libtiff4-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2), libavformat-dev, libswscale-dev, libjasper-dev, pkg-config, ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}, libhighgui2.1 (= ${binary:Version}), 
+	libcv-dev (>= ${binary:Version}), libpng12-dev, libjpeg-dev, zlib1g-dev,
+	libtiff4-dev, libgtk2.0-dev, libavcodec-dev (>= 0.cvs20050918-2),
+	libavformat-dev, libswscale-dev, libjasper-dev, pkg-config
 Description: development files for libhighgui
  This package contains the header files and static library needed to compile
  applications that use the OpenCV (Open Computer Vision) GUI.
@@ -87,7 +94,7 @@ Description: development files for libhighgui
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libcv4
+Package: libcv2.1
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -104,7 +111,7 @@ Description: computer vision library
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libcvaux4
+Package: libcvaux2.1
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -122,7 +129,7 @@ Description: computer vision extension library
  analysis, structural analysis, motion analysis and object tracking, object
  recognition, camera calibration and 3D reconstruction.
 
-Package: libhighgui4
+Package: libhighgui2.1
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}

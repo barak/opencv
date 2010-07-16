@@ -82,12 +82,57 @@ CvForestTree::train( CvDTreeTrainData*, const CvMat* )
 }
 
 
+
+namespace cv
+{
+
+ForestTreeBestSplitFinder::ForestTreeBestSplitFinder( CvForestTree* _tree, CvDTreeNode* _node ) :
+    DTreeBestSplitFinder(_tree, _node) {}
+
+ForestTreeBestSplitFinder::ForestTreeBestSplitFinder( const ForestTreeBestSplitFinder& finder, Split spl ) :
+    DTreeBestSplitFinder( finder, spl ) {}
+
+void ForestTreeBestSplitFinder::operator()(const BlockedRange& range)
+{
+    int vi, vi1 = range.begin(), vi2 = range.end();
+    int n = node->sample_count;
+    CvDTreeTrainData* data = tree->get_data();
+    AutoBuffer<uchar> inn_buf(2*n*(sizeof(int) + sizeof(float)));
+
+    CvForestTree* ftree = (CvForestTree*)tree;
+    const CvMat* active_var_mask = ftree->forest->get_active_var_mask();
+
+    for( vi = vi1; vi < vi2; vi++ )
+    {
+        CvDTreeSplit *res;
+        int ci = data->var_type->data.i[vi];
+        if( node->num_valid[vi] <= 1
+            || (active_var_mask && !active_var_mask->data.ptr[vi]) )
+            continue;
+
+        if( data->is_classifier )
+        {
+            if( ci >= 0 )
+                res = ftree->find_split_cat_class( node, vi, bestSplit->quality, split, (uchar*)inn_buf );
+            else
+                res = ftree->find_split_ord_class( node, vi, bestSplit->quality, split, (uchar*)inn_buf );
+        }
+        else
+        {
+            if( ci >= 0 )
+                res = ftree->find_split_cat_reg( node, vi, bestSplit->quality, split, (uchar*)inn_buf );
+            else
+                res = ftree->find_split_ord_reg( node, vi, bestSplit->quality, split, (uchar*)inn_buf );
+        }
+
+        if( res && bestSplit->quality < split->quality )
+                memcpy( (CvDTreeSplit*)bestSplit, (CvDTreeSplit*)split, splitSize );
+    }
+}
+}
+
 CvDTreeSplit* CvForestTree::find_best_split( CvDTreeNode* node )
 {
-    int vi;
-
-    CvDTreeSplit *best_split = 0;
-
     CvMat* active_var_mask = 0;
     if( forest )
     {
@@ -99,7 +144,7 @@ CvDTreeSplit* CvForestTree::find_best_split( CvDTreeNode* node )
 
         CV_Assert( var_count == data->var_count );
 
-        for( vi = 0; vi < var_count; vi++ )
+        for( int vi = 0; vi < var_count; vi++ )
         {
             uchar temp;
             int i1 = cvRandInt(rng) % var_count;
@@ -108,79 +153,16 @@ CvDTreeSplit* CvForestTree::find_best_split( CvDTreeNode* node )
                 active_var_mask->data.ptr[i2], temp );
         }
     }
-    int maxNumThreads = 1;
-#ifdef _OPENMP
-    maxNumThreads = cv::getNumThreads();
-#endif
-    vector<CvDTreeSplit*> splits(maxNumThreads);
-    vector<CvDTreeSplit*> bestSplits(maxNumThreads);
-    vector<int> canSplit(maxNumThreads);
-    CvDTreeSplit **splitsPtr = &splits[0], ** bestSplitsPtr = &bestSplits[0];
-    int* canSplitPtr = &canSplit[0];
-    for (int i = 0; i < maxNumThreads; i++)
-    {
-        splits[i] = data->new_split_cat( 0, -1.0f );
-        bestSplits[i] = data->new_split_cat( 0, -1.0f );
-        canSplitPtr[i] = 0;
-    }
 
-#ifdef _OPENMP
-#pragma omp parallel for num_threads(maxNumThreads) schedule(dynamic)
-#endif
-    for( vi = 0; vi < data->var_count; vi++ )
-    {
-        CvDTreeSplit *res, *t;
-        int threadIdx = cv::getThreadNum();
-        int ci = data->var_type->data.i[vi];
-        if( node->num_valid[vi] <= 1
-            || (active_var_mask && !active_var_mask->data.ptr[vi]) )
-            continue;
+    cv::ForestTreeBestSplitFinder finder( this, node );
 
-        if( data->is_classifier )
-        {
-            if( ci >= 0 )
-                res = find_split_cat_class( node, vi, bestSplitsPtr[threadIdx]->quality, splitsPtr[threadIdx] );
-            else
-                res = find_split_ord_class( node, vi, bestSplitsPtr[threadIdx]->quality, splitsPtr[threadIdx] );
-        }
-        else
-        {
-            if( ci >= 0 )
-                res = find_split_cat_reg( node, vi, bestSplitsPtr[threadIdx]->quality, splitsPtr[threadIdx] );
-            else
-                res = find_split_ord_reg( node, vi, bestSplitsPtr[threadIdx]->quality, splitsPtr[threadIdx] );
-        }
+    cv::parallel_reduce(cv::BlockedRange(0, data->var_count), finder);
 
-        if( res )
-        {
-            canSplitPtr[threadIdx] = 1;
-            if( bestSplits[threadIdx]->quality < splits[threadIdx]->quality )
-                CV_SWAP( bestSplits[threadIdx], splits[threadIdx], t );
-        }
-    }
-    int ti = 0;
-    for( ; ti < maxNumThreads; ti++ )
-    {
-        if( canSplitPtr[ti] )
-        {
-            best_split = bestSplitsPtr[ti];
-            break;
-        }
-    }
-    for( ; ti < maxNumThreads; ti++ )
-    {
-        if( best_split->quality < bestSplitsPtr[ti]->quality )
-            best_split = bestSplitsPtr[ti];
-    }
-    for(int i = 0; i < maxNumThreads; i++)
-    {
-        cvSetRemoveByPtr( data->split_heap, splits[i] );
-        if( bestSplits[i] != best_split )
-            cvSetRemoveByPtr( data->split_heap, bestSplits[i] );
-    }
-    return best_split;
+    CvDTreeSplit *bestSplit = data->new_split_cat( 0, -1.0f );
+    memcpy( bestSplit, finder.bestSplit, finder.splitSize );
+
+    return bestSplit;
 }
-
 
 void CvForestTree::read( CvFileStorage* fs, CvFileNode* fnode, CvRTrees* _forest, CvDTreeTrainData* _data )
 {
@@ -284,10 +266,14 @@ bool CvRTrees::train( const CvMat* _train_data, int _tflag,
     }
     { // initialize active variables mask
         CvMat submask1, submask2;
+        CV_Assert( (active_var_mask->cols >= 1) && (params.nactive_vars > 0) && (params.nactive_vars <= active_var_mask->cols) );
         cvGetCols( active_var_mask, &submask1, 0, params.nactive_vars );
-        cvGetCols( active_var_mask, &submask2, params.nactive_vars, var_count );
         cvSet( &submask1, cvScalar(1) );
-        cvZero( &submask2 );
+        if( params.nactive_vars < active_var_mask->cols )
+        {
+            cvGetCols( active_var_mask, &submask2, params.nactive_vars, var_count );
+            cvZero( &submask2 );
+        }
     }
 
     return grow_forest( params.term_crit );
@@ -325,7 +311,7 @@ bool CvRTrees::grow_forest( const CvTermCriteria term_crit )
     float* samples_ptr     = 0;
     uchar* missing_ptr     = 0;
     float* true_resp_ptr   = 0;
-    bool is_oob_or_vimportance = (max_oob_err > 0) && (term_crit.type != CV_TERMCRIT_ITER) || var_importance;
+    bool is_oob_or_vimportance = (max_oob_err > 0 && term_crit.type != CV_TERMCRIT_ITER) || var_importance;
 
     // oob_predictions_sum[i] = sum of predicted values for the i-th sample
     // oob_num_of_predictions[i] = number of summands
@@ -552,7 +538,7 @@ float CvRTrees::get_proximity( const CvMat* sample1, const CvMat* sample2,
     return result;
 }
 
-float CvRTrees::calc_error( CvMLData* _data, int type , vector<float> *resp )
+float CvRTrees::calc_error( CvMLData* _data, int type , std::vector<float> *resp )
 {
     float err = 0;
     const CvMat* values = _data->get_values();

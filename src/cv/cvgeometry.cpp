@@ -86,16 +86,12 @@ cvMaxRect( const CvRect* rect1, const CvRect* rect2 )
 CV_IMPL void
 cvBoxPoints( CvBox2D box, CvPoint2D32f pt[4] )
 {
-    CV_FUNCNAME( "cvBoxPoints" );
-
-    __BEGIN__;
-    
     double angle = box.angle*CV_PI/180.;
     float a = (float)cos(angle)*0.5f;
     float b = (float)sin(angle)*0.5f;
 
     if( !pt )
-        CV_ERROR( CV_StsNullPtr, "NULL vertex array pointer" );
+        CV_Error( CV_StsNullPtr, "NULL vertex array pointer" );
 
     pt[0].x = box.center.x - a*box.size.height - b*box.size.width;
     pt[0].y = box.center.y + b*box.size.height - a*box.size.width;
@@ -105,8 +101,6 @@ cvBoxPoints( CvBox2D box, CvPoint2D32f pt[4] )
     pt[2].y = 2*box.center.y - pt[0].y;
     pt[3].x = 2*box.center.x - pt[1].x;
     pt[3].y = 2*box.center.y - pt[1].y;
-
-    __END__;
 }
 
 
@@ -165,9 +159,6 @@ CV_IMPL double
 cvPointPolygonTest( const CvArr* _contour, CvPoint2D32f pt, int measure_dist )
 {
     double result = 0;
-    CV_FUNCNAME( "cvCheckPointPolygon" );
-
-    __BEGIN__;
     
     CvSeqBlock block;
     CvContour header;
@@ -180,8 +171,8 @@ cvPointPolygonTest( const CvArr* _contour, CvPoint2D32f pt, int measure_dist )
 
     if( !CV_IS_SEQ(contour) )
     {
-        CV_CALL( contour = cvPointSeqFromMat( CV_SEQ_KIND_CURVE + CV_SEQ_FLAG_CLOSED,
-                                              _contour, &header, &block ));
+        contour = cvPointSeqFromMat( CV_SEQ_KIND_CURVE + CV_SEQ_FLAG_CLOSED,
+                                    _contour, &header, &block );
     }
     else if( CV_IS_SEQ_POINT_SET(contour) )
     {
@@ -195,11 +186,11 @@ cvPointPolygonTest( const CvArr* _contour, CvPoint2D32f pt, int measure_dist )
     }
     else if( CV_IS_SEQ_CHAIN(contour) )
     {
-        CV_ERROR( CV_StsBadArg,
+        CV_Error( CV_StsBadArg,
             "Chains are not supported. Convert them to polygonal representation using cvApproxChains()" );
     }
     else
-        CV_ERROR( CV_StsBadArg, "Input contour is neither a valid sequence nor a matrix" );
+        CV_Error( CV_StsBadArg, "Input contour is neither a valid sequence nor a matrix" );
 
     total = contour->total;
     is_float = CV_SEQ_ELTYPE(contour) == CV_32FC2;
@@ -223,13 +214,13 @@ cvPointPolygonTest( const CvArr* _contour, CvPoint2D32f pt, int measure_dist )
             {
                 if( ip.y == v.y && (ip.x == v.x || (ip.y == v0.y &&
                     ((v0.x <= ip.x && ip.x <= v.x) || (v.x <= ip.x && ip.x <= v0.x)))) )
-                    EXIT;
+                    return 0;
                 continue;
             }
 
             dist = (ip.y - v0.y)*(v.x - v0.x) - (ip.x - v0.x)*(v.y - v0.y);
             if( dist == 0 )
-                EXIT;
+                return 0;
             if( v.y < v0.y )
                 dist = -dist;
             counter += dist > 0;
@@ -274,13 +265,13 @@ cvPointPolygonTest( const CvArr* _contour, CvPoint2D32f pt, int measure_dist )
                 {
                     if( pt.y == v.y && (pt.x == v.x || (pt.y == v0.y &&
                         ((v0.x <= pt.x && pt.x <= v.x) || (v.x <= pt.x && pt.x <= v0.x)))) )
-                        EXIT;
+                        return 0;
                     continue;
                 }
 
                 dist = (double)(pt.y - v0.y)*(v.x - v0.x) - (double)(pt.x - v0.x)*(v.y - v0.y);
                 if( dist == 0 )
-                    EXIT;
+                    return 0;
                 if( v.y < v0.y )
                     dist = -dist;
                 counter += dist > 0;
@@ -345,8 +336,6 @@ cvPointPolygonTest( const CvArr* _contour, CvPoint2D32f pt, int measure_dist )
         }
     }
 
-    __END__;
-
     return result;
 }
 
@@ -356,31 +345,27 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
                CvMat *matrixQx, CvMat *matrixQy, CvMat *matrixQz,
                CvPoint3D64f *eulerAngles)
 {
-    CV_FUNCNAME("cvRQDecomp3x3");
-    __BEGIN__;
-
-    double _M[3][3], _R[3][3], _Q[3][3];
-    CvMat M = cvMat(3, 3, CV_64F, _M);
-    CvMat R = cvMat(3, 3, CV_64F, _R);
-    CvMat Q = cvMat(3, 3, CV_64F, _Q);
+    double matM[3][3], matR[3][3], matQ[3][3];
+    CvMat M = cvMat(3, 3, CV_64F, matM);
+    CvMat R = cvMat(3, 3, CV_64F, matR);
+    CvMat Q = cvMat(3, 3, CV_64F, matQ);
     double z, c, s;
 
     /* Validate parameters. */
-    CV_ASSERT( CV_IS_MAT(matrixM) && CV_IS_MAT(matrixR) && CV_IS_MAT(matrixQ) &&
+    CV_Assert( CV_IS_MAT(matrixM) && CV_IS_MAT(matrixR) && CV_IS_MAT(matrixQ) &&
         matrixM->cols == 3 && matrixM->rows == 3 &&
         CV_ARE_SIZES_EQ(matrixM, matrixR) && CV_ARE_SIZES_EQ(matrixM, matrixQ));
 
     cvConvert(matrixM, &M);
 
-    {
     /* Find Givens rotation Q_x for x axis (left multiplication). */
     /*
          ( 1  0  0 )
     Qx = ( 0  c  s ), c = m33/sqrt(m32^2 + m33^2), s = m32/sqrt(m32^2 + m33^2)
          ( 0 -s  c )
     */
-    s = _M[2][1];
-    c = _M[2][2];
+    s = matM[2][1];
+    c = matM[2][2];
     z = 1./sqrt(c * c + s * s + DBL_EPSILON);
     c *= z;
     s *= z;
@@ -389,8 +374,8 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
     CvMat Qx = cvMat(3, 3, CV_64F, _Qx);
 
     cvMatMul(&M, &Qx, &R);
-    assert(fabs(_R[2][1]) < FLT_EPSILON);
-    _R[2][1] = 0;
+    assert(fabs(matR[2][1]) < FLT_EPSILON);
+    matR[2][1] = 0;
 
     /* Find Givens rotation for y axis. */
     /*
@@ -398,8 +383,8 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
     Qy = ( 0  1  0 ), c = m33/sqrt(m31^2 + m33^2), s = m31/sqrt(m31^2 + m33^2)
          (-s  0  c )
     */
-    s = _R[2][0];
-    c = _R[2][2];
+    s = matR[2][0];
+    c = matR[2][2];
     z = 1./sqrt(c * c + s * s + DBL_EPSILON);
     c *= z;
     s *= z;
@@ -408,8 +393,8 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
     CvMat Qy = cvMat(3, 3, CV_64F, _Qy);
     cvMatMul(&R, &Qy, &M);
 
-    assert(fabs(_M[2][0]) < FLT_EPSILON);
-    _M[2][0] = 0;
+    assert(fabs(matM[2][0]) < FLT_EPSILON);
+    matM[2][0] = 0;
 
     /* Find Givens rotation for z axis. */
     /*
@@ -418,8 +403,8 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
          ( 0  0  1 )
     */
 
-    s = _M[1][0];
-    c = _M[1][1];
+    s = matM[1][0];
+    c = matM[1][1];
     z = 1./sqrt(c * c + s * s + DBL_EPSILON);
     c *= z;
     s *= z;
@@ -428,23 +413,23 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
     CvMat Qz = cvMat(3, 3, CV_64F, _Qz);
 
     cvMatMul(&M, &Qz, &R);
-    assert(fabs(_R[1][0]) < FLT_EPSILON);
-    _R[1][0] = 0;
+    assert(fabs(matR[1][0]) < FLT_EPSILON);
+    matR[1][0] = 0;
 
     // Solve the decomposition ambiguity.
     // Diagonal entries of R, except the last one, shall be positive.
     // Further rotate R by 180 degree if necessary
-    if( _R[0][0] < 0 )
+    if( matR[0][0] < 0 )
     {
-        if( _R[1][1] < 0 )
+        if( matR[1][1] < 0 )
         {
             // rotate around z for 180 degree, i.e. a rotation matrix of
             // [-1,  0,  0],
             // [ 0, -1,  0],
             // [ 0,  0,  1]
-            _R[0][0] *= -1;
-            _R[0][1] *= -1;
-            _R[1][1] *= -1;
+            matR[0][0] *= -1;
+            matR[0][1] *= -1;
+            matR[1][1] *= -1;
 
             _Qz[0][0] *= -1;
             _Qz[0][1] *= -1;
@@ -457,10 +442,10 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
             // [-1,  0,  0],
             // [ 0,  1,  0],
             // [ 0,  0, -1]
-            _R[0][0] *= -1;
-            _R[0][2] *= -1;
-            _R[1][2] *= -1;
-            _R[2][2] *= -1;
+            matR[0][0] *= -1;
+            matR[0][2] *= -1;
+            matR[1][2] *= -1;
+            matR[2][2] *= -1;
 
             cvTranspose( &Qz, &Qz );
 
@@ -470,7 +455,7 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
             _Qy[2][2] *= -1;
         }
     }
-    else if( _R[1][1] < 0 )
+    else if( matR[1][1] < 0 )
     {
         // ??? for some reason, we never get here ???
 
@@ -478,11 +463,11 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
         // [ 1,  0,  0],
         // [ 0, -1,  0],
         // [ 0,  0, -1]
-        _R[0][1] *= -1;
-        _R[0][2] *= -1;
-        _R[1][1] *= -1;
-        _R[1][2] *= -1;
-        _R[2][2] *= -1;
+        matR[0][1] *= -1;
+        matR[0][2] *= -1;
+        matR[1][1] *= -1;
+        matR[1][2] *= -1;
+        matR[2][2] *= -1;
 
         cvTranspose( &Qz, &Qz );
         cvTranspose( &Qy, &Qy );
@@ -518,9 +503,6 @@ cvRQDecomp3x3( const CvMat *matrixM, CvMat *matrixR, CvMat *matrixQ,
         cvConvert(&Qy, matrixQy);
     if( matrixQz )
         cvConvert(&Qz, matrixQz);
-    }
-
-    __END__;
 }
 
 
@@ -530,64 +512,47 @@ cvDecomposeProjectionMatrix( const CvMat *projMatr, CvMat *calibMatr,
                              CvMat *rotMatrX, CvMat *rotMatrY,
                              CvMat *rotMatrZ, CvPoint3D64f *eulerAngles)
 {
-    CvMat *tmpProjMatr = 0;
-    CvMat *tmpMatrixD = 0;
-    CvMat *tmpMatrixV = 0;
-    CvMat *tmpMatrixM = 0;
-
-    CV_FUNCNAME("cvDecomposeProjectionMatrix");
-    __BEGIN__;
+    double tmpProjMatrData[16], tmpMatrixDData[16], tmpMatrixVData[16];
+    CvMat tmpProjMatr = cvMat(4, 4, CV_64F, tmpProjMatrData);
+    CvMat tmpMatrixD = cvMat(4, 4, CV_64F, tmpMatrixDData);
+    CvMat tmpMatrixV = cvMat(4, 4, CV_64F, tmpMatrixVData);
+    CvMat tmpMatrixM;
 
     /* Validate parameters. */
     if(projMatr == 0 || calibMatr == 0 || rotMatr == 0 || posVect == 0)
-        CV_ERROR(CV_StsNullPtr, "Some of parameters is a NULL pointer!");
+        CV_Error(CV_StsNullPtr, "Some of parameters is a NULL pointer!");
 
     if(!CV_IS_MAT(projMatr) || !CV_IS_MAT(calibMatr) || !CV_IS_MAT(rotMatr) || !CV_IS_MAT(posVect))
-        CV_ERROR(CV_StsUnsupportedFormat, "Input parameters must be a matrices!");
+        CV_Error(CV_StsUnsupportedFormat, "Input parameters must be a matrices!");
 
     if(projMatr->cols != 4 || projMatr->rows != 3)
-        CV_ERROR(CV_StsUnmatchedSizes, "Size of projection matrix must be 3x4!");
+        CV_Error(CV_StsUnmatchedSizes, "Size of projection matrix must be 3x4!");
 
     if(calibMatr->cols != 3 || calibMatr->rows != 3 || rotMatr->cols != 3 || rotMatr->rows != 3)
-        CV_ERROR(CV_StsUnmatchedSizes, "Size of calibration and rotation matrices must be 3x3!");
+        CV_Error(CV_StsUnmatchedSizes, "Size of calibration and rotation matrices must be 3x3!");
 
     if(posVect->cols != 1 || posVect->rows != 4)
-        CV_ERROR(CV_StsUnmatchedSizes, "Size of position vector must be 4x1!");
-
-    CV_CALL(tmpProjMatr = cvCreateMat(4, 4, CV_64F));
-    CV_CALL(tmpMatrixD = cvCreateMat(4, 4, CV_64F));
-    CV_CALL(tmpMatrixV = cvCreateMat(4, 4, CV_64F));
-    CV_CALL(tmpMatrixM = cvCreateMat(3, 3, CV_64F));
+        CV_Error(CV_StsUnmatchedSizes, "Size of position vector must be 4x1!");
 
     /* Compute position vector. */
-
-    cvSetZero(tmpProjMatr); // Add zero row to make matrix square.
+    cvSetZero(&tmpProjMatr); // Add zero row to make matrix square.
     int i, k;
     for(i = 0; i < 3; i++)
         for(k = 0; k < 4; k++)
-            cvmSet(tmpProjMatr, i, k, cvmGet(projMatr, i, k));
+            cvmSet(&tmpProjMatr, i, k, cvmGet(projMatr, i, k));
 
-    CV_CALL(cvSVD(tmpProjMatr, tmpMatrixD, NULL, tmpMatrixV, CV_SVD_MODIFY_A + CV_SVD_V_T));
+    cvSVD(&tmpProjMatr, &tmpMatrixD, NULL, &tmpMatrixV, CV_SVD_MODIFY_A + CV_SVD_V_T);
 
     /* Save position vector. */
-
     for(i = 0; i < 4; i++)
-        cvmSet(posVect, i, 0, cvmGet(tmpMatrixV, 3, i)); // Solution is last row of V.
+        cvmSet(posVect, i, 0, cvmGet(&tmpMatrixV, 3, i)); // Solution is last row of V.
 
     /* Compute calibration and rotation matrices via RQ decomposition. */
+    cvGetCols(projMatr, &tmpMatrixM, 0, 3); // M is first square matrix of P.
 
-    cvGetCols(projMatr, tmpMatrixM, 0, 3); // M is first square matrix of P.
+    CV_Assert(cvDet(&tmpMatrixM) != 0.0); // So far only finite cameras could be decomposed, so M has to be nonsingular [det(M) != 0].
 
-    assert(cvDet(tmpMatrixM) != 0.0); // So far only finite cameras could be decomposed, so M has to be nonsingular [det(M) != 0].
-
-    CV_CALL(cvRQDecomp3x3(tmpMatrixM, calibMatr, rotMatr, rotMatrX, rotMatrY, rotMatrZ, eulerAngles));
-
-    __END__;
-
-    cvReleaseMat(&tmpProjMatr);
-    cvReleaseMat(&tmpMatrixD);
-    cvReleaseMat(&tmpMatrixV);
-    cvReleaseMat(&tmpMatrixM);
+    cvRQDecomp3x3(&tmpMatrixM, calibMatr, rotMatr, rotMatrX, rotMatrY, rotMatrZ, eulerAngles);
 }
 
 namespace cv
@@ -598,8 +563,8 @@ void RQDecomp3x3( const Mat& M, Mat& R, Mat& Q )
     R.create(3, 3, M.type());
     Q.create(3, 3, M.type());
 
-    CvMat _M = M, _R = R, _Q = Q;
-    cvRQDecomp3x3(&_M, &_R, &_Q, 0, 0, 0, 0);
+    CvMat matM = M, matR = R, matQ = Q;
+    cvRQDecomp3x3(&matM, &matR, &matQ, 0, 0, 0, 0);
 }
 
 Vec3d RQDecomp3x3( const Mat& M, Mat& R, Mat& Q,
@@ -609,8 +574,8 @@ Vec3d RQDecomp3x3( const Mat& M, Mat& R, Mat& Q,
     Q.create(3, 3, M.type());
     Vec3d eulerAngles;
 
-    CvMat _M = M, _R = R, _Q = Q, _Qx = Qx, _Qy = Qy, _Qz = Qz;
-    cvRQDecomp3x3(&_M, &_R, &_Q, &_Qx, &_Qy, &_Qz, (CvPoint3D64f*)&eulerAngles[0]);
+    CvMat matM = M, matR = R, matQ = Q, _Qx = Qx, _Qy = Qy, _Qz = Qz;
+    cvRQDecomp3x3(&matM, &matR, &matQ, &_Qx, &_Qy, &_Qz, (CvPoint3D64f*)&eulerAngles[0]);
     return eulerAngles;
 }
 
@@ -620,7 +585,7 @@ void decomposeProjectionMatrix( const Mat& projMatrix, Mat& cameraMatrix,
     int type = projMatrix.type();
     cameraMatrix.create(3, 3, type);
     rotMatrix.create(3, 3, type);
-    transVect.create(3, 3, type);
+    transVect.create(4, 1, type);
     CvMat _projMatrix = projMatrix, _cameraMatrix = cameraMatrix;
     CvMat _rotMatrix = rotMatrix, _transVect = transVect;
     cvDecomposeProjectionMatrix(&_projMatrix, &_cameraMatrix, &_rotMatrix,
@@ -635,7 +600,7 @@ void decomposeProjectionMatrix( const Mat& projMatrix, Mat& cameraMatrix,
     int type = projMatrix.type();
     cameraMatrix.create(3, 3, type);
     rotMatrix.create(3, 3, type);
-    transVect.create(3, 3, type);
+    transVect.create(4, 1, type);
     rotMatrixX.create(3, 3, type);
     rotMatrixY.create(3, 3, type);
     rotMatrixZ.create(3, 3, type);

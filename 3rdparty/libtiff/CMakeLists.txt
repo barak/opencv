@@ -11,6 +11,8 @@ include_directories(
 	"${CMAKE_CURRENT_SOURCE_DIR}/../include"
 	)
 
+add_definitions(-DHAVE_STRING_H=1)
+
 # The .cpp files:
 
 set(lib_srcs
@@ -74,8 +76,10 @@ if(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3")
 endif()
 
-if(UNIX AND CMAKE_COMPILER_IS_GNUCXX)
-     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+if(UNIX)
+    if(CMAKE_COMPILER_IS_GNUCXX OR CV_ICC)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+    endif()
 endif()
 
 add_library(${the_target} STATIC ${lib_srcs} ${lib_hdrs} ${lib_ext_hdrs})

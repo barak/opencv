@@ -68,6 +68,7 @@ public:
 protected:
     void get_test_array_types_and_sizes( int test_case_idx, CvSize** sizes, int** types );
     double get_success_error_level( int /*test_case_idx*/, int i, int j );
+    bool test_nd;
 };
 
 
@@ -86,6 +87,7 @@ CxCore_MathTestImpl::CxCore_MathTestImpl( const char* test_name, const char* tes
     whole_size_list = 0;
     depth_list = math_depths;
     cn_list = 0;
+    test_nd = false;
 }
 
 
@@ -110,6 +112,7 @@ void CxCore_MathTestImpl::get_test_array_types_and_sizes( int test_case_idx,
         for( j = 0; j < count; j++ )
             types[i][j] = type;
     }
+    test_nd = cvTsRandInt(rng)%3 == 0;
 }
 
 CxCore_MathTestImpl math_test( "math", "" );
@@ -139,6 +142,7 @@ protected:
     void get_test_array_types_and_sizes( int test_case_idx, CvSize** sizes, int** types );
     void get_minmax_bounds( int i, int j, int type, CvScalar* low, CvScalar* high );
     double get_success_error_level( int /*test_case_idx*/, int i, int j );
+    int prepare_test_case( int test_case );
     void run_func();
     void prepare_to_validation( int test_case_idx );
     int out_type;
@@ -180,10 +184,44 @@ void CxCore_ExpTest::get_minmax_bounds( int /*i*/, int /*j*/, int /*type*/, CvSc
     *high = cvScalarAll(CV_MAT_DEPTH(out_type)==CV_64F? u : u*0.5);
 }
 
+int CxCore_ExpTest::prepare_test_case( int test_case )
+{
+    int code = CxCore_MathTest::prepare_test_case(test_case);
+    if( code < 0 )
+        return code;
+
+    CvRNG* rng = ts->get_rng();
+
+    int i, j, k, count = cvTsRandInt(rng) % 10;
+    CvMat* src = &test_mat[INPUT][0];
+    int depth = CV_MAT_DEPTH(src->type);
+
+    // add some extremal values
+    for( k = 0; k < count; k++ )
+    {
+        i = cvTsRandInt(rng) % src->rows;
+        j = cvTsRandInt(rng) % (src->cols*CV_MAT_CN(src->type));
+        int sign = cvTsRandInt(rng) % 2 ? 1 : -1;
+        if( depth == CV_32F )
+            ((float*)(src->data.ptr + src->step*i))[j] = FLT_MAX*sign;
+        else
+            ((double*)(src->data.ptr + src->step*i))[j] = DBL_MAX*sign;
+    }
+
+    return code;
+}
+
 
 void CxCore_ExpTest::run_func()
 {
-    cvExp( test_array[INPUT][0], test_array[OUTPUT][0] );
+    if(!test_nd)
+        cvExp( test_array[INPUT][0], test_array[OUTPUT][0] );
+    else
+    {
+        cv::MatND a = cv::cvarrToMatND(test_array[INPUT][0]);
+        cv::MatND b = cv::cvarrToMatND(test_array[OUTPUT][0]);
+        cv::exp(a, b);
+    }
 }
 
 
@@ -267,7 +305,14 @@ void CxCore_LogTest::get_minmax_bounds( int /*i*/, int /*j*/, int /*type*/, CvSc
 
 void CxCore_LogTest::run_func()
 {
-    cvLog( test_array[INPUT][0], test_array[OUTPUT][0] );
+    if(!test_nd)
+        cvLog( test_array[INPUT][0], test_array[OUTPUT][0] );
+    else
+    {
+        cv::MatND a = cv::cvarrToMatND(test_array[INPUT][0]);
+        cv::MatND b = cv::cvarrToMatND(test_array[OUTPUT][0]);
+        cv::log(a, b);
+    }
 }
 
 
@@ -346,7 +391,7 @@ CxCore_PowTest::CxCore_PowTest()
 void CxCore_PowTest::get_test_array_types_and_sizes( int test_case_idx, CvSize** sizes, int** types )
 {
     CvRNG* rng = ts->get_rng();
-    int depth = cvTsRandInt(rng) % CV_64F;
+    int depth = cvTsRandInt(rng) % (CV_64F+1);
     int cn = cvTsRandInt(rng) % 4 + 1;
     int i, j;
     CvArrTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
@@ -357,8 +402,8 @@ void CxCore_PowTest::get_test_array_types_and_sizes( int test_case_idx, CvSize**
         power = (int)(cvTsRandInt(rng)%21 - 10);
     else
     {
-        i = cvTsRandInt(rng)%16;
-        power = i == 15 ? 0.5 : i == 14 ? -0.5 : cvTsRandReal(rng)*10 - 5;
+        i = cvTsRandInt(rng)%17;
+        power = i == 16 ? 1./3 : i == 15 ? 0.5 : i == 14 ? -0.5 : cvTsRandReal(rng)*10 - 5;
     }
 
     for( i = 0; i < max_arr; i++ )
@@ -368,6 +413,7 @@ void CxCore_PowTest::get_test_array_types_and_sizes( int test_case_idx, CvSize**
         for( j = 0; j < count; j++ )
             types[i][j] = type;
     }
+    test_nd = cvTsRandInt(rng)%3 == 0;
 }
 
 
@@ -444,7 +490,33 @@ void CxCore_PowTest::get_minmax_bounds( int /*i*/, int /*j*/, int type, CvScalar
 
 void CxCore_PowTest::run_func()
 {
-    cvPow( test_array[INPUT][0], test_array[OUTPUT][0], power );
+    if(!test_nd)
+    {
+        if( fabs(power-1./3) <= DBL_EPSILON && CV_MAT_DEPTH(test_mat[INPUT][0].type) == CV_32F )
+        {
+            cv::Mat a(&test_mat[INPUT][0]), b(&test_mat[OUTPUT][0]);
+            
+            a = a.reshape(1);
+            b = b.reshape(1);
+            for( int i = 0; i < a.rows; i++ )
+            {
+                b.at<float>(i,0) = (float)fabs(cvCbrt(a.at<float>(i,0)));
+                for( int j = 1; j < a.cols; j++ )
+                    b.at<float>(i,j) = (float)fabs(cv::cubeRoot(a.at<float>(i,j)));
+            }
+        }
+        else
+            cvPow( test_array[INPUT][0], test_array[OUTPUT][0], power );
+    }
+    else
+    {
+        cv::MatND a = cv::cvarrToMatND(test_array[INPUT][0]);
+        cv::MatND b = cv::cvarrToMatND(test_array[OUTPUT][0]);
+        if(power == 0.5)
+            cv::sqrt(a, b);
+        else
+            cv::pow(a, power, b);
+    }
 }
 
 
@@ -661,8 +733,24 @@ void CxCore_CartToPolarTest::get_test_array_types_and_sizes( int test_case_idx, 
 
 void CxCore_CartToPolarTest::run_func()
 {
-    cvCartToPolar( test_array[INPUT][0], test_array[INPUT][1],
-                   test_array[OUTPUT][0], test_array[OUTPUT][1], use_degrees );
+    if(!test_nd)
+    {
+        cvCartToPolar( test_array[INPUT][0], test_array[INPUT][1],
+                    test_array[OUTPUT][0], test_array[OUTPUT][1], use_degrees );
+    }
+    else
+    {
+        cv::Mat X = cv::cvarrToMat(test_array[INPUT][0]);
+        cv::Mat Y = cv::cvarrToMat(test_array[INPUT][1]);
+        cv::Mat mag = test_array[OUTPUT][0] ? cv::cvarrToMat(test_array[OUTPUT][0]) : cv::Mat();
+        cv::Mat ph = test_array[OUTPUT][1] ? cv::cvarrToMat(test_array[OUTPUT][1]) : cv::Mat();
+        if(!mag.data)
+            cv::phase(X, Y, ph, use_degrees != 0);
+        else if(!ph.data)
+            cv::magnitude(X, Y, mag);
+        else
+            cv::cartToPolar(X, Y, mag, ph, use_degrees != 0);
+    }
 }
 
 
@@ -791,8 +879,19 @@ void CxCore_PolarToCartTest::get_test_array_types_and_sizes( int test_case_idx, 
 
 void CxCore_PolarToCartTest::run_func()
 {
-    cvPolarToCart( test_array[INPUT][1], test_array[INPUT][0],
-                   test_array[OUTPUT][0], test_array[OUTPUT][1], use_degrees );
+    if(!test_nd)
+    {
+        cvPolarToCart( test_array[INPUT][1], test_array[INPUT][0],
+                    test_array[OUTPUT][0], test_array[OUTPUT][1], use_degrees );
+    }
+    else
+    {
+        cv::Mat X = test_array[OUTPUT][0] ? cv::cvarrToMat(test_array[OUTPUT][0]) : cv::Mat();
+        cv::Mat Y = test_array[OUTPUT][1] ? cv::cvarrToMat(test_array[OUTPUT][1]) : cv::Mat();
+        cv::Mat mag = test_array[INPUT][1] ? cv::cvarrToMat(test_array[INPUT][1]) : cv::Mat();
+        cv::Mat ph = test_array[INPUT][0] ? cv::cvarrToMat(test_array[INPUT][0]) : cv::Mat();
+        cv::polarToCart(mag, ph, X, Y, use_degrees != 0);
+    }
 }
 
 
@@ -949,7 +1048,7 @@ double CxCore_MatrixTestImpl::get_success_error_level( int test_case_idx, int i,
 {
     int input_depth = CV_MAT_DEPTH(cvGetElemType( test_array[INPUT][0] ));
     double input_precision = input_depth < CV_32F ? 0 : input_depth == CV_32F ?
-                            1e-5 : 5e-12;
+                            5e-5 : 5e-11;
     double output_precision = CvArrTest::get_success_error_level( test_case_idx, i, j );
     return MAX(input_precision, output_precision);
 }
@@ -1172,12 +1271,14 @@ protected:
     void run_func();
     void prepare_to_validation( int test_case_idx );
     CvScalar alpha;
+    bool test_nd;
 };
 
 CxCore_ScaleAddTest::CxCore_ScaleAddTest() :
     CxCore_MatrixTest( "matrix-scaleadd", "cvScaleAdd", 3, 1, false, false, 4 )
 {
     alpha = cvScalarAll(0);
+    test_nd = false;
 }
 
 
@@ -1186,6 +1287,7 @@ void CxCore_ScaleAddTest::get_test_array_types_and_sizes( int test_case_idx, CvS
     CxCore_MatrixTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
     sizes[INPUT][2] = cvSize(1,1);
     types[INPUT][2] &= CV_MAT_DEPTH_MASK;
+    test_nd = cvTsRandInt(ts->get_rng()) % 2 != 0;
 }
 
 
@@ -1205,13 +1307,22 @@ int CxCore_ScaleAddTest::prepare_test_case( int test_case_idx )
     int code = CxCore_MatrixTest::prepare_test_case( test_case_idx );
     if( code > 0 )
         alpha = cvGet1D( &test_mat[INPUT][2], 0 );
+    if( test_nd )
+        alpha.val[1] = 0;
     return code;
 }
 
 
 void CxCore_ScaleAddTest::run_func()
 {
-    cvScaleAdd( test_array[INPUT][0], alpha, test_array[INPUT][1], test_array[OUTPUT][0] );
+    if(!test_nd)
+        cvScaleAdd( test_array[INPUT][0], alpha, test_array[INPUT][1], test_array[OUTPUT][0] );
+    else
+    {
+        cv::MatND c = cv::cvarrToMatND(test_array[OUTPUT][0]);
+        cv::scaleAdd( cv::cvarrToMatND(test_array[INPUT][0]), alpha.val[0],
+                      cv::cvarrToMatND(test_array[INPUT][1]), c);
+    }
 }
 
 
@@ -1254,6 +1365,7 @@ CxCore_GEMMTest::CxCore_GEMMTest() :
     CxCore_MatrixTest( "matrix-gemm", "cvGEMM", 5, 1, false, false, 2 )
 {
     test_case_count = 100;
+    max_log_array_size = 10;
     default_timing_param_names = matrix_gemm_param_names;
     alpha = beta = 0;
 }
@@ -1554,8 +1666,9 @@ protected:
     void print_timing_params( int test_case_idx, char* ptr, int params_left );
     void run_func();
     void prepare_to_validation( int test_case_idx );
-    
+
     double scale;
+    bool diagMtx;
 };
 
 
@@ -1585,7 +1698,7 @@ void CxCore_TransformTest::get_test_array_types_and_sizes( int test_case_idx, Cv
     mattype = depth < CV_32S ? CV_32F : depth == CV_64F ? CV_64F : bits & 1 ? CV_32F : CV_64F;
     types[INPUT][1] = mattype;
     types[INPUT][2] = CV_MAKETYPE(mattype, dst_cn);
-    
+
     scale = 1./((cvTsRandInt(rng)%4)*50+1);
 
     if( bits & 2 )
@@ -1603,6 +1716,7 @@ void CxCore_TransformTest::get_test_array_types_and_sizes( int test_case_idx, Cv
             sizes[INPUT][2] = cvSize(1,dst_cn);
         types[INPUT][2] &= ~CV_MAT_CN_MASK;
     }
+    diagMtx = (bits & 16) != 0;
 
     sizes[INPUT][1] = cvSize(mat_cols,dst_cn);
 }
@@ -1624,8 +1738,17 @@ int CxCore_TransformTest::prepare_test_case( int test_case_idx )
 {
     int code = CxCore_MatrixTest::prepare_test_case( test_case_idx );
     if( code > 0 )
+    {
         cvTsAdd(&test_mat[INPUT][1], cvScalarAll(scale), &test_mat[INPUT][1],
                 cvScalarAll(0), cvScalarAll(0), &test_mat[INPUT][1], 0 );
+        if(diagMtx)
+        {
+            CvMat* w = cvCloneMat(&test_mat[INPUT][1]);
+            cvSetIdentity(w, cvScalarAll(1));
+            cvMul(w, &test_mat[INPUT][1], &test_mat[INPUT][1]);
+            cvReleaseMat(&w);
+        }
+    }
     return code;
 }
 
@@ -1674,6 +1797,7 @@ public:
     CxCore_PerspectiveTransformTest();
 protected:
     void get_test_array_types_and_sizes( int test_case_idx, CvSize** sizes, int** types );
+    double get_success_error_level( int test_case_idx, int i, int j );
     void get_timing_test_array_types_and_sizes( int test_case_idx,
                                                 CvSize** sizes, int** types,
                                                 CvSize** whole_sizes, bool* are_images );
@@ -1706,6 +1830,14 @@ void CxCore_PerspectiveTransformTest::get_test_array_types_and_sizes( int test_c
     mattype = depth == CV_64F ? CV_64F : bits & 1 ? CV_32F : CV_64F;
     types[INPUT][1] = mattype;
     sizes[INPUT][1] = cvSize(cn + 1, cn + 1);
+}
+
+
+double CxCore_PerspectiveTransformTest::get_success_error_level( int test_case_idx, int i, int j )
+{
+    int depth = CV_MAT_DEPTH(test_mat[INPUT][0].type);
+    return depth == CV_32F ? 1e-4 : depth == CV_64F ? 1e-8 :
+		CxCore_MatrixTest::get_success_error_level(test_case_idx, i, j);
 }
 
 
@@ -2419,8 +2551,8 @@ int CxCore_InvertTest::prepare_test_case( int test_case_idx )
 
 void CxCore_InvertTest::get_minmax_bounds( int /*i*/, int /*j*/, int /*type*/, CvScalar* low, CvScalar* high )
 {
-    *low = cvScalarAll(-2.);
-    *high = cvScalarAll(2.);
+    *low = cvScalarAll(-1.);
+    *high = cvScalarAll(1.);
 }
 
 
@@ -2430,7 +2562,7 @@ void CxCore_InvertTest::run_func()
 }
 
 
-static double cvTsSVDet( CvMat* mat )
+static double cvTsSVDet( CvMat* mat, double* ratio )
 {
     int type = CV_MAT_TYPE(mat->type);
     int i, nm = MIN( mat->rows, mat->cols );
@@ -2443,11 +2575,13 @@ static double cvTsSVDet( CvMat* mat )
     {
         for( i = 0; i < nm; i++ )
             det *= w->data.fl[i];
+        *ratio = w->data.fl[nm-1] < FLT_EPSILON ? FLT_MAX : w->data.fl[nm-1]/w->data.fl[0];
     }
     else
     {
         for( i = 0; i < nm; i++ )
             det *= w->data.db[i];
+        *ratio = w->data.db[nm-1] < FLT_EPSILON ? DBL_MAX : w->data.db[nm-1]/w->data.db[0];
     }
 
     cvReleaseMat( &w );
@@ -2457,16 +2591,17 @@ static double cvTsSVDet( CvMat* mat )
 void CxCore_InvertTest::prepare_to_validation( int )
 {
     CvMat* input = &test_mat[INPUT][0];
-    double det = cvTsSVDet( input );
-    double threshold = (CV_MAT_DEPTH(input->type) == CV_32F ? FLT_EPSILON : DBL_EPSILON)*500;
+    double ratio = 0, det = cvTsSVDet( input, &ratio );
+    double threshold = (CV_MAT_DEPTH(input->type) == CV_32F ? FLT_EPSILON : DBL_EPSILON)*1000;
 
     if( CV_MAT_TYPE(input->type) == CV_32FC1 )
         cvTsConvert( input, &test_mat[TEMP][1] );
     else
         cvTsCopy( input, &test_mat[TEMP][1], 0 );
 
-    if( (method == CV_LU && result == 0) ||
-        (det < threshold || result < threshold) )
+    if( det < threshold ||
+        ((method == CV_LU || method == CV_CHOLESKY) && (result == 0 || ratio < threshold)) ||
+        ((method == CV_SVD || method == CV_SVD_SYM) && result < threshold) )
     {
         cvTsZero( &test_mat[OUTPUT][0] );
         cvTsZero( &test_mat[REF_OUTPUT][0] );
@@ -2604,14 +2739,14 @@ int CxCore_SolveTest::prepare_test_case( int test_case_idx )
 
 void CxCore_SolveTest::get_minmax_bounds( int /*i*/, int /*j*/, int /*type*/, CvScalar* low, CvScalar* high )
 {
-    *low = cvScalarAll(-2.);
-    *high = cvScalarAll(2.);
+    *low = cvScalarAll(-1.);
+    *high = cvScalarAll(1.);
 }
 
 
 double CxCore_SolveTest::get_success_error_level( int /*test_case_idx*/, int, int )
 {
-    return CV_MAT_DEPTH(cvGetElemType(test_array[OUTPUT][0])) == CV_32F ? 3e-2 : 1e-8;
+    return CV_MAT_DEPTH(cvGetElemType(test_array[OUTPUT][0])) == CV_32F ? 1e-2 : 1e-8;
 }
 
 
@@ -2624,26 +2759,40 @@ void CxCore_SolveTest::prepare_to_validation( int )
 {
     //int rank = test_mat[REF_OUTPUT][0].rows;
     CvMat* dst;
+    CvMat* input = &test_mat[INPUT][0];
 
-    if( method == CV_LU && result == 0 )
+    if( method == CV_LU )
     {
-        if( CV_MAT_TYPE(test_mat[INPUT][0].type) == CV_32FC1 )
-            cvTsConvert( &test_mat[INPUT][0], &test_mat[TEMP][1] );
-        else
-            cvTsCopy( &test_mat[INPUT][0], &test_mat[TEMP][1], 0 );
+        if( result == 0 )
+        {
+            if( CV_MAT_TYPE(input->type) == CV_32FC1 )
+                cvTsConvert( input, &test_mat[TEMP][1] );
+            else
+                cvTsCopy( input, &test_mat[TEMP][1], 0 );
 
-        cvTsZero( &test_mat[OUTPUT][0] );
-        double det = cvTsLU( &test_mat[TEMP][1], 0, 0 );
-        cvTsAdd( 0, cvScalarAll(0.), 0, cvScalarAll(0.), cvScalarAll(det != 0),
-                 &test_mat[REF_OUTPUT][0], 0 );
-        return;
+            cvTsZero( &test_mat[OUTPUT][0] );
+            double det = cvTsLU( &test_mat[TEMP][1], 0, 0 );
+            cvTsAdd( 0, cvScalarAll(0.), 0, cvScalarAll(0.), cvScalarAll(det != 0),
+                     &test_mat[REF_OUTPUT][0], 0 );
+            return;
+        }
+     
+        double threshold = (CV_MAT_DEPTH(input->type) == CV_32F ? FLT_EPSILON : DBL_EPSILON)*1000;
+        double ratio = 0, det = cvTsSVDet( input, &ratio );
+        if( det < threshold || ratio < threshold )
+        {
+            cvTsZero( &test_mat[OUTPUT][0] );
+            cvTsZero( &test_mat[REF_OUTPUT][0] );
+            return;
+        }
     }
+        
 
-    dst = test_mat[INPUT][0].rows <= test_mat[INPUT][0].cols ? &test_mat[OUTPUT][0] : &test_mat[INPUT][1];
+    dst = input->rows <= input->cols ? &test_mat[OUTPUT][0] : &test_mat[INPUT][1];
 
-    cvTsGEMM( &test_mat[INPUT][0], &test_mat[TEMP][0], 1., &test_mat[INPUT][1], -1., dst, 0 );
+    cvTsGEMM( input, &test_mat[TEMP][0], 1., &test_mat[INPUT][1], -1., dst, 0 );
     if( dst != &test_mat[OUTPUT][0] )
-        cvTsGEMM( &test_mat[INPUT][0], dst, 1., 0, 0., &test_mat[OUTPUT][0], CV_GEMM_A_T );
+        cvTsGEMM( input, dst, 1., 0, 0., &test_mat[OUTPUT][0], CV_GEMM_A_T );
     cvTsZero( &test_mat[REF_OUTPUT][0] );
 }
 

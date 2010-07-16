@@ -755,10 +755,9 @@ icvDoubleToString( char* buf, double value )
             sprintf( buf, "%d.", ivalue );
         else
         {
-            static const char* fmt[] = {"%.16e", "%.16f"};
-            double avalue = fabs(value);
+            static const char* fmt = "%.16e";
             char* ptr = buf;
-            sprintf( buf, fmt[0.01 <= avalue && avalue < 1000], value );
+            sprintf( buf, fmt, value );
             if( *ptr == '+' || *ptr == '-' )
                 ptr++;
             for( ; isdigit(*ptr); ptr++ )
@@ -795,10 +794,9 @@ icvFloatToString( char* buf, float value )
             sprintf( buf, "%d.", ivalue );
         else
         {
-            static const char* fmt[] = {"%.8e", "%.8f"};
-            double avalue = fabs((double)value);
+            static const char* fmt = "%.8e";
             char* ptr = buf;
-            sprintf( buf, fmt[0.01 <= avalue && avalue < 1000], value );
+            sprintf( buf, fmt, value );
             if( *ptr == '+' || *ptr == '-' )
                 ptr++;
             for( ; isdigit(*ptr); ptr++ )
@@ -3707,7 +3705,7 @@ icvWriteImage( CvFileStorage* fs, const char* name,
         cvEndWriteStruct( fs );
     }
 
-    depth = IplToCvDepth(image->depth);
+    depth = IPL2CV_DEPTH(image->depth);
     sprintf( dt_buf, "%d%c", image->nChannels, icvTypeSymbol[depth] );
     dt = dt_buf + (dt_buf[2] == '\0' && dt_buf[0] == '1');
     cvWriteString( fs, "dt", dt, 0 );
@@ -3903,9 +3901,7 @@ icvGetFormat( const CvSeq* seq, const char* dt_key, CvAttrList* attr,
     }
     else if( CV_MAT_TYPE(seq->flags) != 0 || seq->elem_size == 1 )
     {
-        int align = CV_MAT_DEPTH(seq->flags) == CV_64F ? sizeof(double) : sizeof(size_t);
-        int full_elem_size = cvAlign(CV_ELEM_SIZE(seq->flags) + initial_elem_size, align);
-        if( seq->elem_size != full_elem_size )
+        if( CV_ELEM_SIZE(seq->flags) != seq->elem_size )
             CV_Error( CV_StsUnmatchedSizes,
             "Size of sequence element (elem_size) is inconsistent with seq->flags" );
         dt = icvEncodeFormat( CV_MAT_TYPE(seq->flags), dt_buf );
@@ -4443,7 +4439,8 @@ icvReadGraph( CvFileStorage* fs, CvFileNode* node )
         char* dst_ptr = read_buf;
         int read_max = read_buf_size /MAX(src_elem_size, 1), read_count = 0;
         CvSeqReader reader;
-        cvStartReadRawData( fs, k == 0 ? vtx_node : edge_node, &reader );
+        if(dt)
+            cvStartReadRawData( fs, k == 0 ? vtx_node : edge_node, &reader );
 
         for( i = 0; i < elem_count; i++ )
         {
@@ -4645,10 +4642,11 @@ cvFindType( const char* type_name )
 {
     CvTypeInfo* info = 0;
 
-    for( info = CvType::first; info != 0; info = info->next )
+    if (type_name)
+      for( info = CvType::first; info != 0; info = info->next )
         if( strcmp( info->type_name, type_name ) == 0 )
-            break;
-
+	  break;
+    
     return info;
 }
 
@@ -4780,29 +4778,28 @@ cvLoad( const char* filename, CvMemStorage* memstorage,
 {
     void* ptr = 0;
     const char* real_name = 0;
-    CvFileStorage* fs = 0;
+    cv::FileStorage fs(cvOpenFileStorage(filename, memstorage, CV_STORAGE_READ));
 
     CvFileNode* node = 0;
-    fs = cvOpenFileStorage( filename, memstorage, CV_STORAGE_READ );
 
-    if( !fs )
+    if( !fs.isOpened() )
         return 0;
 
     if( name )
     {
-        node = cvGetFileNodeByName( fs, 0, name );
+        node = cvGetFileNodeByName( *fs, 0, name );
     }
     else
     {
         int i, k;
-        for( k = 0; k < fs->roots->total; k++ )
+        for( k = 0; k < (*fs)->roots->total; k++ )
         {
             CvSeq* seq;
             CvSeqReader reader;
 
-            node = (CvFileNode*)cvGetSeqElem( fs->roots, k );
+            node = (CvFileNode*)cvGetSeqElem( (*fs)->roots, k );
             if( !CV_NODE_IS_MAP( node->tag ))
-                EXIT;
+                return 0;
             seq = node->data.seq;
             node = 0;
 
@@ -4828,7 +4825,7 @@ stop_search:
         CV_Error( CV_StsObjectNotFound, "Could not find the/an object in file storage" );
 
     real_name = cvGetFileNodeName( node );
-    ptr = cvRead( fs, node, 0 );
+    ptr = cvRead( *fs, node, 0 );
 
     // sanity check
     if( !memstorage && (CV_IS_SEQ( ptr ) || CV_IS_SET( ptr )) )
@@ -4851,8 +4848,6 @@ stop_search:
 	    *_real_name = 0;
 	}
     }
-exit:
-    cvReleaseFileStorage( &fs );
 
     return ptr;
 }
@@ -5032,7 +5027,7 @@ FileNodeIterator::FileNodeIterator(const CvFileStorage* _fs,
         int node_type = _node->tag & FileNode::TYPE_MASK;
         fs = _fs;
         container = _node;
-        if( node_type == FileNode::SEQ || node_type == FileNode::MAP )
+        if( !(_node->tag & FileNode::USER) && (node_type == FileNode::SEQ || node_type == FileNode::MAP) )
         {
             cvStartReadSeq( _node->data.seq, &reader );
             remaining = FileNode(_fs, _node).size();

@@ -48,7 +48,7 @@ enum { XY_SHIFT = 16, XY_ONE = 1 << XY_SHIFT, DRAWING_STORAGE_BLOCK = (1<<12) - 
 struct PolyEdge
 {
     PolyEdge() : y0(0), y1(0), x(0), dx(0), next(0) {}
-    PolyEdge(int _y0, int _y1, int _x, int _dx) : y0(_y0), y1(_y1), x(_x), dx(_dx) {}
+    //PolyEdge(int _y0, int _y1, int _x, int _dx) : y0(_y0), y1(_y1), x(_x), dx(_dx) {}
 
     int y0, y1;
     int x, dx;
@@ -81,7 +81,8 @@ bool clipLine( Size img_size, Point& pt1, Point& pt2 )
     int c1, c2;
     int right = img_size.width-1, bottom = img_size.height-1;
 
-    CV_Assert( img_size.width > 0 && img_size.height > 0 );
+    if( img_size.width <= 0 || img_size.height <= 0 )
+        return false;
 
     x1 = pt1.x; y1 = pt1.y; x2 = pt2.x; y2 = pt2.y;
     c1 = (x1 < 0) + (x1 > right) * 2 + (y1 < 0) * 4 + (y1 > bottom) * 8;
@@ -1567,10 +1568,10 @@ void line( Mat& img, Point pt1, Point pt2, const Scalar& color,
 
 void rectangle( Mat& img, Point pt1, Point pt2,
                 const Scalar& color, int thickness,
-                int line_type, int shift )
+                int lineType, int shift )
 {
-    if( line_type == CV_AA && img.depth() != CV_8U )
-        line_type = 8;
+    if( lineType == CV_AA && img.depth() != CV_8U )
+        lineType = 8;
 
     CV_Assert( thickness <= 255 );
     CV_Assert( 0 <= shift && shift <= XY_SHIFT );
@@ -1588,12 +1589,23 @@ void rectangle( Mat& img, Point pt1, Point pt2,
     pt[3].y = pt2.y;
 
     if( thickness >= 0 )
-        PolyLine( img, pt, 4, true, buf, thickness, line_type, shift );
+        PolyLine( img, pt, 4, true, buf, thickness, lineType, shift );
     else
-        FillConvexPoly( img, pt, 4, buf, line_type, shift );
+        FillConvexPoly( img, pt, 4, buf, lineType, shift );
 }
 
+    
+void rectangle( Mat& img, Rect rec,
+                const Scalar& color, int thickness,
+                int lineType, int shift )
+{
+    CV_Assert( 0 <= shift && shift <= XY_SHIFT );
+    if( rec.area() > 0 )
+        rectangle( img, rec.tl(), rec.br() - Point(1<<shift,1<<shift),
+                   color, thickness, lineType, shift );
+}
 
+    
 void circle( Mat& img, Point center, int radius,
              const Scalar& color, int thickness, int line_type, int shift )
 {
@@ -2022,6 +2034,7 @@ cvDrawContours( void* _img, CvSeq* contour,
         h_next = contour->h_next;
         contour->h_next = 0;
         maxLevel = -maxLevel+1;
+        maxLevel -= maxLevel < 0;
     }
 
     cvInitTreeNodeIterator( &iterator, contour, maxLevel );
@@ -2223,6 +2236,15 @@ cvRectangle( CvArr* _img, CvPoint pt1, CvPoint pt2,
 {
     cv::Mat img = cv::cvarrToMat(_img);
     cv::rectangle( img, pt1, pt2, color, thickness, line_type, shift );
+}
+
+CV_IMPL void
+cvRectangleR( CvArr* _img, CvRect rec,
+              CvScalar color, int thickness,
+              int line_type, int shift )
+{
+    cv::Mat img = cv::cvarrToMat(_img);
+    cv::rectangle( img, rec, color, thickness, line_type, shift );
 }
 
 CV_IMPL void

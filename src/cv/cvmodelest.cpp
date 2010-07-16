@@ -42,6 +42,7 @@
 #include "_cv.h"
 #include "_cvmodelest.h"
 #include <algorithm>
+#include <iterator>
 #include <limits>
 
 using namespace std;
@@ -86,16 +87,8 @@ CV_IMPL int
 cvRANSACUpdateNumIters( double p, double ep,
                         int model_points, int max_iters )
 {
-    int result = 0;
-    
-    CV_FUNCNAME( "cvRANSACUpdateNumIters" );
-
-    __BEGIN__;
-    
-    double num, denom;
-    
     if( model_points <= 0 )
-        CV_ERROR( CV_StsOutOfRange, "the number of model points should be positive" );
+        CV_Error( CV_StsOutOfRange, "the number of model points should be positive" );
 
     p = MAX(p, 0.);
     p = MIN(p, 1.);
@@ -103,41 +96,33 @@ cvRANSACUpdateNumIters( double p, double ep,
     ep = MIN(ep, 1.);
 
     // avoid inf's & nan's
-    num = MAX(1. - p, DBL_MIN);
-    denom = 1. - pow(1. - ep,model_points);
+    double num = MAX(1. - p, DBL_MIN);
+    double denom = 1. - pow(1. - ep,model_points);
     if( denom < DBL_MIN )
-        EXIT;
+        return 0;
 
     num = log(num);
     denom = log(denom);
     
-    result = denom >= 0 || -num >= max_iters*(-denom) ?
+    return denom >= 0 || -num >= max_iters*(-denom) ?
         max_iters : cvRound(num/denom);
-
-    __END__;
-
-    return result;
 }
 
 bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* model,
-                                        CvMat* mask, double reprojThreshold,
-                                        double confidence, int maxIters )
+                                    CvMat* mask0, double reprojThreshold,
+                                    double confidence, int maxIters )
 {
     bool result = false;
-    CvMat* mask0 = mask, *tmask = 0, *t;
-    CvMat* models = 0, *err = 0;
-    CvMat *ms1 = 0, *ms2 = 0;
-
-    CV_FUNCNAME( "CvModelEstimator2::estimateRansac" );
-
-    __BEGIN__;
+    cv::Ptr<CvMat> mask = cvCloneMat(mask0);
+    cv::Ptr<CvMat> models, err, tmask;
+    cv::Ptr<CvMat> ms1, ms2;
 
     int iter, niters = maxIters;
     int count = m1->rows*m1->cols, maxGoodCount = 0;
-    CV_ASSERT( CV_ARE_SIZES_EQ(m1, m2) && CV_ARE_SIZES_EQ(m1, mask) );
+    CV_Assert( CV_ARE_SIZES_EQ(m1, m2) && CV_ARE_SIZES_EQ(m1, mask) );
 
     if( count < modelPoints )
-        EXIT;
+        return false;
 
     models = cvCreateMat( modelSize.height*maxBasicSolutions, modelSize.width, CV_64FC1 );
     err = cvCreateMat( 1, count, CV_32FC1 );
@@ -151,8 +136,8 @@ bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
     else
     {
         niters = 1;
-        ms1 = (CvMat*)m1;
-        ms2 = (CvMat*)m2;
+        ms1 = cvCloneMat(m1);
+        ms2 = cvCloneMat(m2);
     }
 
     for( iter = 0; iter < niters; iter++ )
@@ -164,7 +149,7 @@ bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
             if( !found )
             {
                 if( iter == 0 )
-                    EXIT;
+                    return false;
                 break;
             }
         }
@@ -180,7 +165,7 @@ bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 
             if( goodCount > MAX(maxGoodCount, modelPoints-1) )
             {
-                CV_SWAP( tmask, mask, t );
+                std::swap(tmask, mask);
                 cvCopy( &model_i, model );
                 maxGoodCount = goodCount;
                 niters = cvRANSACUpdateNumIters( confidence,
@@ -192,22 +177,10 @@ bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
     if( maxGoodCount > 0 )
     {
         if( mask != mask0 )
-        {
-            CV_SWAP( tmask, mask, t );
-            cvCopy( tmask, mask );
-        }
+            cvCopy( mask, mask0 );
         result = true;
     }
 
-    __END__;
-
-    if( ms1 != m1 )
-        cvReleaseMat( &ms1 );
-    if( ms2 != m2 )
-        cvReleaseMat( &ms2 );
-    cvReleaseMat( &models );
-    cvReleaseMat( &err );
-    cvReleaseMat( &tmask );
     return result;
 }
 
@@ -219,22 +192,18 @@ bool CvModelEstimator2::runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model
 {
     const double outlierRatio = 0.45;
     bool result = false;
-    CvMat* models = 0;
-    CvMat *ms1 = 0, *ms2 = 0;
-    CvMat* err = 0;
-
-    CV_FUNCNAME( "CvModelEstimator2::estimateLMeDS" );
-
-    __BEGIN__;
+    cv::Ptr<CvMat> models;
+    cv::Ptr<CvMat> ms1, ms2;
+    cv::Ptr<CvMat> err;
 
     int iter, niters = maxIters;
     int count = m1->rows*m1->cols;
     double minMedian = DBL_MAX, sigma;
 
-    CV_ASSERT( CV_ARE_SIZES_EQ(m1, m2) && CV_ARE_SIZES_EQ(m1, mask) );
+    CV_Assert( CV_ARE_SIZES_EQ(m1, m2) && CV_ARE_SIZES_EQ(m1, mask) );
 
     if( count < modelPoints )
-        EXIT;
+        return false;
 
     models = cvCreateMat( modelSize.height*maxBasicSolutions, modelSize.width, CV_64FC1 );
     err = cvCreateMat( 1, count, CV_32FC1 );
@@ -247,8 +216,8 @@ bool CvModelEstimator2::runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model
     else
     {
         niters = 1;
-        ms1 = (CvMat*)m1;
-        ms2 = (CvMat*)m2;
+        ms1 = cvCloneMat(m1);
+        ms2 = cvCloneMat(m2);
     }
 
     niters = cvRound(log(1-confidence)/log(1-pow(1-outlierRatio,(double)modelPoints)));
@@ -263,7 +232,7 @@ bool CvModelEstimator2::runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model
             if( !found )
             {
                 if( iter == 0 )
-                    EXIT;
+                    return false;
                 break;
             }
         }
@@ -298,14 +267,6 @@ bool CvModelEstimator2::runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model
         result = count >= modelPoints;
     }
 
-    __END__;
-
-    if( ms1 != m1 )
-        cvReleaseMat( &ms1 );
-    if( ms2 != m2 )
-        cvReleaseMat( &ms2 );
-    cvReleaseMat( &models );
-    cvReleaseMat( &err );
     return result;
 }
 
@@ -379,7 +340,7 @@ bool CvModelEstimator2::checkSubset( const CvMat* m, int count )
             {
                 double dx2 = ptr[k].x - ptr[i].x;
                 double dy2 = ptr[k].y - ptr[i].y;
-                if( fabs(dx2*dy1 - dy2*dx1) < FLT_EPSILON*(fabs(dx1) + fabs(dy1) + fabs(dx2) + fabs(dy2)))
+                if( fabs(dx2*dy1 - dy2*dx1) <= FLT_EPSILON*(fabs(dx1) + fabs(dy1) + fabs(dx2) + fabs(dy2)))
                     break;
             }
             if( k < j )

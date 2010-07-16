@@ -89,32 +89,35 @@ static CvStatus CV_STDCALL FastAtan2_32f(const float *Y, const float *X, float *
 	float scale = angleInDegrees ? (float)(180/CV_PI) : 1.f;
 
 #if CV_SSE2
-	static const int CV_DECL_ALIGNED(16) iabsmask[] = {0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff};
-	__m128 eps = _mm_set1_ps((float)DBL_EPSILON), absmask = _mm_load_ps((const float*)iabsmask);
-	__m128 _90 = _mm_set1_ps((float)(CV_PI*0.5)), _180 = _mm_set1_ps((float)CV_PI), _360 = _mm_set1_ps((float)(CV_PI*2));
-	__m128 zero = _mm_setzero_ps(), _0_28 = _mm_set1_ps(0.28f), scale4 = _mm_set1_ps(scale);
-	
-	for( ; i <= len - 4; i += 4 )
-	{
-		__m128 x4 = _mm_loadu_ps(X + i), y4 = _mm_loadu_ps(Y + i);
-		__m128 xq4 = _mm_mul_ps(x4, x4), yq4 = _mm_mul_ps(y4, y4);
-		__m128 xly = _mm_cmplt_ps(xq4, yq4);
-		__m128 z4 = _mm_div_ps(_mm_mul_ps(x4, y4), _mm_add_ps(_mm_add_ps(_mm_max_ps(xq4, yq4),
-			_mm_mul_ps(_mm_min_ps(xq4, yq4), _0_28)), eps));
-		
-		// a4 <- x < y ? 90 : 0;
-		__m128 a4 = _mm_and_ps(xly, _90);
-		// a4 <- (y < 0 ? 360 - a4 : a4) == ((x < y ? y < 0 ? 270 : 90) : (y < 0 ? 360 : 0))
-		__m128 mask = _mm_cmplt_ps(y4, zero);
-		a4 = _mm_or_ps(_mm_and_ps(_mm_sub_ps(_360, a4), mask), _mm_andnot_ps(mask, a4));
-		// a4 <- (x < 0 && !(x < y) ? 180 : a4)
-		mask = _mm_andnot_ps(xly, _mm_cmplt_ps(x4, zero));
-		a4 = _mm_or_ps(_mm_and_ps(_180, mask), _mm_andnot_ps(mask, a4));
-		
-		// a4 <- (x < y ? a4 - z4 : a4 + z4)
-		a4 = _mm_mul_ps(_mm_add_ps(_mm_xor_ps(z4, _mm_andnot_ps(absmask, xly)), a4), scale4);
-		_mm_storeu_ps(angle + i, a4);
-	}
+    if( checkHardwareSupport(CV_CPU_SSE) )
+    {
+        Cv32suf iabsmask; iabsmask.i = 0x7fffffff;
+        __m128 eps = _mm_set1_ps((float)DBL_EPSILON), absmask = _mm_set1_ps(iabsmask.f);
+        __m128 _90 = _mm_set1_ps((float)(CV_PI*0.5)), _180 = _mm_set1_ps((float)CV_PI), _360 = _mm_set1_ps((float)(CV_PI*2));
+        __m128 zero = _mm_setzero_ps(), _0_28 = _mm_set1_ps(0.28f), scale4 = _mm_set1_ps(scale);
+        
+        for( ; i <= len - 4; i += 4 )
+        {
+            __m128 x4 = _mm_loadu_ps(X + i), y4 = _mm_loadu_ps(Y + i);
+            __m128 xq4 = _mm_mul_ps(x4, x4), yq4 = _mm_mul_ps(y4, y4);
+            __m128 xly = _mm_cmplt_ps(xq4, yq4);
+            __m128 z4 = _mm_div_ps(_mm_mul_ps(x4, y4), _mm_add_ps(_mm_add_ps(_mm_max_ps(xq4, yq4),
+                _mm_mul_ps(_mm_min_ps(xq4, yq4), _0_28)), eps));
+            
+            // a4 <- x < y ? 90 : 0;
+            __m128 a4 = _mm_and_ps(xly, _90);
+            // a4 <- (y < 0 ? 360 - a4 : a4) == ((x < y ? y < 0 ? 270 : 90) : (y < 0 ? 360 : 0))
+            __m128 mask = _mm_cmplt_ps(y4, zero);
+            a4 = _mm_or_ps(_mm_and_ps(_mm_sub_ps(_360, a4), mask), _mm_andnot_ps(mask, a4));
+            // a4 <- (x < 0 && !(x < y) ? 180 : a4)
+            mask = _mm_andnot_ps(xly, _mm_cmplt_ps(x4, zero));
+            a4 = _mm_or_ps(_mm_and_ps(_180, mask), _mm_andnot_ps(mask, a4));
+            
+            // a4 <- (x < y ? a4 - z4 : a4 + z4)
+            a4 = _mm_mul_ps(_mm_add_ps(_mm_xor_ps(z4, _mm_andnot_ps(absmask, xly)), a4), scale4);
+            _mm_storeu_ps(angle + i, a4);
+        }
+    }
 #endif
 	
 	for( ; i < len; i++ )
@@ -173,166 +176,168 @@ float  cubeRoot( float value )
     return v.f;
 }
 
-template<typename T> static CvStatus CV_STDCALL InvSqrt(const T* src, T* dst, int len)
+static CvStatus CV_STDCALL
+Magnitude_32f(const float* x, const float* y, float* mag, int len)
 {
-    for( int i = 0; i < len; i++ )
-        dst[i] = 1/std::sqrt(src[i]);
-    return CV_OK;
-
-}
-
-template<typename T> static CvStatus CV_STDCALL Sqrt(const T* src, T* dst, int len)
-{
-    for( int i = 0; i < len; i++ )
-        dst[i] = std::sqrt(src[i]);
-    return CV_OK;
-}
-
-template<typename T> static CvStatus CV_STDCALL
-Magnitude(const T* x, const T* y, T* mag, int len)
-{
-    int i;
-    for( i = 0; i <= len - 4; i += 4 )
+    int i = 0;
+    
+#if CV_SSE
+    if( checkHardwareSupport(CV_CPU_SSE) )
     {
-        T x0 = x[i], y0 = y[i], x1 = x[i+1], y1 = y[i+1];
-
-        x0 = x0*x0 + y0*y0;
-        x1 = x1*x1 + y1*y1;
-        mag[i] = x0;
-        mag[i+1] = x1;
-        x0 = x[i+2], y0 = y[i+2];
-        x1 = x[i+3], y1 = y[i+3];
-        x0 = x0*x0 + y0*y0;
-        x1 = x1*x1 + y1*y1;
-        mag[i+2] = x0;
-        mag[i+3] = x1;
+        for( ; i <= len - 8; i += 8 )
+        {
+            __m128 x0 = _mm_loadu_ps(x + i), x1 = _mm_loadu_ps(x + i + 4);
+            __m128 y0 = _mm_loadu_ps(y + i), y1 = _mm_loadu_ps(y + i + 4);
+            x0 = _mm_add_ps(_mm_mul_ps(x0, x0), _mm_mul_ps(y0, y0));
+            x1 = _mm_add_ps(_mm_mul_ps(x1, x1), _mm_mul_ps(y1, y1));
+            x0 = _mm_sqrt_ps(x0); x1 = _mm_sqrt_ps(x1);
+            _mm_storeu_ps(mag + i, x0); _mm_storeu_ps(mag + i + 4, x1);
+        }
     }
+#endif
 
-    for( ; i < len; i++ )
-    {
-        T x0 = x[i], y0 = y[i];
-        mag[i] = x0*x0 + y0*y0;
-    }
-    Sqrt( mag, mag, len );
-
-    return CV_OK;
-}
-
-
-#if CV_SSE2
-template<> CvStatus CV_STDCALL InvSqrt(const float* src, float* dst, int len)
-{
-    int i = 0;
-    __m128 _0_5 = _mm_set1_ps(0.5f), _1_5 = _mm_set1_ps(1.5f);
-    if( (((size_t)src|(size_t)dst) & 15) == 0 )
-        for( ; i <= len - 8; i += 8 )
-        {
-            __m128 t0 = _mm_load_ps(src + i), t1 = _mm_load_ps(src + i + 4);
-            __m128 h0 = _mm_mul_ps(t0, _0_5), h1 = _mm_mul_ps(t1, _0_5);
-            t0 = _mm_rsqrt_ps(t0); t1 = _mm_rsqrt_ps(t1);
-            t0 = _mm_mul_ps(t0, _mm_sub_ps(_1_5, _mm_mul_ps(_mm_mul_ps(t0,t0),h0)));
-            t1 = _mm_mul_ps(t1, _mm_sub_ps(_1_5, _mm_mul_ps(_mm_mul_ps(t1,t1),h1)));
-            _mm_store_ps(dst + i, t0); _mm_store_ps(dst + i + 4, t1);
-        }
-    else
-        for( ; i <= len - 8; i += 8 )
-        {
-            __m128 t0 = _mm_loadu_ps(src + i), t1 = _mm_loadu_ps(src + i + 4);
-            __m128 h0 = _mm_mul_ps(t0, _0_5), h1 = _mm_mul_ps(t1, _0_5);
-            t0 = _mm_rsqrt_ps(t0); t1 = _mm_rsqrt_ps(t1);
-            t0 = _mm_mul_ps(t0, _mm_sub_ps(_1_5, _mm_mul_ps(_mm_mul_ps(t0,t0),h0)));
-            t1 = _mm_mul_ps(t1, _mm_sub_ps(_1_5, _mm_mul_ps(_mm_mul_ps(t1,t1),h1)));
-            _mm_storeu_ps(dst + i, t0); _mm_storeu_ps(dst + i + 4, t1);
-        }
-    for( ; i < len; i++ )
-        dst[i] = 1/std::sqrt(src[i]);
-    return CV_OK;
-}
-
-template<> CvStatus CV_STDCALL Sqrt(const float* src, float* dst, int len)
-{
-    int i = 0;
-    if( (((size_t)src|(size_t)dst) & 15) == 0 )
-        for( ; i <= len - 8; i += 8 )
-        {
-            __m128 t0 = _mm_load_ps(src + i), t1 = _mm_load_ps(src + i + 4);
-            t0 = _mm_sqrt_ps(t0); t1 = _mm_sqrt_ps(t1);
-            _mm_store_ps(dst + i, t0); _mm_store_ps(dst + i + 4, t1);
-        }
-    else
-        for( ; i <= len - 8; i += 8 )
-        {
-            __m128 t0 = _mm_loadu_ps(src + i), t1 = _mm_loadu_ps(src + i + 4);
-            t0 = _mm_sqrt_ps(t0); t1 = _mm_sqrt_ps(t1);
-            _mm_storeu_ps(dst + i, t0); _mm_storeu_ps(dst + i + 4, t1);
-        }
-    for( ; i < len; i++ )
-        dst[i] = std::sqrt(src[i]);
-    return CV_OK;
-}
-
-template<> CvStatus CV_STDCALL Sqrt(const double* src, double* dst, int len)
-{
-    int i = 0;
-    if( (((size_t)src|(size_t)dst) & 15) == 0 )
-        for( ; i <= len - 4; i += 4 )
-        {
-            __m128d t0 = _mm_load_pd(src + i), t1 = _mm_load_pd(src + i + 2);
-            t0 = _mm_sqrt_pd(t0); t1 = _mm_sqrt_pd(t1);
-            _mm_store_pd(dst + i, t0); _mm_store_pd(dst + i + 2, t1);
-        }
-    else
-        for( ; i <= len - 4; i += 4 )
-        {
-            __m128d t0 = _mm_loadu_pd(src + i), t1 = _mm_loadu_pd(src + i + 2);
-            t0 = _mm_sqrt_pd(t0); t1 = _mm_sqrt_pd(t1);
-            _mm_storeu_pd(dst + i, t0); _mm_storeu_pd(dst + i + 2, t1);
-        }
-    for( ; i < len; i++ )
-        dst[i] = std::sqrt(src[i]);
-    return CV_OK;
-}
-
-template<>  CvStatus CV_STDCALL
-Magnitude(const float* x, const float* y, float* mag, int len)
-{
-    int i = 0;
-    for( ; i <= len - 8; i += 8 )
-    {
-        __m128 x0 = _mm_loadu_ps(x + i), x1 = _mm_loadu_ps(x + i + 4);
-        __m128 y0 = _mm_loadu_ps(y + i), y1 = _mm_loadu_ps(y + i + 4);
-        x0 = _mm_add_ps(_mm_mul_ps(x0, x0), _mm_mul_ps(y0, y0));
-        x1 = _mm_add_ps(_mm_mul_ps(x1, x1), _mm_mul_ps(y1, y1));
-        x0 = _mm_sqrt_ps(x0); x1 = _mm_sqrt_ps(x1);
-        _mm_storeu_ps(mag + i, x0); _mm_storeu_ps(mag + i + 4, x1);
-    }
     for( ; i < len; i++ )
     {
         float x0 = x[i], y0 = y[i];
         mag[i] = std::sqrt(x0*x0 + y0*y0);
     }
+
     return CV_OK;
 }
-#endif
 
-static CvStatus CV_STDCALL Sqrt_32f(const float* src, float* dst, int len)
+static CvStatus CV_STDCALL
+Magnitude_64f(const double* x, const double* y, double* mag, int len)
 {
-    return Sqrt( src, dst, len );
+    int i = 0;
+    
+#if CV_SSE2   
+    if( checkHardwareSupport(CV_CPU_SSE2) )
+    {
+        for( ; i <= len - 4; i += 4 )
+        {
+            __m128d x0 = _mm_loadu_pd(x + i), x1 = _mm_loadu_pd(x + i + 2);
+            __m128d y0 = _mm_loadu_pd(y + i), y1 = _mm_loadu_pd(y + i + 2);
+            x0 = _mm_add_pd(_mm_mul_pd(x0, x0), _mm_mul_pd(y0, y0));
+            x1 = _mm_add_pd(_mm_mul_pd(x1, x1), _mm_mul_pd(y1, y1));
+            x0 = _mm_sqrt_pd(x0); x1 = _mm_sqrt_pd(x1);
+            _mm_storeu_pd(mag + i, x0); _mm_storeu_pd(mag + i + 2, x1);
+        }
+    }
+#endif
+    
+    for( ; i < len; i++ )
+    {
+        double x0 = x[i], y0 = y[i];
+        mag[i] = std::sqrt(x0*x0 + y0*y0);
+    }
+    
+    return CV_OK;
 }
 
+    
 static CvStatus CV_STDCALL InvSqrt_32f(const float* src, float* dst, int len)
 {
-    return InvSqrt( src, dst, len );
+    int i = 0;
+    
+#if CV_SSE   
+    if( checkHardwareSupport(CV_CPU_SSE) )
+    {    
+        __m128 _0_5 = _mm_set1_ps(0.5f), _1_5 = _mm_set1_ps(1.5f);
+        if( (((size_t)src|(size_t)dst) & 15) == 0 )
+            for( ; i <= len - 8; i += 8 )
+            {
+                __m128 t0 = _mm_load_ps(src + i), t1 = _mm_load_ps(src + i + 4);
+                __m128 h0 = _mm_mul_ps(t0, _0_5), h1 = _mm_mul_ps(t1, _0_5);
+                t0 = _mm_rsqrt_ps(t0); t1 = _mm_rsqrt_ps(t1);
+                t0 = _mm_mul_ps(t0, _mm_sub_ps(_1_5, _mm_mul_ps(_mm_mul_ps(t0,t0),h0)));
+                t1 = _mm_mul_ps(t1, _mm_sub_ps(_1_5, _mm_mul_ps(_mm_mul_ps(t1,t1),h1)));
+                _mm_store_ps(dst + i, t0); _mm_store_ps(dst + i + 4, t1);
+            }
+        else
+            for( ; i <= len - 8; i += 8 )
+            {
+                __m128 t0 = _mm_loadu_ps(src + i), t1 = _mm_loadu_ps(src + i + 4);
+                __m128 h0 = _mm_mul_ps(t0, _0_5), h1 = _mm_mul_ps(t1, _0_5);
+                t0 = _mm_rsqrt_ps(t0); t1 = _mm_rsqrt_ps(t1);
+                t0 = _mm_mul_ps(t0, _mm_sub_ps(_1_5, _mm_mul_ps(_mm_mul_ps(t0,t0),h0)));
+                t1 = _mm_mul_ps(t1, _mm_sub_ps(_1_5, _mm_mul_ps(_mm_mul_ps(t1,t1),h1)));
+                _mm_storeu_ps(dst + i, t0); _mm_storeu_ps(dst + i + 4, t1);
+            }
+    }
+#endif
+    
+    for( ; i < len; i++ )
+        dst[i] = 1/std::sqrt(src[i]);
+    return CV_OK;
 }
 
-static CvStatus CV_STDCALL Sqrt_64f(const double* src, double* dst, int len)
-{
-    return Sqrt( src, dst, len );
-}
-
+    
 static CvStatus CV_STDCALL InvSqrt_64f(const double* src, double* dst, int len)
 {
-    return InvSqrt( src, dst, len );
+    for( int i = 0; i < len; i++ )
+        dst[i] = 1/std::sqrt(src[i]);
+    return CV_OK;
+}    
+    
+    
+static CvStatus CV_STDCALL Sqrt_32f(const float* src, float* dst, int len)
+{
+    int i = 0;
+    
+#if CV_SSE    
+    if( checkHardwareSupport(CV_CPU_SSE) )
+    {
+        if( (((size_t)src|(size_t)dst) & 15) == 0 )
+            for( ; i <= len - 8; i += 8 )
+            {
+                __m128 t0 = _mm_load_ps(src + i), t1 = _mm_load_ps(src + i + 4);
+                t0 = _mm_sqrt_ps(t0); t1 = _mm_sqrt_ps(t1);
+                _mm_store_ps(dst + i, t0); _mm_store_ps(dst + i + 4, t1);
+            }
+        else
+            for( ; i <= len - 8; i += 8 )
+            {
+                __m128 t0 = _mm_loadu_ps(src + i), t1 = _mm_loadu_ps(src + i + 4);
+                t0 = _mm_sqrt_ps(t0); t1 = _mm_sqrt_ps(t1);
+                _mm_storeu_ps(dst + i, t0); _mm_storeu_ps(dst + i + 4, t1);
+            }
+    }
+#endif    
+    
+    for( ; i < len; i++ )
+        dst[i] = std::sqrt(src[i]);
+    
+    return CV_OK;
+}
+
+    
+static CvStatus CV_STDCALL Sqrt_64f(const double* src, double* dst, int len)
+{
+    int i = 0;
+    
+#if CV_SSE2    
+    if( checkHardwareSupport(CV_CPU_SSE2) )
+    {
+        if( (((size_t)src|(size_t)dst) & 15) == 0 )
+            for( ; i <= len - 4; i += 4 )
+            {
+                __m128d t0 = _mm_load_pd(src + i), t1 = _mm_load_pd(src + i + 2);
+                t0 = _mm_sqrt_pd(t0); t1 = _mm_sqrt_pd(t1);
+                _mm_store_pd(dst + i, t0); _mm_store_pd(dst + i + 2, t1);
+            }
+        else
+            for( ; i <= len - 4; i += 4 )
+            {
+                __m128d t0 = _mm_loadu_pd(src + i), t1 = _mm_loadu_pd(src + i + 2);
+                t0 = _mm_sqrt_pd(t0); t1 = _mm_sqrt_pd(t1);
+                _mm_storeu_pd(dst + i, t0); _mm_storeu_pd(dst + i + 2, t1);
+            }
+    }
+#endif
+    
+    for( ; i < len; i++ )
+        dst[i] = std::sqrt(src[i]);
+    return CV_OK;
 }
 
 
@@ -356,7 +361,7 @@ void magnitude( const Mat& X, const Mat& Y, Mat& Mag )
         size_t mstep = Mag.step/sizeof(mag[0]);
 
         for( ; size.height--; x += xstep, y += ystep, mag += mstep )
-            Magnitude( x, y, mag, size.width );
+            Magnitude_32f( x, y, mag, size.width );
     }
     else
     {
@@ -366,7 +371,7 @@ void magnitude( const Mat& X, const Mat& Y, Mat& Mag )
         size_t mstep = Mag.step/sizeof(mag[0]);
 
         for( ; size.height--; x += xstep, y += ystep, mag += mstep )
-            Magnitude( x, y, mag, size.width );
+            Magnitude_64f( x, y, mag, size.width );
     }
 }
 
@@ -439,7 +444,7 @@ void cartToPolar( const Mat& X, const Mat& Y, Mat& Mag, Mat& Angle, bool angleIn
             for( i = 0; i < size.width; i += MAX_BLOCK_SIZE )
             {
                 int block_size = std::min(MAX_BLOCK_SIZE, size.width - i);
-                Magnitude( x + i, y + i, inplace ? buf[0] : mag + i, block_size );
+                Magnitude_32f( x + i, y + i, inplace ? buf[0] : mag + i, block_size );
                 FastAtan2_32f( y + i, x + i, angle + i, block_size, angleInDegrees );
                 if( inplace )
                     for( j = 0; j < block_size; j++ )
@@ -465,7 +470,7 @@ void cartToPolar( const Mat& X, const Mat& Y, Mat& Mag, Mat& Angle, bool angleIn
                     buf[1][j] = (float)y[i + j];
                 }
                 FastAtan2_32f( buf[1], buf[0], buf[0], block_size, angleInDegrees );
-                Magnitude( x + i, y + i, mag + i, block_size );
+                Magnitude_64f( x + i, y + i, mag + i, block_size );
 				for( j = 0; j < block_size; j++ )
 					angle[i + j] = buf[0][j];
             }
@@ -584,17 +589,19 @@ void polarToCart( const Mat& Mag, const Mat& Angle, Mat& X, Mat& Y, bool angleIn
         const float *mag = (const float*)Mag.data, *angle = (const float*)Angle.data;
         size_t xstep = X.step/sizeof(x[0]), ystep = Y.step/sizeof(y[0]);
         size_t mstep = Mag.step/sizeof(mag[0]), astep = Angle.step/sizeof(angle[0]);
+        float x_tmp[MAX_BLOCK_SIZE];
+        float y_tmp[MAX_BLOCK_SIZE];
 
         for( ; size.height--; x += xstep, y += ystep, mag += mstep, angle += astep )
         {
             for( i = 0; i < size.width; i += MAX_BLOCK_SIZE )
             {
                 int block_size = std::min(MAX_BLOCK_SIZE, size.width - i);
-                SinCos_32f( angle + i, y + i, x + i, block_size, angleInDegrees );
+                SinCos_32f( angle + i, y_tmp, x_tmp, block_size, angleInDegrees );
                 for( j = 0; j < block_size; j++ )
                 {
                     float m = mag ? mag[i + j] : 1.f;
-                    float t0 = x[i + j]*m, t1 = y[i + j]*m;
+                    float t0 = x_tmp[j]*m, t1 = y_tmp[j]*m;
                     x[i + j] = t0; y[i + j] = t1;
                 }
             }
@@ -733,11 +740,6 @@ static CvStatus CV_STDCALL Exp_32f( const float *_x, float *y, int n )
     DBLINT buf[4];
     const Cv32suf* x = (const Cv32suf*)_x;
 
-    if( !x || !y )
-        return CV_NULLPTR_ERR;
-    if( n <= 0 )
-        return CV_BADSIZE_ERR;
-
     buf[0].i.lo = buf[1].i.lo = buf[2].i.lo = buf[3].i.lo = 0;
 
     for( ; i <= n - 4; i += 4 )
@@ -837,11 +839,6 @@ static CvStatus CV_STDCALL Exp_64f( const double *_x, double *y, int n )
     int i = 0;
     DBLINT buf[4];
     const Cv64suf* x = (const Cv64suf*)_x;
-
-    if( !x || !y )
-        return CV_NULLPTR_ERR;
-    if( n <= 0 )
-        return CV_BADSIZE_ERR;
 
     buf[0].i.lo = buf[1].i.lo = buf[2].i.lo = buf[3].i.lo = 0;
 
@@ -949,11 +946,14 @@ void exp( const Mat& src, Mat& dst )
     dst.create( src.size(), src.type() );
     Size size = getContinuousSize( src, dst, src.channels() );
 
-    MathFunc func = depth == CV_32F ? (MathFunc)Exp_32f : depth == CV_64F ? (MathFunc)Exp_64f : 0;
-    CV_Assert(func != 0);
-
-    for( int y = 0; y < size.height; y++ )
-        func( src.data + src.step*y, dst.data + dst.step*y, size.width );
+    if( depth == CV_32F )
+        for( int y = 0; y < size.height; y++ )
+            Exp_32f( src.ptr<float>(y), dst.ptr<float>(y), size.width );
+    else if( depth == CV_64F )
+        for( int y = 0; y < size.height; y++ )
+            Exp_64f( src.ptr<double>(y), dst.ptr<double>(y), size.width );
+    else
+        CV_Error( CV_StsUnsupportedFormat, "" );
 }
 
 
@@ -1253,11 +1253,6 @@ static CvStatus CV_STDCALL Log_32f( const float *_x, float *y, int n )
 
     const int* x = (const int*)_x;
 
-    if( !x || !y )
-        return CV_NULLPTR_ERR;
-    if( n <= 0 )
-        return CV_BADSIZE_ERR;
-
     for( i = 0; i <= n - 4; i += 4 )
     {
         double x0, x1, x2, x3;
@@ -1354,11 +1349,6 @@ static CvStatus CV_STDCALL Log_64f( const double *x, double *y, int n )
     int i = 0;
     DBLINT buf[4];
     DBLINT *X = (DBLINT *) x;
-
-    if( !x || !y )
-        return CV_NULLPTR_ERR;
-    if( n <= 0 )
-        return CV_BADSIZE_ERR;
 
     for( ; i <= n - 4; i += 4 )
     {
@@ -1457,11 +1447,14 @@ void log( const Mat& src, Mat& dst )
     dst.create( src.size(), src.type() );
     Size size = getContinuousSize( src, dst, src.channels() );
 
-    MathFunc func = depth == CV_32F ? (MathFunc)Log_32f : depth == CV_64F ? (MathFunc)Log_64f : 0;
-    CV_Assert(func != 0);
-
-    for( int y = 0; y < size.height; y++ )
-        func( src.data + src.step*y, dst.data + dst.step*y, size.width );
+    if( depth == CV_32F )
+        for( int y = 0; y < size.height; y++ )
+            Log_32f( src.ptr<float>(y), dst.ptr<float>(y), size.width );
+    else if( depth == CV_64F )
+        for( int y = 0; y < size.height; y++ )
+            Log_64f( src.ptr<double>(y), dst.ptr<double>(y), size.width );
+    else
+        CV_Error( CV_StsUnsupportedFormat, "" );
 }
 
 
@@ -1955,279 +1948,102 @@ cvSolveCubic( const CvMat* coeffs, CvMat* roots )
 }
 
 
-/*
-  Finds real and complex roots of polynomials of any degree with real
-  coefficients. The original code has been taken from Ken Turkowski's web
-  page (http://www.worldserver.com/turk/opensource/) and adopted for OpenCV.
-  Here is the copyright notice.
-
-  -----------------------------------------------------------------------
-  Copyright (C) 1981-1999 Ken Turkowski. <turk@computer.org>
-
-  All rights reserved.
-
-  Warranty Information
-  Even though I have reviewed this software, I make no warranty
-  or representation, either express or implied, with respect to this
-  software, its quality, accuracy, merchantability, or fitness for a
-  particular purpose.  As a result, this software is provided "as is,"
-  and you, its user, are assuming the entire risk as to its quality
-  and accuracy.
-
-  This code may be used and freely distributed as long as it includes
-  this copyright notice and the above warranty information.
-*/
-
-
-/*******************************************************************************
- * FindPolynomialRoots
- *
- * The Bairstow and Newton correction formulae are used for a simultaneous
- * linear and quadratic iterated synthetic division.  The coefficients of
- * a polynomial of degree n are given as a[i] (i=0,i,..., n) where a[0] is
- * the constant term.  The coefficients are scaled by dividing them by
- * their geometric mean.  The Bairstow or Newton iteration method will
- * nearly always converge to the number of figures carried, fig, either to
- * root values or to their reciprocals.  If the simultaneous Newton and
- * Bairstow iteration fails to converge on root values or their
- * reciprocals in maxiter iterations, the convergence requirement will be
- * successively reduced by one decimal figure.  This program anticipates
- * and protects against loss of significance in the quadratic synthetic
- * division.  (Refer to "On Programming the Numerical Solution of
- * Polynomial Equations," by K. W. Ellenberger, Commun. ACM 3 (Dec. 1960),
- * 644-647.)  The real and imaginary part of each root is stated as u[i]
- * and v[i], respectively.
- *
- * ACM algorithm #30 - Numerical Solution of the Polynomial Equation
- * K. W. Ellenberger
- * Missle Division, North American Aviation, Downey, California
- * Converted to C, modified, optimized, and structured by
- * Ken Turkowski
- * CADLINC, Inc., Palo Alto, California
- *******************************************************************************/
-
-#define MAXN 16
-
-static void icvFindPolynomialRoots(const double *a, double *u, int n, int maxiter, int fig)
+int cv::solveCubic( const Mat& coeffs, Mat& roots )
 {
-  int i;
-  int j;
-  double h[MAXN + 3], b[MAXN + 3], c[MAXN + 3], d[MAXN + 3], e[MAXN + 3];
-  // [-2 : n]
-  double K, ps, qs, pt, qt, s, rev, r = 0;
-  int t;
-  double p = 0, q = 0, qq;
+    const int n = 3;
+    if( ((roots.rows != 1 || roots.cols != n) &&
+        (roots.rows != n || roots.cols != 1)) ||
+        (roots.type() != CV_32F && roots.type() != CV_64F) )
+        roots.create(n, 1, CV_64F);
 
-  // Zero elements with negative indices
-  b[2 + -1] = b[2 + -2] =
-    c[2 + -1] = c[2 + -2] =
-    d[2 + -1] = d[2 + -2] =
-    e[2 + -1] = e[2 + -2] =
-    h[2 + -1] = h[2 + -2] = 0.0;
-
-  // Copy polynomial coefficients to working storage
-  for (j = n; j >= 0; j--)
-    h[2 + j] = *a++; // Note reversal of coefficients
-
-  t = 1;
-  K = pow(10.0, (double)(fig)); // Relative accuracy
-
-  for (; h[2 + n] == 0.0; n--) { // Look for zero high-order coeff.
-    *u++ = 0.0;
-    *u++ = 0.0;
-  }
-
- INIT:
-  if (n == 0)
-    return;
-
-  ps = qs = pt = qt = s = 0.0;
-  rev = 1.0;
-  K = pow(10.0, (double)(fig));
-
-  if (n == 1) {
-    r = -h[2 + 1] / h[2 + 0];
-    goto LINEAR;
-  }
-
-  for (j = n; j >= 0; j--) // Find geometric mean of coeff's
-    if (h[2 + j] != 0.0)
-      s += log(fabs(h[2 + j]));
-  s = exp(s / (n + 1));
-
-  for (j = n; j >= 0; j--) // Normalize coeff's by mean
-    h[2 + j] /= s;
-
-  if (fabs(h[2 + 1] / h[2 + 0]) < fabs(h[2 + n - 1] / h[2 + n])) {
-  REVERSE:
-    t = -t;
-    for (j = (n - 1) / 2; j >= 0; j--) {
-      s = h[2 + j];
-      h[2 + j] = h[2 + n - j];
-      h[2 + n - j] = s;
-    }
-  }
-  if (qs != 0.0) {
-    p = ps;
-    q = qs;
-  } else {
-    if (h[2 + n - 2] == 0.0) {
-      q = 1.0;
-      p = -2.0;
-    } else {
-      q = h[2 + n] / h[2 + n - 2];
-      p = (h[2 + n - 1] - q * h[2 + n - 3]) / h[2 + n - 2];
-    }
-    if (n == 2)
-      goto QADRTIC;
-    r = 0.0;
-  }
- ITERATE:
-  for (i = maxiter; i > 0; i--) {
-
-    for (j = 0; j <= n; j++) { // BAIRSTOW
-      b[2 + j] = h[2 + j] - p * b[2 + j - 1] - q * b[2 + j - 2];
-      c[2 + j] = b[2 + j] - p * c[2 + j - 1] - q * c[2 + j - 2];
-    }
-    if ((h[2 + n - 1] != 0.0) && (b[2 + n - 1] != 0.0)) {
-      if (fabs(h[2 + n - 1] / b[2 + n - 1]) >= K) {
-	b[2 + n] = h[2 + n] - q * b[2 + n - 2];
-      }
-      if (b[2 + n] == 0.0)
-	goto QADRTIC;
-      if (K < fabs(h[2 + n] / b[2 + n]))
-	goto QADRTIC;
-    }
-
-    for (j = 0; j <= n; j++) { // NEWTON
-      d[2 + j] = h[2 + j] + r * d[2 + j - 1]; // Calculate polynomial at r
-      e[2 + j] = d[2 + j] + r * e[2 + j - 1]; // Calculate derivative at r
-    }
-    if (d[2 + n] == 0.0)
-      goto LINEAR;
-    if (K < fabs(h[2 + n] / d[2 + n]))
-      goto LINEAR;
-
-    c[2 + n - 1] = -p * c[2 + n - 2] - q * c[2 + n - 3];
-    s = c[2 + n - 2] * c[2 + n - 2] - c[2 + n - 1] * c[2 + n - 3];
-    if (s == 0.0) {
-      p -= 2.0;
-      q *= (q + 1.0);
-    } else {
-      p += (b[2 + n - 1] * c[2 + n - 2] - b[2 + n] * c[2 + n - 3]) / s;
-      q += (-b[2 + n - 1] * c[2 + n - 1] + b[2 + n] * c[2 + n - 2]) / s;
-    }
-    if (e[2 + n - 1] == 0.0)
-      r -= 1.0; // Minimum step
+    CvMat _coeffs = coeffs, _roots = roots;
+    int nroots = cvSolveCubic( &_coeffs, &_roots);
+    if( nroots == 0 )
+        roots = Mat();
+    else if( roots.rows > 1 )
+        roots = roots.rowRange(0, nroots);
     else
-      r -= d[2 + n] / e[2 + n - 1]; // Newton's iteration
-  }
-  ps = pt;
-  qs = qt;
-  pt = p;
-  qt = q;
-  if (rev < 0.0)
-    K /= 10.0;
-  rev = -rev;
-  goto REVERSE;
-
- LINEAR:
-  if (t < 0)
-    r = 1.0 / r;
-  n--;
-  *u++ = r;
-  *u++ = 0.0;
-
-  for (j = n; j >= 0; j--) { // Polynomial deflation by lin-nomial
-    if ((d[2 + j] != 0.0) && (fabs(h[2 + j] / d[2 + j]) < K))
-      h[2 + j] = d[2 + j];
-    else
-      h[2 + j] = 0.0;
-  }
-
-  if (n == 0)
-    return;
-  goto ITERATE;
-
- QADRTIC:
-  if (t < 0) {
-    p /= q;
-    q = 1.0 / q;
-  }
-  n -= 2;
-
-  if (0.0 < (q - (p * p / 4.0))) { // Two complex roots
-    s = sqrt(q - (p * p / 4.0));
-    *u++ = -p / 2.0;
-    *u++ = s;
-    *u++ = -p / 2.0;
-    *u++ = -s;
-  } else { // Two real roots
-    s = sqrt(((p * p / 4.0)) - q);
-    if (p < 0.0)
-      *u++ = qq = -p / 2.0 + s;
-    else
-      *u++ = qq = -p / 2.0 - s;
-    *u++ = 0.0;
-    *u++ = q / qq;
-    *u++ = 0.0;
-  }
-
-  for (j = n; j >= 0; j--) { // Polynomial deflation by quadratic
-    if ((b[2 + j] != 0.0) && (fabs(h[2 + j] / b[2 + j]) < K))
-      h[2 + j] = b[2 + j];
-    else
-      h[2 + j] = 0.0;
-  }
-  goto INIT;
+        roots = roots.colRange(0, nroots);
+    return nroots;
 }
 
-#undef MAXN
-
-void cvSolvePoly(const CvMat* a, CvMat *r, int maxiter, int fig)
+/* finds complex roots of a polynomial using Durand-Kerner method:
+   http://en.wikipedia.org/wiki/Durand%E2%80%93Kerner_method */
+double cv::solvePoly( const Mat& coeffs0, Mat& roots0, int maxIters )
 {
-    __BEGIN__;
+    typedef Complex<double> C;
 
-    int m, n;
-    double *ad = 0, *rd = 0;
+    double maxDiff = 0;
+    int iter, i, j, n;
 
-    CV_FUNCNAME("cvSolvePoly");
+    CV_Assert( (coeffs0.cols == 1 || coeffs0.rows == 1) &&
+               (coeffs0.depth() == CV_32F || coeffs0.depth() == CV_64F) &&
+               coeffs0.channels() <= 2 );
+    n = coeffs0.cols + coeffs0.rows - 2;
 
-    CV_ASSERT(maxiter > 0);
-    if (CV_MAT_TYPE(a->type) != CV_32FC1 &&
-        CV_MAT_TYPE(a->type) != CV_64FC1)
-        CV_Error(CV_StsUnsupportedFormat, "coeffs must be either CV_32FC1 or CV_64FC1");
-    if (CV_MAT_TYPE(r->type) != CV_32FC2 &&
-        CV_MAT_TYPE(r->type) != CV_64FC2)
-        CV_Error(CV_StsUnsupportedFormat, "roots must be either CV_32FC2 or CV_64FC2");
-    m = a->rows * a->cols;
-    n = r->rows * r->cols;
+    if( ((roots0.rows != 1 || roots0.cols != n) &&
+        (roots0.rows != n || roots0.cols != 1)) ||
+        (roots0.type() != CV_32FC2 && roots0.type() != CV_64FC2) )
+        roots0.create( n, 1, CV_64FC2 );
 
-    if (m - 1 != n)
-        CV_Error(CV_StsUnmatchedFormats, "must have n + 1 coefficients");
-
-    if( CV_MAT_DEPTH(a->type) == CV_32F || !CV_IS_MAT_CONT(a->type))
+    AutoBuffer<C> buf(n*2+2);
+    C *coeffs = buf, *roots = coeffs + n + 1;
+    Mat coeffs1(coeffs0.size(), CV_MAKETYPE(CV_64F, coeffs0.channels()), coeffs0.channels() == 2 ? coeffs : roots);
+    coeffs0.convertTo(coeffs1, coeffs1.type());
+    if( coeffs0.channels() == 1 )
     {
-        ad = (double*)cvStackAlloc(m*sizeof(ad[0]));
-        CvMat _a = cvMat( a->rows, a->cols, CV_64F, ad );
-        cvConvert( a, &_a );
-    }
-    else
-        ad = a->data.db;
-
-    if( CV_MAT_DEPTH(r->type) == CV_32F || !CV_IS_MAT_CONT(r->type))
-        rd = (double*)cvStackAlloc(n*sizeof(ad[0]));
-    else
-        rd = r->data.db;
-
-    icvFindPolynomialRoots( ad, rd, n, maxiter, fig);
-    if( rd != r->data.db )
-    {
-        CvMat _r = cvMat( r->rows, r->cols, CV_64FC2, rd );
-        cvConvert( &_r, r );
+        const double* rcoeffs = (const double*)roots;
+        for( i = 0; i <= n; i++ )
+            coeffs[i] = C(rcoeffs[i], 0);
     }
 
-    __END__;
+    C p(1, 0), r(1, 1);
+
+    for( i = 0; i < n; i++ )
+    {
+        roots[i] = p;
+        p = p * r;
+    }
+
+    maxIters = maxIters <= 0 ? 1000 : maxIters;
+    for( iter = 0; iter < maxIters; iter++ )
+    {
+        maxDiff = 0;
+        for( i = 0; i < n; i++ )
+        {
+            p = roots[i];
+            C num = coeffs[n], denom = 1;
+            for( j = 0; j < n; j++ )
+            {
+                num = num*p + coeffs[n-j-1];
+                if( j != i ) denom = denom * (p - roots[j]);
+            }
+            num /= denom;
+            roots[i] = p - num;
+            maxDiff = max(maxDiff, abs(num));
+        }
+        if( maxDiff <= 0 )
+            break;
+    }
+
+    if( coeffs0.channels() == 1 )
+    {
+        const double verySmallEps = 1e-100;
+        for( i = 0; i < n; i++ )
+            if( fabs(roots[i].im) < verySmallEps )
+                roots[i].im = 0;
+    }
+
+    Mat(roots0.size(), CV_64FC2, roots).convertTo(roots0, roots0.type());
+    return maxDiff;
+}
+
+
+void cvSolvePoly(const CvMat* a, CvMat *r, int maxiter, int)
+{
+    cv::Mat _a = cv::cvarrToMat(a), _r = cv::cvarrToMat(r), _r0 = r;
+    cv::solvePoly(_a, _r, maxiter);
+    CV_Assert( _r.data == _r0.data ); // check that the array of roots was not reallocated
 }
 
 

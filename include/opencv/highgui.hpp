@@ -40,8 +40,8 @@
 //
 //M*/
 
-#ifndef _HIGHGUI_HPP_
-#define _HIGHGUI_HPP_
+#ifndef __OPENCV_HIGHGUI_HPP__
+#define __OPENCV_HIGHGUI_HPP__
 
 #ifdef __cplusplus
 
@@ -50,7 +50,11 @@ namespace cv
 
 // To be extended
 
-CV_EXPORTS void namedWindow( const string& winname, int flags );
+CV_EXPORTS void namedWindow( const string& winname, int flags CV_DEFAULT(CV_WINDOW_AUTOSIZE) );
+
+CV_EXPORTS void setWindowProperty(const string& winname, int prop_id, double prop_value);//YV
+CV_EXPORTS double getWindowProperty(const string& winname, int prop_id);//YV
+
 CV_EXPORTS void imshow( const string& winname, const Mat& mat );
 
 typedef CvTrackbarCallback2 TrackbarCallback;
@@ -127,4 +131,4 @@ protected:
 
 #endif
 
-#endif /* _HIGHGUI_HPP_ */
+#endif

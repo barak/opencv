@@ -49,64 +49,52 @@
 namespace cv {
 
 Mat::Mat(const IplImage* img, bool copyData)
-    : flags(0), rows(0), cols(0), step(0), data(0),
-      refcount(0), datastart(0), dataend(0)
 {
-    CvMat m, dst;                                
-    int coi=0;
-    cvGetMat( img, &m, &coi );
+    CV_DbgAssert(CV_IS_IMAGE(img) && img->imageData != 0);
     
+    int depth = IPL2CV_DEPTH(img->depth);
+    size_t esz;
+    step = img->widthStep;
+    refcount = 0;
+
+    if(!img->roi)
+    {
+        CV_Assert(img->dataOrder == IPL_DATA_ORDER_PIXEL);
+        flags = MAGIC_VAL + CV_MAKETYPE(depth, img->nChannels);
+        rows = img->height; cols = img->width;
+        datastart = data = (uchar*)img->imageData;
+        esz = elemSize(); 
+    }
+    else
+    {
+        CV_Assert(img->dataOrder == IPL_DATA_ORDER_PIXEL || img->roi->coi != 0);
+        bool selectedPlane = img->roi->coi && img->dataOrder == IPL_DATA_ORDER_PLANE;
+        flags = MAGIC_VAL + CV_MAKETYPE(depth, selectedPlane ? 1 : img->nChannels);
+        rows = img->roi->height; cols = img->roi->width;
+        esz = elemSize();
+        data = datastart = (uchar*)img->imageData +
+			(selectedPlane ? (img->roi->coi - 1)*step*img->height : 0) +
+			img->roi->yOffset*step + img->roi->xOffset*esz;        
+    }
+    dataend = datastart + step*(rows-1) + esz*cols;
+    flags |= (cols*esz == step || rows == 1 ? CONTINUOUS_FLAG : 0);
+
     if( copyData )
     {
-        if( coi == 0 )
-        {
-            create( m.rows, m.cols, CV_MAT_TYPE(m.type) );
-            dst = *this;
-            cvCopy( &m, &dst );
-        }
+        Mat m = *this;
+        rows = cols = 0;
+        if( !img->roi || !img->roi->coi ||
+            img->dataOrder == IPL_DATA_ORDER_PLANE)
+            m.copyTo(*this);
         else
         {
-            create( m.rows, m.cols, CV_MAT_DEPTH(m.type) );
-            dst = *this;
-            CvMat* pdst = &dst;
-            const int pairs[] = { coi-1, 0 };
-            cvMixChannels( (const CvArr**)&img, 1, (CvArr**)&pdst, 1, pairs, 1 );
+            int ch[] = {img->roi->coi - 1, 0};
+            create(m.rows, m.cols, m.type());
+            mixChannels(&m, 1, this, 1, ch, 1);
         }
     }
-    else
-    {
-        /*if( coi != 0 )
-            CV_Error(CV_BadCOI, "When copyData=false, COI must not be set");*/
-
-        *this = Mat(m.rows, m.cols, CV_MAT_TYPE(m.type), m.data.ptr, m.step);
-        /*if( img->roi )
-        {
-            datastart = (uchar*)img->imageData;
-            dataend = datastart + img->imageSize;
-        }*/
-    }
 }
 
-Mat cvarrToMat(const CvArr* arr, bool copyData, bool allowND, int coiMode)
-{
-    Mat m;
-    if( CV_IS_MAT(arr) )
-        m = Mat((const CvMat*)arr, copyData );
-    else if( CV_IS_IMAGE(arr) )
-    {
-        const IplImage* iplimg = (const IplImage*)arr;
-        m = Mat(iplimg, copyData );
-        if( coiMode == 0 && cvGetImageCOI(iplimg) > 0 )
-            CV_Error(CV_BadCOI, "COI is not supported by the function");
-    }
-    else
-    {
-        CvMat hdr, *cvmat = cvGetMat( arr, &hdr, 0, allowND ? 1 : 0 );
-        if( cvmat )
-            m = Mat(cvmat, copyData);
-    }
-    return m;
-}
 
 void extractImageCOI(const CvArr* arr, Mat& ch, int coi)
 {
@@ -203,9 +191,7 @@ setIdentity( Mat& m, const Scalar& s )
         for( i = 0; i < rows; i++, data += step )
         {
             for( j = 0; j < cols; j++ )
-                data[j] = 0;
-            if( i < cols )
-                data[i] = val;
+                data[j] = j == i ? val : 0;
         }
     }
     else
@@ -759,29 +745,35 @@ static void generateRandomCenter(const vector<Vec2f>& box, float* center, RNG& r
 }
 
 
-static inline float distance(const float* a, const float* b, int n)
+static inline float distance(const float* a, const float* b, int n, bool simd)
 {
     int j = 0; float d = 0.f;
-#if CV_SSE2
-    float CV_DECL_ALIGNED(16) buf[4];
-    __m128 d0 = _mm_setzero_ps(), d1 = _mm_setzero_ps();
+#if CV_SSE
+    if( simd )
+    {
+        float CV_DECL_ALIGNED(16) buf[4];
+        __m128 d0 = _mm_setzero_ps(), d1 = _mm_setzero_ps();
 
-    for( ; j <= n - 8; j += 8 )
-    {
-        __m128 t0 = _mm_sub_ps(_mm_loadu_ps(a + j), _mm_loadu_ps(b + j));
-        __m128 t1 = _mm_sub_ps(_mm_loadu_ps(a + j + 4), _mm_loadu_ps(b + j + 4));
-        d0 = _mm_add_ps(d0, _mm_mul_ps(t0, t0));
-        d1 = _mm_add_ps(d1, _mm_mul_ps(t1, t1));
+        for( ; j <= n - 8; j += 8 )
+        {
+            __m128 t0 = _mm_sub_ps(_mm_loadu_ps(a + j), _mm_loadu_ps(b + j));
+            __m128 t1 = _mm_sub_ps(_mm_loadu_ps(a + j + 4), _mm_loadu_ps(b + j + 4));
+            d0 = _mm_add_ps(d0, _mm_mul_ps(t0, t0));
+            d1 = _mm_add_ps(d1, _mm_mul_ps(t1, t1));
+        }
+        _mm_store_ps(buf, _mm_add_ps(d0, d1));
+        d = buf[0] + buf[1] + buf[2] + buf[3];
     }
-    _mm_store_ps(buf, _mm_add_ps(d0, d1));
-    d = buf[0] + buf[1] + buf[2] + buf[3];
-#else
-    for( ; j <= n - 4; j += 4 )
-    {
-        float t0 = a[j] - b[j], t1 = a[j+1] - b[j+1], t2 = a[j+2] - b[j+2], t3 = a[j+3] - b[j+3];
-        d += t0*t0 + t1*t1 + t2*t2 + t3*t3;
-    }
+    else
 #endif
+    {
+        for( ; j <= n - 4; j += 4 )
+        {
+            float t0 = a[j] - b[j], t1 = a[j+1] - b[j+1], t2 = a[j+2] - b[j+2], t3 = a[j+3] - b[j+3];
+            d += t0*t0 + t1*t1 + t2*t2 + t3*t3;
+        }
+    }
+
     for( ; j < n; j++ )
     {
         float t = a[j] - b[j];
@@ -805,12 +797,13 @@ static void generateCentersPP(const Mat& _data, Mat& _out_centers,
     vector<float> _dist(N*3);
     float* dist = &_dist[0], *tdist = dist + N, *tdist2 = tdist + N;
     double sum0 = 0;
+    bool simd = checkHardwareSupport(CV_CPU_SSE);
 
     centers[0] = (unsigned)rng % N;
 
     for( i = 0; i < N; i++ )
     {
-        dist[i] = distance(data + step*i, data + step*centers[0], dims);
+        dist[i] = distance(data + step*i, data + step*centers[0], dims, simd);
         sum0 += dist[i];
     }
     
@@ -828,7 +821,7 @@ static void generateCentersPP(const Mat& _data, Mat& _out_centers,
             int ci = i;
             for( i = 0; i < N; i++ )
             {
-                tdist2[i] = std::min(distance(data + step*i, data + step*ci, dims), dist[i]);
+                tdist2[i] = std::min(distance(data + step*i, data + step*ci, dims, simd), dist[i]);
                 s += tdist2[i];
             }
             
@@ -861,6 +854,7 @@ double kmeans( const Mat& data, int K, Mat& best_labels,
     int N = data.rows > 1 ? data.rows : data.cols;
     int dims = (data.rows > 1 ? data.cols : 1)*data.channels();
     int type = data.depth();
+    bool simd = checkHardwareSupport(CV_CPU_SSE);
 
     attempts = std::max(attempts, 1);
     CV_Assert( type == CV_32F && K > 0 );
@@ -1020,7 +1014,7 @@ double kmeans( const Mat& data, int K, Mat& best_labels,
                 for( k = 0; k < K; k++ )
                 {
                     const float* center = centers.ptr<float>(k);
-                    double dist = distance(sample, center, dims);
+                    double dist = distance(sample, center, dims, simd);
 
                     if( min_dist > dist )
                     {
@@ -1299,7 +1293,7 @@ void MatND::create(int d, const int* _sizes, int _type)
 
 void MatND::copyTo( MatND& m ) const
 {
-    m.create( m.dims, m.size, type() );
+    m.create( dims, size, type() );
     NAryMatNDIterator it(*this, m);
 
     for( int i = 0; i < it.nplanes; i++, ++it )
@@ -1478,7 +1472,6 @@ void NAryMatNDIterator::init(const MatND** _arrays, size_t count)
     CV_Assert( _arrays && count > 0 );
     arrays.resize(count);
     int i, j, d1=0, i0 = -1, d = -1, n = (int)count;
-    size_t esz = 0;
 
     iterdepth = 0;
 
@@ -1495,7 +1488,6 @@ void NAryMatNDIterator::init(const MatND** _arrays, size_t count)
         {
             i0 = i;
             d = A.dims;
-            esz = A.elemSize();
             
             // find the first dimensionality which is different from 1;
             // in any of the arrays the first "d1" steps do not affect the continuity
@@ -1512,7 +1504,7 @@ void NAryMatNDIterator::init(const MatND** _arrays, size_t count)
 
         if( !A.isContinuous() )
         {
-            CV_Assert( A.step[d-1] == esz );
+            CV_Assert( A.step[d-1] == A.elemSize() );
             for( j = d-1; j > d1; j-- )
                 if( A.step[j]*A.size[j] < A.step[j-1] )
                     break;
@@ -1730,10 +1722,11 @@ Scalar mean(const MatND& m, const MatND& mask)
     Scalar s;
     for( int i = 0; i < it.nplanes; i++, ++it )
     {
-        s += sum(it.planes[0]);
-        total += countNonZero(it.planes[1]);
+        int n = countNonZero(it.planes[1]);
+        s += mean(it.planes[0], it.planes[1])*(double)n;
+        total += n;
     }
-    return s *= std::max(total, 1.);
+    return s *= 1./std::max(total, 1.);
 }
 
 void meanStdDev(const MatND& m, Scalar& mean, Scalar& stddev, const MatND& mask)
@@ -1884,7 +1877,7 @@ void minMaxLoc(const MatND& a, double* minVal,
             minval = val0;
             minofs = (it.planes[0].data - a.data) + pt0.x*esz;
         }
-        if( val1 > minval )
+        if( val1 > maxval )
         {
             maxval = val1;
             maxofs = (it.planes[0].data - a.data) + pt1.x*esz;
@@ -2286,7 +2279,7 @@ enum { HASH_SIZE0 = 8 };
 static inline void copyElem(const uchar* from, uchar* to, size_t elemSize)
 {
     size_t i;
-    for( i = 0; i <= elemSize - sizeof(int); i += sizeof(int) )
+    for( i = 0; (int)i <= (int)(elemSize - sizeof(int)); i += sizeof(int) )
         *(int*)(to + i) = *(const int*)(from + i);
     for( ; i < elemSize; i++ )
         to[i] = from[i];
@@ -2448,14 +2441,14 @@ void SparseMat::create(int d, const int* _sizes, int _type)
 
 void SparseMat::copyTo( SparseMat& m ) const
 {
-    if( this == &m )
+    if( hdr == m.hdr )
         return;
     if( !hdr )
     {
         m.release();
         return;
     }
-    m.create( m.hdr->dims, m.hdr->size, type() );
+    m.create( hdr->dims, hdr->size, type() );
     SparseMatConstIterator from = begin();
     size_t i, N = nzcount(), esz = elemSize();
 
@@ -2519,7 +2512,7 @@ void SparseMat::convertTo( SparseMat& m, int rtype, double alpha ) const
     if( rtype < 0 )
         rtype = type();
     rtype = CV_MAKETYPE(rtype, cn);
-    if( this == &m && rtype != type()  )
+    if( hdr == m.hdr && rtype != type()  )
     {
         SparseMat temp;
         convertTo(temp, rtype, alpha);
@@ -2528,7 +2521,8 @@ void SparseMat::convertTo( SparseMat& m, int rtype, double alpha ) const
     }
     
     CV_Assert(hdr != 0);
-    m.create( m.hdr->dims, m.hdr->size, rtype );
+    if( hdr != m.hdr )
+        m.create( hdr->dims, hdr->size, rtype );
     
     SparseMatConstIterator from = begin();
     size_t i, N = nzcount();
@@ -2539,7 +2533,7 @@ void SparseMat::convertTo( SparseMat& m, int rtype, double alpha ) const
         for( i = 0; i < N; i++, ++from )
         {
             const Node* n = from.node();
-            uchar* to = m.newNode(n->idx, n->hashval);
+            uchar* to = hdr == m.hdr ? from.ptr : m.newNode(n->idx, n->hashval);
             cvtfunc( from.ptr, to, cn ); 
         }
     }
@@ -2549,7 +2543,7 @@ void SparseMat::convertTo( SparseMat& m, int rtype, double alpha ) const
         for( i = 0; i < N; i++, ++from )
         {
             const Node* n = from.node();
-            uchar* to = m.newNode(n->idx, n->hashval);
+            uchar* to = hdr == m.hdr ? from.ptr : m.newNode(n->idx, n->hashval);
             cvtfunc( from.ptr, to, cn, alpha, 0 ); 
         }
     }
@@ -2870,15 +2864,17 @@ uchar* SparseMat::newNode(const int* idx, size_t hashval)
     elem->next = hdr->hashtab[hidx];
     hdr->hashtab[hidx] = nidx;
 
-    size_t i, d = hdr->dims;
+    int i, d = hdr->dims;
     for( i = 0; i < d; i++ )
         elem->idx[i] = idx[i];
     d = elemSize();
     uchar* p = &value<uchar>(elem);
-    for( i = 0; i <= d - sizeof(int); i += sizeof(int) )
-        *(int*)(p + i) = 0;
-    for( ; i < d; i++ )
-        p[i] = 0;
+    if( d == sizeof(float) )
+        *((float*)p) = 0.f;
+    else if( d == sizeof(double) )
+        *((double*)p) = 0.;
+    else
+        memset(p, 0, d);
     
     return p;
 }
@@ -2950,7 +2946,7 @@ SparseMatConstIterator& SparseMatConstIterator::operator ++()
 
 double norm( const SparseMat& src, int normType )
 {
-    SparseMatConstIterator it;
+    SparseMatConstIterator it = src.begin();
     
     size_t i, N = src.nzcount();
     normType &= NORM_TYPE_MASK;
@@ -2963,7 +2959,7 @@ double norm( const SparseMat& src, int normType )
     {
         if( normType == NORM_INF )
             for( i = 0; i < N; i++, ++it )
-                result = std::max(result, (double)*(const float*)it.ptr);
+                result = std::max(result, std::abs((double)*(const float*)it.ptr));
         else if( normType == NORM_L1 )
             for( i = 0; i < N; i++, ++it )
                 result += std::abs(*(const float*)it.ptr);
@@ -2978,7 +2974,7 @@ double norm( const SparseMat& src, int normType )
     {
         if( normType == NORM_INF )
             for( i = 0; i < N; i++, ++it )
-                result = std::max(result, *(const double*)it.ptr);
+                result = std::max(result, std::abs(*(const double*)it.ptr));
         else if( normType == NORM_L1 )
             for( i = 0; i < N; i++, ++it )
                 result += std::abs(*(const double*)it.ptr);
@@ -2999,8 +2995,7 @@ double norm( const SparseMat& src, int normType )
     
 void minMaxLoc( const SparseMat& src, double* _minval, double* _maxval, int* _minidx, int* _maxidx )
 {
-    SparseMatConstIterator it;
-    
+    SparseMatConstIterator it = src.begin();
     size_t i, N = src.nzcount(), d = src.hdr ? src.hdr->dims : 0;
     int type = src.type();
     const int *minidx = 0, *maxidx = 0;

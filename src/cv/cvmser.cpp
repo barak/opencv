@@ -1239,14 +1239,10 @@ cvExtractMSER( CvArr* _img,
 	CvMat maskhdr, *mask = _mask ? cvGetMat( _mask, &maskhdr ) : 0;
 	CvSeq* contours = 0;
 
-	CV_FUNCNAME( "cvExtractMSER" );
-
-	__BEGIN__;
-
-	CV_ASSERT(src != 0);
-	CV_ASSERT(CV_MAT_TYPE(src->type) == CV_8UC1 || CV_MAT_TYPE(src->type) == CV_8UC3);
-	CV_ASSERT(mask == 0 || (CV_ARE_SIZES_EQ(src, mask) && CV_MAT_TYPE(mask->type) == CV_8UC1));
-	CV_ASSERT(storage != 0);
+	CV_Assert(src != 0);
+	CV_Assert(CV_MAT_TYPE(src->type) == CV_8UC1 || CV_MAT_TYPE(src->type) == CV_8UC3);
+	CV_Assert(mask == 0 || (CV_ARE_SIZES_EQ(src, mask) && CV_MAT_TYPE(mask->type) == CV_8UC1));
+	CV_Assert(storage != 0);
 
 	contours = *_contours = cvCreateSeq( 0, sizeof(CvSeq), sizeof(CvSeq*), storage );
 
@@ -1262,8 +1258,6 @@ cvExtractMSER( CvArr* _img,
 			icvExtractMSER_8UC3( src, mask, contours, storage, params );
 			break;
 	}
-
-	__END__;
 }
 
 
@@ -1284,7 +1278,7 @@ MSER::MSER( int _delta, int _min_area, int _max_area,
         _min_diversity, _max_evolution, _area_threshold, _min_margin, _edge_blur_size);
 }
 
-void MSER::operator()(Mat& image, vector<vector<Point> >& dstcontours, const Mat& mask) const
+void MSER::operator()( const Mat& image, vector<vector<Point> >& dstcontours, const Mat& mask ) const
 {
     CvMat _image = image, _mask, *pmask = 0;
     if( mask.data )

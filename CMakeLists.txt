@@ -10,7 +10,11 @@
 # ----------------------------------------------------------------------------
 
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true)
-
+# Add these standard paths to the search paths for FIND_LIBRARY
+# to find libraries from these locations first
+if(UNIX)
+  set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /lib /usr/lib)
+endif()
 # it _must_ go before PROJECT(OpenCV) in order to work
 if (NOT CMAKE_INSTALL_PREFIX)
     if (WIN32)
@@ -40,6 +44,10 @@ if(MSVC)
     set(CMAKE_USE_RELATIVE_PATHS ON CACHE INTERNAL "" FORCE)
 endif()
 
+#set(CMAKE_C_COMPILER "/opt/BullseyeCoverage/bin/gcc")
+#set(CMAKE_CXX_COMPILER "/opt/BullseyeCoverage/bin/g++")
+#set(CMAKE_CXX_COMPILER_INIT "/opt/BullseyeCoverage/bin/gcc")
+
 # --------------------------------------------------------------
 # Indicate CMake 2.7 and above that we don't want to mix relative
 #  and absolute paths in linker lib lists.
@@ -52,7 +60,7 @@ endif()
 # ----------------------------------------------------------------------------
 #  Current version number:
 # ----------------------------------------------------------------------------
-set(OPENCV_VERSION "2.0.0")
+set(OPENCV_VERSION "2.1.0")
 
 string(REGEX MATCHALL "[0-9]" OPENCV_VERSION_PARTS "${OPENCV_VERSION}")
 
@@ -63,16 +71,27 @@ list(GET OPENCV_VERSION_PARTS 2 OPENCV_VERSION_PATCH)
 set(OPENCV_SOVERSION "${OPENCV_VERSION_MAJOR}.${OPENCV_VERSION_MINOR}")
 
 if(WIN32)
-	# Postfix of DLLs:
-	set(OPENCV_DLLVERSION "${OPENCV_VERSION_MAJOR}${OPENCV_VERSION_MINOR}${OPENCV_VERSION_PATCH}")
-	set(OPENCV_DEBUG_POSTFIX d)
+    # Postfix of DLLs:
+    set(OPENCV_DLLVERSION "${OPENCV_VERSION_MAJOR}${OPENCV_VERSION_MINOR}${OPENCV_VERSION_PATCH}")
+    set(OPENCV_DEBUG_POSTFIX d)
 else()
-	# Postfix of so's:
-	#set(OPENCV_DLLVERSION "${OPENCV_VERSION_MAJOR}${OPENCV_VERSION_MINOR}${OPENCV_VERSION_PATCH}")
-	set(OPENCV_DLLVERSION "")
-	set(OPENCV_DEBUG_POSTFIX)
+    # Postfix of so's:
+    #set(OPENCV_DLLVERSION "${OPENCV_VERSION_MAJOR}${OPENCV_VERSION_MINOR}${OPENCV_VERSION_PATCH}")
+    set(OPENCV_DLLVERSION "")
+    set(OPENCV_DEBUG_POSTFIX)
 endif()
 
+
+# ----------------------------------------------------------------------------
+# Build static or dynamic libs?
+# ----------------------------------------------------------------------------
+# Default: dynamic libraries:
+SET(BUILD_SHARED_LIBS ON CACHE BOOL "Build shared libraries (.dll/.so) instead of static ones (.lib/.a)")
+IF(BUILD_SHARED_LIBS)
+    SET(OPENCV_BUILD_SHARED_LIB 1) # For cvconfig.h, etc.
+ELSE(BUILD_SHARED_LIBS)
+    SET(OPENCV_BUILD_SHARED_LIB 0)
+ENDIF(BUILD_SHARED_LIBS)
 
 # ----------------------------------------------------------------------------
 #  Variables for cvconfig.h.cmake
@@ -123,13 +142,38 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 
     list(GET CMAKE_OPENCV_GCC_VERSIONS 0 CMAKE_OPENCV_GCC_VERSION_MAJOR)
     list(GET CMAKE_OPENCV_GCC_VERSIONS 1 CMAKE_OPENCV_GCC_VERSION_MINOR)
-
+    
     set(CMAKE_OPENCV_GCC_VERSION ${CMAKE_OPENCV_GCC_VERSION_MAJOR}${CMAKE_OPENCV_GCC_VERSION_MINOR})
-    message(STATUS "Detected version of GNU GCC: ${CMAKE_OPENCV_GCC_VERSION}")
+    math(EXPR CMAKE_OPENCV_GCC_VERSION_NUM "${CMAKE_OPENCV_GCC_VERSION_MAJOR}*100 + ${CMAKE_OPENCV_GCC_VERSION_MINOR}")
+    message(STATUS "Detected version of GNU GCC: ${CMAKE_OPENCV_GCC_VERSION} (${CMAKE_OPENCV_GCC_VERSION_NUM})")
 endif()
 
 # ----------------------------------------------------------------------------
-# 		CHECK FOR SYSTEM LIBRARIES, OPTIONS, ETC..
+# Detect Intel ICC compiler -- for -fPIC in 3rdparty ( UNIX ONLY ):
+#  see  include/opencv/cxtypes.h file for related   ICC & CV_ICC defines.
+# NOTE: The system needs to determine if the '-fPIC' option needs to be added
+#  for the 3rdparty static libs being compiled.  The CMakeLists.txt files
+#  in 3rdparty use the CV_ICC definition being set here to determine if
+#  the -fPIC flag should be used.
+# ----------------------------------------------------------------------------
+if(UNIX)
+    if  (__ICL)
+        set(CV_ICC   __ICL)
+    elseif(__ICC)
+        set(CV_ICC   __ICC)
+    elseif(__ECL)
+        set(CV_ICC   __ECL)
+    elseif(__ECC)
+        set(CV_ICC   __ECC)
+    elseif(__INTEL_COMPILER)
+        set(CV_ICC   __INTEL_COMPILER)
+    elseif(CMAKE_C_COMPILER MATCHES "icc")
+        set(CV_ICC   icc_matches_c_compiler)
+    endif()
+endif()
+
+# ----------------------------------------------------------------------------
+#       CHECK FOR SYSTEM LIBRARIES, OPTIONS, ETC..
 # ----------------------------------------------------------------------------
 
 # Build/install (or not) some apps:
@@ -146,9 +190,9 @@ set(BUILD_TESTS ON CACHE BOOL "Build tests")
 # Build 3rdparty libraries under unix
 # ===================================================
 if(WIN32 OR APPLE)
-	set(OPENCV_BUILD_3RDPARTY_LIBS TRUE  CACHE BOOL "Build 3rd party libraries")
+    set(OPENCV_BUILD_3RDPARTY_LIBS TRUE  CACHE BOOL "Build 3rd party libraries")
 else()
-	set(OPENCV_BUILD_3RDPARTY_LIBS FALSE CACHE BOOL "Build 3rd party libraries")
+    set(OPENCV_BUILD_3RDPARTY_LIBS FALSE CACHE BOOL "Build 3rd party libraries")
 endif()
 
 include(OpenCVPCHSupport.cmake REQUIRED)
@@ -159,17 +203,12 @@ if(UNIX)
     include(CheckIncludeFile)
 endif()
 
-# Default value for OPENMP:
-#  MSVC: Yes
-#  Others: No
-# ===================================================
-if(MSVC)
-	set(DEFAULT_ENABLE_OPENMP ON)
-else()
-	set(DEFAULT_ENABLE_OPENMP OFF)
-endif()
-
-set(ENABLE_OPENMP ${DEFAULT_ENABLE_OPENMP} CACHE BOOL "")
+#if(MSVC)
+#   set(DEFAULT_ENABLE_OPENMP ON)
+#else()
+#   set(DEFAULT_ENABLE_OPENMP OFF)
+#endif()
+#set(ENABLE_OPENMP ${DEFAULT_ENABLE_OPENMP} CACHE BOOL "")
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(ENABLE_PROFILING OFF CACHE BOOL "Enable profiling in the GCC compiler (Add flags: -g -pg)")
@@ -179,62 +218,68 @@ if(CMAKE_COMPILER_IS_GNUCXX)
         set(USE_O2 ON CACHE BOOL "Enable -O2 for GCC")
         set(USE_FAST_MATH ON CACHE BOOL "Enable -ffast-math for GCC")
     endif()
+    
     if(${CMAKE_SYSTEM_PROCESSOR} MATCHES amd64*)
-        set(USE_O3 ON CACHE BOOL "Enable -O3 for GCC")
-        set(USE_FAST_MATH ON CACHE BOOL "Enable -ffast-math for GCC")
-        set(USE_MMX ON CACHE BOOL "Enable MMX for GCC")
-        set(USE_SSE ON CACHE BOOL "Enable SSE for GCC")
-        set(USE_SSE2 ON CACHE BOOL "Enable SSE2 for GCC")
-        set(USE_SSE3 ON CACHE BOOL "Enable SSE3 for GCC")
+        set(X86_64 1)
     endif()
     if(${CMAKE_SYSTEM_PROCESSOR} MATCHES x86_64*)
-        set(USE_O3 ON CACHE BOOL "Enable -O3 for GCC")
-        set(USE_FAST_MATH ON CACHE BOOL "Enable -ffast-math for GCC")
-        set(USE_MMX ON CACHE BOOL "Enable MMX for GCC")
-        set(USE_SSE ON CACHE BOOL "Enable SSE for GCC")
-        set(USE_SSE2 ON CACHE BOOL "Enable SSE2 for GCC")
-        set(USE_SSE3 ON CACHE BOOL "Enable SSE3 for GCC")
+        set(X86_64 1)
     endif()
+    
+    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES i686*)
+        set(X86 1)
+    endif()
+    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES i386*)
+        set(X86 1)
+    endif()
+    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES x86*)
+        set(X86 1)
+    endif()
+        
     if(${CMAKE_SYSTEM_PROCESSOR} MATCHES powerpc*)
         set(USE_O3 ON CACHE BOOL "Enable -O3 for GCC")
-        set(USE_POWERPC ON CACHE BOOL "Enable PowerPC for GCC")
+        set(ENABLE_POWERPC ON CACHE BOOL "Enable PowerPC for GCC")
     endif ()
-    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES i686*)
+    
+    if(X86 OR X86_64)
+        # enable everything, since the available set of instructions is checked at runtime
         set(USE_O3 ON CACHE BOOL "Enable -O3 for GCC")
         set(USE_FAST_MATH ON CACHE BOOL "Enable -ffast-math for GCC")
-        set(USE_MMX ON CACHE BOOL "Enable MMX for GCC")
-		set(USE_SSE OFF CACHE BOOL "Enable SSE for GCC")
-        set(USE_SSE2 OFF CACHE BOOL "Enable SSE2 for GCC")
-        set(USE_SSE3 OFF CACHE BOOL "Enable SSE3 for GCC")
-	# SSE/SSE2 might probably be not available for some old AMD or VIA processors
-    endif ()
-    if(${CMAKE_SYSTEM_PROCESSOR} MATCHES x86)
-        set(USE_O3 ON CACHE BOOL "Enable -O3 for GCC")
-        set(USE_FAST_MATH ON CACHE BOOL "Enable -ffast-math for GCC")
-        set(USE_MMX ON CACHE BOOL "Enable MMX for GCC")
-		set(USE_SSE OFF CACHE BOOL "Enable SSE for GCC")
-        set(USE_SSE2 OFF CACHE BOOL "Enable SSE2 for GCC")
-        set(USE_SSE3 OFF CACHE BOOL "Enable SSE3 for GCC")
-	# SSE/SSE2 might probably be not available for some old AMD or VIA processors
-    endif ()
+        set(ENABLE_SSE ON CACHE BOOL "Enable SSE for GCC")
+        set(ENABLE_SSE2 ON CACHE BOOL "Enable SSE2 for GCC")
+        set(ENABLE_SSE3 OFF CACHE BOOL "Enable SSE3 for GCC")
+        set(ENABLE_SSSE3 OFF CACHE BOOL "Enable SSSE3 for GCC")
+        #set(ENABLE_SSE4_1 OFF CACHE BOOL "Enable SSE4.1 for GCC")
+    endif()
 endif()
 
 # allow fine grained control over which libraries not to link, even if
 # they are available on the system
 # ====================================================================
+set(WITH_PNG ON CACHE BOOL "Include PNG support")
+set(WITH_JPEG ON CACHE BOOL "Include JPEG support")
+set(WITH_JASPER ON CACHE BOOL "Include JPEG2K support")
+set(WITH_TIFF ON CACHE BOOL "Include TIFF support")
+
 if(UNIX)
-    set(WITH_PNG ON CACHE BOOL "Include PNG support")
-    set(WITH_JPEG ON CACHE BOOL "Include JPEG support")
-    set(WITH_JASPER ON CACHE BOOL "Include JPEG2K support")
-    set(WITH_TIFF ON CACHE BOOL "Include TIFF support")
     set(WITH_FFMPEG ON CACHE BOOL "Include FFMPEG support")
-    set(WITH_UNICAP ON CACHE BOOL "Include Unicap support")
-    set(WITH_GTK ON CACHE BOOL "Include GTK support")
-    set(WITH_GSTREAMER ON CACHE BOOL "Include Gstreamer support")
+    if(NOT APPLE)
+        set(WITH_UNICAP OFF CACHE BOOL "Include Unicap support (GPL)")
+        set(WITH_GTK ON CACHE BOOL "Include GTK support")
+        set(WITH_GSTREAMER ON CACHE BOOL "Include Gstreamer support")
+        set(WITH_V4L ON CACHE BOOL "Include Video 4 Linux support")
+        set(WITH_XINE OFF CACHE BOOL "Include Xine support (GPL)")
+    endif()
+    set(WITH_PVAPI ON CACHE BOOL "Include Prosilica GigE support")
     set(WITH_1394 ON CACHE BOOL "Include IEEE1394 support")
-    set(WITH_V4L ON CACHE BOOL "Include Video 4 Linux support")
-    set(WITH_XINE ON CACHE BOOL "Include Xine support")
 endif()
+
+if(APPLE)
+    set(WITH_CARBON OFF CACHE BOOL "Use Carbon for UI instead of Cocoa")
+    set(WITH_QUICKTIME OFF CACHE BOOL "Use QuickTime for Video I/O insted of QTKit")
+endif()
+
+set(WITH_TBB OFF CACHE BOOL "Include TBB support")
 
 # ===================================================
 # Macros that checks if module have been installed.
@@ -283,6 +328,8 @@ if(UNIX)
       endif()
       if(WITH_GSTREAMER)
         CHECK_MODULE(gstreamer-base-0.10 HAVE_GSTREAMER)
+        CHECK_MODULE(gstreamer-app-0.10 HAVE_GSTREAMER_APP)
+        CHECK_MODULE(gstreamer-video-0.10 HAVE_GSTREAMER)
       else()
         set(HAVE_GSTREAMER FALSE)
       endif()
@@ -296,6 +343,15 @@ if(UNIX)
       endif()
     else()
       set(HAVE_UNICAP FALSE)
+    endif()
+    
+    if(WITH_PVAPI)
+      find_path(PVAPI_INCLUDE_PATH "PvApi.h"
+                PATHS "/usr/include" "/usr/local/include"
+                DOC "The path to PvAPI header")
+      if(PVAPI_INCLUDE_PATH)
+        set(HAVE_PVAPI 1)
+      endif()
     endif()
 
     set(HAVE_FFMPEG 0)
@@ -315,6 +371,12 @@ if(UNIX)
         if(HAVE_FFMPEG_SWSCALE OR NOT HAVE_GENTOO_FFMPEG)
             set(HAVE_FFMPEG 1)
         endif()    
+      endif()
+      # Find the bzip2 library because it is required on some systems
+      FIND_LIBRARY(BZIP2_LIBRARIES NAMES bz2 bzip2)
+      if(NOT BZIP2_LIBRARIES)
+        # Do an other trial
+        FIND_FILE(BZIP2_LIBRARIES NAMES libbz2.so.1 PATHS /lib)
       endif()
     endif()
 
@@ -368,7 +430,7 @@ if(UNIX)
                 include(FindJasper)
             else()
                 set(JASPER_FOUND FALSE)
-            endif()          
+            endif()
             if(WITH_JPEG)
                 include(FindJPEG)
             else()
@@ -413,12 +475,118 @@ if(BUILD_SWIG_PYTHON_SUPPORT OR BUILD_NEW_PYTHON_SUPPORT)
         set(PYTHON_PLUGIN_INSTALL_PATH "${PYTHON_PATH}/Lib/site-packages/opencv")
         set(PYTHON_PACKAGES_PATH "${PYTHON_PATH}/Lib/site-packages")
     endif()
+
+    # Attempt to discover the NumPy include directory.  If this succeeds, build with NumPy
+
+    execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import numpy.distutils; print numpy.distutils.misc_util.get_numpy_include_dirs()[0]"
+                    RESULT_VARIABLE PYTHON_NUMPY_PROCESS
+                    OUTPUT_VARIABLE PYTHON_NUMPY_INCLUDE_DIRS
+                    OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(PYTHON_NUMPY_PROCESS EQUAL 0)
+      set(PYTHON_USE_NUMPY 1)
+      add_definitions(-D PYTHON_USE_NUMPY=1)
+      include_directories(AFTER ${PYTHON_NUMPY_INCLUDE_DIRS})
+      message(STATUS "    Use INCLUDE: ${PYTHON_NUMPY_INCLUDE_DIRS}")
+    else()
+      set(PYTHON_USE_NUMPY 0)
+    endif()
+
+
 endif()
     
 if(PYTHONLIBS_FOUND AND BUILD_SWIG_PYTHON_SUPPORT)
     find_package(SWIG)
 endif()
 
+############################### TBB ################################
+
+if (WITH_TBB)
+    if (UNIX AND NOT APPLE)
+        PKG_CHECK_MODULES(TBB tbb)
+        message(STATUS "TBB detected: ${TBBLIB_FOUND}")
+            
+        if (TBB_FOUND) 
+            set(HAVE_TBB 1)
+            if(NOT "${TBB_INCLUDE_DIRS}" STREQUAL "")
+                include_directories("${TBB_INCLUDE_DIRS}")
+            endif()
+            link_directories("${TBB_LIBRARY_DIRS}")
+            set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} ${TBB_LIBRARIES})
+        else()
+            set(TBB_DEFAULT_INCLUDE_DIRS
+              "/opt/intel/tbb"
+              "/usr/local/include"
+              "/usr/include")  
+        endif()
+    endif()        
+    if (APPLE)
+        set(TBB_DEFAULT_INCLUDE_DIRS
+          "/usr/include"
+          "/usr/local/include")  
+    endif() 
+    if (WIN32)
+        set(TBB_DEFAULT_INCLUDE_DIRS
+          "C:/Program Files/Intel/TBB"
+          "C:/Program Files (x86)/Intel/TBB")     
+    endif()    
+    if (NOT HAVE_TBB)
+        find_path(TBB_INCLUDE_DIR "tbb/tbb.h"
+                  PATHS TBB_DEFAULT_INCLUDE_DIRS
+                  DOC "The path to TBB headers")
+        if (TBB_INCLUDE_DIR)
+            if (UNIX)
+                set(TBB_LIB_DIR "${TBB_INCLUDE_DIR}/../lib" CACHE PATH "Full path of TBB library directory")
+                link_directories("${TBB_LIB_DIR}")
+            endif()
+            if (APPLE)
+                set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} libtbb.dylib)
+            elseif (UNIX)
+                set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} tbb)
+            elseif (WIN32)
+               if (CMAKE_COMPILER_IS_GNUCXX)
+                   set(TBB_LIB_DIR "${TBB_INCLUDE_DIR}/../lib" CACHE PATH "Full path of TBB library directory")
+                   link_directories("${TBB_LIB_DIR}")
+                   set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} tbb)
+               else()
+                   if(${CMAKE_SYSTEM_PROCESSOR} MATCHES amd64*)
+                       set(X86_64 1)
+                   endif()
+                   if(${CMAKE_SYSTEM_PROCESSOR} MATCHES x86_64*)
+                       set(X86_64 1)
+                   endif()
+                   if(${CMAKE_SYSTEM_PROCESSOR} MATCHES i686*)
+                       set(X86 1)
+                   endif()
+                   if(${CMAKE_SYSTEM_PROCESSOR} MATCHES i386*)
+                       set(X86 1)
+                   endif()
+                   if(${CMAKE_SYSTEM_PROCESSOR} MATCHES x86*)
+                       set(X86 1)
+                   endif()
+                   
+                   set(_TBB_LIB_PATH "${TBB_INCLUDE_DIR}/../lib")
+                   if (X86_64)
+                       set(_TBB_LIB_PATH "${_TBB_LIB_PATH}/intel64")
+                   elseif(X86)
+                       set(_TBB_LIB_PATH "${_TBB_LIB_PATH}/ia32")
+                   endif()
+                   if (MSVC80)
+                       set(_TBB_LIB_PATH "${_TBB_LIB_PATH}/vc8")
+                   elseif(MSVC90)
+                       set(_TBB_LIB_PATH "${_TBB_LIB_PATH}/vc9")
+                   endif()
+                   set(TBB_LIB_DIR "${_TBB_LIB_PATH}" CACHE PATH "Full path of TBB library directory")
+                   link_directories("${TBB_LIB_DIR}")
+               endif()
+            endif()
+            
+            set(HAVE_TBB 1)
+            if(NOT "${TBB_INCLUDE_DIR}" STREQUAL "")
+                include_directories("${TBB_INCLUDE_DIR}")
+            endif()
+        endif()
+    endif()
+endif()
 
 ############################### IPP ################################
 set(IPP_FOUND)
@@ -494,7 +662,7 @@ if(IPP_FOUND AND USE_IPP)
                  ${A}ippvmmerged${B} ${A}ippvmemerged${B}
                  ${A}ippccmerged${B} ${A}ippccemerged${B}
                  ${A}ippcvmerged${B} ${A}ippcvemerged${B}
-                 ${A}ippcore${L}${B})
+                 ${A}ippcore${IPP_ARCH}${L}${CMAKE_STATIC_LIBRARY_SUFFIX})
 endif()
 
 
@@ -502,7 +670,7 @@ endif()
 set(BUILD_LATEX_DOCS OFF CACHE BOOL "Build LaTeX OpenCV Documentation")
 
 # ----------------------------------------------------------------------------
-#   				UPDATE CONFIG FILES & SCRIPTS:
+#                   UPDATE CONFIG FILES & SCRIPTS:
 #
 #  CONFIGURE_FILE(InputFile OutputFile [COPYONLY] [ESCAPE_QUOTES] [@ONLY])
 # If @ONLY is specified, only variables of the form @VAR@ will be
@@ -528,13 +696,10 @@ include_directories("."
     )
 
 # ----------------------------------------------------------------------------
-# 			Set the maximum level of warnings:
+#           Set the maximum level of warnings:
 # ----------------------------------------------------------------------------
 # Should be set to true for development
 set(OPENCV_WARNINGS_ARE_ERRORS OFF CACHE BOOL "Treat warnings as errors")
-
-# Whole program optimization?
-set(OPENCV_WHOLE_PROGRAM_OPTIMIZATION OFF CACHE BOOL "Flags for whole program optimization.")
 
 set(EXTRA_C_FLAGS "")
 set(EXTRA_C_FLAGS_RELEASE "")
@@ -549,22 +714,15 @@ if(MSVC)
     if(MSVC80)
         set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} /Wp64")
     endif()
-    if(MSVC90)
-	set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} /D _BIND_TO_CURRENT_CRT_VERSION=1 /D _BIND_TO_CURRENT_VCLIBS_VERSION=1")
-    endif()
+    #if(MSVC90)
+    #    set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} /D _BIND_TO_CURRENT_CRT_VERSION=1 /D _BIND_TO_CURRENT_VCLIBS_VERSION=1")
+    #endif()
 
     set(EXTRA_EXE_LINKER_FLAGS_RELEASE "${EXTRA_EXE_LINKER_FLAGS_RELEASE} /debug")
 
-    # Whole program optimization
-    if(OPENCV_WHOLE_PROGRAM_OPTIMIZATION AND MSVC_VERSION GREATER 1300)
-        set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} /GL")
-        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
-        set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS_RELEASE} /LTCG")
-    endif()
-
-    if(ENABLE_OPENMP)
-        set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} /openmp")
-    endif()
+    #if(ENABLE_OPENMP)
+    #    set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} /openmp")
+    #endif()
 
     # Remove unreferenced functions: function level linking
     set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} /Gy")
@@ -572,6 +730,13 @@ if(MSVC)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
+
+    if(WIN32)
+        if(CMAKE_CXX_COMPILER MATCHES "64")
+            set(MINGW64 1)
+        endif()
+    endif()
+
     # High level of warnings.
     set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} -Wall")
 
@@ -592,9 +757,12 @@ if(CMAKE_COMPILER_IS_GNUCXX)
         set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} -Werror")
     endif()
 
-    # Whole program optimization
-    if(OPENCV_WHOLE_PROGRAM_OPTIMIZATION)
-        set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -fwhole-program --combine")
+    if(X86)
+        if(NOT X86_64)
+            if(NOT APPLE)
+                set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} -march=i686")
+            endif()
+        endif()
     endif()
 
     # Other optimizations
@@ -610,23 +778,39 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     if(USE_FAST_MATH)
        set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -ffast-math")
     endif()
-    if(USE_POWERPC)
+    if(ENABLE_POWERPC)
        set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -mcpu=G3 -mtune=G5")
     endif()
-    if(USE_MMX)
-       set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -mmmx")
-    endif()
-    # SSE should be disabled under MingW because it generates compiler errors
-    if(USE_SSE)
+    if(ENABLE_SSE)
        set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -msse")
     endif()
-    # SSE2 should be disabled under MingW because it generates compiler errors
-    if(USE_SSE2)
+    if(ENABLE_SSE2)
        set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -msse2")
     endif()
-    # SSE3 should be disabled under MingW because it generates compiler errors
-    if(USE_SSE3 AND NOT MINGW)
-       set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -msse3")
+    # SSE3 and further should be disabled under MingW because it generates compiler errors
+    if(NOT MINGW)
+       if(ENABLE_SSE3)
+          set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -msse3")
+       endif()
+       if(${CMAKE_OPENCV_GCC_VERSION_NUM} GREATER 402)
+          set(HAVE_GCC43_OR_NEWER 1)
+       endif()
+       if(HAVE_GCC43_OR_NEWER OR APPLE)
+          if(ENABLE_SSSE3)
+             set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -mssse3")
+          endif()
+          #if(ENABLE_SSE4_1)
+          #   set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -msse4.1")
+          #endif()
+       endif()
+    endif()
+    
+    if(X86 OR X86_64)
+        if(NOT APPLE)
+            if(${CMAKE_SIZEOF_VOID_P} EQUAL 4)
+                set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -mfpmath=387")
+            endif()
+        endif()
     endif()
 
     # Profiling?
@@ -640,13 +824,22 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     endif()
 
     # Parallel mode
-    if(ENABLE_OPENMP)
-        set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} -D_GLIBCXX_PARALLEL -fopenmp")
-        set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} gomp)
-    endif()
+    #if(ENABLE_OPENMP)
+    #    set(EXTRA_C_FLAGS "${EXTRA_C_FLAGS} -D_GLIBCXX_PARALLEL -fopenmp")
+    #    set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} gomp)
+    #endif()
 
     set(EXTRA_C_FLAGS_RELEASE "${EXTRA_C_FLAGS_RELEASE} -DNDEBUG")
     set(EXTRA_C_FLAGS_DEBUG "${EXTRA_C_FLAGS_DEBUG} -O0 -DDEBUG -D_DEBUG")
+endif()
+
+# Extra link libs if the user selects building static libs:
+IF(NOT BUILD_SHARED_LIBS)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} stdc++)
+    endif()
+
+    set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} flann zlib opencv_lapack)
 endif()
 
 
@@ -684,6 +877,14 @@ if (WIN32 AND MSVC)
     string(REPLACE "/W3" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     string(REPLACE "/W3" "/W4" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
     string(REPLACE "/W3" "/W4" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
+
+    # allow extern "C" functions throw exceptions
+    string(REPLACE "/EHsc" "/EHsc-" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REPLACE "/EHsc" "/EHsc-" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+    string(REPLACE "/EHsc" "/EHsc-" CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG}")
+    string(REPLACE "/EHsc" "/EHsc-" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REPLACE "/EHsc" "/EHsc-" CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
+    string(REPLACE "/EHsc" "/EHsc-" CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
 endif()
 
 if("${CMAKE_CONFIGURE_LDFLAGS}")
@@ -691,7 +892,7 @@ if("${CMAKE_CONFIGURE_LDFLAGS}")
 endif("${CMAKE_CONFIGURE_LDFLAGS}")
 
 # ----------------------------------------------------------------------------
-#      					PROCESS SUBDIRECTORIES:
+#                       PROCESS SUBDIRECTORIES:
 # ----------------------------------------------------------------------------
 # Save libs and executables in the same place
 set(LIBRARY_OUTPUT_PATH ${CMAKE_BINARY_DIR}/lib CACHE PATH "Output directory for libraries" )
@@ -746,17 +947,17 @@ endif()
 #  Part 3/3: ${BIN_DIR}/win-install/OpenCVConfig.cmake  -> For use within binary installers/packages
 # -------------------------------------------------------------------------------------------
 if(WIN32)
-	# Set CMAKE_INCLUDE_DIRS_CONFIGCMAKE to the list of include directories:
-	
-	# This will expand to, for example, <program files>/OpenCV 1.1.0/include
-	set(CMAKE_INCLUDE_DIRS_CONFIGCMAKE "\"\${THIS_OPENCV_CONFIG_PATH}/include\" \"\${THIS_OPENCV_CONFIG_PATH}/include/opencv\"")
+    # Set CMAKE_INCLUDE_DIRS_CONFIGCMAKE to the list of include directories:
+    
+    # This will expand to, for example, <program files>/OpenCV 1.1.0/include
+    set(CMAKE_INCLUDE_DIRS_CONFIGCMAKE "\"\${THIS_OPENCV_CONFIG_PATH}/include\" \"\${THIS_OPENCV_CONFIG_PATH}/include/opencv\"")
 
-	# This will expand to, for example, <program files>/OpenCV 1.1.0/lib
-	set(CMAKE_LIB_DIRS_CONFIGCMAKE "\"\${THIS_OPENCV_CONFIG_PATH}/lib\"")
+    # This will expand to, for example, <program files>/OpenCV 1.1.0/lib
+    set(CMAKE_LIB_DIRS_CONFIGCMAKE "\"\${THIS_OPENCV_CONFIG_PATH}/lib\"")
 
-	#exec_program(${CMAKE_COMMAND} ARGS "-E make_directory \"${CMAKE_BINARY_DIR}/win-install/\"")
-	exec_program(mkdir ARGS "-p \"${CMAKE_BINARY_DIR}/win-install/\"")
-	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/OpenCVConfig.cmake.in" "${CMAKE_BINARY_DIR}/win-install/OpenCVConfig.cmake" IMMEDIATE @ONLY)
+    #exec_program(${CMAKE_COMMAND} ARGS "-E make_directory \"${CMAKE_BINARY_DIR}/win-install/\"")
+    exec_program(mkdir ARGS "-p \"${CMAKE_BINARY_DIR}/win-install/\"")
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/OpenCVConfig.cmake.in" "${CMAKE_BINARY_DIR}/win-install/OpenCVConfig.cmake" IMMEDIATE @ONLY)
 endif()
 
 
@@ -767,10 +968,10 @@ endif()
 # libdir=${exec_prefix}/lib
 # includedir=${prefix}/include/opencv
 # -------------------------------------------------------------------------------------------
-set(prefix 		${CMAKE_INSTALL_PREFIX})
-set(exec_prefix		"\${prefix}")
-set(libdir		"\${exec_prefix}/lib")
-set(includedir		"\${prefix}/include")
+set(prefix      ${CMAKE_INSTALL_PREFIX})
+set(exec_prefix     "\${prefix}")
+set(libdir      "\${exec_prefix}/lib")
+set(includedir      "\${prefix}/include")
 set(VERSION             ${OPENCV_VERSION})
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/opencv.pc.cmake.in" "${CMAKE_BINARY_DIR}/unix-install/opencv.pc" @ONLY IMMEDIATE)
@@ -800,42 +1001,42 @@ set(BUILD_PACKAGE OFF CACHE BOOL "Build a installer with the SDK")
 
 if(BUILD_PACKAGE)
 
-	configure_file(
-	Package.cmake.in
-	${CMAKE_BINARY_DIR}/.cpack/Package.cmake
-	@ONLY
-	)
-	
+    configure_file(
+    Package.cmake.in
+    ${CMAKE_BINARY_DIR}/.cpack/Package.cmake
+    @ONLY
+    )
+    
     include(${CMAKE_BINARY_DIR}/.cpack/Package.cmake)
 
-    set(root_files README ChangeLog configure)
+    set(root_files README)
 
-    file(GLOB root_src_files *.in *.sh *.cmake CMakeLists.txt)
+    file(GLOB root_src_files *.in *.cmake CMakeLists.txt)
 
     if (NOT WIN32)
         install(FILES ${root_files}
-	            DESTINATION ${OPENCV_DOC_INSTALL_PATH}
+                DESTINATION ${OPENCV_DOC_INSTALL_PATH}
                 COMPONENT main)
     else()
         install(FILES ${root_files}
-	            DESTINATION "."
+                DESTINATION "."
                 COMPONENT main)
         install(FILES ${root_src_files}
-	            DESTINATION "."
+                DESTINATION "."
                 COMPONENT src)
-		# Add the "win-install/OpenCVConfig.cmake" file to the "main" install component 
-		install(FILES 
-			"${CMAKE_BINARY_DIR}/win-install/OpenCVConfig.cmake"
-			DESTINATION "."
-			COMPONENT main
-			)
+        # Add the "win-install/OpenCVConfig.cmake" file to the "main" install component 
+        install(FILES 
+            "${CMAKE_BINARY_DIR}/win-install/OpenCVConfig.cmake"
+            DESTINATION "."
+            COMPONENT main
+            )
 
         if(CMAKE_INSTALL_DEBUG_LIBRARIES)
             foreach(m cxcore cv cvaux ml highgui opencv_ffmpeg)
                 install(FILES ${CMAKE_BINARY_DIR}/bin/Debug/${m}${OPENCV_DLLVERSION}d.dll
-			DESTINATION bin COMPONENT main)
+            DESTINATION bin COMPONENT main)
                 install(FILES ${CMAKE_BINARY_DIR}/lib/Debug/${m}${OPENCV_DLLVERSION}d.lib
-			DESTINATION lib COMPONENT main)
+            DESTINATION lib COMPONENT main)
             endforeach()     
         endif()
 
@@ -885,6 +1086,7 @@ add_subdirectory(3rdparty)
 message(STATUS "")
 message(STATUS "General configuration for opencv ${OPENCV_VERSION} =====================================")
 message(STATUS "")
+message(STATUS "    Built as dynamic libs?:    ${BUILD_SHARED_LIBS}")
 message(STATUS "    Compiler:                  ${CMAKE_COMPILER}")
 message(STATUS "    C++ flags (Release):       ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
 message(STATUS "    C++ flags (Debug):         ${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
@@ -896,27 +1098,50 @@ message(STATUS "    Linker flags (Release):    ${CMAKE_SHARED_LINKER_FLAGS} ${CM
 message(STATUS "    Linker flags (Debug):      ${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS_DEBUG}")
 endif()
 
-if(UNIX)
-if(NOT APPLE)
+if(UNIX AND NOT APPLE)
 message(STATUS "")
 message(STATUS "  GUI: ")
 message(STATUS "    GTK+ 2.x:                  ${HAVE_GTK}")
 message(STATUS "    GThread:                   ${HAVE_GTHREAD}")
 message(STATUS "")
-if(NOT OPENCV_BUILD_3RDPARTY_LIBS)
-message(STATUS "  Image I/O: ")
-message(STATUS "    JPEG:                      ${JPEG_FOUND}")
-message(STATUS "    PNG:                       ${PNG_FOUND}")
-message(STATUS "    TIFF:                      ${TIFF_FOUND}")
-message(STATUS "    JASPER:                    ${JASPER_FOUND}")
+endif()
+
+if(APPLE)
+message(STATUS "")
+if(HAVE_CARBON)
+message(STATUS "  GUI Back-end:                Carbon")
 else()
+message(STATUS "  GUI Back-end:                Cocoa")
+endif()
+message(STATUS "")
+endif() 
+
 message(STATUS "  Image I/O: ")
+if(NOT WITH_JPEG OR JPEG_FOUND)
+message(STATUS "    JPEG:                      ${JPEG_FOUND}")
+else()
 message(STATUS "    JPEG:                      build")
+endif()
+
+if(NOT WITH_PNG OR PNG_FOUND)
+message(STATUS "    PNG:                       ${PNG_FOUND}")
+else()
 message(STATUS "    PNG:                       build")
+endif()
+
+if(NOT WITH_TIFF OR TIFF_FOUND)
+message(STATUS "    TIFF:                      ${TIFF_FOUND}")
+else()
 message(STATUS "    TIFF:                      build")
-message(STATUS "    JASPER:                    build")
 endif()
+
+if(NOT WITH_JASPER OR JASPER_FOUND)
+message(STATUS "    JPEG 2000:                 ${JASPER_FOUND}")
+else()
+message(STATUS "    JPEG 2000:                 build")
 endif()
+
+if(UNIX AND NOT APPLE)
 message(STATUS "")
 message(STATUS "  Video I/O: ")
 message(STATUS "    DC1394 1.x:                ${HAVE_DC1394}")
@@ -929,6 +1154,7 @@ message(STATUS "      swscale:                 ${HAVE_FFMPEG_SWSCALE}")
 message(STATUS "      gentoo-style:            ${HAVE_GENTOO_FFMPEG}")
 message(STATUS "    GStreamer:                 ${HAVE_GSTREAMER}")
 message(STATUS "    UniCap:                    ${HAVE_UNICAP}")
+message(STATUS "    PvAPI:                     ${HAVE_PVAPI}")
 if(HAVE_LIBV4L)
 message(STATUS "    V4L/V4L2:                  Using libv4l")
 else()
@@ -936,6 +1162,16 @@ message(STATUS "    V4L/V4L2:                  ${HAVE_CAMV4L}/${HAVE_CAMV4L2}")
 endif()
 message(STATUS "    Xine:                      ${HAVE_XINE}")
 endif()
+
+if(APPLE)
+message(STATUS "")
+if(WITH_QUICKTIME)
+message(STATUS "  Video I/O:                   QuickTime")
+else()
+message(STATUS "  Video I/O:                   QTKit")
+endif()
+endif()
+
 message(STATUS "")
 message(STATUS "  Interfaces: ")
 if(PYTHONLIBS_FOUND AND BUILD_SWIG_PYTHON_SUPPORT)
@@ -944,11 +1180,21 @@ else()
 message(STATUS "    Old Python:                0")
 endif()
 message(STATUS "    Python:                    ${BUILD_NEW_PYTHON_SUPPORT}")
+message(STATUS "    Python interpreter:        ${PYTHON_EXECUTABLE}")
+message(STATUS "    Python numpy:              ${PYTHON_USE_NUMPY}")
+
 if(IPP_FOUND AND USE_IPP)
 message(STATUS "    Use IPP:                   ${IPP_PATH}")
 else()
 message(STATUS "    Use IPP:                   NO")
 endif()
+
+if(HAVE_TBB)
+message(STATUS "    Use TBB:                   YES")
+else()
+message(STATUS "    Use TBB:                   NO")
+endif()
+
 if(BUILD_LATEX_DOCS AND PDFLATEX_COMPILER)
 message(STATUS "    Build Documentation        1")
 else()

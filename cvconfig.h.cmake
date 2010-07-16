@@ -43,6 +43,9 @@
 /* GStreamer multimedia framework */
 #cmakedefine  HAVE_GSTREAMER
 
+/* GStreamer with gstappsink & gstappsrc */
+#cmakedefine  HAVE_GSTREAMER_APP
+
 /* GTK+ 2.0 Thread support */
 #cmakedefine  HAVE_GTHREAD
 
@@ -115,6 +118,9 @@
 /* Intel Integrated Performance Primitives */
 #cmakedefine  HAVE_IPP
 
+/* OpenCV compiled as static or dynamic libs */
+#cmakedefine  OPENCV_BUILD_SHARED_LIB
+
 /* Name of package */
 #define  PACKAGE "${PACKAGE}"
 
@@ -148,3 +154,5 @@
    first (like Motorola and SPARC, unlike Intel and VAX). */
 #cmakedefine  WORDS_BIGENDIAN
 
+/* Intel Threading Building Blocks */
+#cmakedefine  HAVE_TBB

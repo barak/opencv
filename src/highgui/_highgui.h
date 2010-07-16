@@ -70,6 +70,10 @@ void  FillBitmapInfo( BITMAPINFO* bmi, int width, int height, int bpp, int origi
 #define HG_NULLPTR    -4 /* The null pointer where it should not appear */
 #define HG_BADPARAM   -5
 
+#define __BEGIN__ __CV_BEGIN__
+#define __END__  __CV_END__
+#define EXIT __CV_EXIT__
+
 #define CV_WINDOW_MAGIC_VAL     0x00420042
 #define CV_TRACKBAR_MAGIC_VAL   0x00420043
 
@@ -140,6 +144,7 @@ CvCapture* cvCreateFileCapture_XINE (const char* filename);
 CvCapture * cvCreateCapture_GStreamer(int type, const char *filename);
 CvCapture* cvCreateFileCapture_FFMPEG (const char* filename);
 
+
 CvVideoWriter* cvCreateVideoWriter_FFMPEG ( const char* filename, int fourcc,
                                             double fps, CvSize frameSize, int is_color );
 
@@ -150,6 +155,17 @@ CvVideoWriter* cvCreateVideoWriter_QT ( const char* filename, int fourcc,
                                         double fps, CvSize frameSize, int is_color );
 
 CvCapture * cvCreateCameraCapture_Unicap  (const int     index);
+CvCapture * cvCreateCameraCapture_PvAPI  (const int     index);
+CvVideoWriter* cvCreateVideoWriter_GStreamer( const char* filename, int fourcc,
+                                            double fps, CvSize frameSize, int is_color );
+
+//Yannick Verdie 2010                                 
+double cvGetMode_W32(const char* name);
+double cvGetMode_GTK(const char* name);
+double cvGetMode_QT(const char* name);
+void cvChangeMode_W32(const char* name, double prop_value);
+void cvChangeMode_GTK(const char* name, double prop_value);
+void cvChangeMode_QT(const char* name, double prop_value);
 
 /*namespace cv
 {

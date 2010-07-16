@@ -10,9 +10,9 @@ add_definitions(-DCVAPI_EXPORTS)
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../../3rdparty/include"
                     "${CMAKE_CURRENT_SOURCE_DIR}/../../include/opencv"
-					"${CMAKE_CURRENT_BINARY_DIR}")
+                    "${CMAKE_CURRENT_BINARY_DIR}")
 
-set(lib_hdr_names cxcore.h cxcore.hpp cxerror.h cxmat.hpp cxmisc.h cxoperations.hpp cxtypes.h cvver.h cvwimage.h cxflann.h)
+set(lib_hdr_names cxcore.h cxcore.hpp cxerror.h cxmat.hpp cxmisc.h cxoperations.hpp cxtypes.h cvver.h cvwimage.h cxflann.h cvinternal.h)
 set(lib_hdrs)
 foreach(h ${lib_hdr_names})
     list(APPEND lib_hdrs "${CMAKE_CURRENT_SOURCE_DIR}/../../include/opencv/${h}")
@@ -24,7 +24,7 @@ source_group("Include\\Internal" FILES ${lib_int_hdrs})
 
 set(the_target "cxcore")
 
-add_library(${the_target} SHARED ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs})
+add_library(${the_target} ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs})
 
 if(PCHSupport_FOUND)
     set(pch_header ${CMAKE_CURRENT_SOURCE_DIR}/_cxcore.h)
@@ -48,26 +48,31 @@ set_target_properties(${the_target} PROPERTIES
 # Additional target properties
 set_target_properties(${the_target} PROPERTIES
     DEBUG_POSTFIX "${OPENCV_DEBUG_POSTFIX}"
-	ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib/"
-	RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/"
-	)
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib/"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/"
+    )
 
 # Add the required libraries for linking:
 target_link_libraries(${the_target} ${OPENCV_LINKER_LIBS} ${IPP_LIBS} opencv_lapack zlib flann)
 
 # Linker flag needed for Windows Mobile 5 and 6 SDKs
-if(MSVC AND CMAKE_CROSSCOMPILING)
-	set_target_properties(${the_target} PROPERTIES
-		LINK_FLAGS "/NODEFAULTLIB:secchk"
-		)
+if(MSVC)
+    if (CMAKE_CROSSCOMPILING)
+        set_target_properties(${the_target} PROPERTIES
+            LINK_FLAGS "/NODEFAULTLIB:secchk"
+            )
+    endif()
+    set_target_properties(${the_target} PROPERTIES
+        LINK_FLAGS "/NODEFAULTLIB:libc"
+        )
 endif()
 
 add_dependencies(${the_target} opencv_lapack zlib)
 
 install(TARGETS ${the_target}
     RUNTIME DESTINATION bin COMPONENT main
-	LIBRARY DESTINATION lib COMPONENT main
-	ARCHIVE DESTINATION lib COMPONENT main)
+    LIBRARY DESTINATION lib COMPONENT main
+    ARCHIVE DESTINATION lib COMPONENT main)
 
 # install each module headers separately
 install(FILES ${lib_hdrs}

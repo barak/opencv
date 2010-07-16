@@ -346,6 +346,9 @@ struct VResizeLinearVec_32s8u
 {
     int operator()(const uchar** _src, uchar* dst, const uchar* _beta, int width ) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         const int** src = (const int**)_src;
         const short* beta = (const short*)_beta;
         const int *S0 = src[0], *S1 = src[1];
@@ -422,10 +425,13 @@ struct VResizeLinearVec_32s8u
 };
 
 
-struct VResizeLinearVec_32f16u
+template<int shiftval> struct VResizeLinearVec_32f16
 {
     int operator()(const uchar** _src, uchar* _dst, const uchar* _beta, int width ) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         const float** src = (const float**)_src;
         const float* beta = (const float*)_beta;
         const float *S0 = src[0], *S1 = src[1];
@@ -433,8 +439,8 @@ struct VResizeLinearVec_32f16u
         int x = 0;
 
         __m128 b0 = _mm_set1_ps(beta[0]), b1 = _mm_set1_ps(beta[1]);
-        __m128i preshift = _mm_set1_epi32(SHRT_MIN);
-        __m128i postshift = _mm_set1_epi16(SHRT_MIN);
+        __m128i preshift = _mm_set1_epi32(shiftval);
+        __m128i postshift = _mm_set1_epi16((short)shiftval);
 
         if( (((size_t)S0|(size_t)S1)&15) == 0 )
             for( ; x <= width - 16; x += 16 )
@@ -514,11 +520,16 @@ struct VResizeLinearVec_32f16u
     }
 };
 
+typedef VResizeLinearVec_32f16<SHRT_MIN> VResizeLinearVec_32f16u;
+typedef VResizeLinearVec_32f16<0> VResizeLinearVec_32f16s; 
 
 struct VResizeLinearVec_32f
 {
     int operator()(const uchar** _src, uchar* _dst, const uchar* _beta, int width ) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         const float** src = (const float**)_src;
         const float* beta = (const float*)_beta;
         const float *S0 = src[0], *S1 = src[1];
@@ -567,6 +578,9 @@ struct VResizeCubicVec_32s8u
 {
     int operator()(const uchar** _src, uchar* dst, const uchar* _beta, int width ) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         const int** src = (const int**)_src;
         const short* beta = (const short*)_beta;
         const int *S0 = src[0], *S1 = src[1], *S2 = src[2], *S3 = src[3];
@@ -655,10 +669,13 @@ struct VResizeCubicVec_32s8u
 };
 
 
-struct VResizeCubicVec_32f16u
+template<int shiftval> struct VResizeCubicVec_32f16
 {
     int operator()(const uchar** _src, uchar* _dst, const uchar* _beta, int width ) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         const float** src = (const float**)_src;
         const float* beta = (const float*)_beta;
         const float *S0 = src[0], *S1 = src[1], *S2 = src[2], *S3 = src[3];
@@ -666,8 +683,8 @@ struct VResizeCubicVec_32f16u
         int x = 0;
         __m128 b0 = _mm_set1_ps(beta[0]), b1 = _mm_set1_ps(beta[1]),
             b2 = _mm_set1_ps(beta[2]), b3 = _mm_set1_ps(beta[3]);
-        __m128i preshift = _mm_set1_epi32(SHRT_MIN);
-        __m128i postshift = _mm_set1_epi16(SHRT_MIN);
+        __m128i preshift = _mm_set1_epi32(shiftval);
+        __m128i postshift = _mm_set1_epi16((short)shiftval);
 
         for( ; x <= width - 8; x += 8 )
         {
@@ -710,11 +727,16 @@ struct VResizeCubicVec_32f16u
     }
 };
 
+typedef VResizeCubicVec_32f16<SHRT_MIN> VResizeCubicVec_32f16u;
+typedef VResizeCubicVec_32f16<0> VResizeCubicVec_32f16s; 
 
 struct VResizeCubicVec_32f
 {
     int operator()(const uchar** _src, uchar* _dst, const uchar* _beta, int width ) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         const float** src = (const float**)_src;
         const float* beta = (const float*)_beta;
         const float *S0 = src[0], *S1 = src[1], *S2 = src[2], *S3 = src[3];
@@ -762,20 +784,24 @@ struct VResizeCubicVec_32f
 
 typedef HResizeNoVec HResizeLinearVec_8u32s;
 typedef HResizeNoVec HResizeLinearVec_16u32f;
+typedef HResizeNoVec HResizeLinearVec_16s32f;
 typedef HResizeNoVec HResizeLinearVec_32f;
 
 #else
 
 typedef HResizeNoVec HResizeLinearVec_8u32s;
 typedef HResizeNoVec HResizeLinearVec_16u32f;
+typedef HResizeNoVec HResizeLinearVec_16s32f;
 typedef HResizeNoVec HResizeLinearVec_32f;
 
 typedef VResizeNoVec VResizeLinearVec_32s8u;
 typedef VResizeNoVec VResizeLinearVec_32f16u;
+typedef VResizeNoVec VResizeLinearVec_32f16s;
 typedef VResizeNoVec VResizeLinearVec_32f;
 
 typedef VResizeNoVec VResizeCubicVec_32s8u;
 typedef VResizeNoVec VResizeCubicVec_32f16u;
+typedef VResizeNoVec VResizeCubicVec_32f16s;
 typedef VResizeNoVec VResizeCubicVec_32f;
 
 #endif
@@ -1272,7 +1298,12 @@ void resize( const Mat& src, Mat& dst, Size dsize,
                 HResizeLinearVec_16u32f>,
             VResizeLinear<ushort, float, float, Cast<float, ushort>,
                 VResizeLinearVec_32f16u> >,
-        0, 0,
+        resizeGeneric_<
+            HResizeLinear<short, float, float, 1,
+                HResizeLinearVec_16s32f>,
+            VResizeLinear<short, float, float, Cast<float, short>,
+                VResizeLinearVec_32f16s> >,
+		0,
         resizeGeneric_<
             HResizeLinear<float, float, float, 1,
                 HResizeLinearVec_32f>,
@@ -1293,7 +1324,11 @@ void resize( const Mat& src, Mat& dst, Size dsize,
             HResizeCubic<ushort, float, float>,
             VResizeCubic<ushort, float, float, Cast<float, ushort>,
             VResizeCubicVec_32f16u> >,
-        0, 0,
+        resizeGeneric_<
+            HResizeCubic<short, float, float>,
+            VResizeCubic<short, float, float, Cast<float, short>,
+            VResizeCubicVec_32f16s> >,
+		0,
         resizeGeneric_<
             HResizeCubic<float, float, float>,
             VResizeCubic<float, float, float, Cast<float, float>,
@@ -1311,7 +1346,10 @@ void resize( const Mat& src, Mat& dst, Size dsize,
         resizeGeneric_<HResizeLanczos4<ushort, float, float>,
             VResizeLanczos4<ushort, float, float, Cast<float, ushort>,
             VResizeNoVec> >,
-        0, 0,
+       	resizeGeneric_<HResizeLanczos4<short, float, float>,
+            VResizeLanczos4<short, float, float, Cast<float, short>,
+            VResizeNoVec> >,
+		0,
         resizeGeneric_<HResizeLanczos4<float, float, float>,
             VResizeLanczos4<float, float, float, Cast<float, float>,
             VResizeNoVec> >,
@@ -1320,13 +1358,15 @@ void resize( const Mat& src, Mat& dst, Size dsize,
 
     static ResizeAreaFastFunc areafast_tab[] =
     {
-        resizeAreaFast_<uchar, int>, 0, resizeAreaFast_<ushort, float>,
-        0, 0, resizeAreaFast_<float, float>, 0, 0
+        resizeAreaFast_<uchar, int>, 0,
+		resizeAreaFast_<ushort, float>,
+		resizeAreaFast_<short, float>,
+        0, resizeAreaFast_<float, float>, 0, 0
     };
 
     static ResizeAreaFunc area_tab[] =
     {
-        resizeArea_<uchar>, 0, resizeArea_<ushort>, 0, 0, resizeArea_<float>, 0, 0
+        resizeArea_<uchar>, 0, resizeArea_<ushort>, resizeArea_<short>, 0, resizeArea_<float>, 0, 0
     };
 
     CV_Assert( !(dsize == Size()) || (inv_scale_x > 0 && inv_scale_y > 0) );
@@ -1678,7 +1718,7 @@ struct RemapVec_8u
     {
         int cn = _src.channels();
 
-        if( cn != 1 && cn != 3 && cn != 4 )
+        if( (cn != 1 && cn != 3 && cn != 4) || !checkHardwareSupport(CV_CPU_SSE2) )
             return 0;
 
         const uchar *S0 = _src.data, *S1 = _src.data + _src.step;
@@ -2052,8 +2092,8 @@ static void remapBilinear( const Mat& _src, Mat& _dst, const Mat& _xy,
                                 v3 = S0 + sy1*sstep + sx1*cn;
                             }
                             else if( borderType == BORDER_TRANSPARENT &&
-                                (unsigned)sx >= (unsigned)(ssize.width-1) &&
-                                (unsigned)sy >= (unsigned)(ssize.height-1))
+                                ((unsigned)sx >= (unsigned)(ssize.width-1) ||
+                                (unsigned)sy >= (unsigned)(ssize.height-1)))
                                 continue;
                             else
                             {
@@ -2309,26 +2349,30 @@ void remap( const Mat& src, Mat& dst, const Mat& map1, const Mat& map2,
     static RemapFunc linear_tab[] =
     {
         remapBilinear<FixedPtCast<int, uchar, INTER_REMAP_COEF_BITS>, RemapVec_8u, short>, 0,
-        remapBilinear<Cast<float, ushort>, RemapNoVec, float>, 0, 0,
+        remapBilinear<Cast<float, ushort>, RemapNoVec, float>,
+        remapBilinear<Cast<float, short>, RemapNoVec, float>, 0,
         remapBilinear<Cast<float, float>, RemapNoVec, float>, 0, 0
     };
 
     static RemapFunc cubic_tab[] =
     {
         remapBicubic<FixedPtCast<int, uchar, INTER_REMAP_COEF_BITS>, short, INTER_REMAP_COEF_SCALE>, 0,
-        remapBicubic<Cast<float, ushort>, float, 1>, 0, 0,
+        remapBicubic<Cast<float, ushort>, float, 1>,
+        remapBicubic<Cast<float, short>, float, 1>, 0,
         remapBicubic<Cast<float, float>, float, 1>, 0, 0
     };
 
     static RemapFunc lanczos4_tab[] =
     {
         remapLanczos4<FixedPtCast<int, uchar, INTER_REMAP_COEF_BITS>, short, INTER_REMAP_COEF_SCALE>, 0,
-        remapLanczos4<Cast<float, ushort>, float, 1>, 0, 0,
+        remapLanczos4<Cast<float, ushort>, float, 1>,
+        remapLanczos4<Cast<float, short>, float, 1>, 0,
         remapLanczos4<Cast<float, float>, float, 1>, 0, 0
     };
 
     CV_Assert( (!map2.data || map2.size() == map1.size()));
     dst.create( map1.size(), src.type() );
+    CV_Assert(dst.data != src.data);
 
     int depth = src.depth(), map_depth = map1.depth();
     RemapNNFunc nnfunc = 0;
@@ -2390,6 +2434,9 @@ void remap( const Mat& src, Mat& dst, const Mat& map1, const Mat& map2,
     int brows0 = std::min(128, dst.rows);
     int bcols0 = std::min(buf_size/brows0, dst.cols);
     brows0 = std::min(buf_size/bcols0, dst.rows);
+#if CV_SSE2
+    bool useSIMD = checkHardwareSupport(CV_CPU_SSE2);
+#endif
 
     Mat _bufxy(brows0, bcols0, CV_16SC2), _bufa;
     if( !nnfunc )
@@ -2434,22 +2481,25 @@ void remap( const Mat& src, Mat& dst, const Mat& map1, const Mat& map2,
                         x1 = 0;
 
                     #if CV_SSE2
-                        for( ; x1 <= bcols - 8; x1 += 8 )
+                        if( useSIMD )
                         {
-                            __m128 fx0 = _mm_loadu_ps(sX + x1);
-                            __m128 fx1 = _mm_loadu_ps(sX + x1 + 4);
-                            __m128 fy0 = _mm_loadu_ps(sY + x1);
-                            __m128 fy1 = _mm_loadu_ps(sY + x1 + 4);
-                            __m128i ix0 = _mm_cvtps_epi32(fx0);
-                            __m128i ix1 = _mm_cvtps_epi32(fx1);
-                            __m128i iy0 = _mm_cvtps_epi32(fy0);
-                            __m128i iy1 = _mm_cvtps_epi32(fy1);
-                            ix0 = _mm_packs_epi32(ix0, ix1);
-                            iy0 = _mm_packs_epi32(iy0, iy1);
-                            ix1 = _mm_unpacklo_epi16(ix0, iy0);
-                            iy1 = _mm_unpackhi_epi16(ix0, iy0);
-                            _mm_storeu_si128((__m128i*)(XY + x1*2), ix1);
-                            _mm_storeu_si128((__m128i*)(XY + x1*2 + 8), iy1);
+                            for( ; x1 <= bcols - 8; x1 += 8 )
+                            {
+                                __m128 fx0 = _mm_loadu_ps(sX + x1);
+                                __m128 fx1 = _mm_loadu_ps(sX + x1 + 4);
+                                __m128 fy0 = _mm_loadu_ps(sY + x1);
+                                __m128 fy1 = _mm_loadu_ps(sY + x1 + 4);
+                                __m128i ix0 = _mm_cvtps_epi32(fx0);
+                                __m128i ix1 = _mm_cvtps_epi32(fx1);
+                                __m128i iy0 = _mm_cvtps_epi32(fy0);
+                                __m128i iy1 = _mm_cvtps_epi32(fy1);
+                                ix0 = _mm_packs_epi32(ix0, ix1);
+                                iy0 = _mm_packs_epi32(iy0, iy1);
+                                ix1 = _mm_unpacklo_epi16(ix0, iy0);
+                                iy1 = _mm_unpackhi_epi16(ix0, iy0);
+                                _mm_storeu_si128((__m128i*)(XY + x1*2), ix1);
+                                _mm_storeu_si128((__m128i*)(XY + x1*2 + 8), iy1);
+                            }
                         }
                     #endif
 
@@ -2477,37 +2527,40 @@ void remap( const Mat& src, Mat& dst, const Mat& map1, const Mat& map2,
 
                     x1 = 0;
                 #if CV_SSE2
-                    __m128 scale = _mm_set1_ps((float)INTER_TAB_SIZE);
-                    __m128i mask = _mm_set1_epi32(INTER_TAB_SIZE-1);
-                    for( ; x1 <= bcols - 8; x1 += 8 )
+                    if( useSIMD )
                     {
-                        __m128 fx0 = _mm_loadu_ps(sX + x1);
-                        __m128 fx1 = _mm_loadu_ps(sX + x1 + 4);
-                        __m128 fy0 = _mm_loadu_ps(sY + x1);
-                        __m128 fy1 = _mm_loadu_ps(sY + x1 + 4);
-                        __m128i ix0 = _mm_cvtps_epi32(_mm_mul_ps(fx0, scale));
-                        __m128i ix1 = _mm_cvtps_epi32(_mm_mul_ps(fx1, scale));
-                        __m128i iy0 = _mm_cvtps_epi32(_mm_mul_ps(fy0, scale));
-                        __m128i iy1 = _mm_cvtps_epi32(_mm_mul_ps(fy1, scale));
-                        __m128i mx0 = _mm_and_si128(ix0, mask);
-                        __m128i mx1 = _mm_and_si128(ix1, mask);
-                        __m128i my0 = _mm_and_si128(iy0, mask);
-                        __m128i my1 = _mm_and_si128(iy1, mask);
-                        mx0 = _mm_packs_epi32(mx0, mx1);
-                        my0 = _mm_packs_epi32(my0, my1);
-                        my0 = _mm_slli_epi16(my0, INTER_BITS);
-                        mx0 = _mm_or_si128(mx0, my0);
-                        _mm_storeu_si128((__m128i*)(A + x1), mx0);
-                        ix0 = _mm_srai_epi32(ix0, INTER_BITS);
-                        ix1 = _mm_srai_epi32(ix1, INTER_BITS);
-                        iy0 = _mm_srai_epi32(iy0, INTER_BITS);
-                        iy1 = _mm_srai_epi32(iy1, INTER_BITS);
-                        ix0 = _mm_packs_epi32(ix0, ix1);
-                        iy0 = _mm_packs_epi32(iy0, iy1);
-                        ix1 = _mm_unpacklo_epi16(ix0, iy0);
-                        iy1 = _mm_unpackhi_epi16(ix0, iy0);
-                        _mm_storeu_si128((__m128i*)(XY + x1*2), ix1);
-                        _mm_storeu_si128((__m128i*)(XY + x1*2 + 8), iy1);
+                        __m128 scale = _mm_set1_ps((float)INTER_TAB_SIZE);
+                        __m128i mask = _mm_set1_epi32(INTER_TAB_SIZE-1);
+                        for( ; x1 <= bcols - 8; x1 += 8 )
+                        {
+                            __m128 fx0 = _mm_loadu_ps(sX + x1);
+                            __m128 fx1 = _mm_loadu_ps(sX + x1 + 4);
+                            __m128 fy0 = _mm_loadu_ps(sY + x1);
+                            __m128 fy1 = _mm_loadu_ps(sY + x1 + 4);
+                            __m128i ix0 = _mm_cvtps_epi32(_mm_mul_ps(fx0, scale));
+                            __m128i ix1 = _mm_cvtps_epi32(_mm_mul_ps(fx1, scale));
+                            __m128i iy0 = _mm_cvtps_epi32(_mm_mul_ps(fy0, scale));
+                            __m128i iy1 = _mm_cvtps_epi32(_mm_mul_ps(fy1, scale));
+                            __m128i mx0 = _mm_and_si128(ix0, mask);
+                            __m128i mx1 = _mm_and_si128(ix1, mask);
+                            __m128i my0 = _mm_and_si128(iy0, mask);
+                            __m128i my1 = _mm_and_si128(iy1, mask);
+                            mx0 = _mm_packs_epi32(mx0, mx1);
+                            my0 = _mm_packs_epi32(my0, my1);
+                            my0 = _mm_slli_epi16(my0, INTER_BITS);
+                            mx0 = _mm_or_si128(mx0, my0);
+                            _mm_storeu_si128((__m128i*)(A + x1), mx0);
+                            ix0 = _mm_srai_epi32(ix0, INTER_BITS);
+                            ix1 = _mm_srai_epi32(ix1, INTER_BITS);
+                            iy0 = _mm_srai_epi32(iy0, INTER_BITS);
+                            iy1 = _mm_srai_epi32(iy1, INTER_BITS);
+                            ix0 = _mm_packs_epi32(ix0, ix1);
+                            iy0 = _mm_packs_epi32(iy0, iy1);
+                            ix1 = _mm_unpacklo_epi16(ix0, iy0);
+                            iy1 = _mm_unpackhi_epi16(ix0, iy0);
+                            _mm_storeu_si128((__m128i*)(XY + x1*2), ix1);
+                            _mm_storeu_si128((__m128i*)(XY + x1*2 + 8), iy1);
+                        }
                     }
                 #endif
 
@@ -2678,17 +2731,18 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                  int flags, int borderType, const Scalar& borderValue )
 {
     dst.create( dsize, src.type() );
+    CV_Assert( dst.data != src.data );
 
     const int BLOCK_SZ = 64;
     short XY[BLOCK_SZ*BLOCK_SZ*2], A[BLOCK_SZ*BLOCK_SZ];
     double M[6];
-    Mat _M(2, 3, CV_64F, M);
+    Mat matM(2, 3, CV_64F, M);
     int interpolation = flags & INTER_MAX;
     if( interpolation == INTER_AREA )
         interpolation = INTER_LINEAR;
 
     CV_Assert( (M0.type() == CV_32F || M0.type() == CV_64F) && M0.rows == 2 && M0.cols == 3 );
-    M0.convertTo(_M, _M.type());
+    M0.convertTo(matM, matM.type());
 
     if( !(flags & WARP_INVERSE_MAP) )
     {
@@ -2708,6 +2762,9 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
     const int AB_BITS = MAX(10, (int)INTER_BITS);
     const int AB_SCALE = 1 << AB_BITS;
     int round_delta = interpolation == INTER_NEAREST ? AB_SCALE/2 : AB_SCALE/INTER_TAB_SIZE/2;
+#if CV_SSE2
+    bool useSIMD = checkHardwareSupport(CV_CPU_SSE2);
+#endif
 
     for( x = 0; x < width; x++ )
     {
@@ -2718,9 +2775,6 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
     int bh0 = std::min(BLOCK_SZ/2, height);
     int bw0 = std::min(BLOCK_SZ*BLOCK_SZ/bh0, width);
     bh0 = std::min(BLOCK_SZ*BLOCK_SZ/bw0, height);
-#if CV_SSE2
-    __m128i fxy_mask = _mm_set1_epi32(INTER_TAB_SIZE - 1);
-#endif
 
     for( y = 0; y < height; y += bh0 )
     {
@@ -2729,7 +2783,7 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
             int bw = std::min( bw0, width - x);
             int bh = std::min( bh0, height - y);
 
-            Mat _XY(bh, bw, CV_16SC2, XY), _A;
+            Mat _XY(bh, bw, CV_16SC2, XY), matA;
             Mat dpart(dst, Rect(x, y, bw, bh));
 
             for( y1 = 0; y1 < bh; y1++ )
@@ -2751,33 +2805,37 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                     short* alpha = A + y1*bw;
                     x1 = 0;
                 #if CV_SSE2
-                    __m128i XX = _mm_set1_epi32(X0), YY = _mm_set1_epi32(Y0);
-                    for( ; x1 <= bw - 8; x1 += 8 )
+                    if( useSIMD )
                     {
-                        __m128i tx0, tx1, ty0, ty1;
-                        tx0 = _mm_add_epi32(_mm_loadu_si128((const __m128i*)(adelta + x + x1)), XX);
-                        ty0 = _mm_add_epi32(_mm_loadu_si128((const __m128i*)(bdelta + x + x1)), YY);
-                        tx1 = _mm_add_epi32(_mm_loadu_si128((const __m128i*)(adelta + x + x1 + 4)), XX);
-                        ty1 = _mm_add_epi32(_mm_loadu_si128((const __m128i*)(bdelta + x + x1 + 4)), YY);
+                        __m128i fxy_mask = _mm_set1_epi32(INTER_TAB_SIZE - 1);
+                        __m128i XX = _mm_set1_epi32(X0), YY = _mm_set1_epi32(Y0);
+                        for( ; x1 <= bw - 8; x1 += 8 )
+                        {
+                            __m128i tx0, tx1, ty0, ty1;
+                            tx0 = _mm_add_epi32(_mm_loadu_si128((const __m128i*)(adelta + x + x1)), XX);
+                            ty0 = _mm_add_epi32(_mm_loadu_si128((const __m128i*)(bdelta + x + x1)), YY);
+                            tx1 = _mm_add_epi32(_mm_loadu_si128((const __m128i*)(adelta + x + x1 + 4)), XX);
+                            ty1 = _mm_add_epi32(_mm_loadu_si128((const __m128i*)(bdelta + x + x1 + 4)), YY);
 
-                        tx0 = _mm_srai_epi32(tx0, AB_BITS - INTER_BITS);
-                        ty0 = _mm_srai_epi32(ty0, AB_BITS - INTER_BITS);
-                        tx1 = _mm_srai_epi32(tx1, AB_BITS - INTER_BITS);
-                        ty1 = _mm_srai_epi32(ty1, AB_BITS - INTER_BITS);
+                            tx0 = _mm_srai_epi32(tx0, AB_BITS - INTER_BITS);
+                            ty0 = _mm_srai_epi32(ty0, AB_BITS - INTER_BITS);
+                            tx1 = _mm_srai_epi32(tx1, AB_BITS - INTER_BITS);
+                            ty1 = _mm_srai_epi32(ty1, AB_BITS - INTER_BITS);
 
-                        __m128i fx_ = _mm_packs_epi32(_mm_and_si128(tx0, fxy_mask),
-                                                      _mm_and_si128(tx1, fxy_mask));
-                        __m128i fy_ = _mm_packs_epi32(_mm_and_si128(ty0, fxy_mask),
-                                                      _mm_and_si128(ty1, fxy_mask));
-                        tx0 = _mm_packs_epi32(_mm_srai_epi32(tx0, INTER_BITS),
-                                                      _mm_srai_epi32(tx1, INTER_BITS));
-                        ty0 = _mm_packs_epi32(_mm_srai_epi32(ty0, INTER_BITS),
-                                              _mm_srai_epi32(ty1, INTER_BITS));
-                        fx_ = _mm_add_epi16(fx_, _mm_slli_epi16(fy_, INTER_BITS));
+                            __m128i fx_ = _mm_packs_epi32(_mm_and_si128(tx0, fxy_mask),
+                                                          _mm_and_si128(tx1, fxy_mask));
+                            __m128i fy_ = _mm_packs_epi32(_mm_and_si128(ty0, fxy_mask),
+                                                          _mm_and_si128(ty1, fxy_mask));
+                            tx0 = _mm_packs_epi32(_mm_srai_epi32(tx0, INTER_BITS),
+                                                          _mm_srai_epi32(tx1, INTER_BITS));
+                            ty0 = _mm_packs_epi32(_mm_srai_epi32(ty0, INTER_BITS),
+                                                  _mm_srai_epi32(ty1, INTER_BITS));
+                            fx_ = _mm_add_epi16(fx_, _mm_slli_epi16(fy_, INTER_BITS));
 
-                        _mm_storeu_si128((__m128i*)(xy + x1*2), _mm_unpacklo_epi16(tx0, ty0));
-                        _mm_storeu_si128((__m128i*)(xy + x1*2 + 8), _mm_unpackhi_epi16(tx0, ty0));
-                        _mm_storeu_si128((__m128i*)(alpha + x1), fx_);
+                            _mm_storeu_si128((__m128i*)(xy + x1*2), _mm_unpacklo_epi16(tx0, ty0));
+                            _mm_storeu_si128((__m128i*)(xy + x1*2 + 8), _mm_unpackhi_epi16(tx0, ty0));
+                            _mm_storeu_si128((__m128i*)(alpha + x1), fx_);
+                        }
                     }
                 #endif
                     for( ; x1 < bw; x1++ )
@@ -2796,8 +2854,8 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                 remap( src, dpart, _XY, Mat(), interpolation, borderType, borderValue );
             else
             {
-                Mat _A(bh, bw, CV_16U, A);
-                remap( src, dpart, _XY, _A, interpolation, borderType, borderValue );
+                Mat matA(bh, bw, CV_16U, A);
+                remap( src, dpart, _XY, matA, interpolation, borderType, borderValue );
             }
         }
     }
@@ -2808,20 +2866,21 @@ void warpPerspective( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                       int flags, int borderType, const Scalar& borderValue )
 {
     dst.create( dsize, src.type() );
+    CV_Assert( dst.data != src.data );
 
     const int BLOCK_SZ = 32;
     short XY[BLOCK_SZ*BLOCK_SZ*2], A[BLOCK_SZ*BLOCK_SZ];
     double M[9];
-    Mat _M(3, 3, CV_64F, M);
+    Mat matM(3, 3, CV_64F, M);
     int interpolation = flags & INTER_MAX;
     if( interpolation == INTER_AREA )
         interpolation = INTER_LINEAR;
 
     CV_Assert( (M0.type() == CV_32F || M0.type() == CV_64F) && M0.rows == 3 && M0.cols == 3 );
-    M0.convertTo(_M, _M.type());
+    M0.convertTo(matM, matM.type());
 
     if( !(flags & WARP_INVERSE_MAP) )
-         invert(_M, _M);
+         invert(matM, matM);
 
     int x, y, x1, y1, width = dst.cols, height = dst.rows;
 
@@ -2836,7 +2895,7 @@ void warpPerspective( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
             int bw = std::min( bw0, width - x);
             int bh = std::min( bh0, height - y);
 
-            Mat _XY(bh, bw, CV_16SC2, XY), _A;
+            Mat _XY(bh, bw, CV_16SC2, XY), matA;
             Mat dpart(dst, Rect(x, y, bw, bh));
 
             for( y1 = 0; y1 < bh; y1++ )
@@ -2877,8 +2936,8 @@ void warpPerspective( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                 remap( src, dpart, _XY, Mat(), interpolation, borderType, borderValue );
             else
             {
-                Mat _A(bh, bw, CV_16U, A);
-                remap( src, dpart, _XY, _A, interpolation, borderType, borderValue );
+                Mat matA(bh, bw, CV_16U, A);
+                remap( src, dpart, _XY, matA, interpolation, borderType, borderValue );
             }
         }
     }
@@ -2996,15 +3055,15 @@ Mat getAffineTransform( const Point2f src[], const Point2f dst[] )
     return M;
 }
     
-void invertAffineTransform(const Mat& _M, Mat& _iM)
+void invertAffineTransform(const Mat& matM, Mat& _iM)
 {
-    CV_Assert(_M.rows == 2 && _M.cols == 3);
-    _iM.create(2, 3, _M.type());
-    if( _M.type() == CV_32F )
+    CV_Assert(matM.rows == 2 && matM.cols == 3);
+    _iM.create(2, 3, matM.type());
+    if( matM.type() == CV_32F )
     {
-        const float* M = (const float*)_M.data;
+        const float* M = (const float*)matM.data;
         float* iM = (float*)_iM.data;
-        int step = _M.step/sizeof(M[0]), istep = _iM.step/sizeof(iM[0]);
+        int step = matM.step/sizeof(M[0]), istep = _iM.step/sizeof(iM[0]);
         
         double D = M[0]*M[step+1] - M[1]*M[step];
         D = D != 0 ? 1./D : 0;
@@ -3015,11 +3074,11 @@ void invertAffineTransform(const Mat& _M, Mat& _iM)
         iM[0] = (float)A11; iM[1] = (float)A12; iM[2] = (float)b1;
         iM[istep] = (float)A21; iM[istep+1] = (float)A22; iM[istep+2] = (float)b2;
     }
-    else if( _M.type() == CV_64F )
+    else if( matM.type() == CV_64F )
     {
-        const double* M = (const double*)_M.data;
+        const double* M = (const double*)matM.data;
         double* iM = (double*)_iM.data;
-        int step = _M.step/sizeof(M[0]), istep = _iM.step/sizeof(iM[0]);
+        int step = matM.step/sizeof(M[0]), istep = _iM.step/sizeof(iM[0]);
         
         double D = M[0]*M[step+1] - M[1]*M[step];
         D = D != 0 ? 1./D : 0;
@@ -3150,47 +3209,37 @@ CV_IMPL void
 cvLogPolar( const CvArr* srcarr, CvArr* dstarr,
             CvPoint2D32f center, double M, int flags )
 {
-    CvMat* mapx = 0;
-    CvMat* mapy = 0;
-    double* exp_tab = 0;
-    float* buf = 0;
+    cv::Ptr<CvMat> mapx, mapy;
 
-    CV_FUNCNAME( "cvLogPolar" );
-
-    __BEGIN__;
-
-    CvMat srcstub, *src = (CvMat*)srcarr;
-    CvMat dststub, *dst = (CvMat*)dstarr;
+    CvMat srcstub, *src = cvGetMat(srcarr, &srcstub);
+    CvMat dststub, *dst = cvGetMat(dstarr, &dststub);
     CvSize ssize, dsize;
 
-    CV_CALL( src = cvGetMat( srcarr, &srcstub ));
-    CV_CALL( dst = cvGetMat( dstarr, &dststub ));
-
     if( !CV_ARE_TYPES_EQ( src, dst ))
-        CV_ERROR( CV_StsUnmatchedFormats, "" );
+        CV_Error( CV_StsUnmatchedFormats, "" );
 
     if( M <= 0 )
-        CV_ERROR( CV_StsOutOfRange, "M should be >0" );
+        CV_Error( CV_StsOutOfRange, "M should be >0" );
 
     ssize = cvGetMatSize(src);
     dsize = cvGetMatSize(dst);
 
-    CV_CALL( mapx = cvCreateMat( dsize.height, dsize.width, CV_32F ));
-    CV_CALL( mapy = cvCreateMat( dsize.height, dsize.width, CV_32F ));
+    mapx = cvCreateMat( dsize.height, dsize.width, CV_32F );
+    mapy = cvCreateMat( dsize.height, dsize.width, CV_32F );
 
     if( !(flags & CV_WARP_INVERSE_MAP) )
     {
         int phi, rho;
-
-        CV_CALL( exp_tab = (double*)cvAlloc( dsize.width*sizeof(exp_tab[0])) );
+        cv::AutoBuffer<double> _exp_tab(dsize.width);
+        double* exp_tab = _exp_tab;
 
         for( rho = 0; rho < dst->width; rho++ )
             exp_tab[rho] = std::exp(rho/M);
 
         for( phi = 0; phi < dsize.height; phi++ )
         {
-            double cp = cos(phi*2*CV_PI/(dsize.height-1));
-            double sp = sin(phi*2*CV_PI/(dsize.height-1));
+            double cp = cos(phi*2*CV_PI/dsize.height);
+            double sp = sin(phi*2*CV_PI/dsize.height);
             float* mx = (float*)(mapx->data.ptr + phi*mapx->step);
             float* my = (float*)(mapy->data.ptr + phi*mapy->step);
 
@@ -3209,9 +3258,9 @@ cvLogPolar( const CvArr* srcarr, CvArr* dstarr,
     {
         int x, y;
         CvMat bufx, bufy, bufp, bufa;
-        double ascale = (ssize.height-1)/(2*CV_PI);
-
-        CV_CALL( buf = (float*)cvAlloc( 4*dsize.width*sizeof(buf[0]) ));
+        double ascale = ssize.height/(2*CV_PI);
+        cv::AutoBuffer<float> _buf(4*dsize.width);
+        float* buf = _buf;
 
         bufx = cvMat( 1, dsize.width, CV_32F, buf );
         bufy = cvMat( 1, dsize.width, CV_32F, buf + dsize.width );
@@ -3265,13 +3314,6 @@ cvLogPolar( const CvArr* srcarr, CvArr* dstarr,
     }
 
     cvRemap( src, dst, mapx, mapy, flags, cvScalarAll(0) );
-
-    __END__;
-
-    cvFree( &exp_tab );
-    cvFree( &buf );
-    cvReleaseMat( &mapx );
-    cvReleaseMat( &mapy );
 }
 
 
@@ -3283,31 +3325,25 @@ CV_IMPL
 void cvLinearPolar( const CvArr* srcarr, CvArr* dstarr,
             CvPoint2D32f center, double maxRadius, int flags )
 {
-    CvMat* mapx = 0;
-    CvMat* mapy = 0;
-    float* buf = 0;
-
-    CV_FUNCNAME( "cvLinPolar" );
-
-    __BEGIN__;
+    cv::Ptr<CvMat> mapx, mapy;
 
     CvMat srcstub, *src = (CvMat*)srcarr;
     CvMat dststub, *dst = (CvMat*)dstarr;
     CvSize ssize, dsize;
 
-    CV_CALL( src = cvGetMat( srcarr, &srcstub,0,0 ));
-    CV_CALL( dst = cvGetMat( dstarr, &dststub,0,0 ));
+    src = cvGetMat( srcarr, &srcstub,0,0 );
+    dst = cvGetMat( dstarr, &dststub,0,0 );
 
     if( !CV_ARE_TYPES_EQ( src, dst ))
-        CV_ERROR( CV_StsUnmatchedFormats, "" );
+        CV_Error( CV_StsUnmatchedFormats, "" );
 
 	ssize.width = src->cols;
     ssize.height = src->rows;
     dsize.width = dst->cols;
     dsize.height = dst->rows;
 
-    CV_CALL( mapx = cvCreateMat( dsize.height, dsize.width, CV_32F ));
-    CV_CALL( mapy = cvCreateMat( dsize.height, dsize.width, CV_32F ));
+    mapx = cvCreateMat( dsize.height, dsize.width, CV_32F );
+    mapy = cvCreateMat( dsize.height, dsize.width, CV_32F );
 
     if( !(flags & CV_WARP_INVERSE_MAP) )
     {
@@ -3315,14 +3351,14 @@ void cvLinearPolar( const CvArr* srcarr, CvArr* dstarr,
 
         for( phi = 0; phi < dsize.height; phi++ )
         {
-            double cp = cos(phi*2*CV_PI/(dsize.height-1));
-            double sp = sin(phi*2*CV_PI/(dsize.height-1));
+            double cp = cos(phi*2*CV_PI/dsize.height);
+            double sp = sin(phi*2*CV_PI/dsize.height);
             float* mx = (float*)(mapx->data.ptr + phi*mapx->step);
             float* my = (float*)(mapy->data.ptr + phi*mapy->step);
 
             for( rho = 0; rho < dsize.width; rho++ )
             {
-                double r = maxRadius*(rho+1)/double(dsize.width-1);
+                double r = maxRadius*(rho+1)/dsize.width;
                 double x = r*cp + center.x;
                 double y = r*sp + center.y;
 
@@ -3335,10 +3371,11 @@ void cvLinearPolar( const CvArr* srcarr, CvArr* dstarr,
     {
         int x, y;
         CvMat bufx, bufy, bufp, bufa;
-        const double ascale = (ssize.height-1)/(2*CV_PI);
-        const double pscale = (ssize.width-1)/maxRadius;
+        const double ascale = ssize.height/(2*CV_PI);
+        const double pscale = ssize.width/maxRadius;
 
-        CV_CALL( buf = (float*)cvAlloc( 4*dsize.width*sizeof(buf[0]) ));
+        cv::AutoBuffer<float> _buf(4*dsize.width);
+        float* buf = _buf;
 
         bufx = cvMat( 1, dsize.width, CV_32F, buf );
         bufy = cvMat( 1, dsize.width, CV_32F, buf + dsize.width );
@@ -3372,12 +3409,6 @@ void cvLinearPolar( const CvArr* srcarr, CvArr* dstarr,
     }
 
     cvRemap( src, dst, mapx, mapy, flags, cvScalarAll(0) );
-
-    __END__;
-
-    cvFree( &buf );
-    cvReleaseMat( &mapx );
-    cvReleaseMat( &mapy );
 }
 
 

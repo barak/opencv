@@ -39,14 +39,16 @@
 //
 //M*/
 
-#ifndef _HIGH_GUI_
-#define _HIGH_GUI_
+#ifndef __OPENCV_HIGHGUI_H__
+#define __OPENCV_HIGHGUI_H__
 
 #ifndef SKIP_INCLUDES
 
   #include "cxcore.h"
   #if defined WIN32 || defined _WIN32 || defined WIN64 || defined _WIN64
     #include <windows.h>
+	#undef min
+	#undef max
   #endif
 
 #else // SKIP_INCLUDES
@@ -121,6 +123,15 @@ CVAPI(int) cvStartWindowThread();
 #define CV_WINDOW_AUTOSIZE  1
 /* create window */
 CVAPI(int) cvNamedWindow( const char* name, int flags CV_DEFAULT(CV_WINDOW_AUTOSIZE) );
+
+// ---------  YV ---------
+#define CV_WND_PROP_FULLSCREEN	 0
+#define CV_WND_PROP_AUTOSIZE	 1
+#define CV_WINDOW_NORMAL	 	 0
+#define CV_WINDOW_FULLSCREEN	 1
+/* Set and Get Property of the window */
+CVAPI(void) cvSetWindowProperty(const char* name, int prop_id, double prop_value);
+CVAPI(double) cvGetWindowProperty(const char* name, int prop_id);
 
 /* display image within window (highgui windows remember their content) */
 CVAPI(void) cvShowImage( const char* name, const CvArr* image );
@@ -263,6 +274,8 @@ CVAPI(CvCapture*) cvCreateFileCapture( const char* filename );
 #define CV_CAP_UNICAP   600   // Unicap drivers
 
 #define CV_CAP_DSHOW    700   // DirectShow (via videoInput)
+
+#define CV_CAP_PVAPI    800   // PvAPI, Prosilica GigE SDK
 
 /* start capturing frames from camera: index = camera_index + domain_offset (CV_CAP_*) */
 CVAPI(CvCapture*) cvCreateCameraCapture( int index );
@@ -531,4 +544,4 @@ typedef CvvImage CImage;
 
 #include "highgui.hpp"
 
-#endif /* _HIGH_GUI_ */
+#endif

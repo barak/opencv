@@ -43,9 +43,11 @@ if(MSVC)
     add_definitions(-DJAS_WIN_MSVC_BUILD)
 endif()
 
-if(UNIX AND CMAKE_COMPILER_IS_GNUCXX)
+if(UNIX)
+  if(CMAKE_COMPILER_IS_GNUCXX OR CV_ICC)
      set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+  endif()
 endif()
 
 set_target_properties(${the_target}
@@ -64,8 +66,9 @@ ADD_SUBDIRECTORY( tests )
 file(GLOB_RECURSE SOURCES *.cpp)
 #SET(SOURCES flann.cpp util/Random.cpp nn/Testing.cpp algorithms/NNIndex.cpp algorithms/dist.cpp util/Logger.cpp util/Saving.cpp)
 
-ADD_LIBRARY(flann SHARED ${SOURCES})
-ADD_LIBRARY(flann_s STATIC ${SOURCES})
+ADD_LIBRARY(flann ${SOURCES})
+#ADD_LIBRARY(flann SHARED ${SOURCES})   #JL: Why the two versions??
+#ADD_LIBRARY(flann_s STATIC ${SOURCES})
 
 IF(WIN32)
 INSTALL (
@@ -84,7 +87,7 @@ INSTALL (
 ENDIF(WIN32)
 
 INSTALL (
-    TARGETS flann flann_s
+    TARGETS flann  # flann_s
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib

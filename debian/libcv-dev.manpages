@@ -1,3 +1,4 @@
-debian/opencv-createsamples.1
-debian/opencv-haartraining.1
-debian/opencv-performance.1
+debian/man/opencv_createsamples.1
+debian/man/opencv_haartraining.1
+debian/man/opencv_performance.1
+debian/man/opencv_traincascade.1

@@ -1,2 +1,3 @@
 usr/lib/python*/*-packages/opencv/*.py
 usr/lib/python*/*-packages/opencv/*.so
+usr/lib/python*/*-packages/cv.so

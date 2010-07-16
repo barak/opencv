@@ -1,0 +1,13 @@
+diff --git a/doc/CMakeLists.txt b/doc/CMakeLists.txt
+index 6a2a046..23aa3d1 100644
+--- a/doc/CMakeLists.txt
++++ b/doc/CMakeLists.txt
+@@ -41,7 +41,7 @@ foreach(f ${FILES_TEX})
+     list(APPEND refman_copied_srcs ${outputf})
+ endforeach()
+ 
+-set(pdflatex_args -interaction=batchmode
++set(pdflatex_args 
+ "\"\\newcommand{\\genc}{true}\\newcommand{\\genpy}{true}\\newcommand{\\targetlang}{c}\\input{opencv.tex}\"")
+ 
+ add_custom_command(

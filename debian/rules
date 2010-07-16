@@ -1,113 +1,48 @@
 #!/usr/bin/make -f
 
-#export DH_VERBOSE=1
+CMAKE_FLAGS = \
+	-DCMAKE_BUILD_TYPE=Release	\
+	-DENABLE_SSE=OFF	\
+	-DENABLE_SSE2=OFF	\
+	-DENABLE_SSE3=OFF	\
+	-DENABLE_SSSE3=OFF	\
+	-DUSE_FAST_MATH=ON	\
+	-DUSE_O3=OFF	\
+	-DUSE_OMIT_FRAME_POINTER=ON	\
+	-DBUILD_EXAMPLES=ON	\
+	-DINSTALL_C_EXAMPLES=ON	\
+	-DINSTALL_OCTAVE_EXAMPLES=OFF	\
+	-DINSTALL_PYTHON_EXAMPLES=ON	\
+	-DBUILD_NEW_PYTHON_SUPPORT=ON	\
+	-DBUILD_SWIG_PYTHON_SUPPORT=ON	\
+	-DBUILD_OCTAVE_SUPPORT=OFF	\
+	-DUSE_IPP=ON	\
+	-DWITH_FFMPEG=ON	\
+	-DWITH_GSTREAMER=OFF	\
+	-DWITH_GTK=ON	\
+	-DWITH_JASPER=ON	\
+	-DWITH_JPEG=ON	\
+	-DWITH_PNG=ON	\
+	-DWITH_TIFF=ON	\
+	-DWITH_PVAPI=ON	\
+	-DWITH_TBB=OFF	\
+	-DWITH_UNICAP=OFF	\
+	-DWITH_1394=ON	\
+	-DWITH_V4L=ON	\
+	-DWITH_XINE=OFF	\
+	-DBUILD_TESTS=OFF \
+	-DBUILD_LATEX_DOCS=ON \
+	-DCMAKE_SKIP_RPATH=ON
 
-DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+%:
+	dh --with quilt $@ --buildsystem=cmake
 
-confflags = --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info
-ifeq ($(DEB_BUILD_GNU_TYPE), $(DEB_HOST_GNU_TYPE))
-  confflags += --build $(DEB_HOST_GNU_TYPE)
-else
-  confflags += --build $(DEB_BUILD_GNU_TYPE) --host $(DEB_HOST_GNU_TYPE)
-endif
+override_dh_auto_configure:
+	dh_auto_configure -- $(CMAKE_FLAGS)
 
-CFLAGS = -Wall -g -fopenmp
-ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-	CFLAGS += -O0
-else
-	CFLAGS += -O2 -g
-endif
-ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
-	INSTALL_PROGRAM += -s
-endif
-ifneq (,$(CONCURRENCY_LEVEL))
-	MAKE_FLAGS += -j $(CONCURRENCY_LEVEL)
-endif
+override_dh_install:
+	rm -rf debian/tmp/usr/share/opencv/samples/octave
+	rm debian/tmp/usr/share/opencv/samples/c/cvsample.dsp
+	chmod +x debian/tmp/usr/share/opencv/samples/c/build_all.sh
 
-config.status: configure
-	dh_testdir
-	QUILT_PATCHES=debian/patches quilt push -a || test $$? = 2
-	touch configure.in
-	touch aclocal.m4
-	touch configure
-	touch cvconfig.h.in
-	touch `find . -name Makefile.in`
-	touch stamp-h.in
-	CFLAGS="$(CFLAGS)" ./configure $(confflags) --enable-static --enable-python \
-		--with-apps --disable-optimization --disable-sse
-
-build: build-stamp
-build-stamp: config.status
-	dh_testdir
-	$(MAKE) $(MAKE_FLAGS) CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)"
-	touch build-stamp
-
-clean:
-	dh_testdir
-	dh_testroot
-	rm -f build-stamp 
-	[ ! -f Makefile ] || $(MAKE) distclean
-	rm -f tests/cv/src/lt-cvtest.lst tests/cv/src/lt-cvtest.sum
-	QUILT_PATCHES=debian/patches quilt pop -a -R || test $$? = 2
-	dh_clean
-	rm -rf stamp-h.in .pc
-
-install: build
-	dh_testdir
-	dh_testroot
-	dh_clean -k 
-	dh_installdirs
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
-	# Move files around
-	mkdir -p debian/tmp/usr/share/doc/opencv-doc
-	# mv debian/tmp/usr/share/opencv/doc/* debian/tmp/usr/share/doc/opencv-doc/
-	mv debian/tmp/usr/share/opencv/readme.txt debian/tmp/usr/share/doc/opencv-doc/
-	mv debian/tmp/usr/share/opencv/samples debian/tmp/usr/share/doc/opencv-doc/examples
-	# Install files in their required packages
-	dh_install --sourcedir=debian/tmp --list-missing -Xlicense.txt -X.pyc -X.pyo
-
-binary-indep: build install
-	dh_testdir
-	dh_testroot
-	dh_installchangelogs -i ChangeLog
-	dh_installdocs -i AUTHORS THANKS TODO debian/README.Debian
-	dh_installexamples -i
-	mv debian/opencv-doc/usr/share/doc/opencv-doc/examples/c/Makefile.debian debian/opencv-doc/usr/share/doc/opencv-doc/examples/c/Makefile
-	(cd debian/opencv-doc/usr/share/doc/opencv-doc/examples/python/; cp minidemo.py tmp ; echo '#!/usr/bin/python' >| minidemo.py ; cat tmp >> minidemo.py ; rm -f tmp)
-	#dh_install -p opencv-doc docs/*.rtf usr/share/doc/opencv-doc
-	#dh_install -p opencv-doc docs/*.pdf usr/share/doc/opencv-doc
-	#dh_install -p opencv-doc docs/*.htm usr/share/doc/opencv-doc/html
-	#dh_install -p opencv-doc docs/*.jpg usr/share/doc/opencv-doc/html
-	#dh_install -p opencv-doc docs/ref usr/share/doc/opencv-doc/html
-	dh_installman -i
-	dh_link -i
-	dh_strip -i
-	dh_compress -i -Xexamples
-	dh_fixperms -i
-	dh_installdeb -i
-	dh_gencontrol -i
-	dh_md5sums -i
-	dh_builddeb -i
-
-binary-arch: build install
-	dh_testdir
-	dh_testroot
-	dh_installchangelogs -a ChangeLog
-	dh_installdocs -a AUTHORS THANKS TODO debian/README.Debian
-	dh_installexamples -a
-	dh_installman -a 
-	dh_link -a
-	dh_strip -a
-	dh_compress -a
-	dh_fixperms -a
-	dh_pysupport -a
-	dh_makeshlibs
-	dh_installdeb -a
-	dh_shlibdeps -a
-	dh_gencontrol -a
-	dh_md5sums -a
-	dh_builddeb -a
-
-binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install 
+	dh_install -O--buildsystem=cmake

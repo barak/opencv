@@ -291,7 +291,7 @@ static bool imwrite_( const string& filename, const Mat& image,
     encoder->setDestination( filename );
     bool code = encoder->write( *pimage, params );
 
-    CV_Assert( code );
+    //    CV_Assert( code );
     return code;
 }
 
@@ -308,7 +308,7 @@ imdecode_( const Mat& buf, int flags, int hdrtype, Mat* mat=0 )
     IplImage* image = 0;
     CvMat *matrix = 0;
     Mat temp, *data = &temp;
-    char fnamebuf[L_tmpnam];
+    char fnamebuf[L_tmpnam+1];
     const char* filename = 0;
 
     ImageDecoder decoder = findDecoder(buf);
@@ -322,7 +322,7 @@ imdecode_( const Mat& buf, int flags, int hdrtype, Mat* mat=0 )
         if( !f )
             return 0;
         size_t bufSize = buf.cols*buf.rows*buf.elemSize();
-        fwrite( &buf.data, 1, bufSize, f );
+        fwrite( &buf.data[0], 1, bufSize, f );
         fclose(f);
         decoder->setSource(filename);
     }
@@ -447,13 +447,6 @@ bool imencode( const string& ext, const Mat& image,
 /****************************************************************************************\
 *                         HighGUI loading & saving function implementation               *
 \****************************************************************************************/
-
-static int icvSetCXCOREBindings(void)
-{
-    return CV_SET_IMAGE_IO_FUNCTIONS();
-}
-
-int cxcore_bindings_initialized = icvSetCXCOREBindings();
 
 CV_IMPL int
 cvHaveImageReader( const char* filename )

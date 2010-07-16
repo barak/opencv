@@ -1,0 +1,46 @@
+# Copyright Nobuhiro Iwamatsu <iwamatsu@debian.org>
+# This patch disable building 3rdparty library and set using debian package.
+
+--- a/3rdparty/CMakeLists.txt	2010-04-26 05:48:58.000000000 +0900
++++ b/3rdparty/CMakeLists.txt	2010-04-26 05:49:17.000000000 +0900
+@@ -1,6 +1,6 @@
+-add_subdirectory(flann)
+-add_subdirectory(lapack)
+-add_subdirectory(zlib)
++add_subdirectory(flann) #
++# add_subdirectory(lapack)
++# add_subdirectory(zlib)
+ if(WITH_JASPER AND NOT JASPER_FOUND)
+ 	add_subdirectory(libjasper)
+ endif()
+--- a/src/cxcore/CMakeLists.txt	2010-04-26 05:59:37.000000000 +0900
++++ b/src/cxcore/CMakeLists.txt	2010-04-26 06:00:09.000000000 +0900
+@@ -53,7 +53,7 @@
+     )
+ 
+ # Add the required libraries for linking:
+-target_link_libraries(${the_target} ${OPENCV_LINKER_LIBS} ${IPP_LIBS} opencv_lapack zlib flann)
++target_link_libraries(${the_target} ${OPENCV_LINKER_LIBS} ${IPP_LIBS} lapack z flann)
+ 
+ # Linker flag needed for Windows Mobile 5 and 6 SDKs
+ if(MSVC)
+@@ -67,7 +67,7 @@
+         )
+ endif()
+ 
+-add_dependencies(${the_target} opencv_lapack zlib)
++add_dependencies(${the_target} lapack z)
+ 
+ install(TARGETS ${the_target}
+     RUNTIME DESTINATION bin COMPONENT main
+--- a/CMakeLists.txt	2010-05-17 05:00:10.000000000 +0900
++++ b/CMakeLists.txt	2010-05-17 05:00:23.000000000 +0900
+@@ -839,7 +839,7 @@
+         set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} stdc++)
+     endif()
+ 
+-    set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} flann zlib opencv_lapack)
++    set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} flann)
+ endif()
+ 
+ 
