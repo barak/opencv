@@ -1,3 +1,12 @@
+opencv (2.1.0-2) unstable; urgency=low
+
+  * Update debian/control.
+    - Bumped standards-version to 3.9.1. No changes needed.
+    - Add python-numpy to Build-depends (Closes: #593310)
+  * Add hurd support patch (Closes: #589586).
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Wed, 25 Aug 2010 01:49:14 +0900
+
 opencv (2.1.0-1) unstable; urgency=low
 
   * New upstream release. (Closes: #577594, #587232, #563717)

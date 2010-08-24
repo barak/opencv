@@ -1,0 +1,35 @@
+Author: Pino Toscano <toscano.pino@tiscali.it>
+Debian BTS: #589586
+Description: fix build on GNU/Hurd
+ GNU/Hurd runs the gnumach kernel so there is the __MACH__ symbol defined as
+ well; given the instructions are specific to the Mac OS X kernel, check for
+ both __MACH__ and __APPLE__.
+--- a/src/cxcore/cxsystem.cpp
++++ b/src/cxcore/cxsystem.cpp
+@@ -72,7 +72,7 @@
+ #include <sys/time.h>
+ #include <time.h>
+ 
+-#ifdef __MACH__
++#if (defined __MACH__ && defined __APPLE__)
+ #include <mach/mach.h>
+ #include <mach/mach_time.h>
+ #endif
+@@ -192,7 +192,7 @@
+     struct timespec tp;
+     clock_gettime(CLOCK_MONOTONIC, &tp);
+     return (int64)tp.tv_sec*1000000000 + tp.tv_nsec;
+-#elif defined __MACH__
++#elif (defined __MACH__ && defined __APPLE__)
+     return (int64)mach_absolute_time();
+ #else    
+     struct timeval tv;
+@@ -210,7 +210,7 @@
+     return (double)freq.QuadPart;
+ #elif defined __linux || defined __linux__
+     return 1e9;
+-#elif defined __MACH__
++#elif (defined __MACH__ && defined __APPLE__)
+     static double freq = 0;
+     if( freq == 0 )
+     {
