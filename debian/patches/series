@@ -4,3 +4,4 @@ fix_build_pdf.patch
 remove_bashism.patch
 remove_cvconfig.h.patch
 hurd.patch
+fix_minor_version_python.patch

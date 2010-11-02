@@ -1,3 +1,9 @@
+opencv (2.1.0-3) unstable; urgency=low
+
+  * Fix set opencv minor version on Python (Closes: #600836).
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Tue, 02 Nov 2010 19:55:47 +0900
+
 opencv (2.1.0-2) unstable; urgency=low
 
   * Update debian/control.
