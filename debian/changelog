@@ -1,3 +1,11 @@
+opencv (2.1.0-4) unstable; urgency=low
+
+  * Fix install path of opencv-doc (Closes: #610803).
+  * Fix FTBFS on gcc-4.5(Closes: #607086, #618045).
+    - Add patches/fix_stdint_gcc45.patch 
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Wed, 16 Mar 2011 01:55:22 +0900
+
 opencv (2.1.0-3) unstable; urgency=low
 
   * Fix set opencv minor version on Python (Closes: #600836).

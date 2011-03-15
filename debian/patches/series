@@ -5,3 +5,4 @@ remove_bashism.patch
 remove_cvconfig.h.patch
 hurd.patch
 fix_minor_version_python.patch
+fix_stdint_gcc45.patch
