@@ -1,8 +1,20 @@
-#include "ml.h"
+#include "opencv2/ml/ml.hpp"
 #include <stdio.h>
-/*
-The sample demonstrates how to use different decision trees.
-*/
+
+void help()
+{
+	printf(
+		"\nThis sample demonstrates how to use different decision trees and forests including boosting and random trees:\n"
+		"CvDTree dtree;\n"
+		"CvBoost boost;\n"
+		"CvRTrees rtrees;\n"
+		"CvERTrees ertrees;\n"
+		"CvGBTrees gbtrees;\n"
+		"Date is hard coded to come from filename = \"../../../OpenCV/samples/c/waveform.data\";\n"
+		"Or can come from filename = \"../../../OpenCV/samples/c/waveform.data\";\n"
+		"Call:\n"
+		"./tree_engine\n\n");
+}
 void print_result(float train_err, float test_err, const CvMat* var_imp)
 {
     printf( "train error    %f\n", train_err );
@@ -37,6 +49,7 @@ int main()
     CvBoost boost;
     CvRTrees rtrees;
     CvERTrees ertrees;
+	CvGBTrees gbtrees;
 
     CvMLData data;
 
@@ -71,6 +84,10 @@ int main()
         printf("======ERTREES=====\n");
         ertrees.train( &data, CvRTParams( 10, 2, 0, false, 16, 0, true, 0, 100, 0, CV_TERMCRIT_ITER ));
         print_result( ertrees.calc_error( &data, CV_TRAIN_ERROR), ertrees.calc_error( &data, CV_TEST_ERROR ), ertrees.get_var_importance() );
+
+		printf("======GBTREES=====\n");
+		gbtrees.train( &data, CvGBTreesParams(CvGBTrees::DEVIANCE_LOSS, 100, 0.05f, 0.6f, 10, true));
+		print_result( gbtrees.calc_error( &data, CV_TRAIN_ERROR), gbtrees.calc_error( &data, CV_TEST_ERROR ), 0 );
     }
     else
         printf("File can not be read");

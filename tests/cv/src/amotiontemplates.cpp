@@ -181,6 +181,7 @@ CV_MHIBaseTest mhi_base_test( "mhi", "" );
 static void cvTsUpdateMHI( const CvMat* silh, CvMat* mhi, double timestamp, double duration )
 {
     int i, j;
+    float delbound = (float)(timestamp - duration);
     for( i = 0; i < mhi->rows; i++ )
     {
         const uchar* silh_row = silh->data.ptr + i*silh->step;
@@ -190,7 +191,7 @@ static void cvTsUpdateMHI( const CvMat* silh, CvMat* mhi, double timestamp, doub
         {
             if( silh_row[j] )
                 mhi_row[j] = (float)timestamp;
-            else if( mhi_row[j] < timestamp - duration )
+            else if( mhi_row[j] < delbound )
                 mhi_row[j] = 0.f;
         }
     }
@@ -483,16 +484,15 @@ cvTsCalcGlobalOrientation( const CvMat* orient, const CvMat* mask, const CvMat* 
         
         for( x = 0; x < orient->cols; x++ )
         {
-            if( mask_data[x] )
+            if( mask_data[x] && mhi_data[x] > low_time )
             {
                 double diff = orient_data[x] - base_orientation;
-                double delta_weight = mhi_data[x] >= low_time ?
-                    (((mhi_data[x] - low_time)/duration)*254 + 1)/255 : 0;
+                double delta_weight = (((mhi_data[x] - low_time)/duration)*254 + 1)/255;
 
                 if( diff < -180 ) diff += 360;
                 if( diff > 180 ) diff -= 360;
 
-                if( delta_weight > 0 && fabs(diff) < 90 )
+                if( delta_weight > 0 && fabs(diff) < 45 )
                 {
                     delta_orientation += diff*delta_weight;
                     weight += delta_weight;
@@ -505,7 +505,7 @@ cvTsCalcGlobalOrientation( const CvMat* orient, const CvMat* mask, const CvMat* 
         global_orientation = base_orientation;
     else
     {
-        global_orientation = base_orientation + cvRound(delta_orientation/weight);
+        global_orientation = base_orientation + delta_orientation/weight;
         if( global_orientation < 0 ) global_orientation += 360;
         if( global_orientation > 360 ) global_orientation -= 360;
     }
@@ -550,8 +550,8 @@ void CV_MHIGlobalOrientTest::get_test_array_types_and_sizes( int test_case_idx, 
     CV_MHIBaseTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
     CvSize size = sizes[INPUT][0];
 
-    size.width = MAX( size.width, 8 );
-    size.height = MAX( size.height, 8 );
+    size.width = MAX( size.width, 16 );
+    size.height = MAX( size.height, 16 );
     sizes[INPUT][0] = sizes[INPUT][1] = sizes[INPUT][2] = size;
 
     types[INPUT][1] = CV_8UC1; // mask
@@ -593,7 +593,7 @@ void CV_MHIGlobalOrientTest::get_minmax_bounds( int i, int j, int type, CvScalar
 
 double CV_MHIGlobalOrientTest::get_success_error_level( int /*test_case_idx*/, int /*i*/, int /*j*/ )
 {
-    return 30;
+    return 15;
 }
 
 
@@ -606,6 +606,9 @@ void CV_MHIGlobalOrientTest::run_func()
 
 int CV_MHIGlobalOrientTest::validate_test_results( int test_case_idx )
 {
+    //printf("%d. rows=%d, cols=%d, nzmask=%d\n", test_case_idx, test_mat[INPUT][1].rows, test_mat[INPUT][1].cols,
+    //       cvCountNonZero(test_array[INPUT][1]));
+    
     double ref_angle = cvTsCalcGlobalOrientation( &test_mat[INPUT][2], &test_mat[INPUT][1],
                                                   &test_mat[INPUT][0], timestamp, duration );
     double err_level = get_success_error_level( test_case_idx, 0, 0 );

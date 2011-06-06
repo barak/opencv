@@ -41,11 +41,20 @@
 
 #include "mltest.h"
 
-CvTS test_system;
+CvTS test_system("ml");
+
+const char* blacklist[] =
+{
+    /*"adtree",        //ticket 662
+    "artrees",         //ticket 460
+    "aboost",          //ticket 474
+    "aertrees",*/      //ticket 505
+    0
+};
 
 int main( int argc, char** argv )
 {
-    return test_system.run( argc, argv );
+    return test_system.run( argc, argv, blacklist );
 }
 
 /* End of file. */

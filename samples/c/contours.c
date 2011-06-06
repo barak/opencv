@@ -1,14 +1,16 @@
-#ifdef _CH_
-#pragma package <opencv>
-#endif
-
-#define CV_NO_BACKWARD_COMPATIBILITY
-
-#ifndef _EiC
-#include "cv.h"
-#include "highgui.h"
-#include <math.h>
-#endif
+#include <opencv2/imgproc/imgproc_c.h>
+#include <opencv2/highgui/highgui.hpp>
+#include <stdio.h>
+void help()
+{
+	printf("\nThis program creates an image to demonstrate the use of the \"c\" contour\n"
+			"functions: cvFindContours() and cvApproxPoly() along with the storage\n"
+			"functions cvCreateMemStorage() and cvDrawContours().\n"
+			"It also shows the use of a trackbar to control contour retrieval.\n"
+			"\n"
+			"Call:\n"
+			"./contours\n");
+}
 
 #define w 500
 int levels = 3;
@@ -27,12 +29,14 @@ void on_trackbar(int pos)
     cvReleaseImage( &cnt_img );
 }
 
+
+
 int main( int argc, char** argv )
 {
     int i, j;
     CvMemStorage* storage = cvCreateMemStorage(0);
     IplImage* img = cvCreateImage( cvSize(w,w), 8, 1 );
-
+    help();
     cvZero( img );
 
     for( i=0; i < 6; i++ )
@@ -72,6 +76,12 @@ int main( int argc, char** argv )
 
     cvFindContours( img, storage, &contours, sizeof(CvContour),
                     CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE, cvPoint(0,0) );
+    
+    {
+    const char* attrs[] = {"recursive", "1", 0};
+    cvSave("contours.xml", contours, 0, 0, cvAttrList(attrs, 0));
+    contours = (CvSeq*)cvLoad("contours.xml", storage, 0, 0);
+    }
 
     // comment this out if you do not want approximation
     contours = cvApproxPoly( contours, sizeof(CvContour), storage, CV_POLY_APPROX_DP, 3, 1 );

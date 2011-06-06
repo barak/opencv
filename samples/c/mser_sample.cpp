@@ -1,45 +1,54 @@
 /* This sample code was originally provided by Liu Liu
- * Copyright© 2009, Liu Liu All rights reserved.
+ * Copyrightï¿½ 2009, Liu Liu All rights reserved.
  */
 
-#include <iostream>
-#include <cstdio>
-#include <stdio.h>
-#include "cv.h"
-#include "highgui.h"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/imgproc/imgproc_c.h"
 
-    static CvScalar colors[] = 
-    {
-        {{0,0,255}},
-        {{0,128,255}},
-        {{0,255,255}},
-        {{0,255,0}},
-        {{255,128,0}},
-        {{255,255,0}},
-        {{255,0,0}},
-        {{255,0,255}},
-        {{255,255,255}},
-	{{196,255,255}},
-	{{255,255,196}}
-    };
-    
-    static uchar bcolors[][3] = 
-    {
-        {0,0,255},
-        {0,128,255},
-        {0,255,255},
-        {0,255,0},
-        {255,128,0},
-        {255,255,0},
-        {255,0,0},
-        {255,0,255},
-        {255,255,255}
-    };
+
+void help()
+{
+	printf("\nThis program demonstrates the Maximal Extremal Region interest point detector.\n"
+			"It finds the most stable (in size) dark and white regions as a threshold is increased.\n"
+			"\nCall:\n"
+			"./mser_sample <path_and_image_filename, Default is 'puzzle.png'>\n\n");
+}
+
+static CvScalar colors[] = 
+{
+    {{0,0,255}},
+    {{0,128,255}},
+    {{0,255,255}},
+    {{0,255,0}},
+    {{255,128,0}},
+    {{255,255,0}},
+    {{255,0,0}},
+    {{255,0,255}},
+    {{255,255,255}},
+    {{196,255,255}},
+    {{255,255,196}}
+};
+
+static uchar bcolors[][3] = 
+{
+    {0,0,255},
+    {0,128,255},
+    {0,255,255},
+    {0,255,0},
+    {255,128,0},
+    {255,255,0},
+    {255,0,0},
+    {255,0,255},
+    {255,255,255}
+};
+
 
 int main( int argc, char** argv )
 {
 	char path[1024];
 	IplImage* img;
+	help();
 	if (argc!=2)
 	{
 		strcpy(path,"puzzle.png");

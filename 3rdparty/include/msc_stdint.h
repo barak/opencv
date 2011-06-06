@@ -29,16 +29,8 @@
 // 
 ///////////////////////////////////////////////////////////////////////////////
 
-#ifndef _MSC_VER // [
-#error "Use this header only with Microsoft Visual C++ compilers!"
-#endif // _MSC_VER ]
-
 #ifndef _MSC_STDINT_H_ // [
 #define _MSC_STDINT_H_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif
 
 #include <limits.h>
 
@@ -52,6 +44,10 @@
 #if (_MSC_VER < 1300) && defined(__cplusplus)
    }
 #endif
+
+#if defined __GNUC__ || _MSC_VER >= 1600
+#include "stdint.h"
+#else
 
 // 7.18.1 Integer types
 
@@ -218,5 +214,6 @@ typedef uint64_t  uintmax_t;
 
 #endif // __STDC_CONSTANT_MACROS ]
 
+#endif
 
 #endif // _MSC_STDINT_H_ ]

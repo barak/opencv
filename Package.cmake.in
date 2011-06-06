@@ -7,11 +7,11 @@
 if(MSVC)
     set(CMAKE_INSTALL_DEBUG_LIBRARIES 1)
 endif()
-if(ENABLE_OPENMP)
-    set(CMAKE_INSTALL_OPENMP_LIBRARIES 1)
-endif()
+#if(ENABLE_OPENMP)
+#    set(CMAKE_INSTALL_OPENMP_LIBRARIES 1)
+#endif()
 #include(OpenCVInstallRequiredSystemLibraries.cmake)
-#include(InstallRequiredSystemLibraries)
+include(InstallRequiredSystemLibraries)
 
 set(CPACK_PACKAGE_NAME "OpenCV")
 set(CPACK_PACKAGE_VENDOR "OpenCV project opencvlibrary.sourceforge.net")
@@ -45,7 +45,10 @@ set(CPACK_SOURCE_IGNORE_FILES
     "/\\\\.svn/"
     "/autom4te.cache/"
     "/build/"
-    "/lib/"
+    "/interfaces/"
+    "/swig_python/"
+    "/octave/"
+    "/gtest/"
     "~$"    
     "\\\\.aux$"
     "\\\\.bbl$"
@@ -56,9 +59,17 @@ set(CPACK_SOURCE_IGNORE_FILES
     "\\\\.log$"
     "\\\\.toc$"
     "\\\\.out$"
+    "\\\\.pyc$"
+    "\\\\.pyo$"
     "\\\\.vcproj$"
     "/1$"
     "${CPACK_SOURCE_IGNORE_FILES}")
+
+if(NOT WIN32)
+    set(CPACK_SOURCE_IGNORE_FILES
+    "/lib/"
+    "${CPACK_SOURCE_IGNORE_FILES}")
+endif()
 
 set(CPACK_SOURCE_PACKAGE_FILE_NAME
     "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
@@ -67,21 +78,22 @@ if(WIN32)
     set(CPACK_GENERATOR "NSIS")
     set(CPACK_SOURCE_GENERATOR "ZIP")
     set(CPACK_NSIS_PACKAGE_NAME "OpenCV ${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
-    set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}\\\\utils\\\\opencv.ico")
-    set(CPACK_NSIS_MUI_UNIICON "${CMAKE_SOURCE_DIR}\\\\utils\\\\opencv.ico")
+    set(CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}\\\\doc\\\\opencv.ico")
+    set(CPACK_NSIS_MUI_UNIICON "${CMAKE_SOURCE_DIR}\\\\doc\\\\opencv.ico")
     #set(CPACK_PACKAGE_ICON "utils/opencv.ico") 
         
-    set(CPACK_NSIS_INSTALLED_ICON_NAME "${CMAKE_SOURCE_DIR}\\\\utils\\\\opencv.ico")
-    set(CPACK_NSIS_HELP_LINK "http:\\\\\\\\opencvlibrary.sourceforge.net")
-    set(CPACK_NSIS_URL_INFO_ABOUT "http:\\\\\\\\opencvlibrary.sourceforge.net")
-    set(CPACK_NSIS_CONTACT "info@opencvlibrary.sourceforge.net")
-    set(CPACK_NSIS_DISPLAY_NAME "OpenCV SDK")
+    set(CPACK_NSIS_INSTALLED_ICON_NAME "${CMAKE_SOURCE_DIR}\\\\doc\\\\opencv.ico")
+    set(CPACK_NSIS_HELP_LINK "http:\\\\\\\\opencv.willowgarage.com")
+    set(CPACK_NSIS_URL_INFO_ABOUT "http:\\\\\\\\opencv.willowgarage.com")
+    set(CPACK_NSIS_CONTACT "")
+    set(CPACK_NSIS_DISPLAY_NAME "Open Source Computer Vision Library")
 
     set(CPACK_NSIS_MENU_LINKS
-        "doc\\\\index.htm" "Start Page"
+        "http://opencv.willowgarage.com" "Start Page"
         "doc\\\\opencv.pdf" "The Reference Manual"
         "CMakeLists.txt" "The Build Script (open with CMake)"
         "samples\\\\c" "C Samples"
+        "samples\\\\cpp" "C++ Samples"
         "samples\\\\python" "Python Samples")
     
     # Add "<install_path>/bin" to the system PATH

@@ -41,11 +41,21 @@
 
 #include "cvtest.h"
 
-CvTS test_system;
+CvTS test_system("cv");
+
+const char* blacklist[] =
+{
+    "calibrate-camera-artificial",    //ticket 472
+    "inpaint",                        //ticket 570
+    "warp-resize",                    //ticket 429
+    //"mhi-global",                     //ticket 457
+    //"canny",                          //ticket 702
+    0
+};
 
 int main(int argC,char *argV[])
 {
-    return test_system.run( argC, argV );
+    return test_system.run( argC, argV, blacklist );
 }
 
 /* End of file. */

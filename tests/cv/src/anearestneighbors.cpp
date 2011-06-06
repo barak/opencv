@@ -507,10 +507,11 @@ void CV_FlannSavedIndexTest::createModel(const cv::Mat &data)
     }
     char filename[50];
     tmpnam( filename );
+    if(filename[0] == '\\') filename[0] = '_';
     index->save( filename );
     
     createIndex( data, SavedIndexParams(filename));
-    unlink( filename );
+    remove( filename );
 }
 
 CV_LSHTest lsh_test;
