@@ -83,7 +83,7 @@ CvMLData :: CvMLData()
     miss_ch = '?';
     //flt_separator = '.';
 
-    class_map = new map<string, int>();
+    class_map = new std::map<std::string, int>();
     rng = cvRNG( -cvGetTickCount() );
 }
 
@@ -123,6 +123,22 @@ void CvMLData :: clear()
     train_sample_count = -1;
 }
 
+static char *fgets_chomp(char *str, int n, FILE *stream)
+{
+	char *head = fgets(str, n, stream);
+	if( head )
+	{
+		for(char *tail = head + strlen(head) - 1; tail >= head; --tail)
+		{
+			if( *tail != '\r'  && *tail != '\n' )
+				break;
+			*tail = '\0';
+		}
+	}
+	return head;
+}
+
+
 int CvMLData :: read_csv(const char* filename)
 {
     const int M = 10000;
@@ -146,7 +162,7 @@ int CvMLData :: read_csv(const char* filename)
 
     // read the first line and determine the number of variables
     buf = new char[M];
-    if( !fgets( buf, M, file ))
+    if( !fgets_chomp( buf, M, file ))
     {
         fclose(file);
         return 1;
@@ -195,7 +211,7 @@ int CvMLData :: read_csv(const char* filename)
         str_to_flt_elem( token, el_ptr[cols_count-1], type);
         var_types_ptr[cols_count-1] |= type;
         cvSeqPush( seq, el_ptr );
-        if( !fgets( buf, M, file ) || !strchr( buf, delimiter ) )
+        if( !fgets_chomp( buf, M, file ) || !strchr( buf, delimiter ) )
             break;
     }
     fclose(file);
@@ -298,12 +314,9 @@ void CvMLData :: set_response_idx( int idx )
 
     if ( response_idx >= 0 )
         chahge_var_idx( response_idx, true );
-
     if ( idx >= 0 )
-    {
-    	response_idx = idx;
-        chahge_var_idx( response_idx, false );
-	}
+        chahge_var_idx( idx, false );
+    response_idx = idx;
 
     __END__;    
 }

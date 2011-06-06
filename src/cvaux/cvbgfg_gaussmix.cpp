@@ -38,6 +38,13 @@
 //
 //M*/
 
+#include "_cvaux.h"
+#include <float.h>
+
+// to make sure we can use these short names
+#undef K
+#undef L
+#undef T
 
 // This is based on the "An Improved Adaptive Background Mixture Model for
 // Real-time Tracking with Shadow Detection" by P. KaewTraKulPong and R. Bowden
@@ -47,271 +54,400 @@
 // own modifications which make more sense. There are some errors in some of their
 // equations.
 //
-//IplImage values of image that are useful
-//int  nSize;         /* sizeof(IplImage) */
-//int  depth;         /* pixel depth in bits: IPL_DEPTH_8U ...*/
-//int  nChannels;     /* OpenCV functions support 1,2,3 or 4 channels */
-//int  width;         /* image width in pixels */
-//int  height;        /* image height in pixels */
-//int  imageSize;     /* image data size in bytes in case of interleaved data)*/
-//char *imageData;    /* pointer to aligned image data */
-//char *imageDataOrigin; /* pointer to very origin of image -deallocation */
-//Values useful for gaussian integral
-//0.5 - 0.19146 - 0.38292
-//1.0 - 0.34134 - 0.68268
-//1.5 - 0.43319 - 0.86638
-//2.0 - 0.47725 - 0.95450
-//2.5 - 0.49379 - 0.98758
-//3.0 - 0.49865 - 0.99730
-//3.5 - 0.4997674 - 0.9995348
-//4.0 - 0.4999683 - 0.9999366
 
-#include "_cvaux.h"
-
-
-//internal functions for gaussian background detection
-static void icvInsertionSortGaussians( CvGaussBGPoint* g_point, double* sort_key, CvGaussBGStatModelParams *bg_model_params );
-
-/* 
-   Test whether pixel can be explained by background model; 
-   Return -1 if no match was found; otherwise the index in match[] is returned
-
-   icvMatchTest(...) assumes what all color channels component exhibit the same variance
-   icvMatchTest2(...) accounts for different variances per color channel
- */
-static int icvMatchTest( double* src_pixel, int nChannels, int* match, 
-                 const CvGaussBGPoint* g_point, const CvGaussBGStatModelParams *bg_model_params );
-/*static int icvMatchTest2( double* src_pixel, int nChannels, int* match, 
-                 const CvGaussBGPoint* g_point, const CvGaussBGStatModelParams *bg_model_params );*/
-
-
-/* 
-   The update procedure differs between  
-      * the initialization phase (named *Partial* ) and
-      * the normal phase (named *Full* )
-   The initalization phase is defined as not having processed <win_size> frames yet
- */
-static void icvUpdateFullWindow( double* src_pixel, int nChannels, 
-                         int* match,
-                         CvGaussBGPoint* g_point, 
-                         const CvGaussBGStatModelParams *bg_model_params );
-static void icvUpdateFullNoMatch( IplImage* gm_image, int p, 
-                          int* match, 
-                          CvGaussBGPoint* g_point, 
-                          const CvGaussBGStatModelParams *bg_model_params);
-static void icvUpdatePartialWindow( double* src_pixel, int nChannels, int* match, 
-                            CvGaussBGPoint* g_point, const CvGaussBGStatModelParams *bg_model_params );
-static void icvUpdatePartialNoMatch( double* src_pixel, int nChannels, 
-                             int* match, 
-                             CvGaussBGPoint* g_point, 
-                             const CvGaussBGStatModelParams *bg_model_params);
-
-
-static void icvGetSortKey( const int nChannels, double* sort_key, const CvGaussBGPoint* g_point, 
-                    const CvGaussBGStatModelParams *bg_model_params );
-static void icvBackgroundTest( const int nChannels, int n, int i, int j, int *match, CvGaussBGModel* bg_model );
-
-static void CV_CDECL icvReleaseGaussianBGModel( CvGaussBGModel** bg_model );
-static int CV_CDECL icvUpdateGaussianBGModel( IplImage* curr_frame, CvGaussBGModel*  bg_model );
-
-//#define for if(0);else for
-
-//g = 1 for first gaussian in list that matches else g = 0
-//Rw is the learning rate for weight and Rg is leaning rate for mean and variance
-//Ms is the match_sum which is the sum of matches for a particular gaussian
-//Ms values are incremented until the sum of Ms values in the list equals window size L
-//SMs is the sum of match_sums for gaussians in the list
-//Rw = 1/SMs note the smallest Rw gets is 1/L
-//Rg = g/Ms for SMs < L and Rg = g/(w*L) for SMs = L
-//The list is maintained in sorted order using w/sqrt(variance) as a key
-//If there is no match the last gaussian in the list is replaced by the new gaussian
-//This will result in changes to SMs which results in changes in Rw and Rg.
-//If a gaussian is replaced and SMs previously equaled L values of Ms are computed from w
-//w[n+1] = w[n] + Rw*(g - w[n])   weight
-//u[n+1] = u[n] + Rg*(x[n+1] - u[n]) mean value Sg is sum n values of g
-//v[n+1] = v[n] + Rg*((x[n+1] - u[n])*(x[n+1] - u[n])) - v[n]) variance
-//
-
-CV_IMPL CvBGStatModel*
-cvCreateGaussianBGModel( IplImage* first_frame, CvGaussBGStatModelParams* parameters )
+namespace cv
 {
-    CvGaussBGModel* bg_model = 0;
     
-    CV_FUNCNAME( "cvCreateGaussianBGModel" );
-    
-    __BEGIN__;
-    
-    double var_init;
-    CvGaussBGStatModelParams params;
-    int i, j, k, m, n;
-    
-    //init parameters
-    if( parameters == NULL )
-      {                        /* These constants are defined in cvaux/include/cvaux.h: */
-        params.win_size      = CV_BGFG_MOG_WINDOW_SIZE;
-        params.bg_threshold  = CV_BGFG_MOG_BACKGROUND_THRESHOLD;
+BackgroundSubtractor::~BackgroundSubtractor() {}
+void BackgroundSubtractor::operator()(const Mat&, Mat&, double)
+{
+}
 
-        params.std_threshold = CV_BGFG_MOG_STD_THRESHOLD;
-        params.weight_init   = CV_BGFG_MOG_WEIGHT_INIT;
+static const int defaultNMixtures = CV_BGFG_MOG_NGAUSSIANS;
+static const int defaultHistory = CV_BGFG_MOG_WINDOW_SIZE;
+static const double defaultBackgroundRatio = CV_BGFG_MOG_BACKGROUND_THRESHOLD;
+static const double defaultVarThreshold = CV_BGFG_MOG_STD_THRESHOLD*CV_BGFG_MOG_STD_THRESHOLD;
+static const double defaultNoiseSigma = CV_BGFG_MOG_SIGMA_INIT*0.5;
+    
+BackgroundSubtractorMOG::BackgroundSubtractorMOG()
+{
+    frameSize = Size(0,0);
+    frameType = 0;
+    
+    nframes = 0;
+    nmixtures = defaultNMixtures;
+    history = defaultHistory;
+    varThreshold = defaultVarThreshold;
+    backgroundRatio = defaultBackgroundRatio;
+    noiseSigma = defaultNoiseSigma;
+}
+    
+BackgroundSubtractorMOG::BackgroundSubtractorMOG(int _history, int _nmixtures,
+                                                 double _backgroundRatio,
+                                                 double _noiseSigma)
+{
+    frameSize = Size(0,0);
+    frameType = 0;
+    
+    nframes = 0;
+    nmixtures = min(_nmixtures > 0 ? _nmixtures : defaultNMixtures, 8);
+    history = _history > 0 ? _history : defaultHistory;
+    varThreshold = defaultVarThreshold;
+    backgroundRatio = min(_backgroundRatio > 0 ? _backgroundRatio : 0.95, 1.);
+    noiseSigma = _noiseSigma <= 0 ? defaultNoiseSigma : _noiseSigma;
+}
+    
+BackgroundSubtractorMOG::~BackgroundSubtractorMOG()
+{
+}
 
-        params.variance_init = CV_BGFG_MOG_SIGMA_INIT*CV_BGFG_MOG_SIGMA_INIT;
-        params.minArea       = CV_BGFG_MOG_MINAREA;
-        params.n_gauss       = CV_BGFG_MOG_NGAUSSIANS;
-    }
-    else
+
+void BackgroundSubtractorMOG::initialize(Size _frameSize, int _frameType)
+{
+    frameSize = _frameSize;
+    frameType = _frameType;
+    nframes = 0;
+    
+    int nchannels = CV_MAT_CN(frameType);
+    CV_Assert( CV_MAT_DEPTH(frameType) == CV_8U );
+    
+    // for each gaussian mixture of each pixel bg model we store ...
+    // the mixture sort key (w/sum_of_variances), the mixture weight (w),
+    // the mean (nchannels values) and
+    // the diagonal covariance matrix (another nchannels values)
+    bgmodel.create( 1, frameSize.height*frameSize.width*nmixtures*(2 + 2*nchannels), CV_32F );
+    bgmodel = Scalar::all(0);
+}
+
+    
+template<typename VT> struct MixData
+{
+    float sortKey;
+    float weight;
+    VT mean;
+    VT var;
+};
+
+    
+static void process8uC1( BackgroundSubtractorMOG& obj, const Mat& image, Mat& fgmask, double learningRate )
+{
+    int x, y, k, k1, rows = image.rows, cols = image.cols;
+    float alpha = (float)learningRate, T = (float)obj.backgroundRatio, vT = (float)obj.varThreshold;
+    int K = obj.nmixtures;
+    MixData<float>* mptr = (MixData<float>*)obj.bgmodel.data;
+    
+    const float w0 = (float)CV_BGFG_MOG_WEIGHT_INIT;
+    const float sk0 = (float)(w0/CV_BGFG_MOG_SIGMA_INIT);
+    const float var0 = (float)(CV_BGFG_MOG_SIGMA_INIT*CV_BGFG_MOG_SIGMA_INIT);
+    const float minVar = (float)(obj.noiseSigma*obj.noiseSigma);
+    
+    for( y = 0; y < rows; y++ )
     {
-        params = *parameters;
-    }
-    
-    if( !CV_IS_IMAGE(first_frame) )
-        CV_ERROR( CV_StsBadArg, "Invalid or NULL first_frame parameter" );
-    
-    CV_CALL( bg_model = (CvGaussBGModel*)cvAlloc( sizeof(*bg_model) ));
-    memset( bg_model, 0, sizeof(*bg_model) );
-    bg_model->type = CV_BG_MODEL_MOG;
-    bg_model->release = (CvReleaseBGStatModel)icvReleaseGaussianBGModel;
-    bg_model->update = (CvUpdateBGStatModel)icvUpdateGaussianBGModel;
-    
-    bg_model->params = params;
-    
-    //prepare storages
-    CV_CALL( bg_model->g_point = (CvGaussBGPoint*)cvAlloc(sizeof(CvGaussBGPoint)*
-        ((first_frame->width*first_frame->height) + 256)));
-    
-    CV_CALL( bg_model->background = cvCreateImage(cvSize(first_frame->width,
-        first_frame->height), IPL_DEPTH_8U, first_frame->nChannels));
-    CV_CALL( bg_model->foreground = cvCreateImage(cvSize(first_frame->width,
-        first_frame->height), IPL_DEPTH_8U, 1));
-    
-    CV_CALL( bg_model->storage = cvCreateMemStorage());
-    
-    //initializing
-    var_init = 2 * params.std_threshold * params.std_threshold;
-    CV_CALL( bg_model->g_point[0].g_values =
-        (CvGaussBGValues*)cvAlloc( sizeof(CvGaussBGValues)*params.n_gauss*
-        (first_frame->width*first_frame->height + 128)));
-    
-    for( i = 0, n = 0; i < first_frame->height; i++ )
-    {
-        for( j = 0; j < first_frame->width; j++, n++ )
+        const uchar* src = image.ptr<uchar>(y);
+        uchar* dst = fgmask.ptr<uchar>(y);
+        
+        if( alpha > 0 )
         {
-            const int p = i*first_frame->widthStep+j*first_frame->nChannels;
-
-            bg_model->g_point[n].g_values =
-                bg_model->g_point[0].g_values + n*params.n_gauss;
-            bg_model->g_point[n].g_values[0].weight = 1;    //the first value seen has weight one
-            bg_model->g_point[n].g_values[0].match_sum = 1;
-            for( m = 0; m < first_frame->nChannels; m++)
+            for( x = 0; x < cols; x++, mptr += K )
             {
-                bg_model->g_point[n].g_values[0].variance[m] = var_init;
-                bg_model->g_point[n].g_values[0].mean[m] = (unsigned char)first_frame->imageData[p + m];
-            }
-            for( k = 1; k < params.n_gauss; k++)
-            {
-                bg_model->g_point[n].g_values[k].weight = 0;
-                bg_model->g_point[n].g_values[k].match_sum = 0;
-                for( m = 0; m < first_frame->nChannels; m++){
-                    bg_model->g_point[n].g_values[k].variance[m] = var_init;
-                    bg_model->g_point[n].g_values[k].mean[m] = 0;
+                float wsum = 0;
+                float pix = src[x];
+                int kHit = -1, kForeground = -1;
+                
+                for( k = 0; k < K; k++ )
+                {
+                    float w = mptr[k].weight;
+                    wsum += w;
+                    if( w < FLT_EPSILON )
+                        break;
+                    float mu = mptr[k].mean;
+                    float var = mptr[k].var;
+                    float diff = pix - mu;
+                    float d2 = diff*diff;
+                    if( d2 < vT*var )
+                    {
+                        wsum -= w;
+                        float dw = alpha*(1.f - w);
+                        mptr[k].weight = w + dw;
+                        mptr[k].mean = mu + alpha*diff;
+                        var = max(var + alpha*(d2 - var), minVar);
+                        mptr[k].var = var;
+                        mptr[k].sortKey = w/sqrt(var);
+                        
+                        for( k1 = k-1; k1 >= 0; k1-- )
+                        {
+                            if( mptr[k1].sortKey >= mptr[k1+1].sortKey )
+                                break;
+                            std::swap( mptr[k1], mptr[k1+1] );
+                        }
+                        
+                        kHit = k1+1;
+                        break;
+                    }
                 }
+                
+                if( kHit < 0 ) // no appropriate gaussian mixture found at all, remove the weakest mixture and create a new one
+                {
+                    kHit = k = min(k, K-1);
+                    wsum += w0 - mptr[k].weight;
+                    mptr[k].weight = w0;
+                    mptr[k].mean = pix;
+                    mptr[k].var = var0;
+                    mptr[k].sortKey = sk0;
+                }
+                else
+                    for( ; k < K; k++ )
+                        wsum += mptr[k].weight;
+                
+                float wscale = 1.f/wsum;
+                wsum = 0;
+                for( k = 0; k < K; k++ )
+                {
+                    wsum += mptr[k].weight *= wscale;
+                    mptr[k].sortKey *= wscale;
+                    if( wsum > T && kForeground < 0 )
+                        kForeground = k+1;
+                }
+                
+                dst[x] = (uchar)(-(kHit >= kForeground));
+            }
+        }
+        else
+        {
+            for( x = 0; x < cols; x++, mptr += K )
+            {
+                float pix = src[x];
+                int kHit = -1, kForeground = -1;
+                
+                for( k = 0; k < K; k++ )
+                {
+                    if( mptr[k].weight < FLT_EPSILON )
+                        break;
+                    float mu = mptr[k].mean;
+                    float var = mptr[k].var;
+                    float diff = pix - mu;
+                    float d2 = diff*diff;
+                    if( d2 < vT*var )
+                    {
+                        kHit = k;
+                        break;
+                    }
+                }
+                
+                if( kHit >= 0 )
+                {
+                    float wsum = 0;
+                    for( k = 0; k < K; k++ )
+                    {
+                        wsum += mptr[k].weight;
+                        if( wsum > T )
+                        {
+                            kForeground = k+1;
+                            break;
+                        }
+                    }
+                }
+                
+                dst[x] = (uchar)(kHit < 0 || kHit >= kForeground ? 255 : 0);
             }
         }
     }
+}
+
+static void process8uC3( BackgroundSubtractorMOG& obj, const Mat& image, Mat& fgmask, double learningRate )
+{
+    int x, y, k, k1, rows = image.rows, cols = image.cols;
+    float alpha = (float)learningRate, T = (float)obj.backgroundRatio, vT = (float)obj.varThreshold;
+    int K = obj.nmixtures;
     
-    bg_model->countFrames = 0;
+    const float w0 = (float)CV_BGFG_MOG_WEIGHT_INIT;
+    const float sk0 = (float)(w0/CV_BGFG_MOG_SIGMA_INIT*sqrt(3.));
+    const float var0 = (float)(CV_BGFG_MOG_SIGMA_INIT*CV_BGFG_MOG_SIGMA_INIT);
+    const float minVar = (float)(obj.noiseSigma*obj.noiseSigma);
+    MixData<Vec3f>* mptr = (MixData<Vec3f>*)obj.bgmodel.data;
     
-    __END__;
-    
-    if( cvGetErrStatus() < 0 )
+    for( y = 0; y < rows; y++ )
     {
-        CvBGStatModel* base_ptr = (CvBGStatModel*)bg_model;
+        const uchar* src = image.ptr<uchar>(y);
+        uchar* dst = fgmask.ptr<uchar>(y);
         
-        if( bg_model && bg_model->release )
-            bg_model->release( &base_ptr );
+        if( alpha > 0 )
+        {
+            for( x = 0; x < cols; x++, mptr += K )
+            {
+                float wsum = 0;
+                Vec3f pix(src[x*3], src[x*3+1], src[x*3+2]);
+                int kHit = -1, kForeground = -1;
+                
+                for( k = 0; k < K; k++ )
+                {
+                    float w = mptr[k].weight;
+                    wsum += w;
+                    if( w < FLT_EPSILON )
+                        break;
+                    Vec3f mu = mptr[k].mean;
+                    Vec3f var = mptr[k].var;
+                    Vec3f diff = pix - mu;
+                    float d2 = diff.dot(diff);
+                    if( d2 < vT*(var[0] + var[1] + var[2]) )
+                    {
+                        wsum -= w;
+                        float dw = alpha*(1.f - w);
+                        mptr[k].weight = w + dw;
+                        mptr[k].mean = mu + alpha*diff;
+                        var = Vec3f(max(var[0] + alpha*(diff[0]*diff[0] - var[0]), minVar),
+                                    max(var[1] + alpha*(diff[1]*diff[1] - var[1]), minVar),
+                                    max(var[2] + alpha*(diff[2]*diff[2] - var[2]), minVar));
+                        mptr[k].var = var;
+                        mptr[k].sortKey = w/sqrt(var[0] + var[1] + var[2]);
+                        
+                        for( k1 = k-1; k1 >= 0; k1-- )
+                        {
+                            if( mptr[k1].sortKey >= mptr[k1+1].sortKey )
+                                break;
+                            std::swap( mptr[k1], mptr[k1+1] );
+                        }
+                        
+                        kHit = k1+1;
+                        break;
+                    }
+                }
+                
+                if( kHit < 0 ) // no appropriate gaussian mixture found at all, remove the weakest mixture and create a new one
+                {
+                    kHit = k = min(k, K-1);
+                    wsum += w0 - mptr[k].weight;
+                    mptr[k].weight = w0;
+                    mptr[k].mean = pix;
+                    mptr[k].var = Vec3f(var0, var0, var0);
+                    mptr[k].sortKey = sk0;
+                }
+                else
+                    for( ; k < K; k++ )
+                        wsum += mptr[k].weight;
+            
+                float wscale = 1.f/wsum;
+                wsum = 0;
+                for( k = 0; k < K; k++ )
+                {
+                    wsum += mptr[k].weight *= wscale;
+                    mptr[k].sortKey *= wscale;
+                    if( wsum > T && kForeground < 0 )
+                        kForeground = k+1;
+                }
+                
+                dst[x] = (uchar)(-(kHit >= kForeground));
+            }
+        }
         else
-            cvFree( &bg_model );
-        bg_model = 0;
+        {
+            for( x = 0; x < cols; x++, mptr += K )
+            {
+                Vec3f pix(src[x*3], src[x*3+1], src[x*3+2]);
+                int kHit = -1, kForeground = -1;
+                
+                for( k = 0; k < K; k++ )
+                {
+                    if( mptr[k].weight < FLT_EPSILON )
+                        break;
+                    Vec3f mu = mptr[k].mean;
+                    Vec3f var = mptr[k].var;
+                    Vec3f diff = pix - mu;
+                    float d2 = diff.dot(diff);
+                    if( d2 < vT*(var[0] + var[1] + var[2]) )
+                    {
+                        kHit = k;
+                        break;
+                    }
+                }
+ 
+                if( kHit >= 0 )
+                {
+                    float wsum = 0;
+                    for( k = 0; k < K; k++ )
+                    {
+                        wsum += mptr[k].weight;
+                        if( wsum > T )
+                        {
+                            kForeground = k+1;
+                            break;
+                        }
+                    }
+                }
+                
+                dst[x] = (uchar)(kHit < 0 || kHit >= kForeground ? 255 : 0);
+            }
+        }
     }
+}
+
+void BackgroundSubtractorMOG::operator()(const Mat& image, Mat& fgmask, double learningRate)
+{
+    bool needToInitialize = nframes == 0 || learningRate >= 1 || image.size() != frameSize || image.type() != frameType;
     
-    return (CvBGStatModel*)bg_model;
+    if( needToInitialize )
+        initialize(image.size(), image.type());
+    
+    CV_Assert( image.depth() == CV_8U );
+    fgmask.create( image.size(), CV_8U );
+    
+    ++nframes;
+    learningRate = learningRate >= 0 && nframes > 1 ? learningRate : 1./min( nframes, history );
+    CV_Assert(learningRate >= 0);
+    
+    if( image.type() == CV_8UC1 )
+        process8uC1( *this, image, fgmask, learningRate );
+    else if( image.type() == CV_8UC3 )
+        process8uC3( *this, image, fgmask, learningRate );
+    else
+        CV_Error( CV_StsUnsupportedFormat, "Only 1- and 3-channel 8-bit images are supported in BackgroundSubtractorMOG" );
+}
+    
 }
 
 
 static void CV_CDECL
-icvReleaseGaussianBGModel( CvGaussBGModel** _bg_model )
+icvReleaseGaussianBGModel( CvGaussBGModel** bg_model )
 {
-    CV_FUNCNAME( "icvReleaseGaussianBGModel" );
-
-    __BEGIN__;
+    if( !bg_model )
+        CV_Error( CV_StsNullPtr, "" );
     
-    if( !_bg_model )
-        CV_ERROR( CV_StsNullPtr, "" );
-
-    if( *_bg_model )
+    if( *bg_model )
     {
-        CvGaussBGModel* bg_model = *_bg_model;
-        if( bg_model->g_point )
-        {
-            cvFree( &bg_model->g_point[0].g_values );
-            cvFree( &bg_model->g_point );
-        }
-        
-        cvReleaseImage( &bg_model->background );
-        cvReleaseImage( &bg_model->foreground );
-        cvReleaseMemStorage(&bg_model->storage);
-        memset( bg_model, 0, sizeof(*bg_model) );
-        cvFree( _bg_model );
+        delete (cv::Mat*)((*bg_model)->g_point);
+        cvReleaseImage( &(*bg_model)->background );
+        cvReleaseImage( &(*bg_model)->foreground );
+        cvReleaseMemStorage(&(*bg_model)->storage);
+        memset( *bg_model, 0, sizeof(**bg_model) );
+        delete *bg_model;
+        *bg_model = 0;
     }
-
-    __END__;
 }
 
 
 static int CV_CDECL
-icvUpdateGaussianBGModel( IplImage* curr_frame, CvGaussBGModel*  bg_model )
+icvUpdateGaussianBGModel( IplImage* curr_frame, CvGaussBGModel*  bg_model, double learningRate )
 {
-    int i, j, k, n;
     int region_count = 0;
-    CvSeq *first_seq = NULL, *prev_seq = NULL, *seq = NULL;
     
-    bg_model->countFrames++;
+    cv::Mat image = cv::cvarrToMat(curr_frame), mask = cv::cvarrToMat(bg_model->foreground);
     
-    for( i = 0, n = 0; i < curr_frame->height; i++ )
-    {
-        for( j = 0; j < curr_frame->width; j++, n++ )
-        {
-            int match[CV_BGFG_MOG_MAX_NGAUSSIANS];
-            double sort_key[CV_BGFG_MOG_MAX_NGAUSSIANS];
-            const int nChannels = curr_frame->nChannels;
-            const int p = curr_frame->widthStep*i+j*nChannels;
-            
-            // A few short cuts
-            CvGaussBGPoint* g_point = &bg_model->g_point[n];
-            const CvGaussBGStatModelParams bg_model_params = bg_model->params;
-            double pixel[4];
-            int no_match;
-            
-            for( k = 0; k < nChannels; k++ )
-                pixel[k] = (uchar)curr_frame->imageData[p+k];
-            
-            no_match = icvMatchTest( pixel, nChannels, match, g_point, &bg_model_params );
-            if( bg_model->countFrames >= bg_model->params.win_size )
-            {
-                icvUpdateFullWindow( pixel, nChannels, match, g_point, &bg_model->params );
-                if( no_match == -1)
-                    icvUpdateFullNoMatch( curr_frame, p, match, g_point, &bg_model_params );
-            }
-            else
-            {
-                icvUpdatePartialWindow( pixel, nChannels, match, g_point, &bg_model_params );
-                if( no_match == -1)
-                    icvUpdatePartialNoMatch( pixel, nChannels, match, g_point, &bg_model_params );
-            }
-            icvGetSortKey( nChannels, sort_key, g_point, &bg_model_params );
-            icvInsertionSortGaussians( g_point, sort_key, (CvGaussBGStatModelParams *)&bg_model_params );
-            icvBackgroundTest( nChannels, n, i, j, match, bg_model );
-        }
-    }
+    cv::BackgroundSubtractorMOG mog;
+    mog.bgmodel = *(cv::Mat*)bg_model->g_point;
+    mog.frameSize = mog.bgmodel.data ? cv::Size(cvGetSize(curr_frame)) : cv::Size();
+    mog.frameType = image.type();
+
+    mog.nframes = bg_model->countFrames;
+    mog.history = bg_model->params.win_size;
+    mog.nmixtures = bg_model->params.n_gauss;
+    mog.varThreshold = bg_model->params.std_threshold;
+    mog.backgroundRatio = bg_model->params.bg_threshold;
+    
+    mog(image, mask, learningRate);
+    
+    bg_model->countFrames = mog.nframes;
+    if( ((cv::Mat*)bg_model->g_point)->data != mog.bgmodel.data )
+        *((cv::Mat*)bg_model->g_point) = mog.bgmodel;
     
     //foreground filtering
     
@@ -321,6 +457,8 @@ icvUpdateGaussianBGModel( IplImage* curr_frame, CvGaussBGModel*  bg_model )
     //cvMorphologyEx( bg_model->foreground, bg_model->foreground, 0, 0, CV_MOP_OPEN, 1 );
     //cvMorphologyEx( bg_model->foreground, bg_model->foreground, 0, 0, CV_MOP_CLOSE, 1 );
     
+    /*
+    CvSeq *first_seq = NULL, *prev_seq = NULL, *seq = NULL;
     cvFindContours( bg_model->foreground, bg_model->storage, &first_seq, sizeof(CvContour), CV_RETR_LIST );
     for( seq = first_seq; seq; seq = seq->h_next )
     {
@@ -347,252 +485,60 @@ icvUpdateGaussianBGModel( IplImage* curr_frame, CvGaussBGModel*  bg_model )
     }
     bg_model->foreground_regions = first_seq;
     cvZero(bg_model->foreground);
-    cvDrawContours(bg_model->foreground, first_seq, CV_RGB(0, 0, 255), CV_RGB(0, 0, 255), 10, -1);
+    cvDrawContours(bg_model->foreground, first_seq, CV_RGB(0, 0, 255), CV_RGB(0, 0, 255), 10, -1);*/
+    CvMat _mask = mask;
+    cvCopy(&_mask, bg_model->foreground);
     
     return region_count;
 }
 
-static void icvInsertionSortGaussians( CvGaussBGPoint* g_point, double* sort_key, CvGaussBGStatModelParams *bg_model_params )
+CV_IMPL CvBGStatModel*
+cvCreateGaussianBGModel( IplImage* first_frame, CvGaussBGStatModelParams* parameters )
 {
-    int i, j;
-    for( i = 1; i < bg_model_params->n_gauss; i++ )
-    {
-        double index = sort_key[i];
-        for( j = i; j > 0 && sort_key[j-1] < index; j-- ) //sort decending order
-        {
-            double temp_sort_key = sort_key[j];
-            sort_key[j] = sort_key[j-1];
-            sort_key[j-1] = temp_sort_key;
-            
-            CvGaussBGValues temp_gauss_values = g_point->g_values[j];
-            g_point->g_values[j] = g_point->g_values[j-1];
-            g_point->g_values[j-1] = temp_gauss_values;
-        }
-//        sort_key[j] = index;
+    CvGaussBGStatModelParams params;
+    
+    CV_Assert( CV_IS_IMAGE(first_frame) );
+    
+    //init parameters
+    if( parameters == NULL )
+    {                        /* These constants are defined in cvaux/include/cvaux.h: */
+        params.win_size      = CV_BGFG_MOG_WINDOW_SIZE;
+        params.bg_threshold  = CV_BGFG_MOG_BACKGROUND_THRESHOLD;
+
+        params.std_threshold = CV_BGFG_MOG_STD_THRESHOLD;
+        params.weight_init   = CV_BGFG_MOG_WEIGHT_INIT;
+
+        params.variance_init = CV_BGFG_MOG_SIGMA_INIT*CV_BGFG_MOG_SIGMA_INIT;
+        params.minArea       = CV_BGFG_MOG_MINAREA;
+        params.n_gauss       = CV_BGFG_MOG_NGAUSSIANS;
     }
-}
-
-
-static int icvMatchTest( double* src_pixel, int nChannels, int* match,
-                         const CvGaussBGPoint* g_point,
-                         const CvGaussBGStatModelParams *bg_model_params )
-{
-    int k;
-    int matchPosition=-1;
-    for ( k = 0; k < bg_model_params->n_gauss; k++) match[k]=0;
+    else
+        params = *parameters;
     
-    for ( k = 0; k < bg_model_params->n_gauss; k++)
-    if (g_point->g_values[k].match_sum > 0) {
-        double sum_d2 = 0.0;
-        double var_threshold = 0.0;
-        for(int m = 0; m < nChannels; m++){
-            double d = g_point->g_values[k].mean[m]- src_pixel[m];
-            sum_d2 += (d*d);
-            var_threshold += g_point->g_values[k].variance[m];
-        }  //difference < STD_LIMIT*STD_LIMIT or difference**2 < STD_LIMIT*STD_LIMIT*VAR
-        var_threshold = bg_model_params->std_threshold*bg_model_params->std_threshold*var_threshold;
-        if(sum_d2 < var_threshold){
-            match[k] = 1;
-            matchPosition = k;
-            break;
-        }
-    }
+    CvGaussBGModel* bg_model = new CvGaussBGModel;
+    memset( bg_model, 0, sizeof(*bg_model) );
+    bg_model->type = CV_BG_MODEL_MOG;
+    bg_model->release = (CvReleaseBGStatModel)icvReleaseGaussianBGModel;
+    bg_model->update = (CvUpdateBGStatModel)icvUpdateGaussianBGModel;
     
-    return matchPosition;
-}
-
-/*
-static int icvMatchTest2( double* src_pixel, int nChannels, int* match,
-                          const CvGaussBGPoint* g_point,
-                          const CvGaussBGStatModelParams *bg_model_params )
-{
-    int k, m;
-    int matchPosition=-1;
+    bg_model->params = params;
     
-    for( k = 0; k < bg_model_params->n_gauss; k++ )
-        match[k] = 0;
+    //prepare storages
+    bg_model->g_point = (CvGaussBGPoint*)new cv::Mat();
     
-    for( k = 0; k < bg_model_params->n_gauss; k++ )
-    {
-        double sum_d2 = 0.0, var_threshold;
-        for( m = 0; m < nChannels; m++ )
-        {
-            double d = g_point->g_values[k].mean[m]- src_pixel[m];
-            sum_d2 += (d*d) / (g_point->g_values[k].variance[m] * g_point->g_values[k].variance[m]);
-        }  //difference < STD_LIMIT*STD_LIMIT or difference**2 < STD_LIMIT*STD_LIMIT*VAR
-        
-        var_threshold = bg_model_params->std_threshold*bg_model_params->std_threshold;
-        if( sum_d2 < var_threshold )
-        {
-            match[k] = 1;
-            matchPosition = k;
-            break;
-        }
-    }
+    bg_model->background = cvCreateImage(cvSize(first_frame->width,
+        first_frame->height), IPL_DEPTH_8U, first_frame->nChannels);
+    bg_model->foreground = cvCreateImage(cvSize(first_frame->width,
+        first_frame->height), IPL_DEPTH_8U, 1);
     
-    return matchPosition;
-}
-*/
-
-static void icvUpdateFullWindow( double* src_pixel, int nChannels, int* match,
-                                 CvGaussBGPoint* g_point,
-                                 const CvGaussBGStatModelParams *bg_model_params )
-{
-    const double learning_rate_weight = (1.0/(double)bg_model_params->win_size);
-    for(int k = 0; k < bg_model_params->n_gauss; k++){
-        g_point->g_values[k].weight = g_point->g_values[k].weight +
-            (learning_rate_weight*((double)match[k] -
-            g_point->g_values[k].weight));
-        if(match[k]){
-            double learning_rate_gaussian = (double)match[k]/(g_point->g_values[k].weight*
-                (double)bg_model_params->win_size);
-            for(int m = 0; m < nChannels; m++){
-                const double tmpDiff = src_pixel[m] - g_point->g_values[k].mean[m];
-                g_point->g_values[k].mean[m] = g_point->g_values[k].mean[m] +
-                    (learning_rate_gaussian * tmpDiff);
-                g_point->g_values[k].variance[m] = g_point->g_values[k].variance[m]+
-                    (learning_rate_gaussian*((tmpDiff*tmpDiff) - g_point->g_values[k].variance[m]));
-            }
-        }
-    }
-}
-
-
-static void icvUpdatePartialWindow( double* src_pixel, int nChannels, int* match, CvGaussBGPoint* g_point, const CvGaussBGStatModelParams *bg_model_params )
-{
-    int k, m;
-    int window_current = 0;
+    bg_model->storage = cvCreateMemStorage();
     
-    for( k = 0; k < bg_model_params->n_gauss; k++ )
-        window_current += g_point->g_values[k].match_sum;
+    bg_model->countFrames = 0;
     
-    for( k = 0; k < bg_model_params->n_gauss; k++ )
-    {
-        g_point->g_values[k].match_sum += match[k];
-        double learning_rate_weight = (1.0/((double)window_current + 1.0)); //increased by one since sum
-        g_point->g_values[k].weight = g_point->g_values[k].weight +
-            (learning_rate_weight*((double)match[k] - g_point->g_values[k].weight));
-        
-        if( g_point->g_values[k].match_sum > 0 && match[k] )
-        {
-            double learning_rate_gaussian = (double)match[k]/((double)g_point->g_values[k].match_sum);
-            for( m = 0; m < nChannels; m++ )
-            {
-                const double tmpDiff = src_pixel[m] - g_point->g_values[k].mean[m];
-                g_point->g_values[k].mean[m] = g_point->g_values[k].mean[m] +
-                    (learning_rate_gaussian*tmpDiff);
-                g_point->g_values[k].variance[m] = g_point->g_values[k].variance[m]+
-                    (learning_rate_gaussian*((tmpDiff*tmpDiff) - g_point->g_values[k].variance[m]));
-            }
-        }
-    }
-}
-
-static void icvUpdateFullNoMatch( IplImage* gm_image, int p, int* match,
-                                  CvGaussBGPoint* g_point,
-                                  const CvGaussBGStatModelParams *bg_model_params)
-{
-    int k, m;
-    double alpha;
-    int match_sum_total = 0;
-
-    //new value of last one
-    g_point->g_values[bg_model_params->n_gauss - 1].match_sum = 1;
+    icvUpdateGaussianBGModel( first_frame, bg_model, 1 );
     
-    //get sum of all but last value of match_sum
-    
-    for( k = 0; k < bg_model_params->n_gauss ; k++ )
-        match_sum_total += g_point->g_values[k].match_sum;
-    
-    g_point->g_values[bg_model_params->n_gauss - 1].weight = 1./(double)match_sum_total;
-    for( m = 0; m < gm_image->nChannels ; m++ )
-    {
-        // first pass mean is image value
-        g_point->g_values[bg_model_params->n_gauss - 1].variance[m] = bg_model_params->variance_init;
-        g_point->g_values[bg_model_params->n_gauss - 1].mean[m] = (unsigned char)gm_image->imageData[p + m];
-    }
-    
-    alpha = 1.0 - (1.0/bg_model_params->win_size);
-    for( k = 0; k < bg_model_params->n_gauss - 1; k++ )
-    {
-        g_point->g_values[k].weight *= alpha;
-        if( match[k] )
-            g_point->g_values[k].weight += alpha;
-    }
-}
-
-
-static void
-icvUpdatePartialNoMatch(double *pixel,
-                        int nChannels,
-                        int* /*match*/,
-                        CvGaussBGPoint* g_point,
-                        const CvGaussBGStatModelParams *bg_model_params)
-{
-    int k, m;
-    //new value of last one
-    g_point->g_values[bg_model_params->n_gauss - 1].match_sum = 1;
-    
-    //get sum of all but last value of match_sum
-    int match_sum_total = 0;
-    for(k = 0; k < bg_model_params->n_gauss ; k++)
-        match_sum_total += g_point->g_values[k].match_sum;
-
-    for(m = 0; m < nChannels; m++)
-    {
-        //first pass mean is image value
-        g_point->g_values[bg_model_params->n_gauss - 1].variance[m] = bg_model_params->variance_init;
-        g_point->g_values[bg_model_params->n_gauss - 1].mean[m] = pixel[m];
-    }
-    for(k = 0; k < bg_model_params->n_gauss; k++)
-    {
-        g_point->g_values[k].weight = (double)g_point->g_values[k].match_sum /
-            (double)match_sum_total;
-    }
-}
-
-static void icvGetSortKey( const int nChannels, double* sort_key, const CvGaussBGPoint* g_point,
-                           const CvGaussBGStatModelParams *bg_model_params )
-{
-    int k, m;
-    for( k = 0; k < bg_model_params->n_gauss; k++ )
-    {
-        // Avoid division by zero
-        if( g_point->g_values[k].match_sum > 0 )
-        {
-            // Independence assumption between components
-            double variance_sum = 0.0;
-            for( m = 0; m < nChannels; m++ )
-                variance_sum += g_point->g_values[k].variance[m];
-            
-            sort_key[k] = g_point->g_values[k].weight/sqrt(variance_sum);
-        }
-        else
-            sort_key[k]= 0.0;
-    }
-}
-
-
-static void icvBackgroundTest( const int nChannels, int n, int i, int j, int *match, CvGaussBGModel* bg_model )
-{
-    int m, b;
-    uchar pixelValue = (uchar)255; // will switch to 0 if match found
-    double weight_sum = 0.0;
-    CvGaussBGPoint* g_point = bg_model->g_point;
-    
-    for( m = 0; m < nChannels; m++)
-        bg_model->background->imageData[ bg_model->background->widthStep*i + j*nChannels + m]  = (unsigned char)(g_point[n].g_values[0].mean[m]+0.5);
-    
-    for( b = 0; b < bg_model->params.n_gauss; b++)
-    {
-        weight_sum += g_point[n].g_values[b].weight;
-        if( match[b] )
-            pixelValue = 0;
-        if( weight_sum > bg_model->params.bg_threshold )
-            break;
-    }
-    
-    bg_model->foreground->imageData[ bg_model->foreground->widthStep*i + j] = pixelValue;
+    return (CvBGStatModel*)bg_model;
 }
 
 /* End of file. */
+

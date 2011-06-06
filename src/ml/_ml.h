@@ -56,13 +56,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
+#include "cvinternal.h"
 
 #define ML_IMPL CV_IMPL
 
@@ -350,5 +344,30 @@ const float** cvGetTrainSamples( const CvMat* train_data, int tflag,
                    const CvMat* var_idx, const CvMat* sample_idx,
                    int* _var_count, int* _sample_count,
                    bool always_copy_data=false );
+
+namespace cv
+{
+    struct DTreeBestSplitFinder
+    {
+        DTreeBestSplitFinder(){ tree = 0; node = 0; }
+        DTreeBestSplitFinder( CvDTree* _tree, CvDTreeNode* _node);
+        DTreeBestSplitFinder( const DTreeBestSplitFinder& finder, Split );
+        virtual void operator()(const BlockedRange& range);
+        void join( DTreeBestSplitFinder& rhs );
+        Ptr<CvDTreeSplit> bestSplit;
+        Ptr<CvDTreeSplit> split;
+        int splitSize;
+        CvDTree* tree;
+        CvDTreeNode* node;
+    };
+    
+    struct ForestTreeBestSplitFinder : DTreeBestSplitFinder
+    {
+        ForestTreeBestSplitFinder() : DTreeBestSplitFinder() {}
+        ForestTreeBestSplitFinder( CvForestTree* _tree, CvDTreeNode* _node );
+        ForestTreeBestSplitFinder( const ForestTreeBestSplitFinder& finder, Split );
+        virtual void operator()(const BlockedRange& range);
+    };
+}
 
 #endif /* __ML_H__ */

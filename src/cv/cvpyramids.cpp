@@ -61,19 +61,21 @@ template<typename T, int shift> struct FltCast
     rtype operator ()(type1 arg) const { return arg*(T)(1./(1 << shift)); }
 };
 
-struct NoVec
+template<typename T1, typename T2> struct NoVec
 {
-    int operator()(const uchar**, uchar*, int, int) const { return 0; }
+    int operator()(T1**, T2*, int, int) const { return 0; }
 };
 
 #if CV_SSE2
 
 struct PyrDownVec_32s8u
 {
-    int operator()(const uchar** _src, uchar* dst, int, int width) const
+    int operator()(int** src, uchar* dst, int, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         int x = 0;
-        const int** src = (const int**)_src;
         const int *row0 = src[0], *row1 = src[1], *row2 = src[2], *row3 = src[3], *row4 = src[4];
         __m128i delta = _mm_set1_epi16(128);
 
@@ -135,11 +137,12 @@ struct PyrDownVec_32s8u
 
 struct PyrDownVec_32f
 {
-    int operator()(const uchar** _src, uchar* _dst, int, int width) const
+    int operator()(float** src, float* dst, int, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         int x = 0;
-        const float** src = (const float**)_src;
-        float* dst = (float*)_dst;
         const float *row0 = src[0], *row1 = src[1], *row2 = src[2], *row3 = src[3], *row4 = src[4];
         __m128 _4 = _mm_set1_ps(4.f), _scale = _mm_set1_ps(1.f/256);
         for( ; x <= width - 8; x += 8 )
@@ -178,8 +181,8 @@ struct PyrDownVec_32f
 
 #else
 
-typedef NoVec PyrDownVec_32s8u;
-typedef NoVec PyrDownVec_32f;
+typedef NoVec<int, uchar> PyrDownVec_32s8u;
+typedef NoVec<float, float> PyrDownVec_32f;
 
 #endif
 
@@ -299,7 +302,7 @@ pyrDown_( const Mat& _src, Mat& _dst )
             rows[k] = buf + ((y*2 - PD_SZ/2 + k - sy0) % PD_SZ)*bufstep;
         row0 = rows[0]; row1 = rows[1]; row2 = rows[2]; row3 = rows[3]; row4 = rows[4];
 
-        x = vecOp((const uchar**)rows, (uchar*)dst, (int)_dst.step, dsize.width);
+        x = vecOp(rows, dst, (int)_dst.step, dsize.width);
         for( ; x < dsize.width; x++ )
             dst[x] = castOp(row2[x]*6 + (row1[x] + row3[x])*4 + row0[x] + row4[x]);
     }
@@ -386,7 +389,7 @@ pyrUp_( const Mat& _src, Mat& _dst )
             rows[k] = buf + ((y - PU_SZ/2 + k - sy0) % PU_SZ)*bufstep;
         row0 = rows[0]; row1 = rows[1]; row2 = rows[2];
 
-        x = vecOp((const uchar**)rows, (uchar*)dst0, (int)_dst.step, dsize.width);
+        x = vecOp(rows, dst0, (int)_dst.step, dsize.width);
         for( ; x < dsize.width; x++ )
         {
             T t1 = castOp((row1[x] + row2[x])*4);
@@ -407,11 +410,11 @@ void pyrDown( const Mat& _src, Mat& _dst, const Size& _dsz )
     if( depth == CV_8U )
         func = pyrDown_<FixPtCast<uchar, 8>, PyrDownVec_32s8u>;
     else if( depth == CV_16U )
-        func = pyrDown_<FixPtCast<ushort, 8>, NoVec>;
+        func = pyrDown_<FixPtCast<ushort, 8>, NoVec<int, ushort> >;
     else if( depth == CV_32F )
         func = pyrDown_<FltCast<float, 8>, PyrDownVec_32f>;
     else if( depth == CV_64F )
-        func = pyrDown_<FltCast<double, 8>, NoVec>;
+        func = pyrDown_<FltCast<double, 8>, NoVec<double, double> >;
     else
         CV_Error( CV_StsUnsupportedFormat, "" );
 
@@ -425,13 +428,13 @@ void pyrUp( const Mat& _src, Mat& _dst, const Size& _dsz )
     int depth = _src.depth();
     PyrFunc func = 0;
     if( depth == CV_8U )
-        func = pyrUp_<FixPtCast<uchar, 6>, NoVec>;
+        func = pyrUp_<FixPtCast<uchar, 6>, NoVec<int, uchar> >;
     else if( depth == CV_16U )
-        func = pyrUp_<FixPtCast<ushort, 6>, NoVec>;
+        func = pyrUp_<FixPtCast<ushort, 6>, NoVec<int, ushort> >;
     else if( depth == CV_32F )
-        func = pyrUp_<FltCast<float, 6>, NoVec>;
+        func = pyrUp_<FltCast<float, 6>, NoVec<float, float> >;
     else if( depth == CV_64F )
-        func = pyrUp_<FltCast<double, 6>, NoVec>;
+        func = pyrUp_<FltCast<double, 6>, NoVec<double, double> >;
     else
         CV_Error( CV_StsUnsupportedFormat, "" );
 
@@ -468,27 +471,14 @@ CV_IMPL void cvPyrUp( const void* srcarr, void* dstarr, int _filter )
 CV_IMPL void
 cvReleasePyramid( CvMat*** _pyramid, int extra_layers )
 {
-    CV_FUNCNAME( "cvReleasePyramid" );
-
-    __BEGIN__;
-
-    CvMat** pyramid;
-    int i;
-
     if( !_pyramid )
-        CV_ERROR( CV_StsNullPtr, "" );
-
-    pyramid = *_pyramid;
+        CV_Error( CV_StsNullPtr, "" );
     
-    if( pyramid )
-    {
-        for( i = 0; i <= extra_layers; i++ )
-            cvReleaseMat( &pyramid[i] );
-    }
+    if( *_pyramid )
+        for( int i = 0; i <= extra_layers; i++ )
+            cvReleaseMat( &(*_pyramid)[i] );
     
     cvFree( _pyramid );
-
-    __END__;
 }
 
 
@@ -497,32 +487,23 @@ cvCreatePyramid( const CvArr* srcarr, int extra_layers, double rate,
                  const CvSize* layer_sizes, CvArr* bufarr,
                  int calc, int filter )
 {
-    CvMat** pyramid = 0;
     const float eps = 0.1f;
-
-    CV_FUNCNAME( "cvCreatePyramid" );
-
-    __BEGIN__;
-    
-    int i, elem_size, layer_step;
-    CvMat stub, *src;
-    CvSize size, layer_size;
     uchar* ptr = 0;
 
-    CV_CALL( src = cvGetMat( srcarr, &stub ));
+    CvMat stub, *src = cvGetMat( srcarr, &stub );
 
     if( extra_layers < 0 )
-        CV_ERROR( CV_StsOutOfRange, "The number of extra layers must be non negative" );
+        CV_Error( CV_StsOutOfRange, "The number of extra layers must be non negative" );
 
-    elem_size = CV_ELEM_SIZE(src->type);
-    size = cvGetMatSize(src);
+    int i, layer_step, elem_size = CV_ELEM_SIZE(src->type);
+    CvSize layer_size, size = cvGetMatSize(src);
 
     if( bufarr )
     {
         CvMat bstub, *buf;
         int bufsize = 0;
 
-        CV_CALL( buf = cvGetMat( bufarr, &bstub ));
+        buf = cvGetMat( bufarr, &bstub );
         bufsize = buf->rows*buf->cols*CV_ELEM_SIZE(buf->type);
         layer_size = size;
         for( i = 1; i <= extra_layers; i++ )
@@ -539,11 +520,11 @@ cvCreatePyramid( const CvArr* srcarr, int extra_layers, double rate,
         }
 
         if( bufsize < 0 )
-            CV_ERROR( CV_StsOutOfRange, "The buffer is too small to fit the pyramid" );
+            CV_Error( CV_StsOutOfRange, "The buffer is too small to fit the pyramid" );
         ptr = buf->data.ptr;
     }
 
-    CV_CALL( pyramid = (CvMat**)cvAlloc( (extra_layers+1)*sizeof(pyramid[0]) ));
+    CvMat** pyramid = (CvMat**)cvAlloc( (extra_layers+1)*sizeof(pyramid[0]) );
     memset( pyramid, 0, (extra_layers+1)*sizeof(pyramid[0]) );
 
     pyramid[0] = cvCreateMatHeader( size.height, size.width, src->type );
@@ -574,11 +555,6 @@ cvCreatePyramid( const CvArr* srcarr, int extra_layers, double rate,
             cvPyrDown( pyramid[i-1], pyramid[i], filter );
             //cvResize( pyramid[i-1], pyramid[i], CV_INTER_LINEAR );
     }
-    
-    __END__;
-
-    if( cvGetErrStatus() < 0 )
-        cvReleasePyramid( &pyramid, extra_layers );
 
     return pyramid;
 }

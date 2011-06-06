@@ -670,8 +670,8 @@ static void GEMMStore_64fc( const Complexd* c_data, size_t c_step,
 }
 
 
-void gemm( const Mat& _A, const Mat& _B, double alpha,
-           const Mat& _C, double beta, Mat& D, int flags )
+void gemm( const Mat& matA, const Mat& matB, double alpha,
+           const Mat& matC, double beta, Mat& D, int flags )
 {
     const int block_lin_size = 128;
     const int block_size = block_lin_size * block_lin_size;
@@ -679,8 +679,8 @@ void gemm( const Mat& _A, const Mat& _B, double alpha,
     static double zero[] = {0,0,0,0};
     static float zerof[] = {0,0,0,0};
 
-    Mat A = _A, B = _B;
-    const Mat* C = _C.data && beta != 0 ? &_C : 0;
+    Mat A = matA, B = matB;
+    const Mat* C = matC.data && beta != 0 ? &matC : 0;
     Size a_size = A.size(), d_size;
     int i, len = 0, type = A.type();
 
@@ -987,7 +987,7 @@ void gemm( const Mat& _A, const Mat& _B, double alpha,
     GEMMSingleMulFunc singleMulFunc;
     GEMMBlockMulFunc blockMulFunc;
     GEMMStoreFunc storeFunc;
-    Mat *_D = &D, tmat;
+    Mat *matD = &D, tmat;
     const uchar* Cdata = C ? C->data : 0;
     size_t Cstep = C ? C->step : 0;
     AutoBuffer<uchar> buf;
@@ -1022,7 +1022,7 @@ void gemm( const Mat& _A, const Mat& _B, double alpha,
     {
         buf.allocate(d_size.width*d_size.height*CV_ELEM_SIZE(type));
         tmat = Mat(d_size.height, d_size.width, type, (uchar*)buf );
-        _D = &tmat;
+        matD = &tmat;
     }
 
     if( (d_size.width == 1 || len == 1) && !(flags & GEMM_2_T) && B.isContinuous() )
@@ -1099,7 +1099,7 @@ void gemm( const Mat& _A, const Mat& _B, double alpha,
         d_size.height <= block_lin_size && len <= block_lin_size) )
     {
         singleMulFunc( A.data, A.step, B.data, b_step, Cdata, Cstep,
-                       _D->data, _D->step, a_size, d_size, alpha, beta, flags );
+                       matD->data, matD->step, a_size, d_size, alpha, beta, flags );
     }
     else
     {
@@ -1115,7 +1115,7 @@ void gemm( const Mat& _A, const Mat& _B, double alpha,
         int dm0, dn0, dk0;
         size_t a_step0, a_step1, b_step0, b_step1, c_step0, c_step1;
         int work_elem_size = elem_size << (CV_MAT_DEPTH(type) == CV_32F ? 1 : 0);
-
+        
         if( !is_a_t )
             a_step0 = A.step, a_step1 = elem_size;
         else
@@ -1172,9 +1172,9 @@ void gemm( const Mat& _A, const Mat& _B, double alpha,
 
             for( j = 0; j < d_size.width; j += dj )
             {
-                uchar* _d = _D->data + i*_D->step + j*elem_size;
+                uchar* _d = matD->data + i*matD->step + j*elem_size;
                 const uchar* _c = Cdata + i*c_step0 + j*c_step1;
-                size_t _d_step = _D->step;
+                size_t _d_step = matD->step;
                 dj = dn0;
 
                 if( j + dj >= d_size.width || 8*(j + dj) + dj > 8*d_size.width )
@@ -1236,14 +1236,14 @@ void gemm( const Mat& _A, const Mat& _B, double alpha,
 
                 if( dk0 < len )
                     storeFunc( _c, Cstep, _d, _d_step,
-                               _D->data + i*_D->step + j*elem_size,
-                               _D->step, Size(dj,di), alpha, beta, flags );
+                               matD->data + i*matD->step + j*elem_size,
+                               matD->step, Size(dj,di), alpha, beta, flags );
             }
         }
     }
 
-    if( _D != &D )
-        _D->copyTo(D);
+    if( matD != &D )
+        matD->copyTo(D);
     }
 }
 
@@ -1409,7 +1409,7 @@ transformC3_<uchar, float>( const Mat& srcmat, Mat& dstmat, Mat& tmat )
     int dst_cn = dstmat.channels();
     int x, y, k;
 
-    if( dst_cn == 3 &&
+    if( checkHardwareSupport(CV_CPU_SSE2) && dst_cn == 3 &&
         std::abs(m[0]) < MAX_M && std::abs(m[1]) < MAX_M && std::abs(m[2]) < MAX_M && std::abs(m[3]) < MAX_M*256 &&
         std::abs(m[4]) < MAX_M && std::abs(m[5]) < MAX_M && std::abs(m[6]) < MAX_M && std::abs(m[7]) < MAX_M*256 &&
         std::abs(m[8]) < MAX_M && std::abs(m[9]) < MAX_M && std::abs(m[10]) < MAX_M && std::abs(m[11]) < MAX_M*256 )
@@ -1555,7 +1555,7 @@ transformC3_<ushort, float>( const Mat& srcmat, Mat& dstmat, Mat& tmat )
     int dst_cn = dstmat.channels();
     int x, y, k;
 
-    if( dst_cn == 3 )
+    if( checkHardwareSupport(CV_CPU_SSE2) && dst_cn == 3 )
     {
         __m128 m0, m1, m2, m3;
         __m128i delta = _mm_setr_epi16(0,-32768,-32768,-32768,-32768,-32768,-32768,0);
@@ -1647,7 +1647,7 @@ transformC3_<float, float>( const Mat& srcmat, Mat& dstmat, Mat& tmat )
     int dst_cn = dstmat.channels();
     int x, y, k;
 
-    if( dst_cn == 3 )
+    if( checkHardwareSupport(CV_CPU_SSE2) && dst_cn == 3 )
     {
         __m128 m0, m1, m2, m3;
         load3x3Matrix(m, m0, m1, m2, m3);
@@ -1710,7 +1710,7 @@ transformC4_<float, float>( const Mat& srcmat, Mat& dstmat, Mat& tmat )
     int dst_cn = dstmat.channels();
     int x, y, k;
 
-    if( dst_cn == 4 )
+    if( checkHardwareSupport(CV_CPU_SSE2) && dst_cn == 4 )
     {
         __m128 m0, m1, m2, m3, m4;
         load4x4Matrix(m, m0, m1, m2, m3, m4);
@@ -1744,7 +1744,6 @@ transformC4_<float, float>( const Mat& srcmat, Mat& dstmat, Mat& tmat )
                                                  _m[2]*src[x*4+2] + _m[3]*src[x*4+3] + _m[4]);
     }
 }
-
 
 #endif
 
@@ -1832,11 +1831,11 @@ void transform( const Mat& src, Mat& dst, const Mat& _m )
         transformC4_<int, double>, transformC4_<float, float>, transformC4_<double, double>, 0},
 
         {0, 0, 0, 0, 0, 0, 0, 0,
-        diagtransC2_<uchar, float>, 0, diagtransC2_<ushort, float>, diagtransC2_<short,float>,
+        0, 0, diagtransC2_<ushort, float>, diagtransC2_<short,float>,
         diagtransC2_<int, double>, diagtransC2_<float, float>, diagtransC2_<double, double>, 0,
-        diagtransC3_<uchar, float>, 0, diagtransC3_<ushort, float>, diagtransC3_<short,float>,
+        0, 0, diagtransC3_<ushort, float>, diagtransC3_<short,float>,
         diagtransC3_<int, double>, diagtransC3_<float, float>, diagtransC3_<double, double>, 0,
-        diagtransC4_<uchar, float>, 0, diagtransC4_<ushort, float>, diagtransC4_<short,float>,
+        0, 0, diagtransC4_<ushort, float>, diagtransC4_<short,float>,
         diagtransC4_<int, double>, diagtransC4_<float, float>, diagtransC4_<double, double>, 0}
     };
 
@@ -1905,7 +1904,7 @@ void transform( const Mat& src, Mat& dst, const Mat& _m )
                 for( j = 0; j < 256; j++, val += delta )
                 {
                     int ival = cvRound(val);
-                    data[j] = CV_CAST_8U(ival);
+                    data[j*scn] = CV_CAST_8U(ival);
                 }
             }
             LUT( src, lut, dst );
@@ -1913,7 +1912,7 @@ void transform( const Mat& src, Mat& dst, const Mat& _m )
         }
     }
 
-    TransformFunc func = tab[0][type];
+    TransformFunc func = tab[isDiag][type];
     CV_Assert( func != 0 );
     func( src, dst, m );
 }
@@ -2132,7 +2131,7 @@ void scaleAdd( const Mat& src1, double alpha, const Mat& src2, Mat& dst )
         }
     }
     else
-        CV_Error( CV_StsUnsupportedFormat, "" );
+        addWeighted(src1, alpha, src2, 1, 0, dst);
 }
 
 /****************************************************************************************\
@@ -2882,8 +2881,9 @@ cvCalcCovarMatrix( const CvArr** vecarr, int count,
     if( avgarr )
         mean = mean0 = cv::cvarrToMat(avgarr);
 
-    if( count == 1 || (flags & CV_COVAR_COLS) != 0 || (flags & CV_COVAR_ROWS) != 0 )
+    if( (flags & CV_COVAR_COLS) != 0 || (flags & CV_COVAR_ROWS) != 0 )
     {
+
         cv::Mat data = cv::cvarrToMat(vecarr[0]);
         cv::calcCovarMatrix( data, cov, mean, flags, cov.type() );
     }
@@ -2951,18 +2951,27 @@ cvCalcPCA( const CvArr* data_arr, CvArr* avg_arr, CvArr* eigenvals, CvArr* eigen
         transpose( temp, mean );
     }
 
-    if( pca.eigenvalues.size() == evals.size() )
-        pca.eigenvalues.convertTo( evals, evals.type() );
+    evals = pca.eigenvalues;
+    evects = pca.eigenvectors;
+    int ecount0 = evals0.cols + evals0.rows - 1;
+    int ecount = evals.cols + evals.rows - 1;
+    
+    CV_Assert( (evals0.cols == 1 || evals0.rows == 1) &&
+                ecount0 <= ecount &&
+                evects0.cols == evects.cols &&
+                evects0.rows == ecount0 );
+    
+    cv::Mat temp = evals0;
+    if( evals.rows == 1 )
+        evals.colRange(0, ecount0).convertTo(temp, evals0.type());
     else
-    {
-        cv::Mat temp; pca.eigenvalues.convertTo( temp, evals.type() );
-        transpose( temp, evals );
-    }
-
-    pca.eigenvectors.convertTo( evects, evects.type() );
+        evals.rowRange(0, ecount0).convertTo(temp, evals0.type());
+    if( temp.data != evals0.data )
+        transpose(temp, evals0);
+    evects.rowRange(0, ecount0).convertTo( evects0, evects0.type() );
 
     // otherwise some datatype's or size's were incorrect, so the output arrays have been reallocated
-    CV_Assert( mean0.data == mean.data && evals0.data == evals.data && evects0.data == evects.data );
+    CV_Assert( mean0.data == mean.data );
 }
 
 
@@ -2975,7 +2984,18 @@ cvProjectPCA( const CvArr* data_arr, const CvArr* avg_arr,
 
     cv::PCA pca;
     pca.mean = mean;
-    pca.eigenvectors = evects;
+    int n;
+    if( mean.rows == 1 )
+    {
+        CV_Assert(dst.cols <= evects.rows && dst.rows == data.rows);
+        n = dst.cols;
+    }
+    else
+    {
+        CV_Assert(dst.rows <= evects.rows && dst.cols == data.cols);
+        n = dst.rows;
+    }
+    pca.eigenvectors = evects.rowRange(0, n);
 
     cv::Mat result = pca.project(data);
     if( result.cols != dst.cols )
@@ -2995,7 +3015,18 @@ cvBackProjectPCA( const CvArr* proj_arr, const CvArr* avg_arr,
 
     cv::PCA pca;
     pca.mean = mean;
-    pca.eigenvectors = evects;
+    int n;
+    if( mean.rows == 1 )
+    {
+        CV_Assert(data.cols <= evects.rows && dst.rows == data.rows);
+        n = data.cols;
+    }
+    else
+    {
+        CV_Assert(data.rows <= evects.rows && dst.cols == data.cols);
+        n = data.rows;
+    }
+    pca.eigenvectors = evects.rowRange(0, n);
 
     cv::Mat result = pca.backProject(data);
     result.convertTo(dst, dst.type());

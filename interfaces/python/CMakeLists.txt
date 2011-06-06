@@ -17,19 +17,20 @@ add_custom_command(
    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated0.i
    COMMAND ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/gen.py ${CMAKE_CURRENT_SOURCE_DIR}
    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/api
+   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/defs
    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen.py
    )
 
 set(the_target "cvpy")
-add_library(${the_target} SHARED ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs} ${CMAKE_CURRENT_BINARY_DIR}/generated0.i)
-target_link_libraries(${the_target} ${PYTHON_LIBRARIES} cxcore cv highgui)
+add_library(${the_target} ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs} ${CMAKE_CURRENT_BINARY_DIR}/generated0.i)
+target_link_libraries(${the_target} ${PYTHON_LIBRARIES} cxcore cv cvaux highgui)
 set_target_properties(${the_target} PROPERTIES PREFIX "")
 set_target_properties(${the_target} PROPERTIES OUTPUT_NAME "cv")
-if(WIN32)
-   set(CVPY_SUFFIX ".pyd")
-else()
-   set(CVPY_SUFFIX ".so")
-endif()
+
+execute_process(COMMAND ${PYTHON_EXECUTABLE} -c "import distutils.sysconfig; print distutils.sysconfig.get_config_var('SO')"
+                RESULT_VARIABLE PYTHON_CVPY_PROCESS
+                OUTPUT_VARIABLE CVPY_SUFFIX
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 set_target_properties(${the_target} PROPERTIES SUFFIX ${CVPY_SUFFIX})
 

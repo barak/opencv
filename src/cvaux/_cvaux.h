@@ -48,6 +48,7 @@
 #include "cvaux.h"
 #include "cxmisc.h"
 #include "_cvmatrix.h"
+#include "cvinternal.h"
 
 typedef unsigned short ushort;
 
@@ -62,12 +63,5 @@ CV_INLINE bool operator != (CvSize size1, CvSize size2 )
 {
     return size1.width != size2.width || size1.height != size2.height;
 }
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
 
 #endif /* __CVAUX_H__ */

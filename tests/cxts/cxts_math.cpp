@@ -1170,7 +1170,7 @@ _exit_:
 // element for which difference is >success_err_level
 // (or index of element with the maximum difference)
 int cvTsCmpEps( const CvMat* check_arr, const CvMat* etalon, double* _max_diff,
-                double success_err_level, CvPoint* idx, bool element_wise_relative_error )
+                double success_err_level, CvPoint* _idx, bool element_wise_relative_error )
 {
     int i = 0, j = 0;
     int cn, ncols;
@@ -1179,6 +1179,7 @@ int cvTsCmpEps( const CvMat* check_arr, const CvMat* etalon, double* _max_diff,
     int imaxdiff = 0;
     int ilevel = 0;
     int result = -1;
+    CvPoint stub, *idx = _idx ? _idx : &stub;
 
     cn = CV_MAT_CN(check_arr->type);
     ncols = check_arr->cols*cn;
@@ -1275,6 +1276,8 @@ int cvTsCmpEps( const CvMat* check_arr, const CvMat* etalon, double* _max_diff,
                 double a_val = ((float*)a_data)[j];
                 double b_val = ((float*)b_data)[j];
                 double threshold;
+                if( ((int*)a_data)[j] == ((int*)b_data)[j] )
+                    continue;
                 if( cvIsNaN(a_val) || cvIsInf(a_val) )
                 {
                     result = -2;
@@ -1303,6 +1306,8 @@ int cvTsCmpEps( const CvMat* check_arr, const CvMat* etalon, double* _max_diff,
                 double a_val = ((double*)a_data)[j];
                 double b_val = ((double*)b_data)[j];
                 double threshold;
+                if( ((int64*)a_data)[j] == ((int64*)b_data)[j] )
+                    continue;
                 if( cvIsNaN(a_val) || cvIsInf(a_val) )
                 {
                     result = -2;
@@ -1316,7 +1321,7 @@ int cvTsCmpEps( const CvMat* check_arr, const CvMat* etalon, double* _max_diff,
                     goto _exit_;
                 }
                 a_val = fabs(a_val - b_val);
-                threshold = element_wise_relative_error ? fabs(b_val)+1 : maxval;
+                threshold = element_wise_relative_error ? fabs(b_val) + 1 : maxval;
                 if( a_val > threshold*success_err_level )
                 {
                     maxdiff = a_val/threshold;
@@ -2942,7 +2947,7 @@ void cvTsMinMaxFilter( const CvMat* a, CvMat* b, const IplConvKernel* kernel, in
     int cn, ncols, a_step;
     int ker_size = kernel->nRows*kernel->nCols;
     int* offset = (int*)malloc( ker_size*sizeof(offset[0]));
-    int calc_max = op_type == CV_TS_MAX;
+    int calc_max = op_type != 0;
     uchar *a_data, *b_data;
 
     cn = CV_MAT_CN(a->type);

@@ -42,19 +42,19 @@
 #include "_cv.h"
 
 static void
-icvComputeIntegralImages( const CvMat* _I, CvMat* _S, CvMat* _T, CvMat* _FT )
+icvComputeIntegralImages( const CvMat* matI, CvMat* matS, CvMat* matT, CvMat* _FT )
 {
-    int x, y, rows = _I->rows, cols = _I->cols;
-    const uchar* I = _I->data.ptr;
-    int *S = _S->data.i, *T = _T->data.i, *FT = _FT->data.i;
-    int istep = _I->step, step = _S->step/sizeof(S[0]);
+    int x, y, rows = matI->rows, cols = matI->cols;
+    const uchar* I = matI->data.ptr;
+    int *S = matS->data.i, *T = matT->data.i, *FT = _FT->data.i;
+    int istep = matI->step, step = matS->step/sizeof(S[0]);
     
-    assert( CV_MAT_TYPE(_I->type) == CV_8UC1 &&
-        CV_MAT_TYPE(_S->type) == CV_32SC1 &&
-        CV_ARE_TYPES_EQ(_S, _T) && CV_ARE_TYPES_EQ(_S, _FT) &&
-        CV_ARE_SIZES_EQ(_S, _T) && CV_ARE_SIZES_EQ(_S, _FT) &&
-        _S->step == _T->step && _S->step == _FT->step &&
-        _I->rows+1 == _S->rows && _I->cols+1 == _S->cols );
+    assert( CV_MAT_TYPE(matI->type) == CV_8UC1 &&
+        CV_MAT_TYPE(matS->type) == CV_32SC1 &&
+        CV_ARE_TYPES_EQ(matS, matT) && CV_ARE_TYPES_EQ(matS, _FT) &&
+        CV_ARE_SIZES_EQ(matS, matT) && CV_ARE_SIZES_EQ(matS, _FT) &&
+        matS->step == matT->step && matS->step == _FT->step &&
+        matI->rows+1 == matS->rows && matI->cols+1 == matS->cols );
 
     for( x = 0; x <= cols; x++ )
         S[x] = T[x] = FT[x] = 0;
@@ -115,12 +115,12 @@ icvStarDetectorComputeResponses( const CvMat* img, CvMat* responses, CvMat* size
     __m128 sizes1_4[MAX_PATTERN];
     Cv32suf absmask;
     absmask.i = 0x7fffffff;
-    __m128 absmask4 = _mm_set1_ps(absmask.f);
+    volatile bool useSIMD = cv::checkHardwareSupport(CV_CPU_SSE2);
 #endif
     CvStarFeature f[MAX_PATTERN];
 
     CvMat *sum = 0, *tilted = 0, *flatTilted = 0;
-    int x, y, i=0, rows = img->rows, cols = img->cols, step;
+    int y, i=0, rows = img->rows, cols = img->cols, step;
     int border, npatterns=0, maxIdx=0;
 #ifdef _OPENMP
     int nthreads = cvGetNumThreads();
@@ -131,11 +131,13 @@ icvStarDetectorComputeResponses( const CvMat* img, CvMat* responses, CvMat* size
         CV_MAT_TYPE(sizes->type) == CV_16SC1 &&
         CV_ARE_SIZES_EQ(responses, sizes) );
 
-    for(; pairs[i][0] >= 0; i++ )
+    while( pairs[i][0] >= 0 && !
+          ( sizes0[pairs[i][0]] >= params->maxSize 
+           || sizes0[pairs[i+1][0]] + sizes0[pairs[i+1][0]]/2 >= std::min(rows, cols) ) )
     {
-        if( sizes0[pairs[i][0]] >= params->maxSize )
-            break;
+        ++i;
     }
+    
     npatterns = i;
     npatterns += (pairs[npatterns-1][0] >= 0);
     maxIdx = pairs[npatterns-1][0];
@@ -179,14 +181,19 @@ icvStarDetectorComputeResponses( const CvMat* img, CvMat* responses, CvMat* size
         int outerArea = f[pairs[i][0]].area - innerArea;
         invSizes[i][0] = 1.f/outerArea;
         invSizes[i][1] = 1.f/innerArea;
-#if CV_SSE2
-        _mm_store_ps((float*)&invSizes4[i][0], _mm_set1_ps(invSizes[i][0]));
-        _mm_store_ps((float*)&invSizes4[i][1], _mm_set1_ps(invSizes[i][1]));
     }
+    
+#if CV_SSE2
+    if( useSIMD )
+    {
+        for( i = 0; i < npatterns; i++ )
+        {
+            _mm_store_ps((float*)&invSizes4[i][0], _mm_set1_ps(invSizes[i][0]));
+            _mm_store_ps((float*)&invSizes4[i][1], _mm_set1_ps(invSizes[i][1]));
+        }
 
-    for( i = 0; i <= maxIdx; i++ )
-        _mm_store_ps((float*)&sizes1_4[i], _mm_set1_ps((float)sizes1[i]));
-#else
+        for( i = 0; i <= maxIdx; i++ )
+            _mm_store_ps((float*)&sizes1_4[i], _mm_set1_ps((float)sizes1[i]));
     }
 #endif
 
@@ -196,11 +203,11 @@ icvStarDetectorComputeResponses( const CvMat* img, CvMat* responses, CvMat* size
         float* r_ptr2 = (float*)(responses->data.ptr + responses->step*(rows - 1 - y));
         short* s_ptr = (short*)(sizes->data.ptr + sizes->step*y);
         short* s_ptr2 = (short*)(sizes->data.ptr + sizes->step*(rows - 1 - y));
-        for( x = 0; x < cols; x++ )
-        {
-            r_ptr[x] = r_ptr2[x] = 0;
-            s_ptr[x] = s_ptr2[x] = 0;
-        }
+        
+        memset( r_ptr, 0, cols*sizeof(r_ptr[0]));
+        memset( r_ptr2, 0, cols*sizeof(r_ptr2[0]));
+        memset( s_ptr, 0, cols*sizeof(s_ptr[0]));
+        memset( s_ptr2, 0, cols*sizeof(s_ptr2[0]));
     }
 
 #ifdef _OPENMP
@@ -208,55 +215,59 @@ icvStarDetectorComputeResponses( const CvMat* img, CvMat* responses, CvMat* size
 #endif
     for( y = border; y < rows - border; y++ )
     {
-        int x, i;
+        int x = border, i;
         float* r_ptr = (float*)(responses->data.ptr + responses->step*y);
         short* s_ptr = (short*)(sizes->data.ptr + sizes->step*y);
-        for( x = 0; x < border; x++ )
-        {
-            r_ptr[x] = r_ptr[cols - 1 - x] = 0;
-            s_ptr[x] = s_ptr[cols - 1 - x] = 0;
-        }
+        
+        memset( r_ptr, 0, border*sizeof(r_ptr[0]));
+        memset( s_ptr, 0, border*sizeof(s_ptr[0]));
+        memset( r_ptr + cols - border, 0, border*sizeof(r_ptr[0]));
+        memset( s_ptr + cols - border, 0, border*sizeof(s_ptr[0]));
 
 #if CV_SSE2
-        for( ; x <= cols - border - 4; x += 4 )
+        if( useSIMD )
         {
-            int ofs = y*step + x;
-            __m128 vals[MAX_PATTERN];
-            __m128 bestResponse = _mm_setzero_ps();
-            __m128 bestSize = _mm_setzero_ps();
-
-            for( i = 0; i <= maxIdx; i++ )
+            __m128 absmask4 = _mm_set1_ps(absmask.f);
+            for( ; x <= cols - border - 4; x += 4 )
             {
-                const int** p = (const int**)&f[i].p[0];
-                __m128i r0 = _mm_sub_epi32(_mm_loadu_si128((const __m128i*)(p[0]+ofs)),
-                                           _mm_loadu_si128((const __m128i*)(p[1]+ofs)));
-                __m128i r1 = _mm_sub_epi32(_mm_loadu_si128((const __m128i*)(p[3]+ofs)),
-                                           _mm_loadu_si128((const __m128i*)(p[2]+ofs)));
-                __m128i r2 = _mm_sub_epi32(_mm_loadu_si128((const __m128i*)(p[4]+ofs)),
-                                           _mm_loadu_si128((const __m128i*)(p[5]+ofs)));
-                __m128i r3 = _mm_sub_epi32(_mm_loadu_si128((const __m128i*)(p[7]+ofs)),
-                                           _mm_loadu_si128((const __m128i*)(p[6]+ofs)));
-                r0 = _mm_add_epi32(_mm_add_epi32(r0,r1), _mm_add_epi32(r2,r3));
-                _mm_store_ps((float*)&vals[i], _mm_cvtepi32_ps(r0));
-            }
+                int ofs = y*step + x;
+                __m128 vals[MAX_PATTERN];
+                __m128 bestResponse = _mm_setzero_ps();
+                __m128 bestSize = _mm_setzero_ps();
 
-            for( i = 0; i < npatterns; i++ )
-            {
-                __m128 inner_sum = vals[pairs[i][1]];
-                __m128 outer_sum = _mm_sub_ps(vals[pairs[i][0]], inner_sum);
-                __m128 response = _mm_sub_ps(_mm_mul_ps(inner_sum, invSizes4[i][1]),
-                    _mm_mul_ps(outer_sum, invSizes4[i][0]));
-                __m128 swapmask = _mm_cmpgt_ps(_mm_and_ps(response,absmask4),
-                    _mm_and_ps(bestResponse,absmask4));
-                bestResponse = _mm_xor_ps(bestResponse,
-                    _mm_and_ps(_mm_xor_ps(response,bestResponse), swapmask));
-                bestSize = _mm_xor_ps(bestSize,
-                    _mm_and_ps(_mm_xor_ps(sizes1_4[pairs[i][0]], bestSize), swapmask));
-            }
+                for( i = 0; i <= maxIdx; i++ )
+                {
+                    const int** p = (const int**)&f[i].p[0];
+                    __m128i r0 = _mm_sub_epi32(_mm_loadu_si128((const __m128i*)(p[0]+ofs)),
+                                               _mm_loadu_si128((const __m128i*)(p[1]+ofs)));
+                    __m128i r1 = _mm_sub_epi32(_mm_loadu_si128((const __m128i*)(p[3]+ofs)),
+                                               _mm_loadu_si128((const __m128i*)(p[2]+ofs)));
+                    __m128i r2 = _mm_sub_epi32(_mm_loadu_si128((const __m128i*)(p[4]+ofs)),
+                                               _mm_loadu_si128((const __m128i*)(p[5]+ofs)));
+                    __m128i r3 = _mm_sub_epi32(_mm_loadu_si128((const __m128i*)(p[7]+ofs)),
+                                               _mm_loadu_si128((const __m128i*)(p[6]+ofs)));
+                    r0 = _mm_add_epi32(_mm_add_epi32(r0,r1), _mm_add_epi32(r2,r3));
+                    _mm_store_ps((float*)&vals[i], _mm_cvtepi32_ps(r0));
+                }
 
-            _mm_storeu_ps(r_ptr + x, bestResponse);
-            _mm_storel_epi64((__m128i*)(s_ptr + x),
-                _mm_packs_epi32(_mm_cvtps_epi32(bestSize),_mm_setzero_si128()));
+                for( i = 0; i < npatterns; i++ )
+                {
+                    __m128 inner_sum = vals[pairs[i][1]];
+                    __m128 outer_sum = _mm_sub_ps(vals[pairs[i][0]], inner_sum);
+                    __m128 response = _mm_sub_ps(_mm_mul_ps(inner_sum, invSizes4[i][1]),
+                        _mm_mul_ps(outer_sum, invSizes4[i][0]));
+                    __m128 swapmask = _mm_cmpgt_ps(_mm_and_ps(response,absmask4),
+                        _mm_and_ps(bestResponse,absmask4));
+                    bestResponse = _mm_xor_ps(bestResponse,
+                        _mm_and_ps(_mm_xor_ps(response,bestResponse), swapmask));
+                    bestSize = _mm_xor_ps(bestSize,
+                        _mm_and_ps(_mm_xor_ps(sizes1_4[pairs[i][0]], bestSize), swapmask));
+                }
+
+                _mm_storeu_ps(r_ptr + x, bestResponse);
+                _mm_storel_epi64((__m128i*)(s_ptr + x),
+                    _mm_packs_epi32(_mm_cvtps_epi32(bestSize),_mm_setzero_si128()));
+            }
         }
 #endif        
         for( ; x < cols - border; x++ )

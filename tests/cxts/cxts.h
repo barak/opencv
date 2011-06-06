@@ -51,12 +51,17 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <string>
 
 #if _MSC_VER >= 1200
 #pragma warning( disable: 4710 )
 #endif
 
 #define CV_TS_VERSION "CxTest 0.1"
+
+#define __BEGIN__ __CV_BEGIN__
+#define __END__  __CV_END__
+#define EXIT __CV_EXIT__
 
 // Helper class for growing vector (to avoid dependency from STL)
 template < typename T > class CvTestVec
@@ -172,7 +177,7 @@ protected:
     virtual void run_func(); // runs tested func(s)
 
     // prints results of timing test
-    virtual void print_time( int test_case_idx, double time_usecs );
+    virtual void print_time( int test_case_idx, double time_usecs, double time_cpu_clocks );
 
     // updates progress bar
     virtual int update_progress( int progress, int test_case_idx, int count, double dt );
@@ -232,6 +237,9 @@ typedef struct CvTestInfo
 
     // seed value right before the data for the failed test case is prepared.
     uint64 rng_seed;
+    
+    // seed value right before running the test
+    uint64 rng_seed0;
 
     // index of test case, can be then passed to CvTest::proceed_to_test_case()
     int test_case_idx;
@@ -382,7 +390,7 @@ public:
     CvTest* get_first_test() { return CvTest::get_first_test(); }
 
     // retrieves one of global options of the test system
-    bool is_debug_mode() { return params.debug_mode; }
+    int is_debug_mode() { return params.debug_mode; }
 
     // returns the current testing mode
     int get_testing_mode()  { return params.test_mode; }
@@ -423,7 +431,7 @@ protected:
 
     // reads common parameters of the test system; called from init()
     virtual int read_params( CvFileStorage* fs );
-
+    
     // checks, whether the test needs to be run (1) or not (0); called from run()
     virtual int filter( CvTest* test );
 
@@ -472,7 +480,7 @@ protected:
     {
         // if non-zero, the tests are run in unprotected mode to debug possible crashes,
         // otherwise the system tries to catch the exceptions and continue with other tests
-        bool debug_mode;
+        int debug_mode;
 
         // if non-zero, the header is not print
         bool skip_header;
@@ -547,6 +555,7 @@ protected:
 
     StreamInfo output_streams[MAX_IDX];
     int ostream_testname_mask;
+    std::string logbuf;
 };
 
 
@@ -577,7 +586,7 @@ protected:
     virtual void fill_array( int test_case_idx, int i, int j, CvMat* arr );
     virtual void get_minmax_bounds( int i, int j, int type, CvScalar* low, CvScalar* high );
     virtual double get_success_error_level( int test_case_idx, int i, int j );
-    virtual void print_time( int test_case_idx, double time_usecs );
+    virtual void print_time( int test_case_idx, double time_usecs, double time_cpu_clocks );
     virtual void print_timing_params( int test_case_idx, char* ptr, int params_left=TIMING_EXTRA_PARAMS );
 
     bool cvmat_allowed;
@@ -603,6 +612,75 @@ protected:
     float buf[4];
 };
 
+
+class CV_EXPORTS CvBadArgTest : public CvTest
+{
+public:
+    // constructor(s) and destructor
+    CvBadArgTest( const char* test_name, const char* test_funcs, const char* test_descr = "" );
+    virtual ~CvBadArgTest();
+
+protected:
+    virtual int run_test_case( int expected_code, const char* descr );
+    virtual void run_func(void) = 0;
+    int test_case_idx;
+    int progress;
+    double t, freq;   
+
+    template<class F>
+    int run_test_case( int expected_code, const char* descr, F f)
+    {
+        double new_t = (double)cv::getTickCount(), dt;
+        if( test_case_idx < 0 )
+        {
+            test_case_idx = 0;
+            progress = 0;
+            dt = 0;
+        }
+        else
+        {
+            dt = (new_t - t)/(freq*1000);
+            t = new_t;
+        }
+        progress = update_progress(progress, test_case_idx, 0, dt);
+        
+        int errcount = 0;
+        bool thrown = false;
+        if(!descr)
+            descr = "";
+
+        try
+        {
+            f();
+        }
+        catch(const cv::Exception& e)
+        {
+            thrown = true;
+            if( e.code != expected_code )
+            {
+                ts->printf(CvTS::LOG, "%s (test case #%d): the error code %d is different from the expected %d\n",
+                    descr, test_case_idx, e.code, expected_code);
+                errcount = 1;
+            }
+        }
+        catch(...)
+        {
+            thrown = true;
+            ts->printf(CvTS::LOG, "%s  (test case #%d): unknown exception was thrown (the function has likely crashed)\n",
+                       descr, test_case_idx);
+            errcount = 1;
+        }
+        if(!thrown)
+        {
+            ts->printf(CvTS::LOG, "%s  (test case #%d): no expected exception was thrown\n",
+                       descr, test_case_idx);
+            errcount = 1;
+        }
+        test_case_idx++;
+        
+        return errcount;
+    }
+};
 
 /****************************************************************************************\
 *                                 Utility Functions                                      *

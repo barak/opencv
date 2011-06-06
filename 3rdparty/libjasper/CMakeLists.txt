@@ -30,8 +30,14 @@ if(MSVC)
     add_definitions(-DJAS_WIN_MSVC_BUILD)
 endif()
 
-if(UNIX AND CMAKE_COMPILER_IS_GNUCXX)
-     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+if(UNIX)
+    if(CMAKE_COMPILER_IS_GNUCXX OR CV_ICC)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+    endif()
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-implicit-function-declaration -Wno-unused")
 endif()
 
 set_target_properties(${the_target}

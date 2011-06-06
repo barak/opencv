@@ -554,6 +554,9 @@ struct RowVec_8u32s
 
     int operator()(const uchar* _src, uchar* _dst, int width, int cn) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         int i = 0, k, _ksize = kernel.rows + kernel.cols - 1;
         int* dst = (int*)_dst;
         const int* _kx = (const int*)kernel.data;
@@ -643,6 +646,9 @@ struct SymmRowSmallVec_8u32s
 
     int operator()(const uchar* src, uchar* _dst, int width, int cn) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         int i = 0, j, k, _ksize = kernel.rows + kernel.cols - 1;
         int* dst = (int*)_dst;
         bool symmetrical = (symmetryType & KERNEL_SYMMETRICAL) != 0;
@@ -961,6 +967,9 @@ struct SymmColumnVec_32s8u
 
     int operator()(const uchar** _src, uchar* dst, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         int ksize2 = (kernel.rows + kernel.cols - 1)/2;
         const float* ky = (const float*)kernel.data + ksize2;
         int i = 0, k;
@@ -1106,6 +1115,9 @@ struct SymmColumnSmallVec_32s16s
 
     int operator()(const uchar** _src, uchar* _dst, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         int ksize2 = (kernel.rows + kernel.cols - 1)/2;
         const float* ky = (const float*)kernel.data + ksize2;
         int i = 0;
@@ -1234,6 +1246,9 @@ struct RowVec_32f
 
     int operator()(const uchar* _src, uchar* _dst, int width, int cn) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         int i = 0, k, _ksize = kernel.rows + kernel.cols - 1;
         float* dst = (float*)_dst;
         const float* _kx = (const float*)kernel.data;
@@ -1274,6 +1289,9 @@ struct SymmRowSmallVec_32f
 
     int operator()(const uchar* _src, uchar* _dst, int width, int cn) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         int i = 0, _ksize = kernel.rows + kernel.cols - 1;
         float* dst = (float*)_dst;
         const float* src = (const float*)_src + (_ksize/2)*cn;
@@ -1466,6 +1484,9 @@ struct SymmColumnVec_32f
 
     int operator()(const uchar** _src, uchar* _dst, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         int ksize2 = (kernel.rows + kernel.cols - 1)/2;
         const float* ky = (const float*)kernel.data + ksize2;
         int i = 0, k;
@@ -1605,6 +1626,9 @@ struct SymmColumnSmallVec_32f
 
     int operator()(const uchar** _src, uchar* _dst, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         int ksize2 = (kernel.rows + kernel.cols - 1)/2;
         const float* ky = (const float*)kernel.data + ksize2;
         int i = 0;
@@ -1736,6 +1760,9 @@ struct FilterVec_8u
 
     int operator()(const uchar** src, uchar* dst, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         const float* kf = (const float*)&coeffs[0];
         int i = 0, k, nz = _nz;
         __m128 d4 = _mm_set1_ps(delta);
@@ -1816,6 +1843,9 @@ struct FilterVec_8u16s
 
     int operator()(const uchar** src, uchar* _dst, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         const float* kf = (const float*)&coeffs[0];
         short* dst = (short*)_dst;
         int i = 0, k, nz = _nz;
@@ -1894,6 +1924,9 @@ struct FilterVec_32f
 
     int operator()(const uchar** _src, uchar* _dst, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         const float* kf = (const float*)&coeffs[0];
         const float** src = (const float**)_src;
         float* dst = (float*)_dst;
@@ -2952,8 +2985,8 @@ void filter2D( const Mat& src, Mat& dst, int ddepth,
         ddepth = src.depth();
 
 #if CV_SSE2
-    int dft_filter_size = (src.depth() == CV_8U && (ddepth == CV_8U || ddepth == CV_16S)) ||
-        (src.depth() == CV_32F && ddepth == CV_32F) ? 130 : 50;
+    int dft_filter_size = ((src.depth() == CV_8U && (ddepth == CV_8U || ddepth == CV_16S)) ||
+        (src.depth() == CV_32F && ddepth == CV_32F)) && checkHardwareSupport(CV_CPU_SSE3)? 130 : 50;
 #else
     int dft_filter_size = 50;
 #endif
@@ -2961,8 +2994,8 @@ void filter2D( const Mat& src, Mat& dst, int ddepth,
     dst.create( src.size(), CV_MAKETYPE(ddepth, src.channels()) );
     anchor = normalizeAnchor(anchor, kernel.size());
 
-    if( kernel.cols*kernel.rows >= dft_filter_size &&
-        kernel.cols <= src.cols && kernel.rows <= src.rows )
+    if( kernel.cols*kernel.rows >= dft_filter_size /*&&
+        kernel.cols <= src.cols && kernel.rows <= src.rows*/ )
     {
         Mat temp;
         if( src.data != dst.data )

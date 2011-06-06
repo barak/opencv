@@ -84,9 +84,12 @@ template<class VecUpdate> struct MorphRowIVec
     MorphRowIVec(int _ksize, int _anchor) : ksize(_ksize), anchor(_anchor) {}
     int operator()(const uchar* src, uchar* dst, int width, int cn) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         cn *= ESZ;
         int i, k, _ksize = ksize*cn;
-        width *= cn;
+        width = (width & -4)*cn;
         VecUpdate updateOp;
 
         for( i = 0; i <= width - 16; i += 16 )
@@ -100,7 +103,7 @@ template<class VecUpdate> struct MorphRowIVec
             _mm_storeu_si128((__m128i*)(dst + i), s);
         }
 
-        for( ; i <= width - 4; i += 4 )
+        for( ; i < width; i += 4 )
         {
             __m128i s = _mm_cvtsi32_si128(*(const int*)(src + i));
             for( k = cn; k < _ksize; k += cn )
@@ -123,11 +126,14 @@ template<class VecUpdate> struct MorphRowFVec
     MorphRowFVec(int _ksize, int _anchor) : ksize(_ksize), anchor(_anchor) {}
     int operator()(const uchar* src, uchar* dst, int width, int cn) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         int i, k, _ksize = ksize*cn;
-        width *= cn;
+        width = (width & -4)*cn;
         VecUpdate updateOp;
 
-        for( i = 0; i <= width - 4; i += 4 )
+        for( i = 0; i < width; i += 4 )
         {
             __m128 s = _mm_loadu_ps((const float*)src + i);
             for( k = cn; k < _ksize; k += cn )
@@ -152,6 +158,9 @@ template<class VecUpdate> struct MorphColumnIVec
     MorphColumnIVec(int _ksize, int _anchor) : ksize(_ksize), anchor(_anchor) {}
     int operator()(const uchar** src, uchar* dst, int dststep, int count, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         int i = 0, k, _ksize = ksize;
         width *= ESZ;
         VecUpdate updateOp;
@@ -253,6 +262,9 @@ template<class VecUpdate> struct MorphColumnFVec
     MorphColumnFVec(int _ksize, int _anchor) : ksize(_ksize), anchor(_anchor) {}
     int operator()(const uchar** _src, uchar* _dst, int dststep, int count, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         int i = 0, k, _ksize = ksize;
         VecUpdate updateOp;
 
@@ -379,6 +391,9 @@ template<class VecUpdate> struct MorphIVec
 
     int operator()(uchar** src, int nz, uchar* dst, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE2) )
+            return 0;
+        
         int i, k;
         width *= ESZ;
         VecUpdate updateOp;
@@ -423,6 +438,9 @@ template<class VecUpdate> struct MorphFVec
 {
     int operator()(uchar** _src, int nz, uchar* _dst, int width) const
     {
+        if( !checkHardwareSupport(CV_CPU_SSE) )
+            return 0;
+        
         const float** src = (const float**)_src;
         float* dst = (float*)_dst;
         int i, k;
@@ -483,7 +501,6 @@ template<class VecUpdate> struct MorphFVec
     }
 };
 
-
 struct VMin8u
 {
     enum { ESZ = 1 };
@@ -504,7 +521,7 @@ struct VMax16u
 {
     enum { ESZ = 2 };
     __m128i operator()(const __m128i& a, const __m128i& b) const
-    { return _mm_adds_epu16(_mm_subs_epu16(a,b),b); }
+    { return _mm_adds_epu16(_mm_subs_epu16(a,b), b); }
 };
 struct VMin16s
 {
@@ -533,9 +550,9 @@ typedef MorphRowFVec<VMax32f> DilateRowVec32f;
 typedef MorphColumnIVec<VMin8u> ErodeColumnVec8u;
 typedef MorphColumnIVec<VMax8u> DilateColumnVec8u;
 typedef MorphColumnIVec<VMin16u> ErodeColumnVec16u;
-typedef MorphColumnIVec<VMax16u> DilateColumnVec16s;
+typedef MorphColumnIVec<VMax16u> DilateColumnVec16u;
 typedef MorphColumnIVec<VMin16s> ErodeColumnVec16s;
-typedef MorphColumnIVec<VMax16s> DilateColumnVec16u;
+typedef MorphColumnIVec<VMax16s> DilateColumnVec16s;
 typedef MorphColumnFVec<VMin32f> ErodeColumnVec32f;
 typedef MorphColumnFVec<VMax32f> DilateColumnVec32f;
 
@@ -879,7 +896,7 @@ Ptr<BaseColumnFilter> getMorphologyColumnFilter(int op, int type, int ksize, int
                 DilateColumnVec16u>(ksize, anchor));
         if( depth == CV_16S )
             return Ptr<BaseColumnFilter>(new MorphColumnFilter<MaxOp<short>,
-                DilateColumnVec16u>(ksize, anchor));
+                DilateColumnVec16s>(ksize, anchor));
         if( depth == CV_32F )
             return Ptr<BaseColumnFilter>(new MorphColumnFilter<MaxOp<float>,
                 DilateColumnVec32f>(ksize, anchor));
@@ -946,7 +963,7 @@ Ptr<FilterEngine> createMorphologyFilter( int op, int type, const Mat& kernel,
     if( (_rowBorderType == BORDER_CONSTANT || _columnBorderType == BORDER_CONSTANT) &&
         borderValue == morphologyDefaultBorderValue() )
     {
-        int depth = CV_MAT_TYPE(type);
+        int depth = CV_MAT_DEPTH(type);
         CV_Assert( depth == CV_8U || depth == CV_16U || depth == CV_32F );
         if( op == MORPH_ERODE )
             borderValue = Scalar::all( depth == CV_8U ? (double)UCHAR_MAX :
@@ -1082,6 +1099,12 @@ void morphologyEx( const Mat& src, Mat& dst, int op, const Mat& kernel,
     Mat temp;
     switch( op )
     {
+    case MORPH_ERODE:
+        erode( src, dst, kernel, anchor, iterations, borderType, borderValue );
+        break;    
+    case MORPH_DILATE:
+        dilate( src, dst, kernel, anchor, iterations, borderType, borderValue );
+        break;    
     case MORPH_OPEN:
         erode( src, dst, kernel, anchor, iterations, borderType, borderValue );
         dilate( dst, dst, kernel, anchor, iterations, borderType, borderValue );

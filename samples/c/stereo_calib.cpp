@@ -25,6 +25,8 @@
      http://pr.willowgarage.com/wiki/OpenCV
    ************************************************** */
 
+#undef _GLIBCXX_DEBUG
+
 #include "cv.h"
 #include "cxmisc.h"
 #include "highgui.h"
@@ -46,33 +48,40 @@ using namespace std;
 static void
 StereoCalib(const char* imageList, int useUncalibrated)
 {
+    CvRect roi1, roi2;
     int nx = 0, ny = 0;
-    int displayCorners = 0;
+    int displayCorners = 1;
     int showUndistorted = 1;
     bool isVerticalStereo = false;//OpenCV can handle left-right
                                       //or up-down camera arrangements
     const int maxScale = 1;
     const float squareSize = 1.f; //Set this to your actual square size
     FILE* f = fopen(imageList, "rt");
-    int i, j, lr, nframes, n, N = 0;
+    int i, j, lr, nframes = 0, n, N = 0;
     vector<string> imageNames[2];
     vector<CvPoint3D32f> objectPoints;
     vector<CvPoint2D32f> points[2];
+    vector<CvPoint2D32f> temp_points[2];
     vector<int> npoints;
-    vector<uchar> active[2];
+//    vector<uchar> active[2];
+    int is_found[2] = {0, 0};
     vector<CvPoint2D32f> temp;
     CvSize imageSize = {0,0};
     // ARRAY AND VECTOR STORAGE:
     double M1[3][3], M2[3][3], D1[5], D2[5];
     double R[3][3], T[3], E[3][3], F[3][3];
+    double Q[4][4];
     CvMat _M1 = cvMat(3, 3, CV_64F, M1 );
     CvMat _M2 = cvMat(3, 3, CV_64F, M2 );
     CvMat _D1 = cvMat(1, 5, CV_64F, D1 );
     CvMat _D2 = cvMat(1, 5, CV_64F, D2 );
-    CvMat _R = cvMat(3, 3, CV_64F, R );
-    CvMat _T = cvMat(3, 1, CV_64F, T );
-    CvMat _E = cvMat(3, 3, CV_64F, E );
-    CvMat _F = cvMat(3, 3, CV_64F, F );
+    CvMat matR = cvMat(3, 3, CV_64F, R );
+    CvMat matT = cvMat(3, 1, CV_64F, T );
+    CvMat matE = cvMat(3, 3, CV_64F, E );
+    CvMat matF = cvMat(3, 3, CV_64F, F );
+    
+    CvMat matQ = cvMat(4, 4, CV_64FC1, Q);
+
     char buf[1024];
     
     if( displayCorners )
@@ -88,12 +97,14 @@ StereoCalib(const char* imageList, int useUncalibrated)
         return;
     n = nx*ny;
     temp.resize(n);
+    temp_points[0].resize(n);
+    temp_points[1].resize(n);
     
     for(i=0;;i++)
     {
         int count = 0, result=0;
         lr = i % 2;
-        vector<CvPoint2D32f>& pts = points[lr];
+        vector<CvPoint2D32f>& pts = temp_points[lr];//points[lr];
         if( !fgets( buf, sizeof(buf)-3, f ))
             break;
         size_t len = strlen(buf);
@@ -138,17 +149,21 @@ StereoCalib(const char* imageList, int useUncalibrated)
             cvCvtColor( img, cimg, CV_GRAY2BGR );
             cvDrawChessboardCorners( cimg, cvSize(nx, ny), &temp[0],
                 count, result );
-            cvShowImage( "corners", cimg );
+            IplImage* cimg1 = cvCreateImage(cvSize(640, 480), IPL_DEPTH_8U, 3);
+            cvResize(cimg, cimg1);
+            cvShowImage( "corners", cimg1 );
             cvReleaseImage( &cimg );
+            cvReleaseImage( &cimg1 );
             int c = cvWaitKey(1000);
             if( c == 27 || c == 'q' || c == 'Q' ) //Allow ESC to quit
                 exit(-1);
         }
         else
             putchar('.');
-        N = pts.size();
-        pts.resize(N + n, cvPoint2D32f(0,0));
-        active[lr].push_back((uchar)result);
+        //N = pts.size();
+        //pts.resize(N + n, cvPoint2D32f(0,0));
+        //active[lr].push_back((uchar)result);
+        is_found[lr] = result > 0 ? 1 : 0;
     //assert( result != 0 );
         if( result )
         {
@@ -157,14 +172,36 @@ StereoCalib(const char* imageList, int useUncalibrated)
                 cvSize(11, 11), cvSize(-1,-1),
                 cvTermCriteria(CV_TERMCRIT_ITER+CV_TERMCRIT_EPS,
                 30, 0.01) );
-            copy( temp.begin(), temp.end(), pts.begin() + N );
+            copy( temp.begin(), temp.end(), pts.begin() );
         }
         cvReleaseImage( &img );
+        
+        if(lr)
+        {
+            if(is_found[0] == 1 && is_found[1] == 1)
+            {
+                assert(temp_points[0].size() == temp_points[1].size());
+                int current_size = points[0].size();
+                
+                points[0].resize(current_size + temp_points[0].size(), cvPoint2D32f(0.0, 0.0));
+                points[1].resize(current_size + temp_points[1].size(), cvPoint2D32f(0.0, 0.0));
+                
+                copy(temp_points[0].begin(), temp_points[0].end(), points[0].begin() + current_size);
+                copy(temp_points[1].begin(), temp_points[1].end(), points[1].begin() + current_size);
+                
+                nframes++;
+
+                printf("Pair successfully detected...\n");
+            }
+            
+            is_found[0] = 0;
+            is_found[1] = 0;
+            
+        }
     }
     fclose(f);
     printf("\n");
 // HARVEST CHESSBOARD 3D OBJECT POINT LIST:
-    nframes = active[0].size();//Number of good chessboads found
     objectPoints.resize(nframes*n);
     for( i = 0; i < ny; i++ )
         for( j = 0; j < nx; j++ )
@@ -183,20 +220,22 @@ StereoCalib(const char* imageList, int useUncalibrated)
     cvSetIdentity(&_M2);
     cvZero(&_D1);
     cvZero(&_D2);
-
+    
 // CALIBRATE THE STEREO CAMERAS
     printf("Running stereo calibration ...");
     fflush(stdout);
     cvStereoCalibrate( &_objectPoints, &_imagePoints1,
         &_imagePoints2, &_npoints,
         &_M1, &_D1, &_M2, &_D2,
-        imageSize, &_R, &_T, &_E, &_F,
+        imageSize, &matR, &matT, &matE, &matF,
         cvTermCriteria(CV_TERMCRIT_ITER+
         CV_TERMCRIT_EPS, 100, 1e-5),
         CV_CALIB_FIX_ASPECT_RATIO +
         CV_CALIB_ZERO_TANGENT_DIST +
-        CV_CALIB_SAME_FOCAL_LENGTH );
+        CV_CALIB_SAME_FOCAL_LENGTH +
+        CV_CALIB_FIX_K3);
     printf(" done\n");
+    
 // CALIBRATION QUALITY CHECK
 // because the output fundamental matrix implicitly
 // includes all the output information,
@@ -216,8 +255,8 @@ StereoCalib(const char* imageList, int useUncalibrated)
         &_M1, &_D1, 0, &_M1 );
     cvUndistortPoints( &_imagePoints2, &_imagePoints2,
         &_M2, &_D2, 0, &_M2 );
-    cvComputeCorrespondEpilines( &_imagePoints1, 1, &_F, &_L1 );
-    cvComputeCorrespondEpilines( &_imagePoints2, 2, &_F, &_L2 );
+    cvComputeCorrespondEpilines( &_imagePoints1, 1, &matF, &_L1 );
+    cvComputeCorrespondEpilines( &_imagePoints2, 2, &matF, &_L2 );
     double avgErr = 0;
     for( i = 0; i < N; i++ )
     {
@@ -228,6 +267,15 @@ StereoCalib(const char* imageList, int useUncalibrated)
         avgErr += err;
     }
     printf( "avg err = %g\n", avgErr/(nframes*n) );
+    
+    // save intrinsic parameters
+    CvFileStorage* fstorage = cvOpenFileStorage("intrinsics.yml", NULL, CV_STORAGE_WRITE);
+    cvWrite(fstorage, "M1", &_M1);
+    cvWrite(fstorage, "D1", &_D1);
+    cvWrite(fstorage, "M2", &_M2);
+    cvWrite(fstorage, "D2", &_D2);
+    cvReleaseFileStorage(&fstorage);
+    
 //COMPUTE AND DISPLAY RECTIFICATION
     if( showUndistorted )
     {
@@ -236,7 +284,6 @@ StereoCalib(const char* imageList, int useUncalibrated)
         CvMat* my1 = cvCreateMat( imageSize.height,
             imageSize.width, CV_32F );
         CvMat* mx2 = cvCreateMat( imageSize.height,
-
             imageSize.width, CV_32F );
         CvMat* my2 = cvCreateMat( imageSize.height,
             imageSize.width, CV_32F );
@@ -246,9 +293,6 @@ StereoCalib(const char* imageList, int useUncalibrated)
             imageSize.width, CV_8U );
         CvMat* disp = cvCreateMat( imageSize.height,
             imageSize.width, CV_16S );
-        CvMat* vdisp = cvCreateMat( imageSize.height,
-            imageSize.width, CV_8U );
-        CvMat* pair;
         double R1[3][3], R2[3][3], P1[3][4], P2[3][4];
         CvMat _R1 = cvMat(3, 3, CV_64F, R1);
         CvMat _R2 = cvMat(3, 3, CV_64F, R2);
@@ -257,11 +301,28 @@ StereoCalib(const char* imageList, int useUncalibrated)
         {
             CvMat _P1 = cvMat(3, 4, CV_64F, P1);
             CvMat _P2 = cvMat(3, 4, CV_64F, P2);
+
             cvStereoRectify( &_M1, &_M2, &_D1, &_D2, imageSize,
-                &_R, &_T,
-                &_R1, &_R2, &_P1, &_P2, 0,
-                0/*CV_CALIB_ZERO_DISPARITY*/ );
+                &matR, &matT,
+                &_R1, &_R2, &_P1, &_P2, &matQ,
+                CV_CALIB_ZERO_DISPARITY,
+                1, imageSize, &roi1, &roi2);
+            
+            CvFileStorage* file = cvOpenFileStorage("extrinsics.yml", NULL, CV_STORAGE_WRITE);
+            cvWrite(file, "R", &matR);
+            cvWrite(file, "T", &matT);    
+            cvWrite(file, "R1", &_R1);
+            cvWrite(file, "R2", &_R2);
+            cvWrite(file, "P1", &_P1);    
+            cvWrite(file, "P2", &_P2);    
+            cvWrite(file, "Q", &matQ);
+            cvReleaseFileStorage(&file);
+                        
             isVerticalStereo = fabs(P2[1][3]) > fabs(P2[0][3]);
+            if(!isVerticalStereo)
+                roi2.x += imageSize.width;
+            else
+                roi2.y += imageSize.height;
     //Precompute maps for cvRemap()
             cvInitUndistortRectifyMap(&_M1,&_D1,&_R1,&_P1,mx1,my1);
             cvInitUndistortRectifyMap(&_M2,&_D2,&_R2,&_P2,mx2,my2);
@@ -279,9 +340,9 @@ StereoCalib(const char* imageList, int useUncalibrated)
     //Just to show you could have independently used F
             if( useUncalibrated == 2 )
                 cvFindFundamentalMat( &_imagePoints1,
-                &_imagePoints2, &_F);
+                &_imagePoints2, &matF);
             cvStereoRectifyUncalibrated( &_imagePoints1,
-                &_imagePoints2, &_F,
+                &_imagePoints2, &matF,
                 imageSize,
                 &_H1, &_H2, 3);
             cvInvert(&_M1, &_iM);
@@ -297,86 +358,8 @@ StereoCalib(const char* imageList, int useUncalibrated)
         }
         else
             assert(0);
-        cvNamedWindow( "rectified", 1 );
-// RECTIFY THE IMAGES AND FIND DISPARITY MAPS
-        if( !isVerticalStereo )
-            pair = cvCreateMat( imageSize.height, imageSize.width*2,
-            CV_8UC3 );
-        else
-            pair = cvCreateMat( imageSize.height*2, imageSize.width,
-            CV_8UC3 );
-//Setup for finding stereo corrrespondences
-        CvStereoBMState *BMState = cvCreateStereoBMState();
-        assert(BMState != 0);
-        BMState->preFilterSize=33;
-        BMState->preFilterCap=33;
-        BMState->SADWindowSize=33;
-        if( useUncalibrated )
-        {
-            BMState->minDisparity=-64;
-            BMState->numberOfDisparities=128;
-        }
-        else
-        {
-            BMState->minDisparity=-32;
-            BMState->numberOfDisparities=192;
-        }
-        BMState->textureThreshold=10;
-        BMState->uniquenessRatio=15;
-        for( i = 0; i < nframes; i++ )
-        {
-            IplImage* img1=cvLoadImage(imageNames[0][i].c_str(),0);
-            IplImage* img2=cvLoadImage(imageNames[1][i].c_str(),0);
-            if( img1 && img2 )
-            {
-                CvMat part;
-                cvRemap( img1, img1r, mx1, my1 );
-                cvRemap( img2, img2r, mx2, my2 );
-                if( !isVerticalStereo || useUncalibrated != 0 )
-                {
-              // When the stereo camera is oriented vertically,
-              // useUncalibrated==0 does not transpose the
-              // image, so the epipolar lines in the rectified
-              // images are vertical. Stereo correspondence
-              // function does not support such a case.
-                    cvFindStereoCorrespondenceBM( img1r, img2r, disp,
-                        BMState);
-                    cvNormalize( disp, vdisp, 0, 256, CV_MINMAX );
-                    cvNamedWindow( "disparity" );
-                    cvShowImage( "disparity", vdisp );
-                }
-                if( !isVerticalStereo )
-                {
-                    cvGetCols( pair, &part, 0, imageSize.width );
-                    cvCvtColor( img1r, &part, CV_GRAY2BGR );
-                    cvGetCols( pair, &part, imageSize.width,
-                        imageSize.width*2 );
-                    cvCvtColor( img2r, &part, CV_GRAY2BGR );
-                    for( j = 0; j < imageSize.height; j += 16 )
-                        cvLine( pair, cvPoint(0,j),
-                        cvPoint(imageSize.width*2,j),
-                        CV_RGB(0,255,0));
-                }
-                else
-                {
-                    cvGetRows( pair, &part, 0, imageSize.height );
-                    cvCvtColor( img1r, &part, CV_GRAY2BGR );
-                    cvGetRows( pair, &part, imageSize.height,
-                        imageSize.height*2 );
-                    cvCvtColor( img2r, &part, CV_GRAY2BGR );
-                    for( j = 0; j < imageSize.width; j += 16 )
-                        cvLine( pair, cvPoint(j,0),
-                        cvPoint(j,imageSize.height*2),
-                        CV_RGB(0,255,0));
-                }
-                cvShowImage( "rectified", pair );
-                if( cvWaitKey() == 27 )
-                    break;
-            }
-            cvReleaseImage( &img1 );
-            cvReleaseImage( &img2 );
-        }
-        cvReleaseStereoBMState(&BMState);
+        
+        
         cvReleaseMat( &mx1 );
         cvReleaseMat( &my1 );
         cvReleaseMat( &mx2 );
@@ -389,7 +372,7 @@ StereoCalib(const char* imageList, int useUncalibrated)
 
 int main(int argc, char** argv)
 {
-    StereoCalib(argc > 1 ? argv[1] : "stereo_calib.txt", 1);
+    StereoCalib(argc > 1 ? argv[1] : "stereo_calib.txt", 0);
     return 0;
 }
 

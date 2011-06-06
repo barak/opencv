@@ -44,10 +44,43 @@
 
 #if defined WIN32 || defined WIN64 || defined _WIN64 || defined WINCE
 #include <tchar.h>
+#if defined _MSC_VER
+  #if _MSC_VER >= 1400
+    #include <intrin.h>
+  #elif defined _M_IX86 
+    static void __cpuid(int* cpuid_data, int)
+    {
+        __asm
+        {
+            push ebx
+            push edi
+            mov edi, cpuid_data
+            mov eax, 1
+            cpuid
+            mov [edi], eax
+            mov [edi + 4], ebx
+            mov [edi + 8], ecx
+            mov [edi + 12], edx
+            pop edi
+            pop ebx
+        }
+    }
+  #endif
+#endif
 #else
 #include <pthread.h>
 #include <sys/time.h>
 #include <time.h>
+
+#ifdef __MACH__
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+#endif
+
+#endif
+
+#ifdef _OPENMP
+#include "omp.h"
 #endif
 
 #include <stdarg.h>
@@ -55,8 +88,85 @@
 namespace cv
 {
 
+struct HWFeatures
+{
+    enum { MAX_FEATURE = CV_HARDWARE_MAX_FEATURE };
+    
+    HWFeatures()
+    {
+        memset( have, 0, sizeof(have) );
+        x86_family = 0;
+    }
+    
+    static HWFeatures initialize()
+    {
+        HWFeatures f;
+        int cpuid_data[4]={0,0,0,0};
+        
+    #if defined _MSC_VER && (defined _M_IX86 || defined _M_X64)
+        __cpuid(cpuid_data, 1);
+    #elif defined __GNUC__ && (defined __i386__ || defined __x86_64__)
+        #ifdef __x86_64__
+        asm __volatile__
+        (
+         "movl $1, %%eax\n\t"
+         "cpuid\n\t"
+         :[eax]"=a"(cpuid_data[0]),[ebx]"=b"(cpuid_data[1]),[ecx]"=c"(cpuid_data[2]),[edx]"=d"(cpuid_data[3])
+         :
+         : "cc"
+        );
+        #else
+        asm volatile
+        (
+         "pushl %%ebx\n\t"
+         "movl $1,%%eax\n\t"
+         "cpuid\n\t"
+         "popl %%ebx\n\t"
+         : "=a"(cpuid_data[0]), "=c"(cpuid_data[2]), "=d"(cpuid_data[3])
+         :
+         : "cc"
+        );
+        #endif
+    #endif
+        
+        f.x86_family = (cpuid_data[0] >> 8) & 15;
+        if( f.x86_family >= 6 )
+        {
+            f.have[CV_CPU_MMX] = (cpuid_data[3] & (1 << 23)) != 0;
+            f.have[CV_CPU_SSE] = (cpuid_data[3] & (1<<25)) != 0;
+            f.have[CV_CPU_SSE2] = (cpuid_data[3] & (1<<26)) != 0;
+            f.have[CV_CPU_SSE3] = (cpuid_data[2] & (1<<0)) != 0;
+            f.have[CV_CPU_SSSE3] = (cpuid_data[2] & (1<<9)) != 0;
+            f.have[CV_CPU_SSE4_1] = (cpuid_data[2] & (1<<19)) != 0;
+            f.have[CV_CPU_SSE4_2] = (cpuid_data[2] & (1<<20)) != 0;
+            f.have[CV_CPU_AVX] = (cpuid_data[2] & (1<<28)) != 0;
+        }
+        
+        return f;
+    }
+    
+    int x86_family;
+    bool have[MAX_FEATURE+1];
+};
+    
+static HWFeatures featuresEnabled = HWFeatures::initialize(), featuresDisabled = HWFeatures();
+static HWFeatures* currentFeatures = &featuresEnabled;
+
+bool checkHardwareSupport(int feature)
+{
+    CV_DbgAssert( 0 <= feature && feature <= CV_HARDWARE_MAX_FEATURE );
+    return currentFeatures->have[feature];
+}
+
 #ifdef HAVE_IPP
 volatile bool useOptimizedFlag = true;
+
+struct IPPInitializer
+{
+    IPPInitializer() { ippStaticInit(); }
+};
+
+IPPInitializer ippInitializer;
 #else
 volatile bool useOptimizedFlag = false;
 #endif
@@ -64,13 +174,14 @@ volatile bool useOptimizedFlag = false;
 void setUseOptimized( bool flag )
 {
     useOptimizedFlag = flag;
+    currentFeatures = flag ? &featuresEnabled : &featuresDisabled;
 }
 
 bool useOptimized()
 {
     return useOptimizedFlag;
 }
-
+    
 int64 getTickCount()
 {
 #if defined WIN32 || defined WIN64 || defined _WIN64 || defined WINCE
@@ -81,7 +192,9 @@ int64 getTickCount()
     struct timespec tp;
     clock_gettime(CLOCK_MONOTONIC, &tp);
     return (int64)tp.tv_sec*1000000000 + tp.tv_nsec;
-#else
+#elif defined __MACH__
+    return (int64)mach_absolute_time();
+#else    
     struct timeval tv;
     struct timezone tz;
     gettimeofday( &tv, &tz );
@@ -97,10 +210,79 @@ double getTickFrequency()
     return (double)freq.QuadPart;
 #elif defined __linux || defined __linux__
     return 1e9;
+#elif defined __MACH__
+    static double freq = 0;
+    if( freq == 0 )
+    {
+        mach_timebase_info_data_t sTimebaseInfo;
+        mach_timebase_info(&sTimebaseInfo);
+        freq = sTimebaseInfo.denom*1e9/sTimebaseInfo.numer;
+    }
+    return freq; 
 #else
     return 1e6;
 #endif
 }
+
+#if defined __GNUC__ && (defined __i386__ || defined __x86_64__ || defined __ppc__) 
+#if defined(__i386__)
+
+int64 getCPUTickCount(void)
+{
+    int64 x;
+    __asm__ volatile (".byte 0x0f, 0x31" : "=A" (x));
+    return x;
+}
+#elif defined(__x86_64__)
+
+int64 getCPUTickCount(void)
+{
+    unsigned hi, lo;
+    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+    return (int64)lo | ((int64)hi << 32);
+}
+
+#elif defined(__ppc__)
+
+int64 getCPUTickCount(void)
+{
+    int64 result=0;
+    unsigned upper, lower, tmp;
+    __asm__ volatile(
+                     "0:                  \n"
+                     "\tmftbu   %0           \n"
+                     "\tmftb    %1           \n"
+                     "\tmftbu   %2           \n"
+                     "\tcmpw    %2,%0        \n"
+                     "\tbne     0b         \n"
+                     : "=r"(upper),"=r"(lower),"=r"(tmp)
+                     );
+    return lower | ((int64)upper << 32);
+}
+
+#else
+
+#error "RDTSC not defined"
+
+#endif
+
+#elif defined _MSC_VER && defined WIN32 && !defined _WIN64
+
+int64 getCPUTickCount(void)
+{
+    __asm _emit 0x0f;
+    __asm _emit 0x31;
+}
+
+#else
+
+int64 getCPUTickCount()
+{
+    return getTickCount();
+}
+
+#endif
+
 
 static int numThreads = 0;
 static int numProcs = 0;
@@ -148,8 +330,8 @@ int getThreadNum(void)
     return 0;
 #endif
 }
-
-
+    
+    
 string format( const char* fmt, ... )
 {
     char buf[1 << 16];
@@ -241,6 +423,12 @@ cvGuiBoxReport( int code, const char *func_name, const char *err_msg,
     return 0;
 #endif
 }*/
+
+CV_IMPL int cvCheckHardwareSupport(int feature)
+{
+    CV_DbgAssert( 0 <= feature && feature <= CV_HARDWARE_MAX_FEATURE );
+    return cv::currentFeatures->have[feature];
+}
 
 CV_IMPL int cvUseOptimized( int flag )
 {

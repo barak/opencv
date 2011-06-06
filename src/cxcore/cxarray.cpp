@@ -67,12 +67,12 @@ cvSetIPLAllocators( Cv_iplCreateImageHeader createHeader,
                     Cv_iplCreateROI createROI,
                     Cv_iplCloneImage cloneImage )
 {
-    if( !createHeader || !allocateData || !deallocate || !createROI || !cloneImage )
-    {
-        if( createHeader || allocateData || deallocate || createROI || cloneImage )
-            CV_Error( CV_StsBadArg, "Either all the pointers should be null or "
-                                    "they all should be non-null" );
-    }
+    int count = (createHeader != 0) + (allocateData != 0) + (deallocate != 0) +
+        (createROI != 0) + (cloneImage != 0);
+    
+    if( count != 0 && count != 5 )
+        CV_Error( CV_StsBadArg, "Either all the pointers should be null or "
+                                 "they all should be non-null" );
 
     CvIPL.createHeader = createHeader;
     CvIPL.allocateData = allocateData;
@@ -175,6 +175,12 @@ cvInitMatHeader( CvMat* arr, int rows, int cols,
 }
 
 
+#undef CV_IS_MAT_HDR_Z
+#define CV_IS_MAT_HDR_Z(mat) \
+    ((mat) != NULL && \
+    (((const CvMat*)(mat))->type & CV_MAGIC_MASK) == CV_MAT_MAGIC_VAL && \
+    ((const CvMat*)(mat))->cols >= 0 && ((const CvMat*)(mat))->rows >= 0)
+
 // Deallocates the CvMat structure and underlying data
 CV_IMPL void
 cvReleaseMat( CvMat** array )
@@ -186,7 +192,7 @@ cvReleaseMat( CvMat** array )
     {
         CvMat* arr = *array;
         
-        if( !CV_IS_MAT_HDR(arr) && !CV_IS_MATND_HDR(arr) )
+        if( !CV_IS_MAT_HDR_Z(arr) && !CV_IS_MATND_HDR(arr) )
             CV_Error( CV_StsBadFlag, "" );
 
         *array = 0;
@@ -826,7 +832,7 @@ cvCreateData( CvArr* arr )
             int depth = img->depth;
             int width = img->width;
 
-            if( img->depth == IPL_DEPTH_32F || img->nChannels == 64 )
+            if( img->depth == IPL_DEPTH_32F || img->depth == IPL_DEPTH_64F )
             {
                 img->width *= img->depth == IPL_DEPTH_32F ? sizeof(float) : sizeof(double);
                 img->depth = IPL_DEPTH_8U;
@@ -1069,7 +1075,7 @@ cvGetElemType( const CvArr* arr )
     else if( CV_IS_IMAGE(arr))
     {
         IplImage* img = (IplImage*)arr;
-        type = CV_MAKETYPE( IplToCvDepth(img->depth), img->nChannels );
+        type = CV_MAKETYPE( IPL2CV_DEPTH(img->depth), img->nChannels );
     }
     else
         CV_Error( CV_StsBadArg, "unrecognized or unsupported array type" );
@@ -1788,7 +1794,7 @@ cvPtr2D( const CvArr* arr, int y, int x, int* _type )
 
         if( _type )
         {
-            int type = IplToCvDepth(img->depth);
+            int type = IPL2CV_DEPTH(img->depth);
             if( type < 0 || (unsigned)(img->nChannels - 1) > 3 )
                 CV_Error( CV_StsUnsupportedFormat, "" );
 
@@ -2384,7 +2390,7 @@ cvGetMat( const CvArr* array, CvMat* mat,
         if( img->imageData == 0 )
             CV_Error( CV_StsNullPtr, "The image has NULL data pointer" );
 
-        depth = IplToCvDepth( img->depth );
+        depth = IPL2CV_DEPTH( img->depth );
         if( depth < 0 )
             CV_Error( CV_BadDepth, "" );
 
@@ -2512,21 +2518,22 @@ cvReshapeMatND( const CvArr* arr,
     if( new_dims <= 2 )
     {
         CvMat* mat = (CvMat*)arr;
-        CvMat* header = (CvMat*)_header;
+        CvMat header;
         int* refcount = 0;
         int  hdr_refcount = 0;
         int  total_width, new_rows, cn;
 
-        if( sizeof_header != sizeof(CvMat))
-            CV_Error( CV_StsBadArg, "The header should be CvMat" );
+        if( sizeof_header != sizeof(CvMat) && sizeof_header != sizeof(CvMatND) )
+            CV_Error( CV_StsBadArg, "The output header should be CvMat or CvMatND" );
 
-        if( mat == header )
+        if( mat == (CvMat*)_header )
         {
             refcount = mat->refcount;
             hdr_refcount = mat->hdr_refcount;
         }
-        else if( !CV_IS_MAT( mat ))
-            mat = cvGetMat( mat, header, &coi, 1 );
+        
+        if( !CV_IS_MAT( mat ))
+            mat = cvGetMat( mat, &header, &coi, 1 );
 
         cn = CV_MAT_CN( mat->type );
         total_width = mat->cols * cn;
@@ -2560,31 +2567,41 @@ cvReshapeMatND( const CvArr* arr,
                                         "is not divisible by the new number of rows" );
         }
 
-        header->rows = new_rows;
-        header->cols = total_width / new_cn;
+        header.rows = new_rows;
+        header.cols = total_width / new_cn;
 
-        if( header->cols * new_cn != total_width ||
-            (new_sizes && header->cols != new_sizes[1]) )
+        if( header.cols * new_cn != total_width ||
+            (new_sizes && header.cols != new_sizes[1]) )
             CV_Error( CV_StsBadArg, "The total matrix width is not "
                             "divisible by the new number of columns" );
 
-        header->type = (mat->type & ~CV_MAT_TYPE_MASK) | CV_MAKETYPE(mat->type, new_cn);
-        header->step = header->cols * CV_ELEM_SIZE(mat->type);
-        header->step &= new_rows > 1 ? -1 : 0;
-        header->refcount = refcount;
-        header->hdr_refcount = hdr_refcount;
+        header.type = (mat->type & ~CV_MAT_TYPE_MASK) | CV_MAKETYPE(mat->type, new_cn);
+        header.step = header.cols * CV_ELEM_SIZE(mat->type);
+        header.step &= new_rows > 1 ? -1 : 0;
+        header.refcount = refcount;
+        header.hdr_refcount = hdr_refcount;
+        
+        if( sizeof_header == sizeof(CvMat) )
+            *(CvMat*)_header = header;
+        else
+        {
+            CvMatND* __header = (CvMatND*)_header;
+            cvGetMatND(&header, __header, 0);
+            if( new_dims > 0 )
+                __header->dims = new_dims;
+        }
     }
     else
     {
         CvMatND* header = (CvMatND*)_header;
 
         if( sizeof_header != sizeof(CvMatND))
-            CV_Error( CV_StsBadSize, "The header should be CvMatND" );
+            CV_Error( CV_StsBadSize, "The output header should be CvMatND" );
         
         if( !new_sizes )
         {
             if( !CV_IS_MATND( arr ))
-                CV_Error( CV_StsBadArg, "The source array must be CvMatND" );
+                CV_Error( CV_StsBadArg, "The input array must be CvMatND" );
 
             {
             CvMatND* mat = (CvMatND*)arr;
@@ -2665,7 +2682,7 @@ cvReshapeMatND( const CvArr* arr,
         }
     }
 
-    if( !coi )
+    if( coi )
         CV_Error( CV_BadCOI, "COI is not supported by this operation" );
 
     result = _header;

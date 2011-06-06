@@ -41,11 +41,14 @@ if(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3")
 endif()
 
+if(UNIX)
+  if(CMAKE_COMPILER_IS_GNUCXX OR CV_ICC)
+     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+  endif()
+endif()
+
 if(CMAKE_COMPILER_IS_GNUCXX)
-    if(UNIX)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-    endif()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-parentheses")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-parentheses -Wno-uninitialized -Wno-implicit-function-declaration -Wno-unused")
     set_source_files_properties(dlamch.c slamch.c PROPERTIES COMPILE_FLAGS "-ffloat-store -O0")
 endif()
 

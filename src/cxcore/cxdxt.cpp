@@ -55,21 +55,6 @@ namespace cv
 
 #define CV_MAX_LOCAL_DFT_SIZE  (1 << 15)
 
-static const uchar log2tab[] = { 0, 0, 1, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0 };
-static int log2( int n )
-{
-    int m = 0;
-    int f = (n >= (1 << 16))*16;
-    n >>= f;
-    m += f;
-    f = (n >= (1 << 8))*8;
-    n >>= f;
-    m += f;
-    f = (n >= (1 << 4))*4;
-    n >>= f;
-    return m + f + log2tab[n];
-}
-
 static unsigned char bitrevTab[] =
 {
   0x00,0x80,0x40,0xc0,0x20,0xa0,0x60,0xe0,0x10,0x90,0x50,0xd0,0x30,0xb0,0x70,0xf0,
@@ -230,8 +215,8 @@ DFTInit( int n0, int nf, int* factors, int* itab, int elem_size, void* _wave, in
         if( (n & 1) == 0 )
         {
             int a = radix[1], na2 = n*a>>1, na4 = na2 >> 1;
-            m = log2(n);
-        
+            for( m = 0; (unsigned)(1 << m) < (unsigned)n; m++ )
+                ;
             if( n <= 2  )
             {
                 itab[0] = 0;
@@ -381,7 +366,7 @@ template<typename T> struct DFT_VecR4
     int operator()(Complex<T>*, int, int, int&, const Complex<T>*) const { return 1; }
 };
 
-#if CV_SSE2
+#if CV_SSE3
 
 // optimized radix-4 transform
 template<> struct DFT_VecR4<float>
@@ -418,7 +403,7 @@ template<> struct DFT_VecR4<float>
                 t0 = _mm_movelh_ps(y01, y23);
                 y01 = _mm_add_ps(t0, t1);
                 y23 = _mm_sub_ps(t0, t1);
-                
+
                 _mm_storel_pi((__m64*)&v0[0], y01);
                 _mm_storeh_pi((__m64*)&v0[nx], y01);
                 _mm_storel_pi((__m64*)&v1[0], y23);
@@ -433,32 +418,27 @@ template<> struct DFT_VecR4<float>
                     w23 = _mm_loadl_pi(w23, (const __m64*)&wave[dw*2]);
                     x13 = _mm_loadh_pi(x13, (const __m64*)&v1[nx]); // x1, x3 = r1 i1 r3 i3
                     w23 = _mm_loadh_pi(w23, (const __m64*)&wave[dw*3]); // w2, w3 = wr2 wi2 wr3 wi3
-                    // r1*wr2 r1*wi2 i3*wr3 i3*wi3
-                    t0 = _mm_mul_ps(_mm_shuffle_ps(x13, x13, _MM_SHUFFLE(3,3,0,0)), w23);
                     
-                    // i1*wi2 i1*wr2 r3*wi3 r3*wr3
-                    t1 = _mm_mul_ps(_mm_shuffle_ps(x13, x13, _MM_SHUFFLE(2,2,1,1)),
-                                    _mm_shuffle_ps(w23, w23, _MM_SHUFFLE(2,3,0,1)));
-                                           
-                    // re(x1*w2), im(x1*w2), im(x3*w3), re(x3*w3)                       
-                    x13 = _mm_add_ps(_mm_xor_ps(t0, neg3_mask), _mm_xor_ps(t1, neg0_mask));
+                    t0 = _mm_mul_ps(_mm_moveldup_ps(x13), w23);
+                    t1 = _mm_mul_ps(_mm_movehdup_ps(x13), _mm_shuffle_ps(w23, w23, _MM_SHUFFLE(2,3,0,1)));
+                    x13 = _mm_addsub_ps(t0, t1);
+                    // re(x1*w2), im(x1*w2), re(x3*w3), im(x3*w3)
                     x02 = _mm_loadl_pi(x02, (const __m64*)&v1[0]); // x2 = r2 i2
                     w01 = _mm_loadl_pi(w01, (const __m64*)&wave[dw]); // w1 = wr1 wi1
-                    x02 = _mm_shuffle_ps(x02, x02, _MM_SHUFFLE(1,1,0,0));
+                    x02 = _mm_shuffle_ps(x02, x02, _MM_SHUFFLE(0,0,1,1));
                     w01 = _mm_shuffle_ps(w01, w01, _MM_SHUFFLE(1,0,0,1));
-                    x02 = _mm_mul_ps(x02, _mm_xor_ps(w01, neg3_mask));
-                    x02 = _mm_add_ps(x02, _mm_movelh_ps(z, x02));
-                    // re(x0) im(x0) im(x2*w1), re(x2*w1)
+                    x02 = _mm_mul_ps(x02, w01);
+                    x02 = _mm_addsub_ps(x02, _mm_movelh_ps(x02, x02));
+                    // re(x0) im(x0) re(x2*w1), im(x2*w1)
                     x02 = _mm_loadl_pi(x02, (const __m64*)&v0[0]);
                     
                     y01 = _mm_add_ps(x02, x13);
-                    y23 = _mm_xor_ps(_mm_sub_ps(x02, x13), neg3_mask);
-
+                    y23 = _mm_sub_ps(x02, x13);
+                    t1 = _mm_xor_ps(_mm_shuffle_ps(y01, y23, _MM_SHUFFLE(2,3,3,2)), neg3_mask);
                     t0 = _mm_movelh_ps(y01, y23);
-                    t1 = _mm_shuffle_ps(y01, y23, _MM_SHUFFLE(3,2,2,3));
                     y01 = _mm_add_ps(t0, t1);
                     y23 = _mm_sub_ps(t0, t1);
-                    
+
                     _mm_storel_pi((__m64*)&v0[0], y01);
                     _mm_storeh_pi((__m64*)&v0[nx], y01);
                     _mm_storel_pi((__m64*)&v1[0], y23);
@@ -661,7 +641,7 @@ DFT( const Complex<T>* src, Complex<T>* dst, int n,
     // 1. power-2 transforms
     if( (factors[0] & 1) == 0 )
     {
-        if( factors[0] >= 512 )
+        if( factors[0] >= 4 && checkHardwareSupport(CV_CPU_SSE3))
         {
             DFT_VecR4<T> vr4;
             n = vr4(dst, factors[0], n0, dw0, wave);
@@ -682,17 +662,17 @@ DFT( const Complex<T>* src, Complex<T>* dst, int n,
                 v0 = dst + i;
                 v1 = v0 + nx*2;
 
+                r0 = v1[0].re; i0 = v1[0].im;
+                r4 = v1[nx].re; i4 = v1[nx].im;
+
+                r1 = r0 + r4; i1 = i0 + i4;
+                r3 = i0 - i4; i3 = r4 - r0;
+
                 r2 = v0[0].re; i2 = v0[0].im;
-                r1 = v0[nx].re; i1 = v0[nx].im;
+                r4 = v0[nx].re; i4 = v0[nx].im;
                 
-                r0 = r1 + r2; i0 = i1 + i2;
-                r2 -= r1; i2 -= i1;
-
-                i3 = v1[nx].re; r3 = v1[nx].im;
-                i4 = v1[0].re; r4 = v1[0].im;
-
-                r1 = i4 + i3; i1 = r4 + r3;
-                r3 = r4 - r3; i3 = i3 - i4;
+                r0 = r2 + r4; i0 = i2 + i4;
+                r2 -= r4; i2 -= i4;
 
                 v0[0].re = r0 + r1; v0[0].im = i0 + i1;
                 v1[0].re = r0 - r1; v1[0].im = i0 - i1;
@@ -2143,7 +2123,9 @@ DCTInit( int n, int elem_size, void* _wave, int inv )
 
     if( (n & (n - 1)) == 0 )
     {
-        int m = log2(n);
+        int m;
+        for( m = 0; (unsigned)(1 << m) < (unsigned)n; m++ )
+            ;
         scale = (!inv ? 2 : 1)*DctScale[m];
         w1.re = DFTTab[m+2][0];
         w1.im = -DFTTab[m+2][1];

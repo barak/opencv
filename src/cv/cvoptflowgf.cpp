@@ -194,7 +194,7 @@ FarnebackPolyExpPyr( const Mat& src0, Vector<Mat>& pyr, int maxlevel, int n, dou
 
 
 static void
-FarnebackUpdateMatrices( const Mat& _R0, const Mat& _R1, const Mat& _flow, Mat& _M, int _y0, int _y1 )
+FarnebackUpdateMatrices( const Mat& _R0, const Mat& _R1, const Mat& _flow, Mat& matM, int _y0, int _y1 )
 {
     const int BORDER = 5;
     static const float border[BORDER] = {0.14f, 0.14f, 0.4472f, 0.4472f, 0.4472f};
@@ -203,13 +203,13 @@ FarnebackUpdateMatrices( const Mat& _R0, const Mat& _R1, const Mat& _flow, Mat& 
     const float* R1 = (float*)_R1.data;
     size_t step1 = _R1.step/sizeof(R1[0]);
     
-    _M.create(height, width, CV_32FC(5));
+    matM.create(height, width, CV_32FC(5));
 
     for( y = _y0; y < _y1; y++ )
     {
         const float* flow = (float*)(_flow.data + y*_flow.step);
         const float* R0 = (float*)(_R0.data + y*_R0.step);
-        float* M = (float*)(_M.data + y*_M.step);
+        float* M = (float*)(matM.data + y*matM.step);
         
         for( x = 0; x < width; x++ )
         {
@@ -292,7 +292,7 @@ FarnebackUpdateMatrices( const Mat& _R0, const Mat& _R1, const Mat& _flow, Mat& 
 
 static void
 FarnebackUpdateFlow_Blur( const Mat& _R0, const Mat& _R1,
-                          Mat& _flow, Mat& _M, int block_size,
+                          Mat& _flow, Mat& matM, int block_size,
                           bool update_matrices )
 {
     int x, y, width = _flow.cols, height = _flow.rows;
@@ -305,13 +305,13 @@ FarnebackUpdateFlow_Blur( const Mat& _R0, const Mat& _R1,
     double* vsum = _vsum + (m+1)*5;
 
     // init vsum
-    const float* srow0 = (const float*)_M.data;
+    const float* srow0 = (const float*)matM.data;
     for( x = 0; x < width*5; x++ )
         vsum[x] = srow0[x]*(m+2);
 
     for( y = 1; y < m; y++ )
     {
-        srow0 = (float*)(_M.data + _M.step*std::min(y,height-1));
+        srow0 = (float*)(matM.data + matM.step*std::min(y,height-1));
         for( x = 0; x < width*5; x++ )
             vsum[x] += srow0[x];
     }
@@ -322,8 +322,8 @@ FarnebackUpdateFlow_Blur( const Mat& _R0, const Mat& _R1,
         double g11, g12, g22, h1, h2;
         float* flow = (float*)(_flow.data + _flow.step*y);
 
-        srow0 = (const float*)(_M.data + _M.step*std::max(y-m-1,0));
-        const float* srow1 = (const float*)(_M.data + _M.step*std::min(y+m,height-1));
+        srow0 = (const float*)(matM.data + matM.step*std::max(y-m-1,0));
+        const float* srow1 = (const float*)(matM.data + matM.step*std::min(y+m,height-1));
         
         // vertical blur
         for( x = 0; x < width*5; x++ )
@@ -376,7 +376,7 @@ FarnebackUpdateFlow_Blur( const Mat& _R0, const Mat& _R1,
         y1 = y == height - 1 ? height : y - block_size;
         if( update_matrices && (y1 == height || y1 >= y0 + min_update_stripe) )
         {
-            FarnebackUpdateMatrices( _R0, _R1, _flow, _M, y0, y1 );
+            FarnebackUpdateMatrices( _R0, _R1, _flow, matM, y0, y1 );
             y0 = y1;
         }
     }
@@ -385,7 +385,7 @@ FarnebackUpdateFlow_Blur( const Mat& _R0, const Mat& _R1,
 
 static void
 FarnebackUpdateFlow_GaussianBlur( const Mat& _R0, const Mat& _R1,
-                                  Mat& _flow, Mat& _M, int block_size,
+                                  Mat& _flow, Mat& matM, int block_size,
                                   bool update_matrices )
 {
     int x, y, i, width = _flow.cols, height = _flow.rows;
@@ -415,8 +415,12 @@ FarnebackUpdateFlow_GaussianBlur( const Mat& _R0, const Mat& _R1,
 
 #if CV_SSE2
     float* simd_kernel = alignPtr(kernel + m+1, 16);
-    for( i = 0; i <= m; i++ )
-        _mm_store_ps(simd_kernel + i*4, _mm_set1_ps(kernel[i]));
+    volatile bool useSIMD = checkHardwareSupport(CV_CPU_SSE);
+    if( useSIMD )
+    {
+        for( i = 0; i <= m; i++ )
+            _mm_store_ps(simd_kernel + i*4, _mm_set1_ps(kernel[i]));
+    }
 #endif
 
     // compute blur(G)*flow=blur(h)
@@ -428,57 +432,60 @@ FarnebackUpdateFlow_GaussianBlur( const Mat& _R0, const Mat& _R1,
         // vertical blur
         for( i = 0; i <= m; i++ )
         {
-            srow[m-i] = (const float*)(_M.data + _M.step*std::max(y-i,0));
-            srow[m+i] = (const float*)(_M.data + _M.step*std::min(y+i,height-1));
+            srow[m-i] = (const float*)(matM.data + matM.step*std::max(y-i,0));
+            srow[m+i] = (const float*)(matM.data + matM.step*std::min(y+i,height-1));
         }
 
         x = 0;
 #if CV_SSE2
-        for( ; x <= width*5 - 16; x += 16 )
+        if( useSIMD )
         {
-            const float *sptr0 = srow[m], *sptr1;
-            __m128 g4 = _mm_load_ps(simd_kernel);
-            __m128 s0, s1, s2, s3;
-            s0 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x), g4);
-            s1 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x + 4), g4);
-            s2 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x + 8), g4);
-            s3 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x + 12), g4);
-
-            for( i = 1; i <= m; i++ )
+            for( ; x <= width*5 - 16; x += 16 )
             {
-                __m128 x0, x1;
-                sptr0 = srow[m+i], sptr1 = srow[m-i];
-                g4 = _mm_load_ps(simd_kernel + i*4);
-                x0 = _mm_add_ps(_mm_loadu_ps(sptr0 + x), _mm_loadu_ps(sptr1 + x));
-                x1 = _mm_add_ps(_mm_loadu_ps(sptr0 + x + 4), _mm_loadu_ps(sptr1 + x + 4));
-                s0 = _mm_add_ps(s0, _mm_mul_ps(x0, g4));
-                s1 = _mm_add_ps(s1, _mm_mul_ps(x1, g4));
-                x0 = _mm_add_ps(_mm_loadu_ps(sptr0 + x + 8), _mm_loadu_ps(sptr1 + x + 8));
-                x1 = _mm_add_ps(_mm_loadu_ps(sptr0 + x + 12), _mm_loadu_ps(sptr1 + x + 12));
-                s2 = _mm_add_ps(s2, _mm_mul_ps(x0, g4));
-                s3 = _mm_add_ps(s3, _mm_mul_ps(x1, g4));
+                const float *sptr0 = srow[m], *sptr1;
+                __m128 g4 = _mm_load_ps(simd_kernel);
+                __m128 s0, s1, s2, s3;
+                s0 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x), g4);
+                s1 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x + 4), g4);
+                s2 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x + 8), g4);
+                s3 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x + 12), g4);
+
+                for( i = 1; i <= m; i++ )
+                {
+                    __m128 x0, x1;
+                    sptr0 = srow[m+i], sptr1 = srow[m-i];
+                    g4 = _mm_load_ps(simd_kernel + i*4);
+                    x0 = _mm_add_ps(_mm_loadu_ps(sptr0 + x), _mm_loadu_ps(sptr1 + x));
+                    x1 = _mm_add_ps(_mm_loadu_ps(sptr0 + x + 4), _mm_loadu_ps(sptr1 + x + 4));
+                    s0 = _mm_add_ps(s0, _mm_mul_ps(x0, g4));
+                    s1 = _mm_add_ps(s1, _mm_mul_ps(x1, g4));
+                    x0 = _mm_add_ps(_mm_loadu_ps(sptr0 + x + 8), _mm_loadu_ps(sptr1 + x + 8));
+                    x1 = _mm_add_ps(_mm_loadu_ps(sptr0 + x + 12), _mm_loadu_ps(sptr1 + x + 12));
+                    s2 = _mm_add_ps(s2, _mm_mul_ps(x0, g4));
+                    s3 = _mm_add_ps(s3, _mm_mul_ps(x1, g4));
+                }
+                
+                _mm_store_ps(vsum + x, s0);
+                _mm_store_ps(vsum + x + 4, s1);
+                _mm_store_ps(vsum + x + 8, s2);
+                _mm_store_ps(vsum + x + 12, s3);
             }
-            
-            _mm_store_ps(vsum + x, s0);
-            _mm_store_ps(vsum + x + 4, s1);
-            _mm_store_ps(vsum + x + 8, s2);
-            _mm_store_ps(vsum + x + 12, s3);
-        }
 
-        for( ; x <= width*5 - 4; x += 4 )
-        {
-            const float *sptr0 = srow[m], *sptr1;
-            __m128 g4 = _mm_load_ps(simd_kernel);
-            __m128 s0 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x), g4);
-
-            for( i = 1; i <= m; i++ )
+            for( ; x <= width*5 - 4; x += 4 )
             {
-                sptr0 = srow[m+i], sptr1 = srow[m-i];
-                g4 = _mm_load_ps(simd_kernel + i*4);
-                __m128 x0 = _mm_add_ps(_mm_loadu_ps(sptr0 + x), _mm_loadu_ps(sptr1 + x));
-                s0 = _mm_add_ps(s0, _mm_mul_ps(x0, g4));
+                const float *sptr0 = srow[m], *sptr1;
+                __m128 g4 = _mm_load_ps(simd_kernel);
+                __m128 s0 = _mm_mul_ps(_mm_loadu_ps(sptr0 + x), g4);
+
+                for( i = 1; i <= m; i++ )
+                {
+                    sptr0 = srow[m+i], sptr1 = srow[m-i];
+                    g4 = _mm_load_ps(simd_kernel + i*4);
+                    __m128 x0 = _mm_add_ps(_mm_loadu_ps(sptr0 + x), _mm_loadu_ps(sptr1 + x));
+                    s0 = _mm_add_ps(s0, _mm_mul_ps(x0, g4));
+                }
+                _mm_store_ps(vsum + x, s0);
             }
-            _mm_store_ps(vsum + x, s0);
         }
 #endif
         for( ; x < width*5; x++ )
@@ -499,25 +506,28 @@ FarnebackUpdateFlow_GaussianBlur( const Mat& _R0, const Mat& _R1,
         // horizontal blur
         x = 0;
 #if CV_SSE2
-        for( ; x <= width*5 - 8; x += 8 )
+        if( useSIMD )
         {
-            __m128 g4 = _mm_load_ps(simd_kernel);
-            __m128 s0 = _mm_mul_ps(_mm_loadu_ps(vsum + x), g4);
-            __m128 s1 = _mm_mul_ps(_mm_loadu_ps(vsum + x + 4), g4);
-
-            for( i = 1; i <= m; i++ )
+            for( ; x <= width*5 - 8; x += 8 )
             {
-                g4 = _mm_load_ps(simd_kernel + i*4);
-                __m128 x0 = _mm_add_ps(_mm_loadu_ps(vsum + x - i*5),
-                                       _mm_loadu_ps(vsum + x + i*5));
-                __m128 x1 = _mm_add_ps(_mm_loadu_ps(vsum + x - i*5 + 4),
-                                       _mm_loadu_ps(vsum + x + i*5 + 4));
-                s0 = _mm_add_ps(s0, _mm_mul_ps(x0, g4));
-                s1 = _mm_add_ps(s1, _mm_mul_ps(x1, g4));
-            }
+                __m128 g4 = _mm_load_ps(simd_kernel);
+                __m128 s0 = _mm_mul_ps(_mm_loadu_ps(vsum + x), g4);
+                __m128 s1 = _mm_mul_ps(_mm_loadu_ps(vsum + x + 4), g4);
 
-            _mm_store_ps(hsum + x, s0);
-            _mm_store_ps(hsum + x + 4, s1);
+                for( i = 1; i <= m; i++ )
+                {
+                    g4 = _mm_load_ps(simd_kernel + i*4);
+                    __m128 x0 = _mm_add_ps(_mm_loadu_ps(vsum + x - i*5),
+                                           _mm_loadu_ps(vsum + x + i*5));
+                    __m128 x1 = _mm_add_ps(_mm_loadu_ps(vsum + x - i*5 + 4),
+                                           _mm_loadu_ps(vsum + x + i*5 + 4));
+                    s0 = _mm_add_ps(s0, _mm_mul_ps(x0, g4));
+                    s1 = _mm_add_ps(s1, _mm_mul_ps(x1, g4));
+                }
+
+                _mm_store_ps(hsum + x, s0);
+                _mm_store_ps(hsum + x + 4, s1);
+            }
         }
 #endif
         for( ; x < width*5; x++ )
@@ -545,7 +555,7 @@ FarnebackUpdateFlow_GaussianBlur( const Mat& _R0, const Mat& _R1,
         y1 = y == height - 1 ? height : y - block_size;
         if( update_matrices && (y1 == height || y1 >= y0 + min_update_stripe) )
         {
-            FarnebackUpdateMatrices( _R0, _R1, _flow, _M, y0, y1 );
+            FarnebackUpdateMatrices( _R0, _R1, _flow, matM, y0, y1 );
             y0 = y1;
         }
     }
@@ -565,7 +575,7 @@ void calcOpticalFlowFarneback( const Mat& prev0, const Mat& next0,
     Mat prevFlow, flow;
 
     CV_Assert( prev0.size() == next0.size() && prev0.channels() == next0.channels() &&
-        prev0.channels() == 1 );
+        prev0.channels() == 1 && pyr_scale < 1 );
     flow0.create( prev0.size(), CV_32FC2 );
 
     for( k = 0, scale = 1; k < levels; k++ )
@@ -634,3 +644,17 @@ void calcOpticalFlowFarneback( const Mat& prev0, const Mat& next0,
 }
 
 }
+
+CV_IMPL void cvCalcOpticalFlowFarneback(
+            const CvArr* _prev, const CvArr* _next,
+            CvArr* _flow, double pyr_scale, int levels,
+            int winsize, int iterations, int poly_n,
+            double poly_sigma, int flags )
+{
+    cv::Mat prev = cv::cvarrToMat(_prev), next = cv::cvarrToMat(_next);
+    cv::Mat flow = cv::cvarrToMat(_flow);
+    CV_Assert( flow.size() == prev.size() && flow.type() == CV_32FC2 );
+    cv::calcOpticalFlowFarneback( prev, next, flow, pyr_scale, levels,
+        winsize, iterations, poly_n, poly_sigma, flags );
+}
+

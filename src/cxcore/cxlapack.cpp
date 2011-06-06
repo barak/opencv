@@ -315,16 +315,10 @@ double invert( const Mat& src, Mat& dst, int method )
             return result;
         }
 
-        {
-        integer n = dst.cols, lwork=-1, elem_size = CV_ELEM_SIZE(type),
-            lda = (int)(dst.step/elem_size), piv1=0, info=0;
-
-        if( dst.data == src.data )
-        {
-            dst.release();
-            dst.create( src.rows, src.cols, type );
-        }
         src.copyTo(dst);
+        integer n = dst.cols, lwork=-1, elem_size = CV_ELEM_SIZE(type),
+            lda = (int)(dst.step/elem_size), piv1=0, info=0;    
+            
         if( method == DECOMP_LU )
         {
             int buf_size = (int)(n*sizeof(integer));
@@ -381,7 +375,6 @@ double invert( const Mat& src, Mat& dst, int method )
             completeSymm(dst);
         }
         result = info == 0;
-        }
     }
 
     if( !result )
@@ -394,32 +387,32 @@ double invert( const Mat& src, Mat& dst, int method )
 *                              Solving a linear system                                   *
 \****************************************************************************************/
 
-bool solve( const Mat& src, const Mat& src2, Mat& dst, int method )
+bool solve( const Mat& src, const Mat& _src2, Mat& dst, int method )
 {
     bool result = true;
     int type = src.type();
     bool is_normal = (method & DECOMP_NORMAL) != 0;
 
-    CV_Assert( type == src2.type() && (type == CV_32F || type == CV_64F) );
+    CV_Assert( type == _src2.type() && (type == CV_32F || type == CV_64F) );
 
     method &= ~DECOMP_NORMAL;
     CV_Assert( (method != DECOMP_LU && method != DECOMP_CHOLESKY) ||
         is_normal || src.rows == src.cols );
 
-    dst.create( src.cols, src2.cols, src.type() );
-
     // check case of a single equation and small matrix
     if( (method == DECOMP_LU || method == DECOMP_CHOLESKY) &&
-        src.rows <= 3 && src.rows == src.cols && src2.cols == 1 )
+        src.rows <= 3 && src.rows == src.cols && _src2.cols == 1 )
     {
+        dst.create( src.cols, _src2.cols, src.type() );
+        
         #define bf(y) ((float*)(bdata + y*src2step))[0]
         #define bd(y) ((double*)(bdata + y*src2step))[0]
 
         uchar* srcdata = src.data;
-        uchar* bdata = src2.data;
+        uchar* bdata = _src2.data;
         uchar* dstdata = dst.data;
         size_t srcstep = src.step;
-        size_t src2step = src2.step;
+        size_t src2step = _src2.step;
         size_t dststep = dst.step;
 
         if( src.rows == 2 )
@@ -541,7 +534,7 @@ bool solve( const Mat& src, const Mat& src2, Mat& dst, int method )
     double rcond=-1, s1=0, work1=0, *work=0, *s=0;
     float frcond=-1, fs1=0, fwork1=0, *fwork=0, *fs=0;
     integer m = src.rows, m_ = m, n = src.cols, mn = std::max(m,n),
-        nm = std::min(m, n), nb = src2.cols, lwork=-1, liwork=0, iwork1=0,
+        nm = std::min(m, n), nb = _src2.cols, lwork=-1, liwork=0, iwork1=0,
         lda = m, ldx = mn, info=0, rank=0, *iwork=0;
     int elem_size = CV_ELEM_SIZE(type);
     bool copy_rhs=false;
@@ -550,6 +543,9 @@ bool solve( const Mat& src, const Mat& src2, Mat& dst, int method )
     uchar* ptr;
     char N[] = {'N', '\0'}, L[] = {'L', '\0'};
 
+    Mat src2 = _src2;
+    dst.create( src.cols, src2.cols, src.type() );
+        
     if( m <= n )
         is_normal = false;
     else if( is_normal )
@@ -735,17 +731,19 @@ template<typename Real> static inline Real hypot(Real a, Real b)
         f = b/a;
         return a*std::sqrt(1 + f*f);
     }
+    if( b == 0 )
+        return 0;
     f = a/b;
     return b*std::sqrt(1 + f*f);
 }
 
     
-template<typename Real> bool jacobi(const Mat& _S0, Mat& _e, Mat& _E, bool computeEvects, Real eps)
+template<typename Real> bool jacobi(const Mat& _S0, Mat& _e, Mat& matE, bool computeEvects, Real eps)
 {
     int n = _S0.cols, i, j, k, m;
     
     if( computeEvects )
-        _E = Mat::eye(n, n, _S0.type());
+        matE = Mat::eye(n, n, _S0.type());
     
     int iters, maxIters = n*n*30;
     
@@ -756,15 +754,15 @@ template<typename Real> bool jacobi(const Mat& _S0, Mat& _e, Mat& _E, bool compu
     int* indR = (int*)(maxSC + n);
     int* indC = indR + n;
     
-    Mat _S(_S0.size(), _S0.type(), S);
-    _S0.copyTo(_S);
+    Mat matS(_S0.size(), _S0.type(), S);
+    _S0.copyTo(matS);
     
     Real mv;
-    Real* E = (Real*)_E.data;
+    Real* E = (Real*)matE.data;
     Real* e = (Real*)_e.data;
-    int Sstep = _S.step/sizeof(Real);
-    int estep = _e.cols == 1 ? 1 : _e.step/sizeof(Real);
-    int Estep = _E.step/sizeof(Real);
+    int Sstep = matS.step/sizeof(Real);
+    int estep = _e.rows == 1 ? 1 : _e.step/sizeof(Real);
+    int Estep = matE.step/sizeof(Real);
     
     for( k = 0; k < n; k++ )
     {
@@ -961,6 +959,8 @@ static bool eigen( const Mat& src, Mat& evals, Mat& evects, bool computeEvects,
         buf.allocate((lwork + n*n + (copy_evals ? n : 0))*elem_size +
                      (liwork+2*n+1)*sizeof(integer));
         Mat a(n, n, type, (uchar*)buf);
+        src.copyTo(a);
+        lda = a.step1();
         work = a.data + n*n*elem_size;
         if( copy_evals )
             s = (float*)(work + lwork*elem_size);
@@ -970,7 +970,7 @@ static bool eigen( const Mat& src, Mat& evals, Mat& evects, bool computeEvects,
         iwork = (integer*)cvAlignPtr(work + (lwork + (copy_evals ? n : 0))*elem_size, sizeof(integer));
         isupport = iwork + liwork;
 
-        ssyevr_(job, range, L, &n, (float*)src.data, &lda, &dummy, &dummy,
+        ssyevr_(job, range, L, &n, (float*)a.data, &lda, &dummy, &dummy,
             &il, &iu, &abstol, &m, s, (float*)evects.data,
             &ldv, isupport, (float*)work, &lwork, iwork, &liwork, &info );
         result = info == 0;
@@ -989,6 +989,8 @@ static bool eigen( const Mat& src, Mat& evals, Mat& evects, bool computeEvects,
         buf.allocate((lwork + n*n + (copy_evals ? n : 0))*elem_size +
                      (liwork+2*n+1)*sizeof(integer));
         Mat a(n, n, type, (uchar*)buf);
+        src.copyTo(a);
+        lda = a.step1();
         work = a.data + n*n*elem_size;
 
         if( copy_evals )
@@ -999,7 +1001,7 @@ static bool eigen( const Mat& src, Mat& evals, Mat& evects, bool computeEvects,
         iwork = (integer*)cvAlignPtr(work + (lwork + (copy_evals ? n : 0))*elem_size, sizeof(integer));
         isupport = iwork + liwork;
 
-        dsyevr_(job, range, L, &n, (double*)src.data, &lda, &dummy, &dummy,
+        dsyevr_(job, range, L, &n, (double*)a.data, &lda, &dummy, &dummy,
             &il, &iu, &abstol, &m, s, (double*)evects.data,
             &ldv, isupport, (double*)work, &lwork, iwork, &liwork, &info );
         result = info == 0;
@@ -1017,7 +1019,7 @@ static bool eigen( const Mat& src, Mat& evals, Mat& evects, bool computeEvects,
             flip(flipme, flipme, 0);
         }
     } else {
-        flip(evals, evals, 0);
+        flip(evals, evals, evals.rows > 1 ? 0 : 1);
         if( computeEvects )
             flip(evects, evects, 0);
     }
@@ -1278,7 +1280,35 @@ void SVD::backSubst( const Mat& rhs, Mat& dst ) const
 CV_IMPL double
 cvDet( const CvArr* arr )
 {
-    return determinant(cv::cvarrToMat(arr));
+    if( CV_IS_MAT(arr) && ((CvMat*)arr)->rows <= 3 )
+    {
+        CvMat* mat = (CvMat*)arr;
+        int type = CV_MAT_TYPE(mat->type);
+        int rows = mat->rows;
+        uchar* m = mat->data.ptr;
+        int step = mat->step;
+        CV_Assert( rows == mat->cols );
+
+        #define Mf(y, x) ((float*)(m + y*step))[x]
+        #define Md(y, x) ((double*)(m + y*step))[x]
+
+        if( type == CV_32F )
+        {
+            if( rows == 2 )
+                return det2(Mf);
+            if( rows == 3 )
+                return det3(Mf);
+        }
+        else if( type == CV_64F )
+        {
+            if( rows == 2 )
+                return det2(Md);
+            if( rows == 3 )
+                return det3(Md);
+        }
+        return cv::determinant(cv::Mat(mat));
+    }
+    return cv::determinant(cv::cvarrToMat(arr));
 }
 
 

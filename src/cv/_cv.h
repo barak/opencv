@@ -40,11 +40,11 @@
 //
 //M*/
 
-#ifndef _CV_INTERNAL_H_
-#define _CV_INTERNAL_H_
+#ifndef _OPENCV_CV_INTERNAL_H_
+#define _OPENCV_CV_INTERNAL_H_
 
 #if defined _MSC_VER && _MSC_VER >= 1200
-    /* disable warnings related to inline functions */
+    // disable warnings related to inline functions
     #pragma warning( disable: 4251 4711 4710 4514 )
 #endif
 
@@ -58,27 +58,7 @@
 #include <limits.h>
 #include <float.h>
 
-#ifdef __BORLANDC__
-#ifndef WIN32
-    #define     WIN32
-#endif
-#ifndef _WIN32
-    #define     _WIN32
-#endif
-    #define     CV_DLL
-    #undef      _CV_ALWAYS_PROFILE_
-    #define     _CV_ALWAYS_NO_PROFILE_
-#endif
-
-#ifdef HAVE_IPP
-#include "ipp.h"
-
-CV_INLINE IppiSize ippiSize(int width, int height)
-{
-    IppiSize size = { width, height };
-    return size;
-}
-#endif
+#include "cvinternal.h"
 
 /* helper tables */
 extern const uchar icvSaturate8u_cv[];
@@ -128,12 +108,7 @@ typedef struct CvPyramid
 }
 CvPyramid;
 
-#ifndef IPPI_CALL
-#define IPPI_CALL(func) CV_Assert((func) >= 0)
-#endif
-
-#include "_cvmatrix.h"
 #include "_cvgeom.h"
 #include "_cvimgproc.h"
 
-#endif /*_CV_INTERNAL_H_*/
+#endif /*__OPENCV_CV_INTERNAL_H_*/

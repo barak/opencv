@@ -371,12 +371,8 @@ icvInitPyramidalAlgorithm( const CvMat* imgA, const CvMat* imgB,
                            int max_iters, int flags,
                            uchar *** imgI, uchar *** imgJ,
                            int **step, CvSize** size,
-                           double **scale, uchar ** buffer )
+                           double **scale, cv::AutoBuffer<uchar>* buffer )
 {
-    CV_FUNCNAME( "icvInitPyramidalAlgorithm" );
-
-    __BEGIN__;
-
     const int ALIGN = 8;
     int pyrBytes, bufferBytes = 0, elem_size;
     int level1 = level + 1;
@@ -384,7 +380,6 @@ icvInitPyramidalAlgorithm( const CvMat* imgA, const CvMat* imgB,
     int i;
     CvSize imgSize, levelSize;
 
-    *buffer = 0;
     *imgI = *imgJ = 0;
     *step = 0;
     *scale = 0;
@@ -393,10 +388,10 @@ icvInitPyramidalAlgorithm( const CvMat* imgA, const CvMat* imgB,
     /* check input arguments */
     if( ((flags & CV_LKFLOW_PYR_A_READY) != 0 && !pyrA) ||
         ((flags & CV_LKFLOW_PYR_B_READY) != 0 && !pyrB) )
-        CV_ERROR( CV_StsNullPtr, "Some of the precomputed pyramids are missing" );
+        CV_Error( CV_StsNullPtr, "Some of the precomputed pyramids are missing" );
 
     if( level < 0 )
-        CV_ERROR( CV_StsOutOfRange, "The number of pyramid layers is negative" );
+        CV_Error( CV_StsOutOfRange, "The number of pyramid levels is negative" );
 
     switch( criteria->type )
     {
@@ -410,7 +405,7 @@ icvInitPyramidalAlgorithm( const CvMat* imgA, const CvMat* imgB,
         break;
     default:
         assert( 0 );
-        CV_ERROR( CV_StsBadArg, "Invalid termination criteria" );
+        CV_Error( CV_StsBadArg, "Invalid termination criteria" );
     }
 
     /* compare squared values */
@@ -440,9 +435,9 @@ icvInitPyramidalAlgorithm( const CvMat* imgA, const CvMat* imgB,
         (sizeof(imgI[0][0]) * 2 + sizeof(step[0][0]) +
          sizeof(size[0][0]) + sizeof(scale[0][0])) * level1);
 
-    CV_CALL( *buffer = (uchar *)cvAlloc( bufferBytes ));
+    buffer->allocate( bufferBytes );
 
-    *imgI = (uchar **) buffer[0];
+    *imgI = (uchar **) (uchar*)(*buffer);
     *imgJ = *imgI + level1;
     *step = (int *) (*imgJ + level1);
     *scale = (double *) (*step + level1);
@@ -510,8 +505,6 @@ icvInitPyramidalAlgorithm( const CvMat* imgA, const CvMat* imgB,
             }
         }
     }
-
-    __END__;
 }
 
 
@@ -549,149 +542,50 @@ icvCalcIxIy_32f( const float* src, int src_step, float* dstX, float* dstY, int d
 }
 
 
-CV_IMPL void
-cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
-                        void* pyrarrA, void* pyrarrB,
-                        const CvPoint2D32f * featuresA,
-                        CvPoint2D32f * featuresB,
-                        int count, CvSize winSize, int level,
-                        char *status, float *error,
-                        CvTermCriteria criteria, int flags )
+namespace cv
 {
-    uchar *pyrBuffer = 0;
-    uchar *buffer = 0;
-    float* _error = 0;
-    char* _status = 0;
 
-    CV_FUNCNAME( "cvCalcOpticalFlowPyrLK" );
-
-    __BEGIN__;
-
-    const int MAX_ITERS = 100;
-
-    CvMat stubA, *imgA = (CvMat*)arrA;
-    CvMat stubB, *imgB = (CvMat*)arrB;
-    CvMat pstubA, *pyrA = (CvMat*)pyrarrA;
-    CvMat pstubB, *pyrB = (CvMat*)pyrarrB;
-    CvSize imgSize;
-    static const float smoothKernel[] = { 0.09375, 0.3125, 0.09375 };  /* 3/32, 10/32, 3/32 */
+struct LKTrackerInvoker
+{
+    LKTrackerInvoker( const CvMat* _imgI, const CvMat* _imgJ,
+                      const CvPoint2D32f* _featuresA,
+                      CvPoint2D32f* _featuresB,
+                      char* _status, float* _error,
+                      CvTermCriteria _criteria,
+                      CvSize _winSize, int _level, int _flags )
+    {
+        imgI = _imgI;
+        imgJ = _imgJ;
+        featuresA = _featuresA;
+        featuresB = _featuresB;
+        status = _status;
+        error = _error;
+        criteria = _criteria;
+        winSize = _winSize;
+        level = _level;
+        flags = _flags;
+    }
     
-    int bufferBytes = 0;
-    uchar **imgI = 0;
-    uchar **imgJ = 0;
-    int *step = 0;
-    double *scale = 0;
-    CvSize* size = 0;
-
-    int threadCount = cvGetNumThreads();
-    float* _patchI[CV_MAX_THREADS];
-    float* _patchJ[CV_MAX_THREADS];
-    float* _Ix[CV_MAX_THREADS];
-    float* _Iy[CV_MAX_THREADS];
-
-    int i, l;
-
-    CvSize patchSize = cvSize( winSize.width * 2 + 1, winSize.height * 2 + 1 );
-    int patchLen = patchSize.width * patchSize.height;
-    int srcPatchLen = (patchSize.width + 2)*(patchSize.height + 2);
-
-    CV_CALL( imgA = cvGetMat( imgA, &stubA ));
-    CV_CALL( imgB = cvGetMat( imgB, &stubB ));
-
-    if( CV_MAT_TYPE( imgA->type ) != CV_8UC1 )
-        CV_ERROR( CV_StsUnsupportedFormat, "" );
-
-    if( !CV_ARE_TYPES_EQ( imgA, imgB ))
-        CV_ERROR( CV_StsUnmatchedFormats, "" );
-
-    if( !CV_ARE_SIZES_EQ( imgA, imgB ))
-        CV_ERROR( CV_StsUnmatchedSizes, "" );
-
-    if( imgA->step != imgB->step )
-        CV_ERROR( CV_StsUnmatchedSizes, "imgA and imgB must have equal steps" );
-
-    imgSize = cvGetMatSize( imgA );
-
-    if( pyrA )
+    void operator()(const BlockedRange& range) const
     {
-        CV_CALL( pyrA = cvGetMat( pyrA, &pstubA ));
-
-        if( pyrA->step*pyrA->height < icvMinimalPyramidSize( imgSize ) )
-            CV_ERROR( CV_StsBadArg, "pyramid A has insufficient size" );
-    }
-    else
-    {
-        pyrA = &pstubA;
-        pyrA->data.ptr = 0;
-    }
-
-    if( pyrB )
-    {
-        CV_CALL( pyrB = cvGetMat( pyrB, &pstubB ));
-
-        if( pyrB->step*pyrB->height < icvMinimalPyramidSize( imgSize ) )
-            CV_ERROR( CV_StsBadArg, "pyramid B has insufficient size" );
-    }
-    else
-    {
-        pyrB = &pstubB;
-        pyrB->data.ptr = 0;
-    }
-
-    if( count == 0 )
-        EXIT;
-
-    if( !featuresA || !featuresB )
-        CV_ERROR( CV_StsNullPtr, "Some of arrays of point coordinates are missing" );
-
-    if( count < 0 )
-        CV_ERROR( CV_StsOutOfRange, "The number of tracked points is negative or zero" );
-
-    if( winSize.width <= 1 || winSize.height <= 1 )
-        CV_ERROR( CV_StsBadSize, "Invalid search window size" );
-
-    for( i = 0; i < threadCount; i++ )
-        _patchI[i] = _patchJ[i] = _Ix[i] = _Iy[i] = 0;
-
-    CV_CALL( icvInitPyramidalAlgorithm( imgA, imgB, pyrA, pyrB,
-        level, &criteria, MAX_ITERS, flags,
-        &imgI, &imgJ, &step, &size, &scale, &pyrBuffer ));
-
-    if( !status )
-        CV_CALL( status = _status = (char*)cvAlloc( count*sizeof(_status[0]) ));
-
-    /* buffer_size = <size for patches> + <size for pyramids> */
-    bufferBytes = (srcPatchLen + patchLen * 3) * sizeof( _patchI[0][0] ) * threadCount;
-    CV_CALL( buffer = (uchar*)cvAlloc( bufferBytes ));
-
-    for( i = 0; i < threadCount; i++ )
-    {
-        _patchI[i] = i == 0 ? (float*)buffer : _Iy[i-1] + patchLen;
-        _patchJ[i] = _patchI[i] + srcPatchLen;
-        _Ix[i] = _patchJ[i] + patchLen;
-        _Iy[i] = _Ix[i] + patchLen;
-    }
-
-    memset( status, 1, count );
-    if( error )
-        memset( error, 0, count*sizeof(error[0]) );
-
-    if( !(flags & CV_LKFLOW_INITIAL_GUESSES) )
-        memcpy( featuresB, featuresA, count*sizeof(featuresA[0]));
-
-    /* do processing from top pyramid level (smallest image)
-       to the bottom (original image) */
-    for( l = level; l >= 0; l-- )
-    {
-        CvSize levelSize = size[l];
-        int levelStep = step[l];
-
-        {
-#ifdef _OPENMP
-        #pragma omp parallel for num_threads(threadCount) schedule(dynamic) 
-#endif // _OPENMP
-        /* find flow for each given point */
-        for( i = 0; i < count; i++ )
+        static const float smoothKernel[] = { 0.09375, 0.3125, 0.09375 };  // 3/32, 10/32, 3/32
+        
+        int i, i1 = range.begin(), i2 = range.end();
+        
+        CvSize patchSize = cvSize( winSize.width * 2 + 1, winSize.height * 2 + 1 );
+        int patchLen = patchSize.width * patchSize.height;
+        int srcPatchLen = (patchSize.width + 2)*(patchSize.height + 2);
+        
+        AutoBuffer<float> buf(patchLen*3 + srcPatchLen);
+        float* patchI = buf;
+        float* patchJ = patchI + srcPatchLen;
+        float* Ix = patchJ + patchLen;
+        float* Iy = Ix + patchLen;
+        float scaleL = 1.f/(1 << level);
+        CvSize levelSize = cvGetMatSize(imgI);
+        
+        // find flow for each given point
+        for( i = i1; i < i2; i++ )
         {
             CvPoint2D32f v;
             CvPoint minI, maxI, minJ, maxJ;
@@ -702,91 +596,76 @@ cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
             double Gxx = 0, Gxy = 0, Gyy = 0, D = 0, minEig = 0;
             float prev_mx = 0, prev_my = 0;
             int j, x, y;
-            int threadIdx = cvGetThreadNum();
-            float* patchI = _patchI[threadIdx];
-            float* patchJ = _patchJ[threadIdx];
-            float* Ix = _Ix[threadIdx];
-            float* Iy = _Iy[threadIdx];
-
-            v.x = featuresB[i].x;
-            v.y = featuresB[i].y;
-            if( l < level )
-            {
-                v.x += v.x;
-                v.y += v.y;
-            }
-            else
-            {
-                v.x = (float)(v.x * scale[l]);
-                v.y = (float)(v.y * scale[l]);
-            }
-
+            
+            v.x = featuresB[i].x*2;
+            v.y = featuresB[i].y*2;
+            
             pt_status = status[i];
             if( !pt_status )
                 continue;
-
-            minI = maxI = minJ = maxJ = cvPoint( 0, 0 );
-
-            u.x = (float) (featuresA[i].x * scale[l]);
-            u.y = (float) (featuresA[i].y * scale[l]);
-
+            
+            minI = maxI = minJ = maxJ = cvPoint(0, 0);
+            
+            u.x = featuresA[i].x * scaleL;
+            u.y = featuresA[i].y * scaleL;
+            
             intersect( u, winSize, levelSize, &minI, &maxI );
             isz = jsz = cvSize(maxI.x - minI.x + 2, maxI.y - minI.y + 2);
             u.x += (minI.x - (patchSize.width - maxI.x + 1))*0.5f;
             u.y += (minI.y - (patchSize.height - maxI.y + 1))*0.5f;
-
+            
             if( isz.width < 3 || isz.height < 3 ||
-                icvGetRectSubPix_8u32f_C1R( imgI[l], levelStep, levelSize,
-                    patchI, isz.width*sizeof(patchI[0]), isz, u ) < 0 )
+                icvGetRectSubPix_8u32f_C1R( imgI->data.ptr, imgI->step, levelSize,
+                                            patchI, isz.width*sizeof(patchI[0]), isz, u ) < 0 )
             {
-                /* point is outside the image. take the next */
+                // point is outside the first image. take the next
                 status[i] = 0;
                 continue;
             }
-
+            
             icvCalcIxIy_32f( patchI, isz.width*sizeof(patchI[0]), Ix, Iy,
-                (isz.width-2)*sizeof(patchI[0]), isz, smoothKernel, patchJ );
-
+                             (isz.width-2)*sizeof(patchI[0]), isz, smoothKernel, patchJ );
+            
             for( j = 0; j < criteria.max_iter; j++ )
             {
                 double bx = 0, by = 0;
                 float mx, my;
                 CvPoint2D32f _v;
-
+                
                 intersect( v, winSize, levelSize, &minJ, &maxJ );
-
+                
                 minJ.x = MAX( minJ.x, minI.x );
                 minJ.y = MAX( minJ.y, minI.y );
-
+                
                 maxJ.x = MIN( maxJ.x, maxI.x );
                 maxJ.y = MIN( maxJ.y, maxI.y );
-
+                
                 jsz = cvSize(maxJ.x - minJ.x, maxJ.y - minJ.y);
-
+                
                 _v.x = v.x + (minJ.x - (patchSize.width - maxJ.x + 1))*0.5f;
                 _v.y = v.y + (minJ.y - (patchSize.height - maxJ.y + 1))*0.5f;
-
+                
                 if( jsz.width < 1 || jsz.height < 1 ||
-                    icvGetRectSubPix_8u32f_C1R( imgJ[l], levelStep, levelSize, patchJ,
+                    icvGetRectSubPix_8u32f_C1R( imgJ->data.ptr, imgJ->step, levelSize, patchJ,
                                                 jsz.width*sizeof(patchJ[0]), jsz, _v ) < 0 )
                 {
-                    /* point is outside image. take the next */
+                    // point is outside of the second image. take the next
                     pt_status = 0;
                     break;
                 }
-
+                
                 if( maxJ.x == prev_maxJ.x && maxJ.y == prev_maxJ.y &&
                     minJ.x == prev_minJ.x && minJ.y == prev_minJ.y )
                 {
                     for( y = 0; y < jsz.height; y++ )
                     {
                         const float* pi = patchI +
-                            (y + minJ.y - minI.y + 1)*isz.width + minJ.x - minI.x + 1;
+                        (y + minJ.y - minI.y + 1)*isz.width + minJ.x - minI.x + 1;
                         const float* pj = patchJ + y*jsz.width;
                         const float* ix = Ix +
-                            (y + minJ.y - minI.y)*(isz.width-2) + minJ.x - minI.x;
+                        (y + minJ.y - minI.y)*(isz.width-2) + minJ.x - minI.x;
                         const float* iy = Iy + (ix - Ix);
-
+                        
                         for( x = 0; x < jsz.width; x++ )
                         {
                             double t0 = pi[x] - pj[x];
@@ -801,12 +680,12 @@ cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
                     for( y = 0; y < jsz.height; y++ )
                     {
                         const float* pi = patchI +
-                            (y + minJ.y - minI.y + 1)*isz.width + minJ.x - minI.x + 1;
+                        (y + minJ.y - minI.y + 1)*isz.width + minJ.x - minI.x + 1;
                         const float* pj = patchJ + y*jsz.width;
                         const float* ix = Ix +
-                            (y + minJ.y - minI.y)*(isz.width-2) + minJ.x - minI.x;
+                        (y + minJ.y - minI.y)*(isz.width-2) + minJ.x - minI.x;
                         const float* iy = Iy + (ix - Ix);
-
+                        
                         for( x = 0; x < jsz.width; x++ )
                         {
                             double t = pi[x] - pj[x];
@@ -817,33 +696,33 @@ cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
                             Gyy += iy[x] * iy[x];
                         }
                     }
-
+                    
                     D = Gxx * Gyy - Gxy * Gxy;
                     if( D < DBL_EPSILON )
                     {
                         pt_status = 0;
                         break;
                     }
-
+                    
                     // Adi Shavit - 2008.05
                     if( flags & CV_LKFLOW_GET_MIN_EIGENVALS )
                         minEig = (Gyy + Gxx - sqrt((Gxx-Gyy)*(Gxx-Gyy) + 4.*Gxy*Gxy))/(2*jsz.height*jsz.width);
-
+                        
                     D = 1. / D;
-
+                        
                     prev_minJ = minJ;
                     prev_maxJ = maxJ;
                 }
-
+                
                 mx = (float) ((Gyy * bx - Gxy * by) * D);
                 my = (float) ((Gxx * by - Gxy * bx) * D);
-
+                
                 v.x += mx;
                 v.y += my;
-
+                
                 if( mx * mx + my * my < criteria.epsilon )
                     break;
-
+                
                 if( j > 0 && fabs(mx + prev_mx) < 0.01 && fabs(my + prev_my) < 0.01 )
                 {
                     v.x -= mx*0.5f;
@@ -853,12 +732,12 @@ cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
                 prev_mx = mx;
                 prev_my = my;
             }
-
+            
             featuresB[i] = v;
             status[i] = (char)pt_status;
-            if( l == 0 && error && pt_status )
+            if( level == 0 && error && pt_status )
             {
-                /* calc error */
+                // calc error
                 double err = 0;
                 if( flags & CV_LKFLOW_GET_MIN_EIGENVALS )
                     err = minEig;
@@ -867,9 +746,9 @@ cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
                     for( y = 0; y < jsz.height; y++ )
                     {
                         const float* pi = patchI +
-                            (y + minJ.y - minI.y + 1)*isz.width + minJ.x - minI.x + 1;
+                        (y + minJ.y - minI.y + 1)*isz.width + minJ.x - minI.x + 1;
                         const float* pj = patchJ + y*jsz.width;
-
+                        
                         for( x = 0; x < jsz.width; x++ )
                         {
                             double t = pi[x] - pj[x];
@@ -881,15 +760,144 @@ cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
                 error[i] = (float)err;
             }
         } // end of point processing loop (i)
-        }
+    }
+    
+    const CvMat* imgI;
+    const CvMat* imgJ;
+    const CvPoint2D32f* featuresA;
+    CvPoint2D32f* featuresB;
+    char* status;
+    float* error;
+    CvTermCriteria criteria;
+    CvSize winSize;
+    int level;
+    int flags;
+};
+    
+    
+}
+
+
+CV_IMPL void
+cvCalcOpticalFlowPyrLK( const void* arrA, const void* arrB,
+                        void* pyrarrA, void* pyrarrB,
+                        const CvPoint2D32f * featuresA,
+                        CvPoint2D32f * featuresB,
+                        int count, CvSize winSize, int level,
+                        char *status, float *error,
+                        CvTermCriteria criteria, int flags )
+{
+    cv::AutoBuffer<uchar> pyrBuffer;
+    cv::AutoBuffer<uchar> buffer;
+    cv::AutoBuffer<char> _status;
+
+    const int MAX_ITERS = 100;
+
+    CvMat stubA, *imgA = (CvMat*)arrA;
+    CvMat stubB, *imgB = (CvMat*)arrB;
+    CvMat pstubA, *pyrA = (CvMat*)pyrarrA;
+    CvMat pstubB, *pyrB = (CvMat*)pyrarrB;
+    CvSize imgSize;
+    
+    uchar **imgI = 0;
+    uchar **imgJ = 0;
+    int *step = 0;
+    double *scale = 0;
+    CvSize* size = 0;
+
+    int i, l;
+
+    imgA = cvGetMat( imgA, &stubA );
+    imgB = cvGetMat( imgB, &stubB );
+
+    if( CV_MAT_TYPE( imgA->type ) != CV_8UC1 )
+        CV_Error( CV_StsUnsupportedFormat, "" );
+
+    if( !CV_ARE_TYPES_EQ( imgA, imgB ))
+        CV_Error( CV_StsUnmatchedFormats, "" );
+
+    if( !CV_ARE_SIZES_EQ( imgA, imgB ))
+        CV_Error( CV_StsUnmatchedSizes, "" );
+
+    if( imgA->step != imgB->step )
+        CV_Error( CV_StsUnmatchedSizes, "imgA and imgB must have equal steps" );
+
+    imgSize = cvGetMatSize( imgA );
+
+    if( pyrA )
+    {
+        pyrA = cvGetMat( pyrA, &pstubA );
+
+        if( pyrA->step*pyrA->height < icvMinimalPyramidSize( imgSize ) )
+            CV_Error( CV_StsBadArg, "pyramid A has insufficient size" );
+    }
+    else
+    {
+        pyrA = &pstubA;
+        pyrA->data.ptr = 0;
+    }
+
+    if( pyrB )
+    {
+        pyrB = cvGetMat( pyrB, &pstubB );
+
+        if( pyrB->step*pyrB->height < icvMinimalPyramidSize( imgSize ) )
+            CV_Error( CV_StsBadArg, "pyramid B has insufficient size" );
+    }
+    else
+    {
+        pyrB = &pstubB;
+        pyrB->data.ptr = 0;
+    }
+
+    if( count == 0 )
+        return;
+
+    if( !featuresA || !featuresB )
+        CV_Error( CV_StsNullPtr, "Some of arrays of point coordinates are missing" );
+
+    if( count < 0 )
+        CV_Error( CV_StsOutOfRange, "The number of tracked points is negative or zero" );
+
+    if( winSize.width <= 1 || winSize.height <= 1 )
+        CV_Error( CV_StsBadSize, "Invalid search window size" );
+
+    icvInitPyramidalAlgorithm( imgA, imgB, pyrA, pyrB,
+        level, &criteria, MAX_ITERS, flags,
+        &imgI, &imgJ, &step, &size, &scale, &pyrBuffer );
+
+    if( !status )
+    {
+        _status.allocate(count);
+        status = _status;
+    }
+
+    memset( status, 1, count );
+    if( error )
+        memset( error, 0, count*sizeof(error[0]) );
+
+    if( !(flags & CV_LKFLOW_INITIAL_GUESSES) )
+        memcpy( featuresB, featuresA, count*sizeof(featuresA[0]));
+    
+    for( i = 0; i < count; i++ )
+    {
+        featuresB[i].x = (float)(featuresB[i].x * scale[level] * 0.5);
+        featuresB[i].y = (float)(featuresB[i].y * scale[level] * 0.5);
+    }
+
+    /* do processing from top pyramid level (smallest image)
+       to the bottom (original image) */
+    for( l = level; l >= 0; l-- )
+    {
+        CvMat imgI_l, imgJ_l;        
+        cvInitMatHeader(&imgI_l, size[l].height, size[l].width, imgA->type, imgI[l], step[l]);
+        cvInitMatHeader(&imgJ_l, size[l].height, size[l].width, imgB->type, imgJ[l], step[l]);
+        
+        cv::parallel_for(cv::BlockedRange(0, count),
+                         cv::LKTrackerInvoker(&imgI_l, &imgJ_l, featuresA,
+                                              featuresB, status, error,
+                                              criteria, winSize, l, flags));
     } // end of pyramid levels loop (l)
-
-    __END__;
-
-    cvFree( &pyrBuffer );
-    cvFree( &buffer );
-    cvFree( &_error );
-    cvFree( &_status );
 }
 
 
@@ -907,13 +915,9 @@ cvCalcAffineFlowPyrLK( const void* arrA, const void* arrB,
 {
     const int MAX_ITERS = 100;
 
-    char* _status = 0;
-    uchar *buffer = 0;
-    uchar *pyr_buffer = 0;
-
-    CV_FUNCNAME( "cvCalcAffineFlowPyrLK" );
-
-    __BEGIN__;
+    cv::AutoBuffer<char> _status;
+    cv::AutoBuffer<uchar> buffer;
+    cv::AutoBuffer<uchar> pyr_buffer;
 
     CvMat stubA, *imgA = (CvMat*)arrA;
     CvMat stubB, *imgB = (CvMat*)arrB;
@@ -947,32 +951,32 @@ cvCalcAffineFlowPyrLK( const void* arrA, const void* arrB,
     CvSize imgSize;
     float eps = (float)MIN(winSize.width, winSize.height);
 
-    CV_CALL( imgA = cvGetMat( imgA, &stubA ));
-    CV_CALL( imgB = cvGetMat( imgB, &stubB ));
+    imgA = cvGetMat( imgA, &stubA );
+    imgB = cvGetMat( imgB, &stubB );
 
     if( CV_MAT_TYPE( imgA->type ) != CV_8UC1 )
-        CV_ERROR( CV_StsUnsupportedFormat, "" );
+        CV_Error( CV_StsUnsupportedFormat, "" );
 
     if( !CV_ARE_TYPES_EQ( imgA, imgB ))
-        CV_ERROR( CV_StsUnmatchedFormats, "" );
+        CV_Error( CV_StsUnmatchedFormats, "" );
 
     if( !CV_ARE_SIZES_EQ( imgA, imgB ))
-        CV_ERROR( CV_StsUnmatchedSizes, "" );
+        CV_Error( CV_StsUnmatchedSizes, "" );
 
     if( imgA->step != imgB->step )
-        CV_ERROR( CV_StsUnmatchedSizes, "imgA and imgB must have equal steps" );
+        CV_Error( CV_StsUnmatchedSizes, "imgA and imgB must have equal steps" );
 
     if( !matrices )
-        CV_ERROR( CV_StsNullPtr, "" );
+        CV_Error( CV_StsNullPtr, "" );
 
     imgSize = cvGetMatSize( imgA );
 
     if( pyrA )
     {
-        CV_CALL( pyrA = cvGetMat( pyrA, &pstubA ));
+        pyrA = cvGetMat( pyrA, &pstubA );
 
         if( pyrA->step*pyrA->height < icvMinimalPyramidSize( imgSize ) )
-            CV_ERROR( CV_StsBadArg, "pyramid A has insufficient size" );
+            CV_Error( CV_StsBadArg, "pyramid A has insufficient size" );
     }
     else
     {
@@ -982,10 +986,10 @@ cvCalcAffineFlowPyrLK( const void* arrA, const void* arrB,
 
     if( pyrB )
     {
-        CV_CALL( pyrB = cvGetMat( pyrB, &pstubB ));
+        pyrB = cvGetMat( pyrB, &pstubB );
 
         if( pyrB->step*pyrB->height < icvMinimalPyramidSize( imgSize ) )
-            CV_ERROR( CV_StsBadArg, "pyramid B has insufficient size" );
+            CV_Error( CV_StsBadArg, "pyramid B has insufficient size" );
     }
     else
     {
@@ -994,31 +998,34 @@ cvCalcAffineFlowPyrLK( const void* arrA, const void* arrB,
     }
 
     if( count == 0 )
-        EXIT;
+        return;
 
     /* check input arguments */
     if( !featuresA || !featuresB || !matrices )
-        CV_ERROR( CV_StsNullPtr, "" );
+        CV_Error( CV_StsNullPtr, "" );
 
     if( winSize.width <= 1 || winSize.height <= 1 )
-        CV_ERROR( CV_StsOutOfRange, "the search window is too small" );
+        CV_Error( CV_StsOutOfRange, "the search window is too small" );
 
     if( count < 0 )
-        CV_ERROR( CV_StsOutOfRange, "" );
+        CV_Error( CV_StsOutOfRange, "" );
 
-    CV_CALL( icvInitPyramidalAlgorithm( imgA, imgB,
+    icvInitPyramidalAlgorithm( imgA, imgB,
         pyrA, pyrB, level, &criteria, MAX_ITERS, flags,
-        &imgI, &imgJ, &step, &size, &scale, &pyr_buffer ));
+        &imgI, &imgJ, &step, &size, &scale, &pyr_buffer );
 
     /* buffer_size = <size for patches> + <size for pyramids> */
     bufferBytes = (srcPatchLen + patchLen*3)*sizeof(patchI[0]) + (36*2 + 6)*sizeof(double);
 
-    CV_CALL( buffer = (uchar*)cvAlloc(bufferBytes));
+    buffer.allocate(bufferBytes);
 
     if( !status )
-        CV_CALL( status = _status = (char*)cvAlloc(count) );
+    {
+        _status.allocate(count);
+        status = _status;
+    }
 
-    patchI = (float *) buffer;
+    patchI = (float *)(uchar*)buffer;
     patchJ = patchI + srcPatchLen;
     Ix = patchJ + patchLen;
     Iy = Ix + patchLen;
@@ -1217,7 +1224,9 @@ cvCalcAffineFlowPyrLK( const void* arrA, const void* arrB,
                     }
                 }
 
-                icvTransformVector_64d( G, b, eta, 6, 6 );
+                for( k = 0; k < 6; k++ )
+                    eta[k] = G[k*6]*b[0] + G[k*6+1]*b[1] + G[k*6+2]*b[2] +
+                        G[k*6+3]*b[3] + G[k*6+4]*b[4] + G[k*6+5]*b[5];
 
                 Av[2] = (float)(Av[2] + Av[0] * eta[0] + Av[1] * eta[1]);
                 Av[5] = (float)(Av[5] + Av[3] * eta[0] + Av[4] * eta[1]);
@@ -1265,12 +1274,6 @@ cvCalcAffineFlowPyrLK( const void* arrA, const void* arrB,
             }
         }
     }
-
-    __END__;
-
-    cvFree( &pyr_buffer );
-    cvFree( &buffer );
-    cvFree( &_status );
 }
 
 
@@ -1375,51 +1378,41 @@ icvGetRTMatrix( const CvPoint2D32f* a, const CvPoint2D32f* b,
 
 
 CV_IMPL int
-cvEstimateRigidTransform( const CvArr* _A, const CvArr* _B, CvMat* _M, int full_affine )
+cvEstimateRigidTransform( const CvArr* matA, const CvArr* matB, CvMat* matM, int full_affine )
 {
-    int result = 0;
-    
     const int COUNT = 15;
     const int WIDTH = 160, HEIGHT = 120;
-    const int RANSAC_MAX_ITERS = 100;
+    const int RANSAC_MAX_ITERS = 500;
     const int RANSAC_SIZE0 = 3;
-    const double MIN_TRIANGLE_SIDE = 20;
     const double RANSAC_GOOD_RATIO = 0.5;
 
-    int allocated = 1;
-    CvMat *sA = 0, *sB = 0;
-    CvPoint2D32f *pA = 0, *pB = 0;
-    int* good_idx = 0;
-    char *status = 0;
-    CvMat* gray = 0;
+    cv::Ptr<CvMat> sA, sB;
+    cv::AutoBuffer<CvPoint2D32f> pA, pB;
+    cv::AutoBuffer<int> good_idx;
+    cv::AutoBuffer<char> status;
+    cv::Ptr<CvMat> gray;
 
-    CV_FUNCNAME( "cvEstimateRigidTransform" );
-
-    __BEGIN__;
-
-    CvMat stubA, *A;
-    CvMat stubB, *B;
+    CvMat stubA, *A = cvGetMat( matA, &stubA );
+    CvMat stubB, *B = cvGetMat( matB, &stubB );
     CvSize sz0, sz1;
     int cn, equal_sizes;
     int i, j, k, k1;
-    int count_x, count_y, count;
+    int count_x, count_y, count = 0;
     double scale = 1;
     CvRNG rng = cvRNG(-1);
     double m[6]={0};
     CvMat M = cvMat( 2, 3, CV_64F, m );
     int good_count = 0;
+    CvRect brect;
 
-    CV_CALL( A = cvGetMat( _A, &stubA ));
-    CV_CALL( B = cvGetMat( _B, &stubB ));
-
-    if( !CV_IS_MAT(_M) )
-        CV_ERROR( _M ? CV_StsBadArg : CV_StsNullPtr, "Output parameter M is not a valid matrix" );
+    if( !CV_IS_MAT(matM) )
+        CV_Error( matM ? CV_StsBadArg : CV_StsNullPtr, "Output parameter M is not a valid matrix" );
 
     if( !CV_ARE_SIZES_EQ( A, B ) )
-        CV_ERROR( CV_StsUnmatchedSizes, "Both input images must have the same size" );
+        CV_Error( CV_StsUnmatchedSizes, "Both input images must have the same size" );
 
     if( !CV_ARE_TYPES_EQ( A, B ) )
-        CV_ERROR( CV_StsUnmatchedFormats, "Both input images must have the same data type" );
+        CV_Error( CV_StsUnmatchedFormats, "Both input images must have the same data type" );
 
     if( CV_MAT_TYPE(A->type) == CV_8UC1 || CV_MAT_TYPE(A->type) == CV_8UC3 )
     {
@@ -1436,32 +1429,24 @@ cvEstimateRigidTransform( const CvArr* _A, const CvArr* _B, CvMat* _M, int full_
 
         if( !equal_sizes || cn != 1 )
         {
-            CV_CALL( sA = cvCreateMat( sz1.height, sz1.width, CV_8UC1 ));
-            CV_CALL( sB = cvCreateMat( sz1.height, sz1.width, CV_8UC1 ));
+            sA = cvCreateMat( sz1.height, sz1.width, CV_8UC1 );
+            sB = cvCreateMat( sz1.height, sz1.width, CV_8UC1 );
 
-            if( !equal_sizes && cn != 1 )
-                CV_CALL( gray = cvCreateMat( sz0.height, sz0.width, CV_8UC1 ));
-
-            if( gray )
+            if( cn != 1 )
             {
+                gray = cvCreateMat( sz0.height, sz0.width, CV_8UC1 );
                 cvCvtColor( A, gray, CV_BGR2GRAY );
                 cvResize( gray, sA, CV_INTER_AREA );
                 cvCvtColor( B, gray, CV_BGR2GRAY );
                 cvResize( gray, sB, CV_INTER_AREA );
-            }
-            else if( cn == 1 )
-            {
-                cvResize( gray, sA, CV_INTER_AREA );
-                cvResize( gray, sB, CV_INTER_AREA );
+                gray.release();
             }
             else
             {
-                cvCvtColor( A, gray, CV_BGR2GRAY );
-                cvResize( gray, sA, CV_INTER_AREA );
-                cvCvtColor( B, gray, CV_BGR2GRAY );
+                cvResize( A, sA, CV_INTER_AREA );
+                cvResize( B, sB, CV_INTER_AREA );
             }
-
-            cvReleaseMat( &gray );
+           
             A = sA;
             B = sB;
         }
@@ -1470,9 +1455,9 @@ cvEstimateRigidTransform( const CvArr* _A, const CvArr* _B, CvMat* _M, int full_
         count_x = cvRound((double)COUNT*sz1.width/sz1.height);
         count = count_x * count_y;
 
-        CV_CALL( pA = (CvPoint2D32f*)cvAlloc( count*sizeof(pA[0]) ));
-        CV_CALL( pB = (CvPoint2D32f*)cvAlloc( count*sizeof(pB[0]) ));
-        CV_CALL( status = (char*)cvAlloc( count*sizeof(status[0]) ));
+        pA.allocate(count);
+        pB.allocate(count);
+        status.allocate(count);
 
         for( i = 0, k = 0; i < count_y; i++ )
             for( j = 0; j < count_x; j++, k++ )
@@ -1502,32 +1487,24 @@ cvEstimateRigidTransform( const CvArr* _A, const CvArr* _B, CvMat* _M, int full_
     else if( CV_MAT_TYPE(A->type) == CV_32FC2 || CV_MAT_TYPE(A->type) == CV_32SC2 )
     {
         count = A->cols*A->rows;
-
-        if( CV_IS_MAT_CONT(A->type & B->type) && CV_MAT_TYPE(A->type) == CV_32FC2 )
-        {
-            pA = (CvPoint2D32f*)A->data.ptr;
-            pB = (CvPoint2D32f*)B->data.ptr;
-            allocated = 0;
-        }
-        else
-        {
-            CvMat _pA, _pB;
-
-            CV_CALL( pA = (CvPoint2D32f*)cvAlloc( count*sizeof(pA[0]) ));
-            CV_CALL( pB = (CvPoint2D32f*)cvAlloc( count*sizeof(pB[0]) ));
-            _pA = cvMat( A->rows, A->cols, CV_32FC2, pA );
-            _pB = cvMat( B->rows, B->cols, CV_32FC2, pB );
-            cvConvert( A, &_pA );
-            cvConvert( B, &_pB );
-        }
+        CvMat _pA, _pB;
+        pA.allocate(count);
+        pB.allocate(count);
+        _pA = cvMat( A->rows, A->cols, CV_32FC2, pA );
+        _pB = cvMat( B->rows, B->cols, CV_32FC2, pB );
+        cvConvert( A, &_pA );
+        cvConvert( B, &_pB );
     }
     else
-        CV_ERROR( CV_StsUnsupportedFormat, "Both input images must have either 8uC1 or 8uC3 type" );
+        CV_Error( CV_StsUnsupportedFormat, "Both input images must have either 8uC1 or 8uC3 type" );
 
-    CV_CALL( good_idx = (int*)cvAlloc( count*sizeof(good_idx[0]) ));
+    good_idx.allocate(count);
 
     if( count < RANSAC_SIZE0 )
-        EXIT;
+        return 0;
+    
+    CvMat _pB = cvMat(1, count, CV_32FC2, pB);    
+    brect = cvBoundingRect(&_pB, 1);
 
     // RANSAC stuff:
     // 1. find the consensus
@@ -1553,10 +1530,10 @@ cvEstimateRigidTransform( const CvArr* _A, const CvArr* _B, CvMat* _M, int full_
                         break;
                     // check that the points are not very close one each other
                     if( fabs(pA[idx[i]].x - pA[idx[j]].x) +
-                        fabs(pA[idx[i]].y - pA[idx[j]].y) < MIN_TRIANGLE_SIDE )
+                        fabs(pA[idx[i]].y - pA[idx[j]].y) < FLT_EPSILON )
                         break;
                     if( fabs(pB[idx[i]].x - pB[idx[j]].x) +
-                        fabs(pB[idx[i]].y - pB[idx[j]].y) < MIN_TRIANGLE_SIDE )
+                        fabs(pB[idx[i]].y - pB[idx[j]].y) < FLT_EPSILON )
                         break;
                 }
 
@@ -1573,9 +1550,15 @@ cvEstimateRigidTransform( const CvArr* _A, const CvArr* _B, CvMat* _M, int full_
                     b[0] = pB[idx[0]];
                     b[1] = pB[idx[1]];
                     b[2] = pB[idx[2]];
+                    
+                    double dax1 = a[1].x - a[0].x, day1 = a[1].y - a[0].y;
+                    double dax2 = a[2].x - a[0].x, day2 = a[2].y - a[0].y;
+                    double dbx1 = b[1].x - b[0].y, dby1 = b[1].y - b[0].y;
+                    double dbx2 = b[2].x - b[0].x, dby2 = b[2].y - b[0].y;
+                    const double eps = 0.01;
 
-                    if( fabs((a[1].x - a[0].x)*(a[2].y - a[0].y) - (a[1].y - a[0].y)*(a[2].x - a[0].x)) < 1 ||
-                        fabs((b[1].x - b[0].x)*(b[2].y - b[0].y) - (b[1].y - b[0].y)*(b[2].x - b[0].x)) < 1 )
+                    if( fabs(dax1*day2 - day1*dax2) < eps*sqrt(dax1*dax1+day1*day1)*sqrt(dax2*dax2+day2*day2) ||
+                        fabs(dbx1*dby2 - dby1*dbx2) < eps*sqrt(dbx1*dbx1+dby1*dby1)*sqrt(dbx2*dbx2+dby2*dby2) )
                         continue;
                 }
                 break;
@@ -1594,7 +1577,7 @@ cvEstimateRigidTransform( const CvArr* _A, const CvArr* _B, CvMat* _M, int full_
         for( i = 0, good_count = 0; i < count; i++ )
         {
             if( fabs( m[0]*pA[i].x + m[1]*pA[i].y + m[2] - pB[i].x ) +
-                fabs( m[3]*pA[i].x + m[4]*pA[i].y + m[5] - pB[i].y ) < 8 )
+                fabs( m[3]*pA[i].x + m[4]*pA[i].y + m[5] - pB[i].y ) < MAX(brect.width,brect.height)*0.05 )
                 good_idx[good_count++] = i;
         }
 
@@ -1603,7 +1586,7 @@ cvEstimateRigidTransform( const CvArr* _A, const CvArr* _B, CvMat* _M, int full_
     }
 
     if( k >= RANSAC_MAX_ITERS )
-        EXIT;
+        return 0;
 
     if( good_count < count )
     {
@@ -1618,31 +1601,21 @@ cvEstimateRigidTransform( const CvArr* _A, const CvArr* _B, CvMat* _M, int full_
     icvGetRTMatrix( pA, pB, good_count, &M, full_affine );
     m[2] /= scale;
     m[5] /= scale;
-    CV_CALL( cvConvert( &M, _M ));
-    result = 1;
-
-    __END__;
-
-    cvReleaseMat( &sA );
-    cvReleaseMat( &sB );
-    cvFree( &pA );
-    cvFree( &pB );
-    cvFree( &status );
-    cvFree( &good_idx );
-    cvReleaseMat( &gray );
-
-    return result;
+    cvConvert( &M, matM );
+    
+    return 1;
 }
 
 namespace cv
 {
-Mat estimateRigidTransform( const vector<Point2f>& A,
-                            const vector<Point2f>& B,
+
+Mat estimateRigidTransform( const Mat& A,
+                            const Mat& B,
                             bool fullAffine )
 {
     Mat M(2, 3, CV_64F);
-    CvMat _A = Mat_<Point2f>(A), _B = Mat_<Point2f>(B), _M = M;
-    cvEstimateRigidTransform(&_A, &_B, &_M, fullAffine);
+    CvMat matA = A, matB = B, matM = M;
+    cvEstimateRigidTransform(&matA, &matB, &matM, fullAffine);
     return M;
 }
 }

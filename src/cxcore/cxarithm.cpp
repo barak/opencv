@@ -53,6 +53,8 @@ namespace cv
 
 #if CV_SSE2
 
+enum { ARITHM_SIMD = CV_CPU_SSE2 };
+    
 template<class Op8> struct VBinOp8
 {
     int operator()(const uchar* src1, const uchar* src2, uchar* dst, int len) const
@@ -181,12 +183,12 @@ struct _VAdd32f { __m128 operator()(const __m128& a, const __m128& b) const { re
 struct _VSub32f { __m128 operator()(const __m128& a, const __m128& b) const { return _mm_sub_ps(a,b); }};
 struct _VMin32f { __m128 operator()(const __m128& a, const __m128& b) const { return _mm_min_ps(a,b); }};
 struct _VMax32f { __m128 operator()(const __m128& a, const __m128& b) const { return _mm_max_ps(a,b); }};
-static const __m128i v32f_absmask = _mm_set1_epi32(0x7fffffff);
+static int CV_DECL_ALIGNED(16) v32f_absmask[] = { 0x7fffffff, 0x7fffffff, 0x7fffffff, 0x7fffffff };
 struct _VAbsDiff32f
 {
     __m128 operator()(const __m128& a, const __m128& b) const
     {
-        return _mm_and_ps(_mm_sub_ps(a,b), (__m128&)v32f_absmask);
+        return _mm_and_ps(_mm_sub_ps(a,b), *(const __m128*)v32f_absmask);
     }
 };
 
@@ -226,6 +228,8 @@ typedef VBinOp8<_VXor8u> VXor8u;
 
 #else
 
+enum { ARITHM_SIMD = CV_CPU_NONE };    
+    
 typedef NoVec VAdd8u;
 typedef NoVec VSub8u;
 typedef NoVec VMin8u;
@@ -295,10 +299,11 @@ bitwiseOp_( const Mat& srcmat1, const Mat& srcmat2, Mat& dstmat )
     uchar* dst = dstmat.data;
     size_t step1 = srcmat1.step, step2 = srcmat2.step, step = dstmat.step;
     Size size = getContinuousSize( srcmat1, srcmat2, dstmat, (int)srcmat1.elemSize() );
+    bool useSIMD = checkHardwareSupport(ARITHM_SIMD);
 
     for( ; size.height--; src1 += step1, src2 += step2, dst += step )
     {
-        int i = opv(src1, src2, dst, size.width);
+        int i = useSIMD ? opv(src1, src2, dst, size.width) : 0;
 
         if( (((size_t)src1 | (size_t)src2 | (size_t)dst) & 3) == 0 )
         {
@@ -341,6 +346,7 @@ bitwiseSOp_( const Mat& srcmat, Mat& dstmat, const Scalar& _scalar )
     const int delta = 96;
     uchar scalar[delta];
     scalarToRawData(_scalar, scalar, srcmat.type(), (int)(delta/srcmat.elemSize1()) );
+    bool useSIMD = checkHardwareSupport(ARITHM_SIMD);
 
     for( ; size.height--; src0 += step1, dst0 += step )
     {
@@ -352,7 +358,7 @@ bitwiseSOp_( const Mat& srcmat, Mat& dstmat, const Scalar& _scalar )
         {
             while( (len -= delta) >= 0 )
             {
-                i = opv(src, scalar, dst, delta);
+                i = useSIMD ? opv(src, scalar, dst, delta) : 0;
                 for( ; i < delta; i += 16 )
                 {
                     int t0 = opi(((const int*)(src+i))[0], ((const int*)(scalar+i))[0]);
@@ -494,8 +500,8 @@ void bitwise_xor(const Mat& a, const Scalar& s, Mat& c, const Mat& mask)
 void bitwise_not(const Mat& src, Mat& dst)
 {
     const uchar* sptr = src.data;
-    uchar* dptr = dst.data;
     dst.create( src.size(), src.type() );
+    uchar* dptr = dst.data;
     Size size = getContinuousSize( src, dst, (int)src.elemSize() );
 
     for( ; size.height--; sptr += src.step, dptr += dst.step )
