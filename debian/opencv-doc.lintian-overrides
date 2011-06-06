@@ -1,5 +1,3 @@
-opencv-doc: python-script-but-no-python-dep ./usr/share/opencv/samples/python/cam-histo.py
-opencv-doc: python-script-but-no-python-dep ./usr/share/opencv/samples/python/capture-cam.py
 opencv-doc: python-script-but-no-python-dep ./usr/share/opencv/samples/python/chessboard.py
 opencv-doc: python-script-but-no-python-dep ./usr/share/opencv/samples/python/contours.py
 opencv-doc: python-script-but-no-python-dep ./usr/share/opencv/samples/python/convexhull.py
