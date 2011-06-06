@@ -1,14 +1,14 @@
-#ifdef _CH_
-#pragma package <opencv>
-#endif
+#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/highgui/highgui.hpp>
 
-#define CV_NO_BACKWARD_COMPATIBILITY
-
-#ifndef _EiC
-#include "cv.h"
-#include "highgui.h"
+#include <ctype.h>
 #include <stdio.h>
-#endif
+
+void help()
+{
+    printf( "Usage:\n" ""
+    "./convert_cascade --size=\"<width>x<height>\" input_cascade_path output_cascade_filename\n" );
+}
 
 int main( int argc, char** argv )
 {
@@ -19,7 +19,7 @@ int main( int argc, char** argv )
 
     if( argc != 4 || strncmp( argv[1], size_opt, strlen(size_opt) ) != 0 )
     {
-        printf( "Usage: convert_cascade --size=\"<width>x<height>\" input_cascade_path output_cascade_filename\n" );
+    	help();
         return -1;
     }
 

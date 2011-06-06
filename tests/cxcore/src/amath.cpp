@@ -1048,7 +1048,7 @@ double CxCore_MatrixTestImpl::get_success_error_level( int test_case_idx, int i,
 {
     int input_depth = CV_MAT_DEPTH(cvGetElemType( test_array[INPUT][0] ));
     double input_precision = input_depth < CV_32F ? 0 : input_depth == CV_32F ?
-                            5e-5 : 5e-11;
+                            5e-5 : 5e-10;
     double output_precision = CvArrTest::get_success_error_level( test_case_idx, i, j );
     return MAX(input_precision, output_precision);
 }
@@ -1765,7 +1765,7 @@ void CxCore_TransformTest::print_timing_params( int test_case_idx, char* ptr, in
 double CxCore_TransformTest::get_success_error_level( int test_case_idx, int i, int j )
 {
     int depth = CV_MAT_DEPTH(test_mat[INPUT][0].type);
-    return depth <= CV_8S ? 1 : depth <= CV_32S ? 8 :
+    return depth <= CV_8S ? 1 : depth <= CV_32S ? 9 :
         CxCore_MatrixTest::get_success_error_level( test_case_idx, i, j );
 }
 
@@ -2475,8 +2475,8 @@ void CxCore_InvertTest::get_test_array_types_and_sizes( int test_case_idx, CvSiz
         if( bits & 4 )
         {
             sizes[INPUT][0] = cvSize(min_size, min_size);
-            if( bits & 8 )
-                method = CV_SVD_SYM;
+            if( bits & 16 )
+                method = CV_CHOLESKY;
         }
     }
     else
@@ -2526,7 +2526,7 @@ void CxCore_InvertTest::print_timing_params( int test_case_idx, char* ptr, int p
 
 double CxCore_InvertTest::get_success_error_level( int /*test_case_idx*/, int, int )
 {
-    return CV_MAT_DEPTH(cvGetElemType(test_array[OUTPUT][0])) == CV_32F ? 1e-2 : 1e-7;
+    return CV_MAT_DEPTH(cvGetElemType(test_array[OUTPUT][0])) == CV_32F ? 1e-2 : 1e-6;
 }
 
 int CxCore_InvertTest::prepare_test_case( int test_case_idx )
@@ -2536,7 +2536,7 @@ int CxCore_InvertTest::prepare_test_case( int test_case_idx )
     {
         cvTsFloodWithZeros( &test_mat[INPUT][0], ts->get_rng() );
 
-        if( method == CV_SVD_SYM )
+        if( method == CV_CHOLESKY )
         {
             cvTsGEMM( &test_mat[INPUT][0], &test_mat[INPUT][0], 1.,
                       0, 0., &test_mat[TEMP][0], CV_GEMM_B_T );
@@ -2746,7 +2746,7 @@ void CxCore_SolveTest::get_minmax_bounds( int /*i*/, int /*j*/, int /*type*/, Cv
 
 double CxCore_SolveTest::get_success_error_level( int /*test_case_idx*/, int, int )
 {
-    return CV_MAT_DEPTH(cvGetElemType(test_array[OUTPUT][0])) == CV_32F ? 1e-2 : 1e-8;
+    return CV_MAT_DEPTH(cvGetElemType(test_array[OUTPUT][0])) == CV_32F ? 5e-2 : 1e-8;
 }
 
 

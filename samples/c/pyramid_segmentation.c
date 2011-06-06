@@ -1,14 +1,15 @@
-#ifdef _CH_
-#pragma package <opencv>
-#endif
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include <stdio.h>
 
-#define CV_NO_BACKWARD_COMPATIBILITY
-
-#ifndef _EiC
-#include "cv.h"
-#include "highgui.h"
-#include <math.h>
-#endif
+void help()
+{
+	printf("\nThis program demonstrated color pyramid segmentation cvcvPyrSegmentation() which is controlled\n"
+			"by two trhesholds which can be manipulated by a trackbar. It can take an image file name or defaults to 'fruits.jpg'\n"
+			"Call:\n"
+			"./pyaramid_segmentation [image_path_filename -- Defaults to fruits.jpg]\n\n"
+			);
+}
 
 IplImage*  image[2] = { 0, 0 }, *image0 = 0, *image1 = 0;
 CvSize size;
@@ -22,7 +23,7 @@ int block_size = 1000;
 float  parameter;
 double threshold;
 double rezult, min_rezult;
-CvFilter filter = CV_GAUSSIAN_5x5;
+int filter = CV_GAUSSIAN_5x5;
 CvConnectedComp *cur_comp, min_comp;
 CvSeq *comp;
 CvMemStorage *storage;
@@ -52,6 +53,7 @@ void ON_SEGMENT(int a)
     }*/
     cvShowImage("Segmentation", image1);
 }
+
 
 int main( int argc, char** argv )
 {

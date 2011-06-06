@@ -101,12 +101,12 @@ protected:
     {
         double tmp, sum = 0;
         double nsum = 0;
-        for(size_t i = 0; i < 3; ++i)
+        for(int i = 0; i < 3; ++i)
         {
-            tmp = static_cast<double>(v1[i]);
+            tmp = v1[i];
             nsum +=  tmp * tmp;            
 
-            tmp = tmp - static_cast<double>(v2[i]);
+            tmp = tmp - v2[i];
             sum += tmp * tmp;
             
         }        
@@ -117,7 +117,7 @@ protected:
     {                     
         typedef Vec<OutT, 3> out3d_t;
 
-        bool handleMissingValues = (int)theRNG() % 2 == 0;                   
+        bool handleMissingValues = (unsigned)theRNG() % 2 == 0;                   
 
         Mat_<InT> disp(Size(320, 240));
         randu(disp, Scalar(min), Scalar(max));
@@ -145,7 +145,7 @@ protected:
                 Mat_<double> res = Q * Mat_<double>(4, 1, from);
                 res /= res(3, 0);
 
-                out3d_t pixel_exp = *res.ptr<Vec3d>();
+                out3d_t pixel_exp = *(Vec3d*)res.data;
                 out3d_t pixel_out = _3dImg(y, x);
 
                 const int largeZValue = 10000; /* see documentation */ 

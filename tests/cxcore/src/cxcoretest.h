@@ -42,14 +42,14 @@
 #ifndef _CXCORE_TEST_H_
 #define _CXCORE_TEST_H_
 
-#if defined WIN32 || defined _WIN32 || defined WIN64 || defined _WIN64
+#if defined WIN32 || defined _WIN32
 #include <windows.h>
 #undef min
 #undef max
 #endif
 
-#include "cxcore.h"
-#include "cxmisc.h"
+#include "opencv2/core/core.hpp"
+#include "opencv2/core/internal.hpp"
 #include "cxts.h"
 
 /****************************************************************************************/

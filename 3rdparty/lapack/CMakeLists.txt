@@ -2,6 +2,10 @@
 #  CMake file for opencv_lapack. See root CMakeLists.txt
 #
 # ----------------------------------------------------------------------------
+if(ANDROID)
+define_3rdparty_module(opencv_lapack)
+else()
+
 project(opencv_lapack)
 
 # List of C++ files:
@@ -49,7 +53,6 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-parentheses -Wno-uninitialized -Wno-implicit-function-declaration -Wno-unused")
-    set_source_files_properties(dlamch.c slamch.c PROPERTIES COMPILE_FLAGS "-ffloat-store -O0")
 endif()
 
 set_target_properties(${the_target}
@@ -57,3 +60,10 @@ set_target_properties(${the_target}
 	DEBUG_POSTFIX "${OPENCV_DEBUG_POSTFIX}"
 	ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/3rdparty/lib
 	)
+    
+if(NOT BUILD_SHARED_LIBS)
+    install(TARGETS ${the_target}
+	    ARCHIVE DESTINATION share/opencv/3rdparty/lib COMPONENT main)
+endif()
+    
+endif() #android

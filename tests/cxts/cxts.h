@@ -42,8 +42,8 @@
 #ifndef __CXTS_H__
 #define __CXTS_H__
 
-#include "cxcore.h"
-#include "cxmisc.h"
+#include "opencv2/core/core.hpp"
+#include "opencv2/core/core_c.h"
 #include <assert.h>
 #include <limits.h>
 #include <setjmp.h>
@@ -268,7 +268,7 @@ class CV_EXPORTS CvTS
 public:
 
     // constructor(s) and destructor
-    CvTS();
+    CvTS(const char* _module_name=0);
     virtual ~CvTS();
 
     enum
@@ -290,7 +290,7 @@ public:
     virtual void vprintf( int streams, const char* fmt, va_list arglist );
 
     // runs the tests (the whole set or some selected tests)
-    virtual int run( int argc, char** argv );
+    virtual int run( int argc, char** argv, const char** blacklist=0 );
 
     // updates the context: current test, test case, rng state
     virtual void update_context( CvTest* test, int test_case_idx, bool update_ts_context );
@@ -433,7 +433,7 @@ protected:
     virtual int read_params( CvFileStorage* fs );
     
     // checks, whether the test needs to be run (1) or not (0); called from run()
-    virtual int filter( CvTest* test );
+    virtual int filter( CvTest* test, int& filter_state, const char** blacklist=0 );
 
     // makes base name of output files
     virtual void make_output_stream_base_name( const char* config_name );
@@ -482,8 +482,11 @@ protected:
         // otherwise the system tries to catch the exceptions and continue with other tests
         int debug_mode;
 
-        // if non-zero, the header is not print
-        bool skip_header;
+        // if > 0, the header is not print
+        int skip_header;
+        
+        // if > 0, the blacklist is ignored
+        int ignore_blacklist;
 
         // if non-zero, the system includes only failed tests into summary
         bool print_only_failed;
@@ -537,6 +540,8 @@ protected:
 
     // name of config file
     const char* config_name;
+    
+    const char* module_name;
 
     // information about the current test
     CvTestInfo current_test_info;

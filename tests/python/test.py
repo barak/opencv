@@ -244,6 +244,40 @@ class FunctionTests(OpenCVTests):
         vely = cv.CreateImage(vel_size, cv.IPL_DEPTH_32F, 1)
         cv.CalcOpticalFlowBM(a, b, (8,8), (1,1), (8,8), 0, velx, vely)
 
+    def test_CalcOpticalFlowPyrLK(self):
+        a = self.get_sample("samples/c/lena.jpg", 0)
+        map = cv.CreateMat(2, 3, cv.CV_32FC1)
+        cv.GetRotationMatrix2D((256, 256), 10, 1.0, map)
+        b = cv.CloneMat(a)
+        cv.WarpAffine(a, b, map)
+
+        eig_image = cv.CreateMat(a.rows, a.cols, cv.CV_32FC1)
+        temp_image = cv.CreateMat(a.rows, a.cols, cv.CV_32FC1)
+
+        prevPyr = cv.CreateMat(a.rows / 3, a.cols + 8, cv.CV_8UC1)
+        currPyr = cv.CreateMat(a.rows / 3, a.cols + 8, cv.CV_8UC1)
+        prevFeatures = cv.GoodFeaturesToTrack(a, eig_image, temp_image, 400, 0.01, 0.01)
+        (currFeatures, status, track_error) = cv.CalcOpticalFlowPyrLK(a,
+                                                                      b,
+                                                                      prevPyr,
+                                                                      currPyr,
+                                                                      prevFeatures,
+                                                                      (10, 10),
+                                                                      3,
+                                                                      (cv.CV_TERMCRIT_ITER|cv.CV_TERMCRIT_EPS,20, 0.03),
+                                                                      0)
+        if 0:  # enable visualization
+            print
+            print sum(status), "Points found in curr image"
+            for prev,this in zip(prevFeatures, currFeatures):
+                iprev = tuple([int(c) for c in prev])
+                ithis = tuple([int(c) for c in this])
+                cv.Circle(a, iprev, 3, 255)
+                cv.Circle(a, ithis, 3, 0)
+                cv.Line(a, iprev, ithis, 128)
+
+            self.snapL([a, b])
+
     def test_CartToPolar(self):
         x = cv.CreateMat(5, 5, cv.CV_32F)
         y = cv.CreateMat(5, 5, cv.CV_32F)
@@ -278,6 +312,15 @@ class FunctionTests(OpenCVTests):
                                 cv.Circle(img, (x0,y0), r, 255, thick, t)
         # just check that something was drawn
         self.assert_(cv.Sum(img)[0] > 0)
+
+    def test_ConvertImage(self):
+        i1 = cv.GetImage(self.get_sample("samples/c/lena.jpg", 1))
+        i2 = cv.CloneImage(i1)
+        i3 = cv.CloneImage(i1)
+        cv.ConvertImage(i1, i2, cv.CV_CVTIMG_FLIP + cv.CV_CVTIMG_SWAP_RB)
+        self.assertNotEqual(self.hashimg(i1), self.hashimg(i2))
+        cv.ConvertImage(i2, i3, cv.CV_CVTIMG_FLIP + cv.CV_CVTIMG_SWAP_RB)
+        self.assertEqual(self.hashimg(i1), self.hashimg(i3))
 
     def test_ConvexHull2(self):
         # Draw a series of N-pointed stars, find contours, assert the contour is not convex,
@@ -340,10 +383,9 @@ class FunctionTests(OpenCVTests):
                     m = cv.CreateMat(rows, cols, t)
                     self.assertEqual(cv.GetElemType(m), t)
                     self.assertEqual(m.type, t)
-        self.assertRaises(cv.error, lambda: cv.CreateMat(0, 100, cv.CV_8SC4))
-        self.assertRaises(cv.error, lambda: cv.CreateMat(100, 0, cv.CV_8SC4))
-        # Uncomment when ticket #100 is fixed
-        # self.assertRaises(cv.error, lambda: cv.CreateMat(100, 100, 666666))
+        self.assertRaises(cv.error, lambda: cv.CreateMat(-1, 100, cv.CV_8SC4))
+        self.assertRaises(cv.error, lambda: cv.CreateMat(100, -1, cv.CV_8SC4))
+        self.assertRaises(cv.error, lambda: cv.cvmat())
 
     def test_DrawChessboardCorners(self):
         im = cv.CreateImage((512,512), cv.IPL_DEPTH_8U, 3)
@@ -428,9 +470,16 @@ class FunctionTests(OpenCVTests):
         storage = cv.CreateMemStorage()
 
         # First run FindContours on a black image.
-        scratch = cv.CreateImage((800,800), 8, 1)
-        cv.SetZero(scratch)
-        seq = cv.FindContours(scratch, storage, cv.CV_RETR_TREE, cv.CV_CHAIN_APPROX_SIMPLE)
+        for mode in [cv.CV_RETR_EXTERNAL, cv.CV_RETR_LIST, cv.CV_RETR_CCOMP, cv.CV_RETR_TREE]:
+            for method in [cv.CV_CHAIN_CODE, cv.CV_CHAIN_APPROX_NONE, cv.CV_CHAIN_APPROX_SIMPLE, cv.CV_CHAIN_APPROX_TC89_L1, cv.CV_CHAIN_APPROX_TC89_KCOS, cv.CV_LINK_RUNS]:
+                scratch = cv.CreateImage((800,800), 8, 1)
+                cv.SetZero(scratch)
+                seq = cv.FindContours(scratch, storage, mode, method)
+                x = len(seq)
+                if seq:
+                    pass
+                for s in seq:
+                    pass
 
         for trial in range(10):
             scratch = cv.CreateImage((800,800), 8, 1)
@@ -568,6 +617,23 @@ class FunctionTests(OpenCVTests):
         cv.AbsDiff(made, src, made)
         self.assert_(cv.CountNonZero(made) == 0)
 
+        for m1 in [cv.CreateMat(1, 10, cv.CV_8UC1), cv.CreateImage((10, 1), 8, 1)]:
+            for i in range(10):
+                m1[0, i] = i
+            def aslist(cvmat): return list(array.array('B', cvmat.tostring()))
+            m2 = cv.GetSubRect(m1, (5, 0, 4, 1))
+            m3 = cv.GetSubRect(m2, (1, 0, 2, 1))
+            self.assertEqual(aslist(m1), range(10))
+            self.assertEqual(aslist(m2), range(5, 9))
+            self.assertEqual(aslist(m3), range(6, 8))
+
+    def test_grabCut(self):
+        image = self.get_sample("samples/c/lena.jpg", cv.CV_LOAD_IMAGE_COLOR)
+        tmp1 = cv.CreateMat(1, 13 * 5, cv.CV_32FC1)
+        tmp2 = cv.CreateMat(1, 13 * 5, cv.CV_32FC1)
+        mask = cv.CreateMat(image.rows, image.cols, cv.CV_8UC1)
+        cv.GrabCut(image, mask, (10,10,200,200), tmp1, tmp2, 10, cv.GC_INIT_WITH_RECT)
+
     def test_HoughLines2_PROBABILISTIC(self):
         li = cv.HoughLines2(self.yield_line_image(),
                                                 cv.CreateMemStorage(),
@@ -655,6 +721,19 @@ class FunctionTests(OpenCVTests):
             r = cv.MinMaxLoc(scribble)
             self.assert_(r == (0, 255, tuple(reversed(lo)), tuple(reversed(hi))))
 
+    def xxx_test_PyrMeanShiftFiltering(self):   # XXX - ticket #306
+        if 0:
+            src = self.get_sample("samples/c/lena.jpg", cv.CV_LOAD_IMAGE_COLOR)
+            dst = cv.CloneMat(src)
+            cv.PyrMeanShiftFiltering(src, dst, 5, 5)
+            print src, dst
+            self.snap(src)
+        else:
+            r = cv.temp_test()
+            print r
+            print len(r.tostring())
+            self.snap(r)
+
     def test_Reshape(self):
         # 97 rows
         # 12 cols
@@ -688,7 +767,7 @@ class FunctionTests(OpenCVTests):
         self.assertRaises(TypeError, lambda: cv.ReshapeMatND(mat, 12, [1]))
 
     def test_Save(self):
-        for o in [ cv.CreateImage((128,128), cv.IPL_DEPTH_8U, 1), cv.CreateMat(16, 16, cv.CV_32FC1) ]:
+        for o in [ cv.CreateImage((128,128), cv.IPL_DEPTH_8U, 1), cv.CreateMat(16, 16, cv.CV_32FC1), cv.CreateMatND([7,9,4], cv.CV_32FC1) ]:
             cv.Save("test.save", o)
             loaded = cv.Load("test.save", cv.CreateMemStorage())
             self.assert_(type(o) == type(loaded))
@@ -706,6 +785,56 @@ class FunctionTests(OpenCVTests):
                             else:
                                 expected = 0.0
                             self.assertEqual(M[rj,cj], expected)
+
+    def test_SnakeImage(self):
+        src = self.get_sample("samples/c/lena.jpg", 0)
+        pts = [ (512-i,i) for i in range(0, 512, 8) ]
+
+        # Make sure that weight arguments get validated
+        self.assertRaises(TypeError, lambda: cv.SnakeImage(cv.GetImage(src), pts, [1,2], .01, .01, (7,7), (cv.CV_TERMCRIT_ITER, 100, 0.1)))
+
+        # Smoke by making sure that points are changed by call
+        r = cv.SnakeImage(cv.GetImage(src), pts, .01, .01, .01, (7,7), (cv.CV_TERMCRIT_ITER, 100, 0.1))
+        if 0:
+            cv.PolyLine(src, [ r ], 0, 255)
+            self.snap(src)
+        self.assertEqual(len(r), len(pts))
+        self.assertNotEqual(r, pts)
+
+        # Ensure that list of weights is same as scalar weight
+        w = [.01] * len(pts)
+        r2 = cv.SnakeImage(cv.GetImage(src), pts, w, w, w, (7,7), (cv.CV_TERMCRIT_ITER, 100, 0.1))
+        self.assertEqual(r, r2)
+
+    def test_KMeans2(self):
+        size = 500
+        samples = cv.CreateMat(size, 1, cv.CV_32FC3)
+        labels = cv.CreateMat(size, 1, cv.CV_32SC1)
+        centers = cv.CreateMat(2, 3, cv.CV_32FC1)
+
+        cv.Zero(samples)
+        cv.Zero(labels)
+        cv.Zero(centers)
+
+        cv.Set(cv.GetSubRect(samples, (0, 0, 1, size/2)), (255, 255, 255))
+
+        compact = cv.KMeans2(samples, 2, labels, (cv.CV_TERMCRIT_ITER, 100, 0.1), 1, 0, centers)
+
+        self.assertEqual(int(compact), 0)
+
+        random.seed(0)
+        for i in range(50):
+            index = random.randrange(size)
+            if index < size/2:
+                self.assertEqual(samples[index, 0], (255, 255, 255))
+                self.assertEqual(labels[index, 0], 1)
+            else:
+                self.assertEqual(samples[index, 0], (0, 0, 0))
+                self.assertEqual(labels[index, 0], 0)
+
+        for cluster in (0, 1):
+            for channel in (0, 1, 2):
+                self.assertEqual(int(centers[cluster, channel]), cluster*255)
 
     def test_Sum(self):
         for r in range(1,11):
@@ -819,13 +948,22 @@ class AreaTests(OpenCVTests):
             # looking for leaks
             def randdim():
                 return [random.randrange(1,6) for i in range(random.randrange(1, 6))]
-            as = [numpy.ones(randdim()).astype(numpy.uint8) for i in range(10)]
-            cs = [cv.fromarray(a, True) for a in as]
+            arrays = [numpy.ones(randdim()).astype(numpy.uint8) for i in range(10)]
+            cs = [cv.fromarray(a, True) for a in arrays]
             for i in range(1000):
-                as[random.randrange(10)] = numpy.ones(randdim()).astype(numpy.uint8)
-                cs[random.randrange(10)] = cv.fromarray(as[random.randrange(10)], True)
+                arrays[random.randrange(10)] = numpy.ones(randdim()).astype(numpy.uint8)
+                cs[random.randrange(10)] = cv.fromarray(arrays[random.randrange(10)], True)
                 for j in range(10):
                     self.assert_(all([c == chr(1) for c in cs[j].tostring()]))
+
+            # 
+            m = numpy.identity(4, dtype = numpy.float32)
+            rvec = cv.CreateMat(3, 1, cv.CV_32FC1)
+            rvec[0,0] = 1
+            rvec[1,0] = 1
+            rvec[2,0] = 1
+            cv.Rodrigues2(rvec, m[:3,:3])
+            print m
 
         else:
             print "SKIPPING test_numpy - numpy support not built"
@@ -1682,9 +1820,10 @@ class AreaTests(OpenCVTests):
         matnd = cv.CreateMatND([11, 12], cv.CV_8UC1)
         self.assertEqual(cv.GetDims(cv.GetMat(matnd, allowND = True)), (11, 12))
 
-        # 3D CvMatND should yield (N,1) CvMat
-        matnd = cv.CreateMatND([7, 8, 9], cv.CV_8UC1)
-        self.assertEqual(cv.GetDims(cv.GetMat(matnd, allowND = True)), (7 * 8 * 9, 1))
+        if 0: # XXX - ticket #149
+            # 3D CvMatND should yield (N,1) CvMat
+            matnd = cv.CreateMatND([7, 8, 9], cv.CV_8UC1)
+            self.assertEqual(cv.GetDims(cv.GetMat(matnd, allowND = True)), (7 * 8 * 9, 1))
 
     def test_clipline(self):
         self.assert_(cv.ClipLine((100,100), (-100,0), (500,0)) == ((0,0), (99,0)))
@@ -1721,6 +1860,11 @@ class AreaTests(OpenCVTests):
     def test_moments(self):
         im = self.get_sample("samples/c/lena.jpg", 0)
         mo = cv.Moments(im)
+        for fld in ["m00", "m10", "m01", "m20", "m11", "m02", "m30", "m21", "m12", "m03", "mu20", "mu11", "mu02", "mu30", "mu21", "mu12", "mu03", "inv_sqrt_m00"]:
+            self.assert_(isinstance(getattr(mo, fld), float))
+            x = getattr(mo, fld)
+            self.assert_(isinstance(x, float))
+
         orders = []
         for x_order in range(4):
           for y_order in range(4 - x_order):
@@ -1945,11 +2089,24 @@ class DocumentFragmentTests(OpenCVTests):
         cv.ConvertScale(disparity_left, disparity_left_visual, -16)
         # self.snap(disparity_left_visual)
 
+    def test_calchist(self):
+        from calchist import hs_histogram
+        i1 = self.get_sample("samples/c/lena.jpg")
+        i2 = self.get_sample("doc/pics/building.jpg")
+        i3 = cv.CloneMat(i1)
+        cv.Flip(i3, i3, 1)
+        h1 = hs_histogram(i1)
+        h2 = hs_histogram(i2)
+        h3 = hs_histogram(i3)
+        self.assertEqual(self.hashimg(h1), self.hashimg(h3))
+        self.assertNotEqual(self.hashimg(h1), self.hashimg(h2))
+
 class NewTests(OpenCVTests):
 
     pass
 
 if __name__ == '__main__':
+    print "testing", cv.__version__
     random.seed(0)
     optlist, args = getopt.getopt(sys.argv[1:], 'l:rd')
     loops = 1

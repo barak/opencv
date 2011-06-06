@@ -1,17 +1,28 @@
-#define CV_NO_BACKWARD_COMPATIBILITY
-
-#include "cv.h"
-#include "highgui.h"
+#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 
 #include <iostream>
-#include <cstdio>
-
-#ifdef _EiC
-#define WIN32
-#endif
+#include <stdio.h>
 
 using namespace std;
 using namespace cv;
+
+void help()
+{
+    cout << "\nThis program demonstrates the haar cascade recognizer\n"
+    		"this classifier can recognize many ~rigid objects, it's most known use is for faces.\n"
+    	"Usage:\n"
+    	"./facedetect [--cascade=<cascade_path> this is the primary trained classifier such as frontal face]\n"
+        "   [--nested-cascade[=nested_cascade_path this an optional secondary classifier such as eyes]]\n"
+        "   [--scale=<image scale greater or equal to 1, try 1.3 for example>\n"
+        "   [filename|camera_index]\n\n"
+    		"see facedetect.cmd for one call:\n"
+    		"./facedetect --cascade=\"../../data/haarcascades/haarcascade_frontalface_alt.xml\" --nested-cascade=\"../../data/haarcascades/haarcascade_eye.xml\" --scale=1.3 \n"
+    	"Hit any key to quit.\n"
+    		"Using OpenCV version %s\n" << CV_VERSION << "\n"
+    		<< endl;
+}
 
 void detectAndDraw( Mat& img,
                    CascadeClassifier& cascade, CascadeClassifier& nestedCascade,
@@ -34,13 +45,18 @@ int main( int argc, const char** argv )
     size_t nestedCascadeOptLen = nestedCascadeOpt.length();
     String inputName;
 
+    help();
     CascadeClassifier cascade, nestedCascade;
     double scale = 1;
 
     for( int i = 1; i < argc; i++ )
     {
+    	cout << "Processing " << i << " " <<  argv[i] << endl;
         if( cascadeOpt.compare( 0, cascadeOptLen, argv[i], cascadeOptLen ) == 0 )
+        {
             cascadeName.assign( argv[i] + cascadeOptLen );
+            cout << "  from which we have cascadeName= " << cascadeName << endl;
+        }
         else if( nestedCascadeOpt.compare( 0, nestedCascadeOptLen, argv[i], nestedCascadeOptLen ) == 0 )
         {
             if( argv[i][nestedCascadeOpt.length()] == '=' )
@@ -52,6 +68,7 @@ int main( int argc, const char** argv )
         {
             if( !sscanf( argv[i] + scaleOpt.length(), "%lf", &scale ) || scale < 1 )
                 scale = 1;
+            cout << " from which we read scale = " << scale << endl;
         }
         else if( argv[i][0] == '-' )
         {
@@ -64,28 +81,39 @@ int main( int argc, const char** argv )
     if( !cascade.load( cascadeName ) )
     {
         cerr << "ERROR: Could not load classifier cascade" << endl;
-        cerr << "Usage: facedetect [--cascade=\"<cascade_path>\"]\n"
-            "   [--nested-cascade[=\"nested_cascade_path\"]]\n"
+        cerr << "Usage: facedetect [--cascade=<cascade_path>]\n"
+            "   [--nested-cascade[=nested_cascade_path]]\n"
             "   [--scale[=<image scale>\n"
-            "   [filename|camera_index]\n" ;
+            "   [filename|camera_index]\n" << endl ;
         return -1;
     }
 
     if( inputName.empty() || (isdigit(inputName.c_str()[0]) && inputName.c_str()[1] == '\0') )
+    {
         capture = cvCaptureFromCAM( inputName.empty() ? 0 : inputName.c_str()[0] - '0' );
+        int c = inputName.empty() ? 0 : inputName.c_str()[0] - '0' ;
+        if(!capture) cout << "Capture from CAM " <<  c << " didn't work" << endl;
+    }
     else if( inputName.size() )
     {
         image = imread( inputName, 1 );
         if( image.empty() )
+        {
             capture = cvCaptureFromAVI( inputName.c_str() );
-    }
+            if(!capture) cout << "Capture from AVI didn't work" << endl;
+        }
+   }
     else
+    {
         image = imread( "lena.jpg", 1 );
+        if(image.empty()) cout << "Couldn't read lena.jpg" << endl;
+    }
 
     cvNamedWindow( "result", 1 );
 
     if( capture )
     {
+    	cout << "In capture ..." << endl;
         for(;;)
         {
             IplImage* iplImg = cvQueryFrame( capture );
@@ -109,6 +137,7 @@ _cleanup_:
     }
     else
     {
+    	cout << "In image read" << endl;
         if( !image.empty() )
         {
             detectAndDraw( image, cascade, nestedCascade, scale );
@@ -136,6 +165,10 @@ _cleanup_:
                         c = waitKey(0);
                         if( c == 27 || c == 'q' || c == 'Q' )
                             break;
+                    }
+                    else
+                    {
+                    	cerr << "Aw snap, couldn't read image " << buf << endl;
                     }
                 }
                 fclose(f);
