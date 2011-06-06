@@ -3,7 +3,7 @@ Priority: optional
 Section: devel
 Maintainer: Debian Scientific Computing Team <pkg-scicomp-devel@lists.alioth.debian.org>
 Uploaders: Sam Hocevar (Debian packages) <sam+deb@zoy.org>, Nobuhiro Iwamatsu <iwamatsu@debian.org>
-Build-Depends: debhelper (>= 7.0.50~), quilt (>= 0.46-7~), cmake,
+Build-Depends: debhelper (>= 8), quilt (>= 0.46-7~), cmake,
  libavcodec-dev (>= 0.svn20080206), libavformat-dev, libswscale-dev, libgtk2.0-dev,
  libjasper-dev, libjpeg62-dev, libpng12-dev, libtiff4-dev,
  libraw1394-dev [!kfreebsd-amd64 !kfreebsd-i386 !hurd-i386],
