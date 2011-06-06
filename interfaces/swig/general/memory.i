@@ -43,6 +43,7 @@
 // 2004-03-16, Gabriel Schreiber <schreiber@ient.rwth-aachen.de>
 //             Mark Asbach       <asbach@ient.rwth-aachen.de>
 //             Institute of Communications Engineering, RWTH Aachen University
+// 2008-05-15, Xavier Delacour   <xavier.delacour@gmail.com>
 
 
 /****************************************************************************************\
@@ -109,6 +110,13 @@
 
 
 /****************************************************************************************\
+*                                   Structural Analysis                                  *
+\****************************************************************************************/
+
+%newobject cvFitEllipse2;
+
+
+/****************************************************************************************\
 *                                       Tracking                                         *
 \****************************************************************************************/
 
@@ -136,6 +144,14 @@
 
 %nodefault CvPOSITObject;
 %newobject cvCreatePOSITObject;
+
+%nodefault CvFeatureTree;
+%newobject cvCreateFeatureTree;
+
+%nodefault CvLSH;
+%newobject cvCreateLSH;
+%newobject cvCreateMemoryLSH;
+
 
 
 /// This hides all members of the IplImage which OpenCV doesn't use.

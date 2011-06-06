@@ -62,6 +62,7 @@
 #define __const   const
 
 // SWIG needs this to be parsed before cv.h
+%ignore CV_SET_IMAGE_IO_FUNCTIONS;
 %include "./cvmacros.i"
 
 // A couple of typemaps helps wrapping OpenCV functions in a sensible way
@@ -86,14 +87,27 @@
 %ignore cvCloneImage;
 %rename (cvCloneImage) cvCloneImageMat;
 %inline %{
-extern const signed char icvDepthToType[];
-#define icvIplToCvDepth( depth ) \
-    icvDepthToType[(((depth) & 255) >> 2) + ((depth) < 0)]
 CvMat * cvCreateImageMat( CvSize size, int depth, int channels ){
-	depth = icvIplToCvDepth(depth);
+    static const signed char icvDepthToType[]=
+    {
+        -1, -1, CV_8U, CV_8S, CV_16U, CV_16S, -1, -1,
+        CV_32F, CV_32S, -1, -1, -1, -1, -1, -1, CV_64F, -1
+    };
+
+	depth = icvDepthToType[((depth & 255) >> 2) + (depth < 0)];
 	return cvCreateMat( size.height, size.width, CV_MAKE_TYPE(depth, channels));
 }
 #define cvCloneImageMat( mat ) cvCloneMat( mat )
+
+#ifdef WIN32
+
+CvModuleInfo *CvModule::first=0;
+CvModuleInfo *CvModule::last=0;
+CvTypeInfo *CvType::first=0;
+CvTypeInfo *CvType::last=0;
+
+#endif
+
 %}
 CvMat * cvCloneImageMat( CvMat * mat );
 

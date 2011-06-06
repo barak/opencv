@@ -1,5 +1,8 @@
 /* cvconfig.h.in.  Generated from configure.in by autoheader.  */
 
+/* Define if building universal (internal helper macro) */
+#undef AC_APPLE_UNIVERSAL_BUILD
+
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
    */
@@ -14,6 +17,9 @@
 /* Define to 1 if you have <alloca.h> and it should be used (not on Ultrix).
    */
 #undef HAVE_ALLOCA_H
+
+/* Define to 1 if you have the <assert.h> header file. */
+#undef HAVE_ASSERT_H
 
 /* V4L capturing support */
 #undef HAVE_CAMV4L
@@ -30,11 +36,29 @@
 /* libdc1394 0.9.4 or 0.9.5 */
 #undef HAVE_DC1394_095
 
+/* IEEE1394 capturing support */
+#undef HAVE_DC1394_2
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
-/* FFMpeg video library */
+/* FFMPEG video library */
 #undef HAVE_FFMPEG
+
+/* Define to 1 if you have the <ffmpeg/avcodec.h> header file. */
+#undef HAVE_FFMPEG_AVCODEC_H
+
+/* Define to 1 if you have the <ffmpeg/avformat.h> header file. */
+#undef HAVE_FFMPEG_AVFORMAT_H
+
+/* FFMPEG helper library */
+#undef HAVE_FFMPEG_SWSCALE
+
+/* Define to 1 if you have the <ffmpeg/swscale.h> header file. */
+#undef HAVE_FFMPEG_SWSCALE_H
+
+/* GStreamer multimedia framework */
+#undef HAVE_GSTREAMER
 
 /* GTK+ 2.0 Thread support */
 #undef HAVE_GTHREAD
@@ -45,6 +69,9 @@
 /* OpenEXR codec */
 #undef HAVE_ILMIMF
 
+/* Apple ImageIO Framework */
+#undef HAVE_IMAGEIO
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -53,6 +80,12 @@
 
 /* IJG JPEG codec */
 #undef HAVE_JPEG
+
+/* Define to 1 if you have the <libavcodec/avcodec.h> header file. */
+#undef HAVE_LIBAVCODEC_AVCODEC_H
+
+/* Define to 1 if you have the <libavformat/avformat.h> header file. */
+#undef HAVE_LIBAVFORMAT_AVFORMAT_H
 
 /* Define to 1 if you have the `dl' library (-ldl). */
 #undef HAVE_LIBDL
@@ -66,6 +99,12 @@
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
 
+/* Define to 1 if you have the <libswscale/swscale.h> header file. */
+#undef HAVE_LIBSWSCALE_SWSCALE_H
+
+/* Define to 1 if you have the `z' library (-lz). */
+#undef HAVE_LIBZ
+
 /* Define to 1 if you have the `lrint' function. */
 #undef HAVE_LRINT
 
@@ -74,6 +113,9 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Support mmx instructions */
+#undef HAVE_MMX
 
 /* PNG codec */
 #undef HAVE_PNG
@@ -89,6 +131,18 @@
 
 /* QuickTime video libraries */
 #undef HAVE_QUICKTIME
+
+/* Support SSE (Streaming SIMD Extensions) instructions */
+#undef HAVE_SSE
+
+/* Support SSE2 (Streaming SIMD Extensions 2) instructions */
+#undef HAVE_SSE2
+
+/* Support SSE3 (Streaming SIMD Extensions 3) instructions */
+#undef HAVE_SSE3
+
+/* Support SSSE3 (Supplemental Streaming SIMD Extensions 3) instructions */
+#undef HAVE_SSSE3
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -111,14 +165,24 @@
 /* TIFF codec */
 #undef HAVE_TIFF
 
+/* Unicap video capture library */
+#undef HAVE_UNICAP
+
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
+
+/* BLAS and LAPACK from Accelerate/vecLib framework */
+#undef HAVE_VECLIB
 
 /* Xine video library */
 #undef HAVE_XINE
 
 /* LZ77 compression/decompression library (used for PNG) */
 #undef HAVE_ZLIB
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
 
 /* Name of package */
 #undef PACKAGE
@@ -135,12 +199,15 @@
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
-   automatically deduced at run-time.
+   automatically deduced at runtime.
 	STACK_DIRECTION > 0 => grows toward higher addresses
 	STACK_DIRECTION < 0 => grows toward lower addresses
 	STACK_DIRECTION = 0 => direction of growth unknown */
@@ -152,6 +219,14 @@
 /* Version number of package */
 #undef VERSION
 
-/* Define to 1 if your processor stores words with the most significant byte
-   first (like Motorola and SPARC, unlike Intel and VAX). */
-#undef WORDS_BIGENDIAN
+/* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
+   significant byte first (like Motorola and SPARC, unlike Intel). */
+#if defined AC_APPLE_UNIVERSAL_BUILD
+# if defined __BIG_ENDIAN__
+#  define WORDS_BIGENDIAN 1
+# endif
+#else
+# ifndef WORDS_BIGENDIAN
+#  undef WORDS_BIGENDIAN
+# endif
+#endif

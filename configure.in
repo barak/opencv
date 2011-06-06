@@ -1,29 +1,47 @@
 # Process this file with autoconf to produce a configure script.
 
 # Set various version strings
-m4_define([opencv_major_version],    [1])
+m4_define([opencv_major_version],    [2])
 m4_define([opencv_minor_version],    [0])
 m4_define([opencv_subminor_version], [0])
 m4_define([opencv_version],          [opencv_major_version.opencv_minor_version.opencv_subminor_version])
 
 # Before making a release, the LT_VERSION string should be modified.
-# The string is of the form C:R:A.
-# - If interfaces have been changed or added, but binary compatibility has
-#   been preserved, change to C+1:0:A+1
-# - If binary compatibility has been broken (eg removed or changed interfaces)
-#   change to C+1:0:0
-# - If the interface is the same as the previous version, change to C:R+1:A
-m4_define([opencv_lt_version],       [1:0:0])
+# See: http://www.gnu.org/software/libtool/manual.html#Versioning
+#
+# The string is of the form Current:Revision:Age.
+#
+# The following lines are taken from the GNU Libtool Manual:
+# Here are a set of rules to help you update your library version information:
+#
+# Start with version information of 0:0:0 for each libtool library.
+# Update the version information only immediately before a public release of your software.
+# More frequent updates are unnecessary, and only guarantee that the current interface number
+# gets larger faster.
+#
+# 1) If the library source code has changed at all since the last update,
+#    then increment revision (c:r:a becomes c:r+1:a).
+# 2) If any interfaces have been added, removed, or changed since the last update,
+#    increment current, and set revision to 0.
+# 3) If any interfaces have been added since the last public release, then increment age.
+# 4) If any interfaces have been removed since the last public release, then set age to 0.
+#
+# Never try to set the interface numbers so that they correspond to the release number of your package.
+# This is an abuse that only fosters misunderstanding of the purpose of library versions. Instead,
+# use the -release flag (see Release numbers), but be warned that every release of your package will
+# not be binary compatible with any other release.
+m4_define([opencv_lt_version], [4:0:0])
 
 # init autotools
-AC_PREREQ(2.59)
+# we need autoconf >= 2.62 beause of several macros in there
+AC_PREREQ(2.63)
 AC_INIT([opencv],[opencv_version],[opencvlibrary-devel@lists.sourceforge.net])
 AC_CONFIG_SRCDIR([opencv.pc.in])
 AC_CONFIG_AUX_DIR([autotools])
 AC_CONFIG_MACRO_DIR([autotools/aclocal])
 
 # put CVS revision of this configure.in into the resulting configure script
-AC_REVISION($Revision: 1.39 $)
+AC_REVISION($Revision: 1.60 $)
 
 # Detect the canonical host and target build environment
 AC_CANONICAL_HOST
@@ -31,11 +49,11 @@ AC_CANONICAL_TARGET
 
 # setup automake - we need >= 1.6 because of python and aclocal support
 #                  we updated to 1.9 because of cross-platform issues
-AM_CONFIG_HEADER([cvconfig.h])
+AC_CONFIG_HEADERS([cvconfig.h])
 AM_INIT_AUTOMAKE([1.9])
 AC_PROG_MAKE_SET
 
-# use 'gly maintainer-mode flag to help CVS users that do not want to
+# use ugly maintainer-mode flag to help CVS users that do not want to
 # help developing OpenCV but just need to compile the latest version
 # AM_MAINTAINER_MODE
 
@@ -51,185 +69,276 @@ AC_SUBST(LT_VERSION, [opencv_lt_version])
 AC_DISABLE_STATIC
 AC_LIBTOOL_WIN32_DLL
 
-# does the user want to build universal binaries on Mac OS X?
-# AC_ARG_ENABLE([universal-build],
-#               AS_HELP_STRING([--enable-universal-build],
-#                              [build universal binaries on Mac OS X (default is YES)]),
-#               [ac_cv_universal_build=$enableval],
-#               [ac_cv_universal_build=yes])
-
-# disable dependency tracking when building universal binaries on Mac OS X
-# (this has to be done before the program checks)
-# if test x"$ac_cv_universal_build" = xyes; then
-#     enable_dependency_tracking=no
-# fi
+# Do compilation tests using CXX and CXXCPP and use extension .C for test programs. 
+# Use compilation flags: CPPFLAGS with CXXCPP, and both CPPFLAGS and CXXFLAGS with CXX. 
+AC_LANG(C++)
 
 # checks for programs.
+AC_PROG_CXXCPP
 AC_PROG_CXX
-AC_PROG_CC
-AC_PROG_CPP
 AC_PROG_LIBTOOL
-# AC_SUBST(LD)
-# AC_SUBST(CXXLD)
+
 
 ######################################################################
 # the following interpret 'with' and 'enable' switches.
-# some of these switches trigger checks that can be found further 
+# some of these switches trigger checks that can be found further
 # below in this configure script
 
 # does the user want aggressive optimization?
 AC_ARG_ENABLE([debug],
-              [AS_HELP_STRING([--enable-debug],[build debug version without optimization])],
-              [debug=$enableval], 
-              [debug=no])
+              [AS_HELP_STRING([--enable-debug],[build debug version without optimization [no]])],
+              [enable_debug=$enableval],
+              [enable_debug=no])
+
+# does the user want to have automatic guess of suitable optimization options
+AC_ARG_ENABLE([optimization],
+              [AS_HELP_STRING([--enable-optimization],[automatic guess of suitable optimization options [yes]])],
+              [enable_optimization=$enableval],
+              [enable_optimization=yes])
+
+# does the user want to have SSE / SSE2 / SSE3 specified?
+AC_ARG_ENABLE([sse],
+              [AS_HELP_STRING([--enable-sse],[enable SSE(2) intrinsics [automatic]])],
+              [enable_sse=$enableval],
+              [enable_sse=auto])
 
 # does the user want to build demo applications?
 AC_ARG_ENABLE([apps],
-              [AS_HELP_STRING([--enable-apps],[build demo applications])],
+              [AS_HELP_STRING([--enable-apps],[build demo applications [yes]])],
               [enable_apps=$enableval],
               [enable_apps="yes"])
 AM_CONDITIONAL([BUILD_APPS], [test x"$enable_apps" = x"yes"])
 
 
 # the following checks reflect the dependencies of OpenCV on other
-# libraries that do the actual work for video I/O or windowing 
+# libraries that do the actual work for video I/O or windowing
 # subsystem. On some platforms there are ambiguities that a user
 # can influence. There is also additional logic to be found in code
 # later code lines that tries to do sensible decisions on what to use
 
 # does the user want to compile python modules as well?
-AC_ARG_WITH([swig], 
-            [AS_HELP_STRING([--with-swig],[use swig wrapper generator])],
+AC_ARG_WITH([native-lapack],
+            [AS_HELP_STRING([--with-native-lapack],[use platform native BLAS and LAPACK [no]])],
+            [with_native_lapack=$withval],
+            [with_native_lapack=no])
+
+# compile and link against OpenMP
+# because of this: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=28482
+# we disable OpenMP by default. But one may enable it explicitly with --with-openmp
+#AC_ARG_WITH([openmp],
+#            [AS_HELP_STRING([--with-openmp],[use OpenMP threading [no]])],
+#            [with_openmp=$withval],
+#            [with_openmp=no])
+
+# does the user want to compile python modules as well?
+AC_ARG_WITH([swig],
+            [AS_HELP_STRING([--with-swig],[use swig wrapper generator [no]])],
             [with_swig=$withval],
             [with_swig=no])
 
 # does the user want to compile python modules as well?
-AC_ARG_WITH([python], 
-            [AS_HELP_STRING([--with-python],[use python for wrapping])],
+AC_ARG_WITH([python],
+            [AS_HELP_STRING([--with-python],[use python for wrapping [yes]])],
             [with_python=$withval],
             [with_python=yes])
 
+# does the user want to compile octave modules as well?
+AC_ARG_WITH([octave],
+            [AS_HELP_STRING([--with-octave],[use octave for wrapping [no]])],
+            [with_octave=$withval],
+            [with_octave=no])
+
 # does the user want OpenCV to use xine video libraries?
 AC_ARG_WITH([xine],
-            [AS_HELP_STRING([--with-xine],[use xine libraries (see LICENSE)])],
+            [AS_HELP_STRING([--with-xine],[use xine libraries (see LICENSE) [no]])],
             [with_xine=$withval],
             [with_xine=no])
 
+# does the user want OpenCV to use the gstreamer multimedia framework?
+AC_ARG_WITH([gstreamer],
+            [AS_HELP_STRING([--with-gstreamer],[use gstreamer multimedia framework (see LICENSE) [no]])],
+            [with_gstreamer=$withval],
+            [with_gstreamer=no])
+
 # does the user want OpenCV to use ffmpeg video libraries?
 AC_ARG_WITH([ffmpeg],
-            [AS_HELP_STRING([--with-ffmpeg],[use ffmpeg libraries (see LICENSE)])],
+            [AS_HELP_STRING([--with-ffmpeg],[use ffmpeg libraries (see LICENSE) [automatic]])],
             [with_ffmpeg=$withval],
             [with_ffmpeg=auto])
 
 # does the user want OpenCV to use libraw1394/libdc1394 for video input?
 AC_ARG_WITH([1394libs],
-            [AS_HELP_STRING([--with-1394libs],[use libraw1394/libdc1394])],
+            [AS_HELP_STRING([--with-1394libs],[use libraw1394/libdc1394 [automatic]])],
             [with_1394libs=$withval],
             [with_1394libs=auto])
 
 # does the user want OpenCV to use the video4linux kernel module?
 AC_ARG_WITH([v4l],
-            [AS_HELP_STRING([--with-v4l],[use video4linux])],
+            [AS_HELP_STRING([--with-v4l],[use video4linux [automatic]])],
             [with_v4l=$withval],
             [with_v4l=auto])
 
+# does the user want OpenCV to use the unicap library?
+AC_ARG_WITH([unicap],
+            [AS_HELP_STRING([--with-unicap],[use unicap (see LICENSE) [no]])],
+            [with_unicap=$withval],
+            [with_unicap=no])
+
+# does the user want OpenCV to use image libraries from OS X 10.4?
+AC_ARG_WITH([imageio],
+            [AS_HELP_STRING([--with-imageio],[use ImageIO libraries [automatic]])],
+            [with_imageio=$withval],
+            [with_imageio=yes])
+
 # does the user want OpenCV to use QuickTime video libraries?
 AC_ARG_WITH([quicktime],
-            [AS_HELP_STRING([--with-quicktime],[use QuickTime libraries])],
+            [AS_HELP_STRING([--with-quicktime],[use QuickTime libraries [automatic]])],
             [with_quicktime=$withval],
             [with_quicktime=yes])
 
 # does the user want OpenCV to use the Carbon GUI of Mac OS X?
 AC_ARG_WITH([carbon],
-            [AS_HELP_STRING([--with-carbon],[use Carbon windows])],
+            [AS_HELP_STRING([--with-carbon],[use Carbon windows [automatic]])],
             [with_carbon=$withval],
             [with_carbon=yes])
 
 # does the user want OpenCV to use GTK+ 2.0 for the GUI?
 AC_ARG_WITH([gtk],
-            [AS_HELP_STRING([--with-gtk],[use gtk+ 2.0 windows])],
+            [AS_HELP_STRING([--with-gtk],[use gtk+ 2.0 windows [automatic]])],
             [with_gtk=$withval],
             [with_gtk=auto])
 
+# does the user want OpenCV to use gthread for GTK+ threaded HighGUI?
+AC_ARG_WITH([gthread],
+            [AS_HELP_STRING([--with-gthread],[use gthread in addition to gtk+ [automatic]])],
+            [with_gthread=$withval],
+            [with_gthread=auto])
+
 
 ######################################################################
-# getting the code to compile
+# Compiler options
 
-# cure annoying default arguments for CFLAGS and CXXFLAGS
-# that autoconf automatically sets in GNU environments if
-# no CFLAGS or CXXFLAGS were manually given
-if test x"$CFLAGS" = "x-g -O2" ; then
-    CFLAGS=""
-fi
-if test x"$CXXFLAGS" = "x-g -O2" ; then
-    CXXFLAGS=""
-fi
+# OpenMP support
+# macro calls AC_SUBST(OPENMP_CXXFLAGS)
+# and brings its own enable/disable switch ("--disable-openmp")
+AC_OPENMP
 
-# see if the user wants to build universal binaries on Mac OS X
-case $host in
-    *-*-darwin*)
-#        AC_MSG_CHECKING([whether we are building universal binaries])
-#        if test x"$ac_cv_universal_build" = xyes; then
-#            CFLAGS="$CFLAGS -isysroot /Developer/SDKs/MacOSX10.4u.sdk -arch ppc -arch i386"
-#            CXXFLAGS="$CXXFLAGS -isysroot /Developer/SDKs/MacOSX10.4u.sdk -arch ppc -arch i386"
-#            AC_DEFINE([OPENCV_UNIVERSAL_BUILD], [], [Define when building universal binaries on Mac OS X])
-#        fi
-#        AC_MSG_RESULT([$ac_cv_universal_build])
-        ;;
-    *)
-        ;;
-esac
-
-# see if the user wants aggressive optimizations of the code,
-# check whether to include debugging code
-AC_MSG_CHECKING([whether to build debug version (no optimization)])
-if test x"$debug" = "xyes"; then
-    AC_MSG_RESULT([yes])
-    if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
-        CPPFLAGS="-DDEBUG -D_DEBUG $CPPFLAGS"
-        CXXFLAGS="-ggdb -O0 $CXXFLAGS"
-    fi
+# SSE/SSE2/SSE3 support
+if test x"$enable_sse" = "xauto"; then
+  # This macro calls:
+  #   AC_SUBST(SIMD_FLAGS)
+  # And defines:
+  #   HAVE_MMX / HAVE_SSE / HAVE_SSE2 / HAVE_SSE3 / HAVE_SSSE3
+  AX_EXT
 else
-    AC_MSG_RESULT([no])
-    AC_MSG_NOTICE( TARGET=$target )
-    case $target in
-    i*86-apple-*)
-        if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
-            # apples g++ fails with '-march=i686' and there are no apple machines older than prescott/core anyway
-            CXXFLAGS="-g -march=prescott -ffast-math -fomit-frame-pointer $CXXFLAGS"
-        fi
-        ;;
-    i686-*-*)
-        if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
-          # default to i686/pentiumpro -- people can override this
-          CXXFLAGS="-g -march=i686 -ffast-math -fomit-frame-pointer $CXXFLAGS"
-        fi
-        ;;
-    powerpc-*-*)
-        if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
-            # default to G3 processors -- people can override this
-            CXXFLAGS="-g -mcpu=G3 -mtune=G5 -fomit-frame-pointer $CXXFLAGS"
-        fi
-        ;;
-    *-*-*)
-        if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
-            CXXFLAGS="-fomit-frame-pointer $CXXFLAGS"
-        fi
-        ;;
-    esac
+  if test x"$enable_sse" = "xyes"; then
+    AC_DEFINE(HAVE_MMX,,[Support mmx instructions])
+    AC_DEFINE(HAVE_SSE,,[Support SSE (Streaming SIMD Extensions) instructions])
+    AC_DEFINE(HAVE_SSE2,,[Support SSE2 (Streaming SIMD Extensions 2) instructions])
+    #AC_DEFINE(HAVE_SSE3,,[Support SSE3 (Streaming SIMD Extensions 3) instructions])
+    #AC_DEFINE(HAVE_SSSE3,,[Support SSSE3 (Supplemental Streaming SIMD Extensions 3) instructions])
     
-    CPPFLAGS="-DNDEBUG $CPPFLAGS"
-    CXXFLAGS="-O3 $CXXFLAGS"
+    SIMD_FLAGS=" -mmmx -msse -msse2"
+    AC_SUBST(SIMD_FLAGS)
+  fi
 fi
 
-if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
-    CXXFLAGS="-Wall -fno-rtti -pipe $CXXFLAGS"
-fi
 
-# add libm because it is used by several libraries and OpenCV itself 
+## check whether to include debugging compiler flags
+AC_MSG_CHECKING([whether to build debug version])
+DEBUG_CPPFLAGS=""
+DEBUG_CXXFLAGS=""
+if test x"$enable_debug" = "xyes"; then
+  AC_MSG_RESULT([yes])
+  
+  if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
+    DEBUG_CXXFLAGS="-ggdb"
+  fi
+  
+  DEBUG_CPPFLAGS="-DDEBUG -D_DEBUG"
+else
+  AC_MSG_RESULT([no])
+fi
+AC_SUBST(DEBUG_CPPFLAGS)
+AC_SUBST(DEBUG_CXXFLAGS)
+
+
+## see if the user wants aggressive optimizations of the code
+AC_MSG_CHECKING([whether to enable aggressive optimization flags])
+OPTIMIZATION_CPPFLAGS=""
+OPTIMIZATION_CXXFLAGS=""
+FLOAT_STORE_CFLAGS=""
+if test x"$enable_optimization" = "xyes"; then
+  AC_MSG_RESULT([yes])
+  
+  # cure annoying default arguments for CFLAGS and CXXFLAGS
+  # that autoconf automatically sets in GNU environments if
+  # no CFLAGS or CXXFLAGS were manually given
+  #
+  # this is a more or less a hack ...
+  if test x"$CFLAGS" = x"-g -O2" ; then
+    CFLAGS=""
+  fi
+  if test x"$CXXFLAGS" = x"-g -O2" ; then
+    CXXFLAGS=""
+  fi
+  
+  if test x"$ac_cv_c_compiler_gnu" = "xyes"; then
+    
+    # special flag for gcc to work around excess precision bug in cLapack
+    FLOAT_STORE_CFLAGS="-ffloat-store"
+
+    # Due to a misconception, until SVN revision r1713, the case statement
+    # used the value of '--target', not of '--host'
+    case $host in
+    i386-apple-*)
+      # all intel macs have at least prescott instruction set
+      OPTIMIZATION_CXXFLAGS="-fast -g"
+      ;;
+    x86_64-apple-*)
+      # all 64bit intel macs have at least nocona instruction set
+      OPTIMIZATION_CXXFLAGS="-fast -g -march=nocona"
+      ;;
+    i?86-*-*)
+      # okay, we use this default together with the specification of the target architecture
+      # let us just assume, a Pentium 4 would be the minimum platform for OpenCV,
+      # then SSE2 instruction set is available also
+      OPTIMIZATION_CXXFLAGS="-O3 -g -march=pentium4 -ffast-math -fomit-frame-pointer"
+      ;;
+    amd64-*-* | x86_64-*-*)
+      OPTIMIZATION_CXXFLAGS="-O3 -g -march=x86-64 -ffast-math -fomit-frame-pointer"
+      ;;
+    powerpc-apple-*)
+      # Mac OS X 10.4 runs on CPUs >= G4 only
+      OPTIMIZATION_CXXFLAGS="-O3 -falign-loops-max-skip=15 -falign-jumps-max-skip=15 -falign-loops=16 -falign-jumps=16 -falign-functions=16 -ffast-math -fstrict-aliasing -funroll-loops -ftree-loop-linear -ftree-loop-memset -mcpu=G4 -mpowerpc-gpopt -mtune=G5 -fsched-interblock -fgcse-sm -g"
+      ;;
+    powerpc64-apple-*)
+      # There are no 64bit Macs with a CPU that's not a G5
+      OPTIMIZATION_CXXFLAGS="-O3 -falign-loops-max-skip=15 -falign-jumps-max-skip=15 -falign-loops=16 -falign-jumps=16 -falign-functions=16 -ffast-math -fstrict-aliasing -funroll-loops -ftree-loop-linear -ftree-loop-memset -mcpu=G5 -mpowerpc-gpopt -fsched-interblock -fgcse-sm -m64 -g"
+      ;;
+    powerpc-*-*)
+      # generic PowerPCs don't have Apple's 'fast' or 'fastf' switch
+      OPTIMIZATION_CXXFLAGS="-O3 -g -mcpu=G3 -mtune=G4 -fomit-frame-pointer"
+      ;;
+    *-*-*)
+      OPTIMIZATION_CXXFLAGS="-O2 -fomit-frame-pointer"
+      ;;
+    esac
+  fi
+  
+  OPTIMIZATION_CPPFLAGS="-DNDEBUG"
+else
+  AC_MSG_RESULT([no])
+fi
+AC_SUBST(OPTIMIZATION_CPPFLAGS)
+AC_SUBST(OPTIMIZATION_CXXFLAGS)
+AC_SUBST(FLOAT_STORE_CFLAGS)
+
+# basic libraries needed by OpenCV
 AC_CHECK_LIB(m,pow)
 AC_CHECK_LIB(dl,dlopen)
 AC_CHECK_LIB(pthread,pthread_create)
+AC_CHECK_LIB(z,gzputs)
 
 # check endianness
 AC_C_BIGENDIAN
@@ -238,13 +347,41 @@ AC_C_BIGENDIAN
 # certain standard library implementations
 AC_FUNC_ALLOCA
 AC_CHECK_HEADERS([malloc.h])
+AC_CHECK_HEADERS([assert.h])
 AC_CHECK_FUNCS(lrint)
+AC_SEARCH_LIBS([clock_gettime],[rt])
+
+######################################################################
+# BLAS and LAPACK
+
+LAPACK_LIBS=""
+have_native_lapack=no
+if test x"$with_native_lapack" = "xyes"; then
+  # check for Accellerate framework on Mac OS X
+  # 
+  # As of Mac OS X 10.5 blas and lapack exist as standard shared 
+  # libraries, so this check could be replaced by separate checks for
+  # those two libraries as it may be helpful for Linux/Unix variants
+  # as well.
+  AC_CHECK_HEADER([vecLib/clapack.h],
+                [
+                  AC_DEFINE(HAVE_VECLIB,,[BLAS and LAPACK from Accelerate/vecLib framework])
+                  LAPACK_LIBS="-Xlinker -framework -Xlinker vecLib"
+                  have_native_lapack=yes
+                ],
+                [
+                  have_native_lapack=no
+                ])
+fi
+
+AC_SUBST(LAPACK_LIBS)
+AM_CONDITIONAL([NATIVE_LAPACK], [test x"$have_native_lapack" = "xyes"])
 
 
 ######################################################################
 # HighGUI dependencies for windowing system
 
-# honor user selection, 
+# honor user selection,
 # if no selection given check for Carbon first
 CARBON_CFLAGS=""
 CARBON_LIBS=""
@@ -258,13 +395,13 @@ if test x"$with_carbon" = "xyes"; then
                       have_carbon=yes
                     ],
                     [
-                      have_carbon=no 
+                      have_carbon=no
                       with_carbon=no
                     ])
 
     # sanity checks
     if test x"$have_carbon" = "xyes"; then
-    
+
         # if we asked for gtk, this is not ok
         if test x"$with_gtk" = "xyes"; then
             AC_MSG_ERROR([You cannot specify --with-carbon and --with-gtk at the same time])
@@ -285,7 +422,7 @@ AC_SUBST(CARBON_CFLAGS)
 AC_SUBST(CARBON_LIBS)
 AM_CONDITIONAL([BUILD_CARBON], [test x"$have_carbon" = "xyes"])
 
-# use GTK+ 2.x (or later) for windowing 
+# use GTK+ 2.x (or later) for windowing
 # if carbon not present or not wanted (--without-carbon)
 GTK_CFLAGS=""
 GTK_LIBS=""
@@ -293,7 +430,6 @@ GTHREAD_CFLAGS=""
 GTHREAD_LIBS=""
 if test x"$with_gtk" = "xno"; then
     have_gtk=no
-    have_gthread=no
 else
 
     # check if ./configure arguments are valid
@@ -301,30 +437,47 @@ else
        with_gtk=yes
     fi
     if test x"$with_gtk" = "xyes"; then
-    
+
         # pkg-config is needed for GTK+
         AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
-        if test x"$PKG_CONFIG" == "xno"; then
-            AC_MSG_ERROR([You have to install pkg-config to compile OpenCV with GTK+])
+        if test x"$PKG_CONFIG" = x"no"; then
+            AC_MSG_WARN([You have to install pkg-config to compile OpenCV with GTK+])
+        else
+            PKG_CHECK_MODULES(GTK, "gtk+-2.0 gdk-pixbuf-2.0",
+                              [
+                                have_gtk=yes
+                                AC_DEFINE(HAVE_GTK,,[GTK+ 2.x toolkit])
+                              ],
+                              [ have_gtk=no ])
         fi
-    
-        PKG_CHECK_MODULES(GTK, "gtk+-2.0 gdk-pixbuf-2.0", 
-                          [
-                            have_gtk=yes 
-                            AC_DEFINE(HAVE_GTK,,[GTK+ 2.x toolkit])
-                          ],
-                          [ have_gtk=no ])
-    
-        PKG_CHECK_MODULES(GTHREAD, "gthread-2.0",
-                          [
-                            have_gthread=yes
-                            AC_DEFINE(HAVE_GTHREAD,,[GTK+ 2.0 Thread support])
-                          ],
-                          [ have_gthread=no ])
     else
         # if we get here then --with-gtk was not called with 'yes','no' or 'auto'
         AC_MSG_WARN([unexpected arguments for option --with-gtk, continuing assuming 'no'])
         have_gtk=no
+    fi
+fi
+if test x"$with_gthread" = "xno"; then
+    have_gthread=no
+else
+    if test x"$have_gtk" = "xyes"; then
+        if test x"$with_gthread" = "xauto"; then
+            with_gthread=yes
+        fi
+
+        if test x"$with_gthread" = "xyes"; then
+            PKG_CHECK_MODULES(GTHREAD, "gthread-2.0",
+                              [
+                                have_gthread=yes
+                                AC_DEFINE(HAVE_GTHREAD,,[GTK+ 2.0 Thread support])
+                              ],
+                              [ have_gthread=no ])
+        else
+            # if we get here then --with-gthread was not called with 'yes','no' or 'auto'
+            AC_MSG_WARN([unexpected arguments for option --with-gthread, continuing assuming 'no'])
+            have_gthread=no
+        fi
+    else
+        # if no gtk+ was detected, looking for gthread does not make any sense
         have_gthread=no
     fi
 fi
@@ -355,7 +508,7 @@ if test x"$with_quicktime" = "xyes"; then
     if test x"$with_v4l" = "xyes"; then
         AC_MSG_ERROR([You cannot specify --with-quicktime and --with-v4l at the same time])
     fi
-    
+
     # header presence and usability seem to be enough
     AC_CHECK_HEADER([QuickTime/QuickTime.h],
                     [
@@ -363,11 +516,11 @@ if test x"$with_quicktime" = "xyes"; then
                       have_quicktime=yes
                     ],
                     [ have_quicktime=no ])
-    
+
     # specify quicktime libraries
     if test x"$have_quicktime" = "xyes"; then
         QUICKTIME_LIBS="-Xlinker -framework -Xlinker QuickTime -Xlinker -framework -Xlinker QuartzCore"
- 
+
         # don't check alternatives if quicktime was found
         if test x"$with_ffmpeg" = "xauto"; then
             with_ffmpeg=no
@@ -392,6 +545,70 @@ fi
 AC_SUBST(QUICKTIME_CFLAGS)
 AC_SUBST(QUICKTIME_LIBS)
 AM_CONDITIONAL([BUILD_QUICKTIME], [test x"$have_quicktime" = "xyes"])
+
+# GStreamer seems to be a nice solution for both reading and writing
+# and even supports some cameras
+GSTREAMER_CFLAGS=""
+GSTREAMER_LIBS=""
+if test x"$with_gstreamer" = "xno"; then
+    have_gstreamer=no
+else
+
+    if test x"$with_ffmpeg" = "xyes"; then
+        AC_MSG_ERROR([You cannot specify --with-gstreamer and --with-ffmpeg at the same time])
+    fi
+
+    # check if ./configure arguments are valid
+    if test x"$with_gstreamer" = "xauto"; then
+       with_gstreamer=yes
+    fi
+    if test x"$with_gstreamer" = "xyes"; then
+
+        # pkg-config is needed for GTK+
+        AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
+        if test x"$PKG_CONFIG" == "xno"; then
+            AC_MSG_ERROR([You have to install pkg-config to compile OpenCV with GStreamer])
+        fi
+
+        PKG_CHECK_MODULES(GSTREAMER, "gstreamer-0.10",
+                          [
+                            have_gstreamer=yes
+                            AC_DEFINE(HAVE_GSTREAMER,,[GStreamer multimedia framework])
+                          ],
+                          [ have_gstreamer=no ])
+
+        if test x"$have_gstreamer" = "xyes"; then
+            GSTREAMER_LIBS="$GSTREAMER_LIBS -lgstbase-0.10"
+            with_ffmpeg=no
+        fi
+    else
+        # if we get here then --with-gstreamer was not called with 'yes','no' or 'auto'
+        AC_MSG_WARN([unexpected arguments for option --with-gstreamer, continuing assuming 'no'])
+        have_gstreamer=no
+    fi
+fi
+AC_SUBST(GSTREAMER_CFLAGS)
+AC_SUBST(GSTREAMER_LIBS)
+AM_CONDITIONAL([BUILD_GSTREAMER], [test x"$have_gstreamer" = "xyes"])
+
+# Check for the unicap library
+UNICAP_PACKAGE_LIBS=""
+UNICAP_PACKAGE_CFLAGS=""
+UCIL_PACKAGE_LIBS=""
+UCIL_PACKAGE_CFLAGS=""
+if test x"$with_unicap" = "xno"; then
+    have_unicap=no
+else
+	PKG_CHECK_MODULES(UNICAP_PACKAGE,libunicap)
+	PKG_CHECK_MODULES(UCIL_PACKAGE,libucil)
+	have_unicap=yes
+	AC_DEFINE(HAVE_UNICAP,,[Unicap video capture library])
+fi
+AM_CONDITIONAL([BUILD_UNICAP], [test x"$have_unicap" = "xyes"])
+AC_SUBST(UNICAP_PACKAGE_LIBS)
+AC_SUBST(UNICAP_PACKAGE_CFLAGS)
+AC_SUBST(UCIL_PACKAGE_LIBS)
+AC_SUBST(UCIL_PACKAGE_CFLAGS)
 
 # prefer XINE over FFMPEG for video reading because it is quick, has a cleaner API
 # and allows for easy seeking with some formats
@@ -429,26 +646,34 @@ if test x"$with_ffmpeg" = "xno"; then
     have_ffmpeg=no
     # FFMPEGLIBS=""
 else
-
+    
+    have_ffmpeg=no
+    have_avcodec=no
+    have_avformat=no
+    
     # check if ./configure arguments are valid
     if test x"$with_ffmpeg" = "xauto"; then
        with_ffmpeg=yes
     fi
+    
     if test x"$with_ffmpeg" = "xyes"; then
-        AC_CHECK_HEADER(ffmpeg/avcodec.h,
-                        AC_CHECK_LIB(avcodec, avcodec_decode_video,
-                                     [
-                                       AC_CHECK_LIB(avformat, av_open_input_file,
-                                                    [
-                                                      have_ffmpeg=yes
-                                                      AC_DEFINE(HAVE_FFMPEG,,[FFMpeg video library])
-                                                      FFMPEGLIBS="-lavcodec -lavformat"
-                                                    ],
-                                                    [ have_ffmpeg=no ],
-                                                    [-lavcodec])
-                                     ],
-                                     [ have_ffmpeg=no ]),
-                        [ have_ffmpeg=no ])
+        AC_CHECK_HEADERS([ffmpeg/avcodec.h libavcodec/avcodec.h],[have_avcodec=yes])
+        AC_CHECK_HEADERS([ffmpeg/avformat.h libavformat/avformat.h],[have_avformat=yes])
+        
+        if test x"$have_avcodec"x"$have_avformat" = "xyesxyes" ; then
+            AC_SEARCH_LIBS([avcodec_decode_video],[avcodec_pic avcodec],[
+                AC_SEARCH_LIBS([av_open_input_file], [avformat_pic avformat],[have_ffmpeg=yes],[],[-lavcodec])])
+        fi
+        
+        if test x"$have_ffmpeg" = "xyes" ; then
+            # libswscale is not always necessary, but if it is there, we want to use it
+            AC_CHECK_HEADERS([ffmpeg/swscale.h libswscale/swscale.h],[
+                AC_CHECK_LIB([swscale],[sws_getContext],[FFMPEG_SWSCALE_LIBS="-lswscale"
+                    AC_DEFINE(HAVE_FFMPEG_SWSCALE,,[FFMPEG helper library])])])
+            
+            AC_DEFINE(HAVE_FFMPEG,,[FFMPEG video library])
+            FFMPEGLIBS="-lavcodec -lavformat $FFMPEG_SWSCALE_LIBS"
+        fi
     else
         # if we get here then --with-ffmpeg was not called with 'yes','no' or 'auto'
         AC_MSG_WARN([unexpected arguments for option --with-ffmpeg, continuing assuming 'no'])
@@ -463,6 +688,7 @@ AM_CONDITIONAL([BUILD_FFMPEG], [test x"$have_ffmpeg" = "xyes"])
 if test x"$with_1394libs" = "xno"; then
     have_raw1394=no
     have_dc1394=no
+    have_dc1394_2=no
     # IEEE1394LIBS=""
 else
 
@@ -471,30 +697,41 @@ else
        with_1394libs=yes
     fi
     if test x"$with_1394libs" = "xyes"; then
-    
+
         SAVELIBS="$LIBS"
         have_raw1394=no
         have_dc1394=no
-        
+        have_dc1394_2=no
+
         AC_CHECK_HEADER(libraw1394/raw1394.h,
-                        AC_CHECK_LIB(raw1394, raw1394_new_handle, 
+                        AC_CHECK_LIB(raw1394, raw1394_new_handle,
                                      [
                                        have_raw1394=yes
-                                       LIBS="-lm -lraw1394 $LIBS"
+                                       LIBS="-lraw1394 $LIBS"
                                      ]))
-        
+
         if test x"$have_raw1394" = "xyes"; then
-            AC_CHECK_HEADER(libdc1394/dc1394_control.h,
-                            AC_CHECK_LIB(dc1394_control, dc1394_camera_on, 
+            AC_CHECK_HEADER(dc1394/dc1394.h,
+                            AC_CHECK_LIB(dc1394, dc1394_camera_enumerate,
                                          [
-                                           have_dc1394=yes
-                                           AC_DEFINE(HAVE_DC1394,,[IEEE1394 capturing support])
-                                           AC_EGREP_HEADER(do_extra_buffering, libdc1394/dc1394_control.h,
-                                                           [AC_DEFINE(HAVE_DC1394_095,,[libdc1394 0.9.4 or 0.9.5])])
-                                           IEEE1394LIBS="-lm -lraw1394 -ldc1394_control"
+                                           have_dc1394_2=yes
+                                           AC_DEFINE(HAVE_DC1394_2,,[IEEE1394 capturing support])
+                                           IEEE1394LIBS="-lraw1394 -ldc1394"
                                          ]))
+            
+            if test x"$have_dc1394_2" = "xno"; then
+                AC_CHECK_HEADER(libdc1394/dc1394_control.h,
+                                AC_CHECK_LIB(dc1394_control, dc1394_camera_on,
+                                             [
+                                               have_dc1394=yes
+                                               AC_DEFINE(HAVE_DC1394,,[IEEE1394 capturing support])
+                                               AC_EGREP_HEADER(do_extra_buffering, libdc1394/dc1394_control.h,
+                                                               [AC_DEFINE(HAVE_DC1394_095,,[libdc1394 0.9.4 or 0.9.5])])
+                                               IEEE1394LIBS="-lraw1394 -ldc1394_control"
+                                             ]))
+            fi
         fi
-        
+
         LIBS="$SAVELIBS"
     else
         # if we get here then --with-1394libs was not called with 'yes','no' or 'auto'
@@ -504,8 +741,9 @@ else
 fi
 AC_SUBST(IEEE1394LIBS)
 AM_CONDITIONAL([BUILD_DC1394], [test x"$have_dc1394" = "xyes"])
+AM_CONDITIONAL([BUILD_DC1394_2], [test x"$have_dc1394_2" = "xyes"])
 
-# Video for Linux (V4L) 
+# Video for Linux (V4L)
 # we support version 1 and 2 currently
 if test x"$with_v4l" = "xno"; then
     have_v4l=no
@@ -523,7 +761,7 @@ else
                           have_v4l=yes
                           have_v4l1or2=yes
                         ],
-                        [ 
+                        [
                           have_v4l=no
                           have_v4l1or2=no
                         ])
@@ -558,37 +796,61 @@ IMAGELIBS=""
 
 AC_SUBST(IMAGELIBS)
 
+have_imageio=no
+if test x"$with_imageio" = "xauto"; then
+    with_imageio=yes
+fi
+if test x"$with_imageio" = "xyes"; then
+    AC_CHECK_HEADER([ApplicationServices/ApplicationServices.h],
+                    [
+                      have_imageio=yes
+                      AC_DEFINE(HAVE_IMAGEIO,,[Apple ImageIO Framework])
+                      IMAGELIBS="$IMAGELIBS -framework ApplicationServices"
+                      LIBS="$LIBS -framework ApplicationServices"
+                    ],
+                    [ have_imageio=no ])
+fi
+AM_CONDITIONAL([BUILD_IMAGEIO], [test x"$have_imageio" = "xyes"])
+
+
 have_jpeg=no
-AC_CHECK_HEADER(jpeglib.h,
-                AC_CHECK_LIB(jpeg, jpeg_destroy_decompress,
-                             [
-                               have_jpeg=yes
-                               AC_DEFINE(HAVE_JPEG,,[IJG JPEG codec])
-                               IMAGELIBS="$IMAGELIBS -ljpeg"
-                             ]))
-
 have_zlib=no
-AC_CHECK_HEADER(zlib.h,
-                AC_CHECK_LIB(z, gzopen,
-                             [
-                               have_zlib=yes
-                               AC_DEFINE(HAVE_ZLIB,,[LZ77 compression/decompression library (used for PNG)])
-                               IMAGELIBS="$IMAGELIBS -lz -lm"
-                               LIBS="$LIBS -lz -lm"
-                             ]))
-
 have_png=no
-AC_CHECK_HEADER(png.h, 
-                [
-                  AC_DEFINE(HAVE_PNG_H,,[png.h needs to be included])
-                  have_png=yes
-                ])
-AC_CHECK_HEADER([libpng/png.h], 
-                [
-                  AC_DEFINE(HAVE_LIBPNG_PNG_H,,[libpng/png.h needs to be included])
-                  have_png=yes
-                ])
-if test x"$have_png" = "xyes"; then
+have_tiff=no
+
+# there are problems with dependencies of ImageIO to libtiff, etc.
+# that we avoid by not linking them ourselves
+if test x"$have_imageio" = "xno" ; then
+
+  AC_CHECK_HEADER(jpeglib.h,
+                  AC_CHECK_LIB(jpeg, jpeg_destroy_decompress,
+                               [
+                                 have_jpeg=yes
+                                 AC_DEFINE(HAVE_JPEG,,[IJG JPEG codec])
+                                 IMAGELIBS="$IMAGELIBS -ljpeg"
+                               ]))
+
+  AC_CHECK_HEADER(zlib.h,
+                  AC_CHECK_LIB(z, gzopen,
+                               [
+                                 have_zlib=yes
+                                 AC_DEFINE(HAVE_ZLIB,,[LZ77 compression/decompression library (used for PNG)])
+                                 IMAGELIBS="$IMAGELIBS -lz"
+                                 LIBS="$LIBS -lz"
+                               ]))
+
+  AC_CHECK_HEADER(png.h,
+                  [
+                    AC_DEFINE(HAVE_PNG_H,,[png.h needs to be included])
+                    have_png=yes
+                  ])
+  AC_CHECK_HEADER([libpng/png.h],
+                  [
+                    AC_DEFINE(HAVE_LIBPNG_PNG_H,,[libpng/png.h needs to be included])
+                    have_png=yes
+                  ])
+
+  if test x"$have_png" = "xyes"; then
     AC_CHECK_LIB(png12, png_read_image,
                  [
                    have_png=yes
@@ -598,17 +860,17 @@ if test x"$have_png" = "xyes"; then
                    AC_CHECK_FUNCS(png_get_valid png_set_tRNS_to_alpha)
                  ],
                  [ have_png=no ])
-fi
+  fi
 
-have_tiff=no
-AC_CHECK_HEADER(tiff.h,
-                AC_CHECK_LIB(tiff, TIFFReadRGBAStrip,
-                             [
-                               have_tiff=yes
-                               AC_DEFINE(HAVE_TIFF,,[TIFF codec])
-                               IMAGELIBS="$IMAGELIBS -ltiff"
-                               LIBS="$LIBS -ltiff"
-                             ]))
+  AC_CHECK_HEADER(tiff.h,
+                  AC_CHECK_LIB(tiff, TIFFReadRGBAStrip,
+                               [
+                                 have_tiff=yes
+                                 AC_DEFINE(HAVE_TIFF,,[TIFF codec])
+                                 IMAGELIBS="$IMAGELIBS -ltiff"
+                                 LIBS="$LIBS -ltiff"
+                               ]))
+fi
 
 have_jasper=no
 AC_CHECK_HEADER(jasper/jasper.h,
@@ -639,10 +901,9 @@ AC_SUBST(IMAGELIBS)
 ######################################################################
 # SWIG wrappers
 
-# currently there is only python.
-# If additional wrapper languages / SWIG modules
-# get available for OpenCV, we will have a --with-LANGUAGE switch
-# for every wrapper language
+# each language should have --with-LANGUAGE switch
+
+# check for python
 if test x"$with_python" = "xyes"; then
     AC_MSG_NOTICE([Checking for necessary tools to build python wrappers])
 
@@ -657,7 +918,7 @@ if test x"$with_python" = "xyes"; then
     if test x"$with_swig" = "xauto"; then
         with_swig=yes
     fi
-    
+
     ### almost ok... just need to check if we have the Python headers ###
 
     # first, save the CPPFLAGS
@@ -689,6 +950,75 @@ else
 fi
 AM_CONDITIONAL([BUILD_PYTHON_WRAPPERS], [test x"$have_python" = "xyes"])
 
+# check for octave
+if test x"$with_octave" = "xyes"; then
+    AC_MSG_NOTICE([Checking for necessary tools to build octave wrappers])
+
+    # find octave and mkoctfile
+    AC_PATH_PROG(OCTAVE,octave)
+    AC_PATH_PROG(MKOCTFILE,mkoctfile)
+
+    if test -z "$OCTAVE"; then
+       AC_MSG_WARN([octave not found, disabling octave wrappers])
+       with_octave=no
+    fi
+    if test -z "$MKOCTFILE"; then
+       AC_MSG_WARN([mkoctfile not found, disabling octave wrappers])
+       with_octave=no
+    fi
+    OCTAVE_INCFLAGS=`$MKOCTFILE -p INCFLAGS`
+    AC_SUBST(OCTAVE_INCFLAGS,[$OCTAVE_INCFLAGS])
+fi
+if test x"$with_octave" = "xyes"; then
+    # check that octave version is at least 2.9.12
+    cat > conftest.m <<'EOF'
+[[a,b,c]]=sscanf([[version()," "]],"%i.%i.%i","C");
+exit(sum([[a,b,c]].*[[1e5,1e3,1]])<209012)
+EOF
+    $OCTAVE --no-init-file conftest.m >& /dev/null || with_octave="no";
+    rm -f conftest.m
+
+    if test x"$with_octave" = "xno"; then
+       AC_MSG_WARN([Octave version < 2.9.12, disabling octave wrappers])
+    fi
+fi
+if test x"$with_octave" = "xyes"; then
+    # if not explicitly forbidden, check for swig also
+    if test x"$with_swig" = "xauto"; then
+        with_swig=yes
+    fi
+
+    # check that we have octave headers
+    OLD_CPPFLAGS=$CPPFLAGS
+    CPPFLAGS="$CPPFLAGS -x c++ $OCTAVE_INCFLAGS"
+    AC_CHECK_HEADER(octave/oct.h,
+        [have_octave=yes],
+        [
+          AC_MSG_WARN([Octave headers not found, disabling octave wrappers])
+          have_octave=no
+        ])
+    
+    # restore the old CPPFLAGS
+    CPPFLAGS=$OLD_CPPFLAGS
+
+    # find Octave arch
+    AC_MSG_CHECKING([for Octave arch])
+    OCTAVE_ARCH=`$OCTAVE -q --eval 'strcat(octave_config_info("canonical_host_type"), "-", octave_config_info("api_version"))'|sed -e 's/ans = //'`
+    AC_MSG_RESULT([$OCTAVE_ARCH])
+    AC_SUBST(OCTAVE_ARCH,[$OCTAVE_ARCH])
+
+else
+    # check if ./configure arguments are valid
+    if test x"$with_octave" = "xno"; then
+        have_octave=no
+    else
+        # if we get here then --with-octave was not called with 'yes','no' or 'auto'
+        AC_MSG_WARN([unexpected arguments for option --with-octave, continuing assuming 'no'])
+        have_octave=no
+    fi
+fi
+AM_CONDITIONAL([BUILD_OCTAVE_WRAPPERS], [test x"$have_octave" = "xyes"])
+
 # check for swig itself
 SWIG=""
 if test x"$with_swig" = "xyes"; then
@@ -702,9 +1032,25 @@ if test x"$with_swig" = "xyes"; then
 		AC_PATH_SWIG([1.2.24])
 	fi
 
+
     if test -n "$SWIG"; then
         SWIG_ENABLE_CXX()
         SWIG_MULTI_MODULE_SUPPORT()
+
+	# if octave wrappers are enabled, check that swig supports octave
+	if test x"$with_octave" = "xyes"; then
+	   AC_MSG_CHECKING([if SWIG supports Octave])
+cat > conftest.i <<EOF
+%module conftest
+EOF
+	   $SWIG -c++ -octave conftest.i || AC_MSG_ERROR(SWIG doesn't support Octave modules)
+	   AC_MSG_RESULT([yes])
+	   rm -f conftest.*
+
+        # specify the flags for swig
+        AC_SUBST([SWIG_OCTAVE_OPT], "-octave")
+
+	fi
 
         # check for swig python library
         SWIG_PYTHON()
@@ -732,101 +1078,81 @@ else
 fi
 AM_CONDITIONAL([UPDATE_SWIG_WRAPPERS], [test x"$have_swig" = "xyes"])
 
-
-######################################################################
-# Parallelization
-#
-#CXXOPENMP="no"
-#
-#AC_ARG_WITH(openmp, dnl
-#  [--with-openmp=COMPILER  use OpenMP supporting compiler [default=no] ],
-#    [CXXOPENMP="$withval"],[CXXOPENMP="no"])
-#if test "$CXXOPENMP" = "no"; then
-#    CXXOPENMP="$CXX"
-#fi
-#
-#AC_SUBST(CXXOPENMP)
-
 AC_SUBST(DEBUG)
 
 AC_CONFIG_FILES([Makefile
 opencv.pc
 opencv.spec
-docs/Makefile
 data/Makefile
-cxcore/Makefile
-cxcore/include/Makefile
-cxcore/src/Makefile
-cv/Makefile
-cv/include/Makefile
-cv/src/Makefile
-cvaux/Makefile
-cvaux/include/Makefile
-cvaux/src/Makefile
-ml/Makefile
-ml/include/Makefile
-ml/src/Makefile
-otherlibs/Makefile
-otherlibs/highgui/Makefile
+include/Makefile
+3rdparty/Makefile
+src/Makefile
 apps/Makefile
-apps/haartraining/Makefile
-apps/haartraining/include/Makefile
-apps/haartraining/src/Makefile
 interfaces/Makefile
 interfaces/swig/Makefile
 interfaces/swig/filtered/Makefile
 interfaces/swig/general/Makefile
 interfaces/swig/python/Makefile
+interfaces/swig/octave/Makefile
 tests/Makefile
-tests/python/Makefile
-tests/cv/Makefile
-tests/cv/src/Makefile
-tests/cxts/Makefile
-tests/cxcore/Makefile
-tests/cxcore/src/Makefile
 utils/Makefile
 samples/Makefile
-samples/c/Makefile
-samples/python/Makefile
 ])
 
 AC_OUTPUT
 
 AC_MSG_RESULT([
 General configuration ================================================
-    Compiler:                 ${CXX} 
+
+    CXX:                      ${CXX}
+    CXXCPP:                   ${CXXCPP}
+    CPPFLAGS:                 ${CPPFLAGS}
     CXXFLAGS:                 ${CXXFLAGS}
-    
+    LDFLAGS:                  ${LDFLAGS}
+
     Install path:             ${prefix}
-    
+
+    Debug flags               ${DEBUG_CPPFLAGS} ${DEBUG_CXXFLAGS}
+    Optimization flags        ${OPTIMIZATION_CPPFLAGS} ${OPTIMIZATION_CXXFLAGS}
+    MMX/SSE/SSE2/SSE3:        ${SIMD_FLAGS}
+    OpenMP support:           ${OPENMP_CXXFLAGS}
+    External BLAS & LAPACK:   ${have_native_lapack}
+
 HighGUI configuration ================================================
 
     Windowing system --------------
     Use Carbon / Mac OS X:    ${have_carbon}
     Use gtk+ 2.x:             ${have_gtk}
     Use gthread:              ${have_gthread}
-    
+
     Image I/O ---------------------
+    Use ImageIO / Mac OS X:   ${have_imageio}
     Use libjpeg:              ${have_jpeg}
     Use zlib:                 ${have_zlib}
     Use libpng:               ${have_png}
     Use libtiff:              ${have_tiff}
     Use libjasper:            ${have_jasper}
-    Use libIlmImf:            ${have_ilmimf}
-    
+    Use libIlmImf/OpenEXR:    ${have_ilmimf}
+
     Video I/O ---------------------
     Use QuickTime / Mac OS X: ${have_quicktime}
     Use xine:                 ${have_xine}
+    Use gstreamer:            ${have_gstreamer}
     Use ffmpeg:               ${have_ffmpeg}
     Use dc1394 & raw1394:     ${have_dc1394}
+    Use dc1394_v2 & raw1394:  ${have_dc1394_2}
     Use v4l:                  ${have_v4l}
     Use v4l2:                 ${have_v4l2}
-    
+    Use unicap:               ${have_unicap}
+
 Wrappers for other languages =========================================
+
     SWIG                      ${SWIG}
     Python                    ${have_python}
+    Octave                    ${have_octave}
 
 Additional build settings ============================================
+
     Build demo apps           ${enable_apps}
 
 Now run make ...

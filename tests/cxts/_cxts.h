@@ -42,8 +42,8 @@
 #ifndef __CXTS_INTERNAL_H__
 #define __CXTS_INTERNAL_H__
 
-#if (defined WIN32 || defined WIN64) && (_MSC_VER >= 1200 || defined _ICL)
-#pragma warning( disable: 4514 4996 )
+#if (defined WIN32 || defined _WIN32 || defined WIN64 || defined _WIN64) && (_MSC_VER >= 1200 || defined _ICL)
+#pragma warning( disable: 4251 4514 4996 )
 #endif
 
 #include "cxts.h"

@@ -45,27 +45,23 @@
 #include "cvshadow.h"
 %}
 
-%define %myshadow(function)
-%ignore function;
-%rename (function) function##_Shadow;
-%enddef
+// source %myshadow, %myrelease macros
+%include "cvswigmacros.i"
+
+%include "stl.i"
 
 // %ignore, %rename must come before %include
 %myshadow(cvCvtSeqToArray);
-%myshadow(cvArcLength);
 %myshadow(cvHaarDetectObjects);
 %myshadow(cvSegmentMotion);
 %myshadow(cvApproxPoly);
-%myshadow(cvContourPerimeter);
 %myshadow(cvConvexHull2);
-%newobject cvConvexHull2; // shadowed functioned always returns new object
+%newobject cvConvexHull2_Shadow; // shadowed functioned always returns new object
 
-// eliminates need for IplImage ** typemap
-%rename (cvCalcImageHist) cvCalcHist;
-%pythoncode %{
-def cvCalcHist(*args):
-	return cvCalcArrHist(*args)
-%}
+/* cvSnakeImage shadow uses a vector<CvPoint> and vector<float> */ 
+%template(FloatVector)   std::vector<float>;
+%template(CvPointVector) std::vector<CvPoint>;
+%myshadow(cvSnakeImage);
 
 // must come after %ignore, %rename
 %include "cvshadow.h"
@@ -121,33 +117,22 @@ def cvHoughLines2( *args ):
 // cvSeqSlice
 // cvTreeToNodeSeq
 
-// cvRelease* functions don't consider python's reference count
-// so we get a double-free error when the reference count reaches zero.
-// Instead, just make these aliases to Py_XDECREF()
-%define %myrelease(function)
-%ignore function;
-%rename (function) function##_Shadow;
-%inline %{
-void function##_Shadow(PyObject * obj){
-	Py_XDECREF(obj);
-}
-%}
-%enddef
+// Fix cvRelease* function to play nice w/ Python
+// TODO some of these objects lack the delete method -- why???
+%myrelease(cv, cvReleaseImage, CvMat);  // IplImage is CvMat in Python
+%myrelease(cv, cvReleaseMat, CvMat);
+%myrelease(cv, cvReleaseStructuringElement, IplConvKernel);
+%myrelease(cv, cvReleaseConDensation, CvConDensation);
+%myrelease(cv, cvReleaseKalman, CvKalman);
+%myrelease(cv, cvReleaseHist, CvHistogram);
+%myrelease(cv, cvReleaseHaarClassifierCascade, CvHaarClassifierCascade);
+//%myrelease(cvReleasePOSITObject, CvPOSITObject);
+%myrelease(cv, cvReleaseImageHeader, CvMat); // IplImage is CvMat
+%myrelease(cv, cvReleaseMatND, CvMatND);
+%myrelease(cv, cvReleaseSparseMat, CvSparseMat);
+%myrelease(cv, cvReleaseMemStorage, CvMemStorage);
+%myrelease(cv, cvReleaseGraphScanner, CvGraphScanner);
+//%myrelease(cvReleaseFileStorage, CvFileStorage);
 
-%myrelease(cvReleaseImage);
-%myrelease(cvReleaseMat);
-%myrelease(cvReleaseStructuringElement);
-%myrelease(cvReleaseConDensation);
-%myrelease(cvReleaseKalman);
-%myrelease(cvReleaseHist);
-%myrelease(cvReleaseHaarClassifierCascade);
-%myrelease(cvReleasePOSITObject);
-%myrelease(cvReleaseImageHeader);
-%myrelease(cvReleaseMatND);
-%myrelease(cvReleaseSparseMat);
-%myrelease(cvReleaseMemStorage);
-%myrelease(cvReleaseGraphScanner);
-%myrelease(cvReleaseFileStorage);
-%myrelease(cvRelease);
-%myrelease(cvReleaseCapture);
-%myrelease(cvReleaseVideoWriter);
+// TODO implement this
+%ignore cvRelease;

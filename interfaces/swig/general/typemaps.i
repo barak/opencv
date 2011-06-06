@@ -53,14 +53,13 @@
  * sets the Python error.
  * We need to return 0 here instead of an PyObject to tell Python
  * that an error has occured.
- * NOTE (Olivier Bornet): not sure, but this must be language-independant...
  */
 %exception
     {
     try { $action } 
     catch (...) 
         {
-        return NULL;
+	  SWIG_fail;
         } 
     }
 
@@ -69,11 +68,6 @@
 %include "exception.i"
 
 %include "sizeof.i"
-
-/* assign type conversion precedence */
-%typemap(typecheck) CvPoint = SWIGTYPE;
-%typemap(typecheck) CvScalar = SWIGTYPE;
-%typemap(typecheck) CvPoint2D32f = SWIGTYPE;
 
 /**
  * IplImage has no reference counting of underlying data, which creates problems with double 
@@ -122,4 +116,3 @@ CvMat * func##__CvMat##decl{
 }
 %}
 %enddef
-

@@ -19,6 +19,15 @@ double cvArcLength_Shadow( const CvArr * arr, CvSlice slice, int is_closed){
     return cvArcLength( arr, slice, is_closed );
 }
 
+void cvMoments_Shadow( const CvSeq * seq, CvMoments * moments, int binary ){
+	cvMoments( seq, moments, binary );
+}
+
+void cvMoments_Shadow( const CvArr * seq, CvMoments * moments, int binary ){
+	cvMoments( seq, moments, binary );
+}
+
+
 CvTypedSeq<CvRect> * cvHaarDetectObjects_Shadow( const CvArr* image, CvHaarClassifierCascade* cascade,
         CvMemStorage* storage, double scale_factor, int min_neighbors, int flags,
         CvSize min_size )
@@ -40,15 +49,15 @@ CvTypedSeq<CvPoint> * cvApproxPoly_Shadow( const void* src_seq, int header_size,
 
 // Always return a new Mat of indices
 CvMat * cvConvexHull2_Shadow( const CvArr * points, int orientation, int return_points){
-	CvMat * hull;
+	CvMat * hull=0;
 	CvMat * points_mat=(CvMat *) points;
 	CvSeq * points_seq=(CvSeq *) points;
 	int npoints, type;
-	
+
 	CV_FUNCNAME("cvConvexHull2");
-	
+
 	__BEGIN__;
-	
+
 	if(CV_IS_MAT(points_mat)){
 		npoints = MAX(points_mat->rows, points_mat->cols);
 		type = return_points ? points_mat->type : CV_32S;
@@ -62,7 +71,18 @@ CvMat * cvConvexHull2_Shadow( const CvArr * points, int orientation, int return_
 	}
 	CV_CALL( hull=cvCreateMat(1,npoints,type) );
 	CV_CALL( cvConvexHull2(points, hull, orientation, return_points) );
-	
+
 	__END__;
 	return hull;
+}
+std::vector<CvPoint> cvSnakeImage_Shadow( const CvMat * image, std::vector<CvPoint>  points,
+		std::vector<float> alpha, std::vector<float> beta,
+		std::vector<float> gamma,
+		CvSize win, CvTermCriteria criteria, int calc_gradient ){
+	IplImage ipl_stub;
+	cvSnakeImage( cvGetImage(image, &ipl_stub), &(points[0]), points.size(),
+			      &((alpha)[0]), &((beta)[0]), &((gamma)[0]),
+				  (alpha.size()>1 && beta.size()>1 && gamma.size()>1 ? CV_ARRAY : CV_VALUE),
+				  win, criteria, calc_gradient );
+	return points;
 }
