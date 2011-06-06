@@ -66,8 +66,8 @@ extern "C" {
 *                                    Image Processing                                    *
 \****************************************************************************************/
 
-/* Copies source 2D array into interior of destination array and makes a border
-   (of type IPL_BORDER_CONSTANT or IPL_BORDER_REPLICATE) around the copied area. */
+/* Copies source 2D array inside of the larger destination array and
+   makes a border of the specified type (IPL_BORDER_*) around the copied area. */
 CVAPI(void) cvCopyMakeBorder( const CvArr* src, CvArr* dst, CvPoint offset,
                               int bordertype, CvScalar value CV_DEFAULT(cvScalarAll(0)));
 
@@ -82,12 +82,12 @@ CVAPI(void) cvSmooth( const CvArr* src, CvArr* dst,
                       int smoothtype CV_DEFAULT(CV_GAUSSIAN),
                       int param1 CV_DEFAULT(3),
                       int param2 CV_DEFAULT(0),
-                      double param3 CV_DEFAULT(0) );
+                      double param3 CV_DEFAULT(0),
+                      double param4 CV_DEFAULT(0));
 
-/* Linear filter */
+/* Convolves the image with the kernel */
 CVAPI(void) cvFilter2D( const CvArr* src, CvArr* dst, const CvMat* kernel,
                         CvPoint anchor CV_DEFAULT(cvPoint(-1,-1)));
-
 
 /* Finds integral image: SUM(X,Y) = sum(x<X,y<Y)I(x,y) */
 CVAPI(void) cvIntegral( const CvArr* image, CvArr* sum,
@@ -95,7 +95,7 @@ CVAPI(void) cvIntegral( const CvArr* image, CvArr* sum,
                        CvArr* tilted_sum CV_DEFAULT(NULL));
 
 /*
-   Down-samples image with prior gaussian smoothing.
+   Smoothes the input image with gaussian kernel and then down-samples it.
    dst_width = floor(src_width/2)[+1],
    dst_height = floor(src_height/2)[+1]
 */
@@ -103,7 +103,7 @@ CVAPI(void)  cvPyrDown( const CvArr* src, CvArr* dst,
                         int filter CV_DEFAULT(CV_GAUSSIAN_5x5) );
 
 /* 
-   Up-samples image with posterior gaussian smoothing.
+   Up-samples image and smoothes the result with gaussian kernel.
    dst_width = src_width*2,
    dst_height = src_height*2
 */
@@ -118,26 +118,41 @@ CVAPI(void)  cvPyrUp( const CvArr* src, CvArr* dst,
                               int filter CV_DEFAULT(CV_GAUSSIAN_5x5) );*/
 
 
-/* Segments image using son-father links (modification of Burt's algorithm).
-   CvSeq<CvConnectedComp*> is returned to *comp */
-CVAPI(void) cvPyrSegmentation( IplImage* src,
-                              IplImage* dst,
-                              CvMemStorage* storage,
-                              CvSeq** comp,
+/* Splits color or grayscale image into multiple connected components
+   of nearly the same color/brightness using modification of Burt algorithm.
+   comp with contain a pointer to sequence (CvSeq)
+   of connected components (CvConnectedComp) */
+CVAPI(void) cvPyrSegmentation( IplImage* src, IplImage* dst,
+                              CvMemStorage* storage, CvSeq** comp,
                               int level, double threshold1,
                               double threshold2 );
 
+/* Filters image using meanshift algorithm */
+CVAPI(void) cvPyrMeanShiftFiltering( const CvArr* src, CvArr* dst, 
+    double sp, double sr, int max_level CV_DEFAULT(1),
+    CvTermCriteria termcrit CV_DEFAULT(cvTermCriteria(CV_TERMCRIT_ITER+CV_TERMCRIT_EPS,5,1)));
+
+/* Segments image using seed "markers" */
+CVAPI(void) cvWatershed( const CvArr* image, CvArr* markers );
+
+#define CV_INPAINT_NS      0
+#define CV_INPAINT_TELEA   1
+
+/* Inpaints the selected region in the image */
+CVAPI(void) cvInpaint( const CvArr* src, const CvArr* inpaint_mask,
+                       CvArr* dst, double inpaintRange, int flags );
 
 #define CV_SCHARR -1
+#define CV_MAX_SOBEL_KSIZE 7
 
-/* calculates some image derivative using Sobel (aperture_size = 1,3,5,7)
-   or Scharr (aperture_size = -1) operator.
+/* Calculates an image derivative using generalized Sobel
+   (aperture_size = 1,3,5,7) or Scharr (aperture_size = -1) operator.
    Scharr can be used only for the first dx or dy derivative */
 CVAPI(void) cvSobel( const CvArr* src, CvArr* dst,
                     int xorder, int yorder,
                     int aperture_size CV_DEFAULT(3));
 
-/* Calculates Laplace operator: (d2/dx + d2/dy)I */
+/* Calculates the image Laplacian: (d2/dx + d2/dy)I */
 CVAPI(void) cvLaplace( const CvArr* src, CvArr* dst,
                       int aperture_size CV_DEFAULT(3) );
 
@@ -236,7 +251,7 @@ CVAPI(void) cvLaplace( const CvArr* src, CvArr* dst,
 
 #define  CV_COLORCVT_MAX  100
 
-/* Converts input array from one color space to another */
+/* Converts input array pixels from one color space to another */
 CVAPI(void)  cvCvtColor( const CvArr* src, CvArr* dst, int code );
 
 #define  CV_INTER_NN        0
@@ -256,6 +271,11 @@ CVAPI(void)  cvWarpAffine( const CvArr* src, CvArr* dst, const CvMat* map_matrix
                            int flags CV_DEFAULT(CV_INTER_LINEAR+CV_WARP_FILL_OUTLIERS),
                            CvScalar fillval CV_DEFAULT(cvScalarAll(0)) );
 
+/* Computes affine transform matrix for mapping src[i] to dst[i] (i=0,1,2) */
+CVAPI(CvMat*) cvGetAffineTransform( const CvPoint2D32f * src, 
+                                    const CvPoint2D32f * dst, 
+                                    CvMat * map_matrix );
+
 /* Computes rotation_matrix matrix */
 CVAPI(CvMat*)  cv2DRotationMatrix( CvPoint2D32f center, double angle,
                                    double scale, CvMat* map_matrix );
@@ -266,9 +286,9 @@ CVAPI(void)  cvWarpPerspective( const CvArr* src, CvArr* dst, const CvMat* map_m
                                 CvScalar fillval CV_DEFAULT(cvScalarAll(0)) );
 
 /* Computes perspective transform matrix for mapping src[i] to dst[i] (i=0,1,2,3) */
-CVAPI(CvMat*) cvWarpPerspectiveQMatrix( const CvPoint2D32f* src,
-                                       const CvPoint2D32f* dst,
-                                       CvMat* map_matrix );
+CVAPI(CvMat*) cvGetPerspectiveTransform( const CvPoint2D32f* src,
+                                         const CvPoint2D32f* dst,
+                                         CvMat* map_matrix );
 
 /* Performs generic geometric transformation using the specified coordinate maps */
 CVAPI(void)  cvRemap( const CvArr* src, CvArr* dst,
@@ -276,6 +296,7 @@ CVAPI(void)  cvRemap( const CvArr* src, CvArr* dst,
                       int flags CV_DEFAULT(CV_INTER_LINEAR+CV_WARP_FILL_OUTLIERS),
                       CvScalar fillval CV_DEFAULT(cvScalarAll(0)) );
 
+/* Performs forward or inverse log-polar image transform */
 CVAPI(void)  cvLogPolar( const CvArr* src, CvArr* dst,
                          CvPoint2D32f center, double M,
                          int flags CV_DEFAULT(CV_INTER_LINEAR+CV_WARP_FILL_OUTLIERS));
@@ -292,7 +313,6 @@ CVAPI(IplConvKernel*)  cvCreateStructuringElementEx(
 
 /* releases structuring element */
 CVAPI(void)  cvReleaseStructuringElement( IplConvKernel** element );
-
 
 /* erodes input image (applies minimum filter) one or more times.
    If element pointer is NULL, 3x3 rectangular element is used */
@@ -312,11 +332,10 @@ CVAPI(void)  cvDilate( const CvArr* src, CvArr* dst,
 #define CV_MOP_TOPHAT       5
 #define CV_MOP_BLACKHAT     6
 
-/* performs complex morphological transformation */
+/* Performs complex morphological transformation */
 CVAPI(void)  cvMorphologyEx( const CvArr* src, CvArr* dst,
                              CvArr* temp, IplConvKernel* element,
                              int operation, int iterations CV_DEFAULT(1) );
-
 
 /* Calculates all spatial and central moments up to the 3rd order */
 CVAPI(void) cvMoments( const CvArr* arr, CvMoments* moments, int binary CV_DEFAULT(0));
@@ -332,7 +351,7 @@ CVAPI(void) cvGetHuMoments( CvMoments*  moments, CvHuMoments*  hu_moments );
 
 /*********************************** data sampling **************************************/
 
-/* Grabs the raster line data into the destination buffer.
+/* Fetches pixels that belong to the specified line segment and stores them to the buffer.
    Returns the number of retrieved points. */
 CVAPI(int)  cvSampleLine( const CvArr* image, CvPoint pt1, CvPoint pt2, void* buffer,
                           int connectivity CV_DEFAULT(8));
@@ -364,8 +383,8 @@ CVAPI(void)  cvGetQuadrangleSubPix( const CvArr* src, CvArr* dst,
 CVAPI(void)  cvMatchTemplate( const CvArr* image, const CvArr* templ,
                               CvArr* result, int method );
 
-/* Computes earth mover distance between two weigted point sets
-   (called signatures in image retrieval terminology) */
+/* Computes earth mover distance between
+   two weighted point sets (called signatures) */
 CVAPI(float)  cvCalcEMD2( const CvArr* signature1,
                           const CvArr* signature2,
                           int distance_type,
@@ -379,8 +398,8 @@ CVAPI(float)  cvCalcEMD2( const CvArr* signature1,
 *                              Contours retrieving                                       *
 \****************************************************************************************/
 
-/* Retrieves outer and possibly inner boundaries of white (non-zero) connected
-   components on the black (zero) background */
+/* Retrieves outer and optionally inner boundaries of white (non-zero) connected
+   components in the black (zero) background */
 CVAPI(int)  cvFindContours( CvArr* image, CvMemStorage* storage, CvSeq** first_contour,
                             int header_size CV_DEFAULT(sizeof(CvContour)),
                             int mode CV_DEFAULT(CV_RETR_LIST),
@@ -389,10 +408,10 @@ CVAPI(int)  cvFindContours( CvArr* image, CvMemStorage* storage, CvSeq** first_c
 
 
 /* Initalizes contour retrieving process.
-   Call cvStartFindContours.
-   Call cvFindNextContour until null pointer is returned
+   Calls cvStartFindContours.
+   Calls cvFindNextContour until null pointer is returned
    or some other condition becomes true.
-   Call cvEndFindContours at the end. */
+   Calls cvEndFindContours at the end. */
 CVAPI(CvContourScanner)  cvStartFindContours( CvArr* image, CvMemStorage* storage,
                             int header_size CV_DEFAULT(sizeof(CvContour)),
                             int mode CV_DEFAULT(CV_RETR_LIST),
@@ -421,11 +440,11 @@ CVAPI(CvSeq*) cvApproxChains( CvSeq* src_seq, CvMemStorage* storage,
 
 /* Initalizes Freeman chain reader.
    The reader is used to iteratively get coordinates of all the chain points.
-   If the original codes should be read, a simple sequence reader can be used */
-CVAPI(void)  cvStartReadChainPoints( CvChain* chain, CvChainPtReader* reader );
+   If the Freeman codes should be read as is, a simple sequence reader should be used */
+CVAPI(void) cvStartReadChainPoints( CvChain* chain, CvChainPtReader* reader );
 
-/* Retrieve the next chain point */
-CVAPI(CvPoint)   cvReadChainPoint( CvChainPtReader* reader );
+/* Retrieves the next chain point */
+CVAPI(CvPoint) cvReadChainPoint( CvChainPtReader* reader );
 
 
 /****************************************************************************************\
@@ -895,7 +914,8 @@ CVAPI(void)  cvCalcImageHomography( float* line, CvPoint3D32f* center,
                                     float* intrinsic, float* homography );
 
 #define CV_DIST_MASK_3   3
-#define CV_DIST_MASK_5   5 
+#define CV_DIST_MASK_5   5
+#define CV_DIST_MASK_PRECISE 0
 
 /* Applies distance transform to binary image */
 CVAPI(void)  cvDistTransform( const CvArr* src, CvArr* dst,
@@ -911,6 +931,10 @@ CVAPI(void)  cvDistTransform( const CvArr* src, CvArr* dst,
 #define CV_THRESH_TRUNC       2  /* value = value > threshold ? threshold : value   */
 #define CV_THRESH_TOZERO      3  /* value = value > threshold ? value : 0           */
 #define CV_THRESH_TOZERO_INV  4  /* value = value > threshold ? 0 : value           */
+#define CV_THRESH_MASK        7
+
+#define CV_THRESH_OTSU        8  /* use Otsu algorithm to choose the optimal threshold value;
+                                    combine the flag with one of the above CV_THRESH_* values */
 
 /* Applies fixed-level threshold to grayscale image.
    This is a basic operation applied before retrieving contours */
@@ -946,6 +970,8 @@ CVAPI(void)  cvFloodFill( CvArr* image, CvPoint seed_point,
 /****************************************************************************************\
 *                                  Feature detection                                     *
 \****************************************************************************************/
+
+#define CV_CANNY_L2_GRADIENT  (1 << 31)
 
 /* Runs canny edge detector */
 CVAPI(void)  cvCanny( const CvArr* image, CvArr* edges, double threshold1,
@@ -1006,10 +1032,12 @@ CVAPI(CvSeq*)  cvHoughLines2( CvArr* image, void* line_storage, int method,
                               double param1 CV_DEFAULT(0), double param2 CV_DEFAULT(0));
 
 /* Finds circles in the image */
-CVAPI(CvSeq*) cvHoughCircles( CvArr* src_image, void* circle_storage,
+CVAPI(CvSeq*) cvHoughCircles( CvArr* image, void* circle_storage,
                               int method, double dp, double min_dist,
                               double param1 CV_DEFAULT(100),
-                              double param2 CV_DEFAULT(100));
+                              double param2 CV_DEFAULT(100),
+                              int min_radius CV_DEFAULT(0),
+                              int max_radius CV_DEFAULT(0));
 
 /* Fits a line into set of 2d or 3d points in a robust way (M-estimator technique) */
 CVAPI(void)  cvFitLine( const CvArr* points, int dist_type, double param,
@@ -1163,6 +1191,10 @@ CVAPI(void) cvComputeCorrespondEpilines( const CvMat* points,
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+#include "cv.hpp"
 #endif
 
 /****************************************************************************************\

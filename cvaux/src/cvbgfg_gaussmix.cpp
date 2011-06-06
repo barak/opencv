@@ -218,10 +218,13 @@ cvCreateGaussianBGModel( IplImage* first_frame, CvGaussBGStatModelParams* parame
     
     if( cvGetErrStatus() < 0 )
     {
+        CvBGStatModel* base_ptr = (CvBGStatModel*)bg_model;
+        
         if( bg_model && bg_model->release )
-            bg_model->release( (CvBGStatModel**)&bg_model );
+            bg_model->release( &base_ptr );
         else
-            cvFree( (void**)&bg_model );
+            cvFree( &bg_model );
+        bg_model = 0;
     }
     
     return (CvBGStatModel*)bg_model;
@@ -243,15 +246,15 @@ icvReleaseGaussianBGModel( CvGaussBGModel** _bg_model )
         CvGaussBGModel* bg_model = *_bg_model;
         if( bg_model->g_point )
         {
-            cvFree( (void**)&bg_model->g_point[0].g_values );
-            cvFree( (void**)&bg_model->g_point );
+            cvFree( &bg_model->g_point[0].g_values );
+            cvFree( &bg_model->g_point );
         }
         
         cvReleaseImage( &bg_model->background );
         cvReleaseImage( &bg_model->foreground );
         cvReleaseMemStorage(&bg_model->storage);
         memset( bg_model, 0, sizeof(*bg_model) );
-        cvFree( (void**)_bg_model );
+        cvFree( _bg_model );
     }
 
     __END__;

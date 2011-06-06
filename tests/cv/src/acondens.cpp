@@ -41,6 +41,8 @@
 
 #include "cvtest.h"
 
+#if 0
+
 /* Testing parameters */
 static char TestName[] = "State estimation of linear system by means of ConDens Algorithm";
 static char TestClass[] = "Algorithm";
@@ -49,7 +51,6 @@ static int  Steps;
 static int  SamplesNum; 
 
 static int  read_param = 0;
-static int  data_types = 0;
 static double EPSILON = 1.000;
 
 static void CondProbDens(CvConDensation* CD,  float* Measurement)
@@ -142,3 +143,5 @@ void InitAConDens(void)
 } /* InitASobel */
 
 /* End of file. */
+
+#endif

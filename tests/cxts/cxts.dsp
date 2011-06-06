@@ -86,7 +86,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored.lib /nologo /subsystem:windows /dll /pdb:"..\..\_temp\cvts_Dbg/cvts.pdb" /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxts001d.dll" /implib:"..\..\lib\cxtsd.lib" /pdbtype:sept /libpath:"..\..\lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored.lib /nologo /subsystem:windows /dll /pdb:"..\..\_temp\cxts_Dbg/cxts.pdb" /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxts001d.dll" /implib:"..\..\lib\cxtsd.lib" /pdbtype:sept /libpath:"..\..\lib"
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cxts - Win32 Release64"
@@ -144,9 +144,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored.lib /nologo /subsystem:windows /dll /pdb:"..\..\_temp\cvts_Dbg/cvts.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxts001d.dll" /implib:"..\..\lib\cxtsd.lib" /libpath:"..\..\lib" /machine:AMD64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored.lib /nologo /subsystem:windows /dll /pdb:"..\..\_temp\cxts_Dbg/cxts.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxts001d.dll" /implib:"..\..\lib\cxtsd.lib" /libpath:"..\..\lib" /machine:AMD64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored_64.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cvts001d_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxts001d_64.dll" /implib:"..\..\lib\cxtsd_64.lib" /libpath:"..\..\lib" /machine:AMD64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored_64.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxts001d_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxts001d_64.dll" /implib:"..\..\lib\cxtsd_64.lib" /libpath:"..\..\lib" /machine:AMD64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cxts - Win32 Release64 Itanium"
@@ -204,9 +204,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored_i7.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cvts001d_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxts001d_i7.dll" /implib:"..\..\lib\cxtsd_i7.lib" /libpath:"..\..\lib" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored_i7.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxts001d_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxts001d_i7.dll" /implib:"..\..\lib\cxtsd_i7.lib" /libpath:"..\..\lib" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored_i7.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cvts001d_i7.pdb" /debug /machine:IX86 /out:"..\..\bin\cxts001d_i7.dll" /implib:"..\..\lib\cxtsd_i7.lib" /libpath:"..\..\lib" /machine:IA64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib cxcored_i7.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxts001d_i7.pdb" /debug /machine:IX86 /out:"..\..\bin\cxts001d_i7.dll" /implib:"..\..\lib\cxtsd_i7.lib" /libpath:"..\..\lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 

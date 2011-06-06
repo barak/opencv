@@ -143,10 +143,13 @@ cvCreateFGDStatModel( IplImage* first_frame, CvFGDStatModelParams* parameters )
 
     if( cvGetErrStatus() < 0 )
     {
+        CvBGStatModel* base_ptr = (CvBGStatModel*)p_model;
+
         if( p_model && p_model->release )
-            p_model->release( (CvBGStatModel**)&p_model );
+            p_model->release( &base_ptr );
         else
-            cvFree( (void**)&p_model );
+            cvFree( &p_model );
+        p_model = 0;
     }
 
     return (CvBGStatModel*)p_model;
@@ -168,9 +171,9 @@ icvReleaseFGDStatModel( CvFGDStatModel** _model )
         CvFGDStatModel* model = *_model;
         if( model->pixel_stat )
         {
-            cvFree( (void**)&model->pixel_stat[0].ctable );
-            cvFree( (void**)&model->pixel_stat[0].cctable );
-            cvFree( (void**)&model->pixel_stat );
+            cvFree( &model->pixel_stat[0].ctable );
+            cvFree( &model->pixel_stat[0].cctable );
+            cvFree( &model->pixel_stat );
         }
 
         cvReleaseImage( &model->Ftd );
@@ -180,7 +183,7 @@ icvReleaseFGDStatModel( CvFGDStatModel** _model )
         cvReleaseImage( &model->prev_frame );
         cvReleaseMemStorage(&model->storage);
 
-        cvFree( (void**)_model );
+        cvFree( _model );
     }
 
     __END__;
@@ -319,7 +322,7 @@ icvUpdateFGDStatModel( IplImage* curr_frame, CvFGDStatModel*  model )
                 CvBGPixelCCStatTable* cctable = stat->cctable;
     
                 uchar* curr_data = (uchar*)(curr_frame->imageData)+i*curr_frame->widthStep+j*3;
-                //uchar* prev_data = (uchar*)(prev_frame->imageData)+i*prev_frame->widthStep+j*3;
+                uchar* prev_data = (uchar*)(prev_frame->imageData)+i*prev_frame->widthStep+j*3;
 
                 int val = 0;
                 // is it a motion pixel?
@@ -331,9 +334,12 @@ icvUpdateFGDStatModel( IplImage* curr_frame, CvFGDStatModel*  model )
                         //compare with stored CCt vectors
                         for( k = 0; PV_CC(k) > model->params.alpha2 && k < model->params.N1cc; k++ )
                         {
-                            if ( abs( V_CC(k,0) - curr_data[0]) <=  deltaCC &&
-                                 abs( V_CC(k,1) - curr_data[1]) <=  deltaCC &&
-                                 abs( V_CC(k,2) - curr_data[2]) <=  deltaCC )
+                            if ( abs( V_CC(k,0) - prev_data[0]) <=  deltaCC &&
+                                 abs( V_CC(k,1) - prev_data[1]) <=  deltaCC &&
+                                 abs( V_CC(k,2) - prev_data[2]) <=  deltaCC &&
+                                 abs( V_CC(k,3) - curr_data[0]) <=  deltaCC &&
+                                 abs( V_CC(k,4) - curr_data[1]) <=  deltaCC &&
+                                 abs( V_CC(k,5) - curr_data[2]) <=  deltaCC)
                             {
                                 Pv += PV_CC(k);
                                 Pvb += PVB_CC(k);

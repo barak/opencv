@@ -41,108 +41,11 @@
 
 #include "cvtest.h"
 
-void InitAApproxPoly();
-void InitACalibration();
-void InitACamShift();
-void InitACanny();
-void InitAChessCorners();
-void InitAConDens();
-void InitAContours();
-void InitADistanceTransform();
-void InitAEMD();
-void InitAFitEllipse();
-void InitAFitLine();
-void InitAHaar();
-void InitACalcContrastHist();
-void InitACalcOpticalFlowLK();
-void InitACalcOpticalFlowHS(); 
-void InitAHistograms();
-void InitAHoughLines();
-void InitAImage();
-void InitAImageToHMMObs();
-void InitAKalman();
-void InitAKMeans();
-void InitAMeanShift();
-void InitAMotSeg();
-void InitAOptFlowPyrLK();
-void InitAPixelAccess();
-void InitASnakes();
-void InitASubdiv();
-void InitAAdaptThreshold();
-void InitAEigenObjects();
-void InitAContourMoments();
-void InitAMatchContours();
-void InitACreateContourTree();
-void InitAMatchContourTrees();
-void InitAPyrSegmentation();
-void InitAGestureRecognition();
-void InitAPOSIT();
-
 CvTS test_system;
 
-/*============================== Algorithm Tests =============================*/
 int main(int argC,char *argV[])
 {
-    char** argv = (char**)malloc( 10*sizeof(argv[0]));
-    int argc = 0;
-    argv[argc++] = argV[0];
-    argv[argc++] = "-A";
-    argv[argc++] = "-l";
-    argv[argc++] = "-s";
-    argv[argc++] = "-m";
-    argv[argc++] = "-B";
-
-#ifdef WIN32
-    atsInitModuleTestData( argV[0], "../tests/cv/testdata" );
-#else
-    atsInitModuleTestData( argV[0], "../testdata" );
-#endif
-    //atsLoadPrimitives( 1 );
-
-    // InitAAdaptThreshold(); // test is not up-to-date
-    InitAApproxPoly();
-    InitACalcOpticalFlowLK();
-    InitACalcOpticalFlowHS();
-    InitACalibration();
-    InitACamShift();
-    InitACanny();
-    InitAChessCorners();
-    InitAConDens();
-    InitAContours();
-    InitAContourMoments();
-    InitACreateContourTree();
-    InitAEigenObjects();
-    InitAEMD();
-
-    InitAFitEllipse();
-    InitAFitLine();
-    //InitACalcContrastHist(); // the function is not available
-    InitAHistograms();
-    InitAHoughLines();
-    InitAImage();
-    //InitAImageToHMMObs(); // test uses IPL DCT
-    InitAKalman();
-    //InitAKMeans(); // test is not up-to-date
-    InitAMatchContours();
-    InitAMatchContourTrees();
-    InitAMeanShift();
-    // InitAMotSeg(); // test is not up-to-date
-    InitAOptFlowPyrLK();
-    InitAPixelAccess();
-
-    InitAPOSIT();
-    InitASnakes();
-    InitASubdiv();
-    InitAPyrSegmentation();
-    //InitAGestureRecognition(); // some functionality has been removed
-
     test_system.run( argC, argV );
-    fflush( stdout );
-    printf( "Now running the old-style tests...\n" );
-
-    trsRun( argc, argv );
-    printf("Done\n");
-    free( argv );
     return 0;
 }
 

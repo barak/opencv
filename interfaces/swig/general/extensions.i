@@ -57,3 +57,125 @@
 %extend CvHistogram    { ~CvHistogram    () { CvHistogram    * dummy = self; cvReleaseHist               (& dummy); } }
 %extend CvHaarClassifierCascade { ~CvHaarClassifierCascade () { CvHaarClassifierCascade * dummy = self; cvReleaseHaarClassifierCascade  (& dummy); } }
 %extend CvPOSITObject  { ~CvPOSITObject  () { CvPOSITObject  * dummy = self; cvReleasePOSITObject        (& dummy); } }
+
+// string operators for some OpenCV types
+
+%extend CvScalar
+{
+	const char * __str__(){
+		static char str[256];
+		snprintf(str, 256, "[%f, %f, %f, %f]", self->val[0], self->val[1], self->val[2], self->val[3]);
+		return str;
+	}
+	const char * __repr__(){
+		static char str[256];
+		snprintf(str, 256, "cvScalar(%f, %f, %f, %f)", self->val[0], self->val[1], self->val[2], self->val[3]);
+		return str;
+	}
+    const double __getitem__ (int index) {
+        if (index >= 4) {
+            PyErr_SetString (PyExc_IndexError, "indice must be lower than 4");
+            return 0;
+        }
+        if (index < -4) {
+            PyErr_SetString (PyExc_IndexError, "indice must be bigger or egal to -4");
+            return 0;
+        }
+        if (index < 0) {
+            /* negative index means from the end in python */
+            index = 4 - index;
+        }
+        return self->val [index];
+    }
+    void __setitem__ (int index, double value) {
+        if (index >= 4) {
+            PyErr_SetString (PyExc_IndexError, "indice must be lower than 4");
+            return;
+        }
+        if (index < -4) {
+            PyErr_SetString (PyExc_IndexError, "indice must be bigger or egal to -4");
+            return;
+        }
+        if (index < 0) {
+            /* negative index means from the end in python */
+            index = 4 - index;
+        }
+        self->val [index] = value;
+    }
+};
+
+%extend CvPoint2D32f
+{
+	const char * __str__(){
+		static char str[64];
+		snprintf(str, 64, "[%f %f]", self->x, self->y);
+		return str;
+	}
+	const char * __repr__(){
+		static char str[64];
+		snprintf(str, 64, "cvPoint2D32f(%f,%f)", self->x, self->y);
+		return str;
+	}
+};
+
+%extend CvPoint
+{
+	const char * __str__(){
+		static char str[64];
+		snprintf(str, 64, "[%d %d]", self->x, self->y);
+		return str;
+	}
+	const char * __repr__(){
+		static char str[64];
+		snprintf(str, 64, "cvPoint(%d,%d)", self->x, self->y);
+		return str;
+	}
+};
+
+// Set up CvMat to emulate IplImage fields
+%{
+int CvMat_cols_get(CvMat * m){
+	return m->cols;
+}
+int CvMat_rows_get(CvMat *m){
+	return m->rows;
+}
+int CvMat_width_get(CvMat * m){
+	return m->cols;
+}
+int CvMat_height_get(CvMat *m){
+	return m->rows;
+}
+int CvMat_depth_get(CvMat * m){
+	return cvCvToIplDepth(m->type);
+}
+int CvMat_nChannels_get(CvMat * m){
+	return CV_MAT_CN(m->type);
+}
+int CvMat_origin_get(CvMat * m){
+	return 0;
+}
+int CvMat_dataOrder_get(CvMat * m){
+	return 0;
+}
+int CvMat_imageSize_get(CvMat * m){
+	return m->step*m->rows;
+}
+int CvMat_widthStep_get(CvMat * m){
+	return m->step;
+}
+%}
+%extend CvMat
+{
+	const int depth;
+	const int nChannels;
+	const int dataOrder;
+	const int origin;
+	const int width;
+	const int height;
+	const int imageSize;
+	const int widthStep;
+	// swig doesn't like the embedded union in CvMat, so re-add these
+	const int rows;
+	const int cols;
+};

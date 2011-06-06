@@ -151,6 +151,7 @@ void CvArrTest::clear()
     delete[] hdr;
     hdr = 0;
     max_hdr = 0;
+    CvTest::clear();
 }
 
 
@@ -165,6 +166,7 @@ int CvArrTest::read_params( CvFileStorage* fs )
         min_log_array_size = cvReadInt( find_param( fs, "min_log_array_size" ), min_log_array_size );
         max_log_array_size = cvReadInt( find_param( fs, "max_log_array_size" ), max_log_array_size );
         test_case_count = cvReadInt( find_param( fs, "test_case_count" ), test_case_count );
+        test_case_count = cvRound( test_case_count*ts->get_test_case_count_scale() );
 
         min_log_array_size = cvTsClipInt( min_log_array_size, 0, 20 );
         max_log_array_size = cvTsClipInt( max_log_array_size, min_log_array_size, 20 );
@@ -193,8 +195,7 @@ void CvArrTest::get_test_array_types_and_sizes( int /*test_case_idx*/, CvSize** 
         for( j = 0; j < count; j++ )
         {
             sizes[i][j] = size;
-            if( i == MASK )
-                types[i][j] = CV_8UC1;
+            types[i][j] = CV_8UC1;
         }
     }
 }
@@ -262,12 +263,11 @@ void CvArrTest::get_timing_test_array_types_and_sizes( int /*test_case_idx*/, Cv
 
 void CvArrTest::print_timing_params( int /*test_case_idx*/, char* ptr, int params_left )
 {
-    int i, len;
+    int i;
     for( i = 0; i < params_left; i++ )
     {
-        len = 0;
-        sprintf( ptr, "-,%n", &len );
-        ptr += len;
+        sprintf( ptr, "-," );
+        ptr += 2;
     }
 }
 
@@ -344,48 +344,41 @@ void CvArrTest::print_time( int test_case_idx, double time_clocks )
     *ptr = '\0';
     if( have_mask )
     {
-        len = 0;
-        sprintf( ptr, "(Mask)%n", &len );
-        ptr += len;
+        sprintf( ptr, "(Mask)" );
+        ptr += strlen(ptr);
     }
     *ptr++ = ',';
-    len = 0;
-    sprintf( ptr, "%s%n", cvTsGetTypeName(in_type), &len );
-    ptr += len;
+    sprintf( ptr, "%s", cvTsGetTypeName(in_type) );
+    ptr += strlen(ptr);
 
     if( CV_MAT_DEPTH(out_type) != CV_MAT_DEPTH(in_type) )
     {
-        len = 0;
-        sprintf( ptr, "%s%n", cvTsGetTypeName(out_type), &len );
-        ptr += len;
+        sprintf( ptr, "%s", cvTsGetTypeName(out_type) );
+        ptr += strlen(ptr);
     }
     *ptr++ = ',';
 
-    len = 0;
-    sprintf( ptr, "C%d%n", CV_MAT_CN(in_type), &len );
-    ptr += len;
+    sprintf( ptr, "C%d", CV_MAT_CN(in_type) );
+    ptr += strlen(ptr);
 
     if( CV_MAT_CN(out_type) != CV_MAT_CN(in_type) )
     {
-        len = 0;
-        sprintf( ptr, "C%d%n", CV_MAT_CN(out_type), &len );
-        ptr += len;
+        sprintf( ptr, "C%d", CV_MAT_CN(out_type) );
+        ptr += strlen(ptr);
     }
     *ptr++ = ',';
 
-    len = 0;
-    sprintf( ptr, "%dx%d,%n", size.width, size.height, &len );
-    ptr += len;
+    sprintf( ptr, "%dx%d,", size.width, size.height );
+    ptr += strlen(ptr);
 
     print_timing_params( test_case_idx, ptr );
     ptr += strlen(ptr);
     cpe = time_clocks / ((double)size.width * size.height);
-    len = 0;
     if( cpe >= 100 )
-        sprintf( ptr, "%.0f,%n", cpe, &len );
+        sprintf( ptr, "%.0f,", cpe );
     else
-        sprintf( ptr, "%.1f,%n", cpe, &len );
-    ptr += len;
+        sprintf( ptr, "%.1f,", cpe );
+    ptr += strlen(ptr);
     sprintf( ptr, "%g", time_clocks/cvGetTickFrequency() );
 
     ts->printf( CvTS::CSV, "%s\n", str );

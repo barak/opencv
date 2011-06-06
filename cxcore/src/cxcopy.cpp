@@ -102,145 +102,123 @@ icvSet_8u_C1R( uchar* dst, int dst_step, CvSize size,
 /////////////////////////////////////////////////////////////////////////////////////////
 
 
-#define ICV_DEF_COPY_MASK_C1_CASE( type, src, dst, mask, len )          \
-{                                                                       \
-    int i;                                                              \
-                                                                        \
-    for( i = 0; i <= (len) - 2; i += 2 )                                \
-    {                                                                   \
-        if( (mask)[i] )                                                 \
-            (dst)[i] = (src)[i];                                        \
-        if( (mask)[i+1] )                                               \
-            (dst)[i+1] = (src)[i+1];                                    \
-    }                                                                   \
-                                                                        \
-    for( ; i < (len); i++ )                                             \
-    {                                                                   \
-        if( (mask)[i] )                                                 \
-            (dst)[i] = (src)[i];                                        \
-    }                                                                   \
+#define ICV_DEF_COPY_MASK_C1_CASE( type )   \
+    for( i = 0; i <= size.width-2; i += 2 ) \
+    {                                       \
+        if( mask[i] )                       \
+            dst[i] = src[i];                \
+        if( mask[i+1] )                     \
+            dst[i+1] = src[i+1];            \
+    }                                       \
+                                            \
+    for( ; i < size.width; i++ )            \
+    {                                       \
+        if( mask[i] )                       \
+            dst[i] = src[i];                \
+    }
+
+#define ICV_DEF_COPY_MASK_C3_CASE( type )   \
+    for( i = 0; i < size.width; i++ )       \
+        if( mask[i] )                       \
+        {                                   \
+            type t0 = src[i*3];             \
+            type t1 = src[i*3+1];           \
+            type t2 = src[i*3+2];           \
+                                            \
+            dst[i*3] = t0;                  \
+            dst[i*3+1] = t1;                \
+            dst[i*3+2] = t2;                \
+        }
+
+
+
+#define ICV_DEF_COPY_MASK_C4_CASE( type )   \
+    for( i = 0; i < size.width; i++ )       \
+        if( mask[i] )                       \
+        {                                   \
+            type t0 = src[i*4];             \
+            type t1 = src[i*4+1];           \
+            dst[i*4] = t0;                  \
+            dst[i*4+1] = t1;                \
+                                            \
+            t0 = src[i*4+2];                \
+            t1 = src[i*4+3];                \
+            dst[i*4+2] = t0;                \
+            dst[i*4+3] = t1;                \
+        }
+
+
+#define ICV_DEF_COPY_MASK_2D( name, type, cn )              \
+IPCVAPI_IMPL( CvStatus,                                     \
+name,( const type* src, int srcstep, type* dst, int dststep,\
+       CvSize size, const uchar* mask, int maskstep ),      \
+       (src, srcstep, dst, dststep, size, mask, maskstep))  \
+{                                                           \
+    srcstep /= sizeof(src[0]); dststep /= sizeof(dst[0]);   \
+    for( ; size.height--; src += srcstep,                   \
+            dst += dststep, mask += maskstep )              \
+    {                                                       \
+        int i;                                              \
+        ICV_DEF_COPY_MASK_C##cn##_CASE( type )              \
+    }                                                       \
+                                                            \
+    return  CV_OK;                                          \
 }
 
 
-#define ICV_DEF_COPY_MASK_C3_CASE( type, src, dst, mask, len )          \
-{                                                                       \
-    int i;                                                              \
-                                                                        \
-    for( i = 0; i < (len); i++ )                                        \
-        if( (mask)[i] )                                                 \
-        {                                                               \
-            type t0 = (src)[i*3];                                       \
-            type t1 = (src)[i*3+1];                                     \
-            type t2 = (src)[i*3+2];                                     \
-                                                                        \
-            (dst)[i*3] = t0;                                            \
-            (dst)[i*3+1] = t1;                                          \
-            (dst)[i*3+2] = t2;                                          \
-        }                                                               \
-}
+#define ICV_DEF_SET_MASK_C1_CASE( type )    \
+    for( i = 0; i <= size.width-2; i += 2 ) \
+    {                                       \
+        if( mask[i] )                       \
+            dst[i] = s0;                    \
+        if( mask[i+1] )                     \
+            dst[i+1] = s0;                  \
+    }                                       \
+                                            \
+    for( ; i < size.width; i++ )            \
+    {                                       \
+        if( mask[i] )                       \
+            dst[i] = s0;                    \
+    }
 
 
-#define ICV_DEF_COPY_MASK_C4_CASE( type, src, dst, mask, len )          \
-{                                                                       \
-    int i;                                                              \
-                                                                        \
-    for( i = 0; i < (len); i++ )                                        \
-        if( (mask)[i] )                                                 \
-        {                                                               \
-            type t0 = (src)[i*4];                                       \
-            type t1 = (src)[i*4+1];                                     \
-            (dst)[i*4] = t0;                                            \
-            (dst)[i*4+1] = t1;                                          \
-                                                                        \
-            t0 = (src)[i*4+2];                                          \
-            t1 = (src)[i*4+3];                                          \
-            (dst)[i*4+2] = t0;                                          \
-            (dst)[i*4+3] = t1;                                          \
-        }                                                               \
-}
+#define ICV_DEF_SET_MASK_C3_CASE( type )    \
+    for( i = 0; i < size.width; i++ )       \
+        if( mask[i] )                       \
+        {                                   \
+            dst[i*3] = s0;                  \
+            dst[i*3+1] = s1;                \
+            dst[i*3+2] = s2;                \
+        }
 
+#define ICV_DEF_SET_MASK_C4_CASE( type )    \
+    for( i = 0; i < size.width; i++ )       \
+        if( mask[i] )                       \
+        {                                   \
+            dst[i*4] = s0;                  \
+            dst[i*4+1] = s1;                \
+            dst[i*4+2] = s2;                \
+            dst[i*4+3] = s3;                \
+        }
 
-#define ICV_DEF_COPY_MASK_2D( name, type, cn )                          \
-IPCVAPI_IMPL( CvStatus,                                                 \
-name,( const type* src, int step1, type* dst, int step,                 \
-       CvSize size, const uchar* mask, int step2 ),                     \
-       (src, step1, dst, step, size, mask, step2))                      \
-{                                                                       \
-    for( ; size.height--; (char*&)src += step1,                         \
-                          (char*&)dst += step,                          \
-                          mask += step2 )                               \
-    {                                                                   \
-        ICV_DEF_COPY_MASK_C##cn##_CASE( type, src, dst, mask, size.width )\
-    }                                                                   \
-                                                                        \
-    return  CV_OK;                                                      \
-}
-
-
-
-#define ICV_DEF_SET_MASK_C1_CASE( type, dst, mask, len )                \
-{                                                                       \
-    int i;                                                              \
-                                                                        \
-    for( i = 0; i <= (len) - 2; i += 2 )                                \
-    {                                                                   \
-        if( (mask)[i] )                                                 \
-            (dst)[i] = s0;                                              \
-        if( (mask)[i+1] )                                               \
-            (dst)[i+1] = s0;                                            \
-    }                                                                   \
-                                                                        \
-    for( ; i < (len); i++ )                                             \
-    {                                                                   \
-        if( (mask)[i] )                                                 \
-            (dst)[i] = s0;                                              \
-    }                                                                   \
-}
-
-
-#define ICV_DEF_SET_MASK_C3_CASE( type, dst, mask, len )                \
-{                                                                       \
-    int i;                                                              \
-                                                                        \
-    for( i = 0; i < (len); i++ )                                        \
-        if( (mask)[i] )                                                 \
-        {                                                               \
-            (dst)[i*3] = s0;                                            \
-            (dst)[i*3+1] = s1;                                          \
-            (dst)[i*3+2] = s2;                                          \
-        }                                                               \
-}
-
-
-#define ICV_DEF_SET_MASK_C4_CASE( type, dst, mask, len )                \
-{                                                                       \
-    int i;                                                              \
-                                                                        \
-    for( i = 0; i < (len); i++ )                                        \
-        if( (mask)[i] )                                                 \
-        {                                                               \
-            (dst)[i*4] = s0;                                            \
-            (dst)[i*4+1] = s1;                                          \
-            (dst)[i*4+2] = s2;                                          \
-            (dst)[i*4+3] = s3;                                          \
-        }                                                               \
-}
-
-
-#define ICV_DEF_SET_MASK_2D( name, type, cn )                           \
-IPCVAPI_IMPL( CvStatus,                                                 \
-name,( type* dst, int step, const uchar* mask, int step2,               \
-       CvSize size, const type* scalar ),                               \
-       (dst, step, mask, step2, size, scalar) )                         \
-{                                                                       \
-    CV_UN_ENTRY_C##cn( type );                                          \
-                                                                        \
-    for( ; size.height--; mask += step2, (char*&)dst += step )          \
-    {                                                                   \
-        ICV_DEF_SET_MASK_C##cn##_CASE( type, dst, mask, size.width )    \
-    }                                                                   \
-                                                                        \
-    return CV_OK;                                                       \
+#define ICV_DEF_SET_MASK_2D( name, type, cn )       \
+IPCVAPI_IMPL( CvStatus,                             \
+name,( type* dst, int dststep,                      \
+       const uchar* mask, int maskstep,             \
+       CvSize size, const type* scalar ),           \
+       (dst, dststep, mask, maskstep, size, scalar))\
+{                                                   \
+    CV_UN_ENTRY_C##cn( type );                      \
+    dststep /= sizeof(dst[0]);                      \
+                                                    \
+    for( ; size.height--; mask += maskstep,         \
+                          dst += dststep )          \
+    {                                               \
+        int i;                                      \
+        ICV_DEF_SET_MASK_C##cn##_CASE( type )       \
+    }                                               \
+                                                    \
+    return CV_OK;                                   \
 }
 
 
@@ -336,7 +314,7 @@ cvCopy( const void* srcarr, void* dstarr, const void* maskarr )
 
             if( src1->heap->active_count >= dst1->hashsize*CV_SPARSE_HASH_RATIO )
             {
-                CV_CALL( cvFree( (void**)(&dst1->hashtable) ));
+                CV_CALL( cvFree( &dst1->hashtable ));
                 dst1->hashsize = src1->hashsize;
                 CV_CALL( dst1->hashtable =
                     (void**)cvAlloc( dst1->hashsize*sizeof(dst1->hashtable[0])));
@@ -362,7 +340,7 @@ cvCopy( const void* srcarr, void* dstarr, const void* maskarr )
             CvNArrayIterator iterator;
 
             CV_CALL( cvInitNArrayIterator( 2, arrs, maskarr, stubs, &iterator ));
-            pix_size = icvPixSize[CV_MAT_TYPE(iterator.hdr[0]->type)];
+            pix_size = CV_ELEM_SIZE(iterator.hdr[0]->type);
 
             if( !maskarr )
             {
@@ -446,7 +424,7 @@ cvCopy( const void* srcarr, void* dstarr, const void* maskarr )
     {
         int src_step = src->step, dst_step = dst->step;
         size.width *= pix_size;
-        if( CV_IS_MAT_CONT( src->type & dst->type ))
+        if( CV_IS_MAT_CONT( src->type & dst->type ) && (src_step == dst_step) && (src_step == src->width * pix_size))
         {
             size.width *= size.height;
 
@@ -461,8 +439,9 @@ cvCopy( const void* srcarr, void* dstarr, const void* maskarr )
             src_step = dst_step = CV_STUB_STEP;
         }
 
-        icvCopy_8u_C1R( src->data.ptr, src_step,
-                        dst->data.ptr, dst_step, size );
+        if( src->data.ptr != dst->data.ptr )
+            icvCopy_8u_C1R( src->data.ptr, src_step,
+                            dst->data.ptr, dst_step, size );
     }
     else
     {
@@ -535,8 +514,8 @@ cvSet( void* arr, CvScalar value, const void* maskarr )
             CV_CALL( cvInitNArrayIterator( 1, &arr, maskarr, &nstub, &iterator ));
 
             type = CV_MAT_TYPE(iterator.hdr[0]->type);
-            pix_size = icvPixSize[type];
-            pix_size1 = icvPixSize[type & ~CV_MAT_CN_MASK];
+            pix_size1 = CV_ELEM_SIZE1(type);
+            pix_size = pix_size1*CV_MAT_CN(type);
 
             CV_CALL( cvScalarToRawData( &value, buf, type, maskarr == 0 ));
 
@@ -577,7 +556,7 @@ cvSet( void* arr, CvScalar value, const void* maskarr )
     }
 
     type = CV_MAT_TYPE( mat->type );
-    pix_size = icvPixSize[type];
+    pix_size = CV_ELEM_SIZE(type);
     size = cvGetMatSize( mat );
     mat_step = mat->step;
 
@@ -591,13 +570,12 @@ cvSet( void* arr, CvScalar value, const void* maskarr )
             {
                 if( type == CV_32FC1 )
                 {
-                    int* dstdata = (int*)(mat->data.ptr);
+                    float* dstdata = (float*)(mat->data.ptr);
                     float val = (float)value.val[0];
-                    int ival = (int&)val;
 
                     do
                     {
-                        dstdata[size.width-1] = ival;
+                        dstdata[size.width-1] = val;
                     }
                     while( --size.width );
 
@@ -606,12 +584,12 @@ cvSet( void* arr, CvScalar value, const void* maskarr )
 
                 if( type == CV_64FC1 )
                 {
-                    int64* dstdata = (int64*)(mat->data.ptr);
-                    int64 ival = (int64&)(value.val[0]);
+                    double* dstdata = (double*)(mat->data.ptr);
+                    double val = value.val[0];
 
                     do
                     {
-                        dstdata[size.width-1] = ival;
+                        dstdata[size.width-1] = val;
                     }
                     while( --size.width );
 
@@ -627,7 +605,7 @@ cvSet( void* arr, CvScalar value, const void* maskarr )
         CV_CALL( cvScalarToRawData( &value, buf, type, 1 ));
 
         IPPI_CALL( icvSet_8u_C1R( mat->data.ptr, mat_step, size, buf,
-                                  icvPixSize[type & ~CV_MAT_CN_MASK]));
+                                  CV_ELEM_SIZE1(type)));
     }
     else
     {
@@ -709,7 +687,7 @@ cvSetZero( CvArr* arr )
             CvNArrayIterator iterator;
             
             CV_CALL( cvInitNArrayIterator( 1, &arr, 0, &nstub, &iterator ));
-            iterator.size.width *= icvPixSize[CV_MAT_TYPE(iterator.hdr[0]->type)];
+            iterator.size.width *= CV_ELEM_SIZE(iterator.hdr[0]->type);
 
             if( iterator.size.width <= CV_MAX_INLINE_MAT_OP_SIZE*(int)sizeof(double) )
             {
@@ -747,7 +725,7 @@ cvSetZero( CvArr* arr )
     }
 
     size = cvGetMatSize( mat );
-    size.width *= icvPixSize[CV_MAT_TYPE(mat->type)];
+    size.width *= CV_ELEM_SIZE(mat->type);
     mat_step = mat->step;
 
     if( CV_IS_MAT_CONT( mat->type ))
@@ -774,53 +752,53 @@ cvSetZero( CvArr* arr )
 *                                          Flipping                                      *
 \****************************************************************************************/
 
-#define ICV_DEF_FLIP_HZ_CASE_C1( arrtype, src, dst, len )           \
-    for( i = 0; i < ((len)+1)/2; i++ )                              \
-    {                                                               \
-        arrtype t0 = (src)[i];                                      \
-        arrtype t1 = (src)[(len) - i - 1];                          \
-        (dst)[i] = t1;                                              \
-        (dst)[(len) - i - 1] = t0;                                  \
+#define ICV_DEF_FLIP_HZ_CASE_C1( type ) \
+    for( i = 0; i < (len+1)/2; i++ )    \
+    {                                   \
+        type t0 = src[i];               \
+        type t1 = src[len - i - 1];     \
+        dst[i] = t1;                    \
+        dst[len - i - 1] = t0;          \
     }
 
 
-#define ICV_DEF_FLIP_HZ_CASE_C3( arrtype, src, dst, len )           \
-    for( i = 0; i < ((len)+1)/2; i++ )                              \
-    {                                                               \
-        arrtype t0 = (src)[i*3];                                    \
-        arrtype t1 = (src)[((len) - i)*3 - 3];                      \
-        (dst)[i*3] = t1;                                            \
-        (dst)[((len) - i)*3 - 3] = t0;                              \
-        t0 = (src)[i*3 + 1];                                        \
-        t1 = (src)[((len) - i)*3 - 2];                              \
-        (dst)[i*3 + 1] = t1;                                        \
-        (dst)[((len) - i)*3 - 2] = t0;                              \
-        t0 = (src)[i*3 + 2];                                        \
-        t1 = (src)[((len) - i)*3 - 1];                              \
-        (dst)[i*3 + 2] = t1;                                        \
-        (dst)[((len) - i)*3 - 1] = t0;                              \
+#define ICV_DEF_FLIP_HZ_CASE_C3( type ) \
+    for( i = 0; i < (len+1)/2; i++ )    \
+    {                                   \
+        type t0 = src[i*3];             \
+        type t1 = src[(len - i)*3 - 3]; \
+        dst[i*3] = t1;                  \
+        dst[(len - i)*3 - 3] = t0;      \
+        t0 = src[i*3 + 1];              \
+        t1 = src[(len - i)*3 - 2];      \
+        dst[i*3 + 1] = t1;              \
+        dst[(len - i)*3 - 2] = t0;      \
+        t0 = src[i*3 + 2];              \
+        t1 = src[(len - i)*3 - 1];      \
+        dst[i*3 + 2] = t1;              \
+        dst[(len - i)*3 - 1] = t0;      \
     }
 
 
-#define ICV_DEF_FLIP_HZ_CASE_C4( arrtype, src, dst, len )           \
-    for( i = 0; i < ((len)+1)/2; i++ )                              \
-    {                                                               \
-        arrtype t0 = (src)[i*4];                                    \
-        arrtype t1 = (src)[((len) - i)*4 - 4];                      \
-        (dst)[i*4] = t1;                                            \
-        (dst)[((len) - i)*4 - 4] = t0;                              \
-        t0 = (src)[i*4 + 1];                                        \
-        t1 = (src)[((len) - i)*4 - 3];                              \
-        (dst)[i*4 + 1] = t1;                                        \
-        (dst)[((len) - i)*4 - 3] = t0;                              \
-        t0 = (src)[i*4 + 2];                                        \
-        t1 = (src)[((len) - i)*4 - 2];                              \
-        (dst)[i*4 + 2] = t1;                                        \
-        (dst)[((len) - i)*4 - 2] = t0;                              \
-        t0 = (src)[i*4 + 3];                                        \
-        t1 = (src)[((len) - i)*4 - 1];                              \
-        (dst)[i*4 + 3] = t1;                                        \
-        (dst)[((len) - i)*4 - 1] = t0;                              \
+#define ICV_DEF_FLIP_HZ_CASE_C4( type ) \
+    for( i = 0; i < (len+1)/2; i++ )    \
+    {                                   \
+        type t0 = src[i*4];             \
+        type t1 = src[(len - i)*4 - 4]; \
+        dst[i*4] = t1;                  \
+        dst[(len - i)*4 - 4] = t0;      \
+        t0 = src[i*4 + 1];              \
+        t1 = src[(len - i)*4 - 3];      \
+        dst[i*4 + 1] = t1;              \
+        dst[(len - i)*4 - 3] = t0;      \
+        t0 = src[i*4 + 2];              \
+        t1 = src[(len - i)*4 - 2];      \
+        dst[i*4 + 2] = t1;              \
+        dst[(len - i)*4 - 2] = t0;      \
+        t0 = src[i*4 + 3];              \
+        t1 = src[(len - i)*4 - 1];      \
+        dst[i*4 + 3] = t1;              \
+        dst[(len - i)*4 - 1] = t0;      \
     }
 
 
@@ -829,11 +807,12 @@ static CvStatus CV_STDCALL                                          \
 icvFlipHorz_##flavor( const arrtype* src, int srcstep,              \
                       arrtype* dst, int dststep, CvSize size )      \
 {                                                                   \
-    int y, i;                                                       \
-    for( y = 0; y < size.height; y++, (char*&)src += srcstep,       \
-                                      (char*&)dst += dststep )      \
+    int i, len = size.width;                                        \
+    srcstep /= sizeof(src[0]); dststep /= sizeof(dst[0]);           \
+                                                                    \
+    for( ; size.height--; src += srcstep, dst += dststep )          \
     {                                                               \
-        ICV_DEF_FLIP_HZ_CASE_C##cn( arrtype, src, dst, size.width ) \
+        ICV_DEF_FLIP_HZ_CASE_C##cn( arrtype )                       \
     }                                                               \
                                                                     \
     return CV_OK;                                                   \
@@ -966,7 +945,7 @@ cvFlip( const CvArr* srcarr, CvArr* dstarr, int flip_mode )
         CV_ERROR( CV_StsUnmatchedSizes, "" );
 
     size = cvGetMatSize( src );
-    pix_size = icvPixSize[CV_MAT_TYPE( src->type )];
+    pix_size = CV_ELEM_SIZE( src->type );
 
     if( flip_mode == 0 )
     {
@@ -1006,7 +985,6 @@ cvFlip( const CvArr* srcarr, CvArr* dstarr, int flip_mode )
 }
 
 
-/* cvRepeat */
 CV_IMPL void
 cvRepeat( const CvArr* srcarr, CvArr* dstarr )
 {
@@ -1041,7 +1019,7 @@ cvRepeat( const CvArr* srcarr, CvArr* dstarr )
 
     srcsize = cvGetMatSize( src );
     dstsize = cvGetMatSize( dst );
-    pix_size = icvPixSize[CV_MAT_TYPE( src->type )];
+    pix_size = CV_ELEM_SIZE( src->type );
 
     for( y = 0, k = 0; y < dstsize.height; y++ )
     {

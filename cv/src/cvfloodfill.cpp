@@ -340,13 +340,14 @@ icvFloodFill_32f_CnIR( int* pImage, int step, CvSize roi, CvPoint seed,
 
     if( region )
     {
+        Cv32suf v0, v1, v2;
         region->area = area;
         region->rect.x = XMin;
         region->rect.y = YMin;
         region->rect.width = XMax - XMin + 1;
         region->rect.height = YMax - YMin + 1;
-        region->value = cvScalar((float&)newVal[0],
-            (float&)newVal[1], (float&)newVal[2], 0);
+        v0.i = newVal[0]; v1.i = newVal[1]; v2.i = newVal[2];
+        region->value = cvScalar( v0.f, v1.f, v2.f );
     }
 
     return CV_NO_ERR;
@@ -1026,7 +1027,8 @@ cvFloodFill( CvArr* arr, CvPoint seed_point,
 
     int i, type, depth, cn, is_simple, idx;
     int buffer_size, connectivity = flags & 255;
-    double nv_buf[4] = {0,0,0,0}, ld_buf[4] = {0,0,0,0}, ud_buf[4] = {0,0,0,0};
+    double nv_buf[4] = {0,0,0,0};
+    union { uchar b[4]; float f[4]; } ld_buf, ud_buf;
     CvMat stub, *img = (CvMat*)arr;
     CvMat maskstub, *mask = (CvMat*)maskarr;
     CvSize size;
@@ -1123,25 +1125,25 @@ cvFloodFill( CvArr* arr, CvPoint seed_point,
             for( i = 0; i < cn; i++ )
             {
                 int t = cvFloor(lo_diff.val[i]);
-                ((uchar*)ld_buf)[i] = CV_CAST_8U(t);
+                ld_buf.b[i] = CV_CAST_8U(t);
                 t = cvFloor(up_diff.val[i]);
-                ((uchar*)ud_buf)[i] = CV_CAST_8U(t);
+                ud_buf.b[i] = CV_CAST_8U(t);
             }
         else
             for( i = 0; i < cn; i++ )
             {
-                ((float*)ld_buf)[i] = (float)lo_diff.val[i];
-                ((float*)ud_buf)[i] = (float)up_diff.val[i];
+                ld_buf.f[i] = (float)lo_diff.val[i];
+                ud_buf.f[i] = (float)up_diff.val[i];
             }
 
         IPPI_CALL( func( img->data.ptr, img->step, mask->data.ptr, mask->step,
-                         size, seed_point, &nv_buf, &ld_buf, &ud_buf,
+                         size, seed_point, &nv_buf, ld_buf.f, ud_buf.f,
                          comp, flags, buffer, buffer_size, cn ));
     }
 
     __END__;
 
-    cvFree( (void**)&buffer );
+    cvFree( &buffer );
     cvReleaseMat( &tempMask );
 }
 

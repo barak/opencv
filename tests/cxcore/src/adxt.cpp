@@ -496,7 +496,7 @@ static void cvTsFixCCS( CvMat* mat, int cols, int flags )
 static const CvSize dxt_sizes[] = {{16,1}, {256,1}, {1024,1}, {65536,1},
     {10,1}, {100,1}, {1000,1}, {100000,1}, {256, 256}, {1024,1024}, {-1,-1}};
 static const int dxt_depths[] = { CV_32F, CV_64F, -1 };
-static const char* dxt_param_names[] = { "size", "depth", "transform_type" };
+static const char* dxt_param_names[] = { "size", "depth", "transform_type", 0 };
 static const char* dft_transforms[] = { "Fwd_CToC", "Inv_CToC", "Fwd_RToPack", "Inv_PackToR", 0 };
 static const char* mulsp_transforms[] = { "Fwd_CToC", "Fwd_RToPack", 0 };
 static const char* dct_transforms[] = { "Fwd", "Inv", 0 };
@@ -558,7 +558,7 @@ void CxCore_DXTBaseTestImpl::get_test_array_types_and_sizes( int test_case_idx,
 {
     CvRNG* rng = ts->get_rng();
     int bits = cvTsRandInt(rng);
-    int depth = test_case_idx*2/test_case_count + CV_32F;
+    int depth = cvTsRandInt(rng)%2 + CV_32F;
     int cn = !allow_complex || !(bits & 256) ? 1 : 2;
     CvSize size;
     CvArrTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );

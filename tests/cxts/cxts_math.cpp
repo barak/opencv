@@ -222,7 +222,7 @@ void cvTsCopy( const CvMat* a, CvMat* b, const CvMat* mask )
 
 void cvTsConvert( const CvMat* a, CvMat* b )
 {
-    int i, j, ncols = ncols = b->cols*CV_MAT_CN(b->type);
+    int i, j, ncols = b->cols*CV_MAT_CN(b->type);
     double* buf = 0;
 
     assert( CV_ARE_SIZES_EQ(a,b) && CV_ARE_CNS_EQ(a,b) );
@@ -1332,6 +1332,68 @@ _exit_:
     return result;
 }
 
+
+int cvTsCmpEps2( CvTS* ts, const CvArr* _a, const CvArr* _b, double success_err_level,
+                 bool element_wise_relative_error, const char* desc )
+{
+    char msg[100];
+    double diff = 0;
+    CvMat astub, bstub, *a, *b;
+    CvPoint idx = {0,0};
+    int code;
+
+    a = cvGetMat( _a, &astub );
+    b = cvGetMat( _b, &bstub );
+    code = cvTsCmpEps( a, b, &diff, success_err_level, &idx,
+        element_wise_relative_error );
+
+    switch( code )
+    {
+    case -1:
+        sprintf( msg, "%s: Too big difference (=%g)", desc, diff );
+        code = CvTS::FAIL_BAD_ACCURACY;
+        break;
+    case -2:
+        sprintf( msg, "%s: Invalid output", desc );
+        code = CvTS::FAIL_INVALID_OUTPUT;
+        break;
+    case -3:
+        sprintf( msg, "%s: Invalid reference output", desc );
+        code = CvTS::FAIL_INVALID_OUTPUT;
+        break;
+    default:
+        ;
+    }
+
+    if( code < 0 )
+    {
+        if( a->rows == 1 && a->cols == 1 )
+        {
+            assert( idx.x == 0 && idx.y == 0 );
+            ts->printf( CvTS::LOG, "%s\n", msg );
+        }
+        else if( a->rows == 1 || a->cols == 1 )
+        {
+            assert( idx.x == 0 || idx.y == 0 );
+            ts->printf( CvTS::LOG, "%s at element %d\n", msg, idx.x + idx.y );
+        }
+        else
+            ts->printf( CvTS::LOG, "%s at (%d,%d)\n", msg, idx.x, idx.y );
+    }
+
+    return code;
+}
+
+
+int cvTsCmpEps2_64f( CvTS* ts, const double* val, const double* ref_val, int len,
+                     double eps, const char* param_name )
+{
+    CvMat _val = cvMat( 1, len, CV_64F, (void*)val );
+    CvMat _ref_val = cvMat( 1, len, CV_64F, (void*)ref_val );
+
+    return cvTsCmpEps2( ts, &_val, &_ref_val, eps, true, param_name );
+}
+
 // compares two arrays. the result is 8s image that takes values -1, 0, 1
 void cvTsCmp( const CvMat* a, const CvMat* b, CvMat* result, int cmp_op )
 {
@@ -2241,7 +2303,16 @@ void cvTsLogicS( const CvMat* a, CvScalar s, CvMat* c, int logic_op )
     int i = 0, j = 0, k;
     int cn, ncols, elem_size;
     uchar* b_data;
-    double buf[4];
+    union
+    {
+        uchar ptr[4];
+        char c[4];
+        short s[4];
+        ushort w[4];
+        int i[4];
+        float f[4];
+        double d[4];
+    } buf;
     cn = CV_MAT_CN(a->type);
     elem_size = CV_ELEM_SIZE(a->type);
     ncols = a->cols * elem_size;
@@ -2262,49 +2333,49 @@ void cvTsLogicS( const CvMat* a, CvScalar s, CvMat* c, int logic_op )
             for( k = 0; k < cn; k++ )
             {
                 int val = cvRound(s.val[k]);
-                ((uchar*)buf)[k] = CV_CAST_8U(val);
+                buf.ptr[k] = CV_CAST_8U(val);
             }
             break;
         case CV_8S:
             for( k = 0; k < cn; k++ )
             {
                 int val = cvRound(s.val[k]);
-                ((char*)buf)[k] = CV_CAST_8S(val);
+                buf.c[k] = CV_CAST_8S(val);
             }
             break;
         case CV_16U:
             for( k = 0; k < cn; k++ )
             {
                 int val = cvRound(s.val[k]);
-                ((ushort*)buf)[k] = CV_CAST_16U(val);
+                buf.w[k] = CV_CAST_16U(val);
             }
             break;
         case CV_16S:
             for( k = 0; k < cn; k++ )
             {
                 int val = cvRound(s.val[k]);
-                ((short*)buf)[k] = CV_CAST_16S(val);
+                buf.s[k] = CV_CAST_16S(val);
             }
             break;
         case CV_32S:
             for( k = 0; k < cn; k++ )
             {
                 int val = cvRound(s.val[k]);
-                ((int*)buf)[k] = CV_CAST_32S(val);
+                buf.i[k] = CV_CAST_32S(val);
             }
             break;
         case CV_32F:
             for( k = 0; k < cn; k++ )
             {
                 double val = s.val[k];
-                ((float*)buf)[k] = CV_CAST_32F(val);
+                buf.f[k] = CV_CAST_32F(val);
             }
             break;
         case CV_64F:
             for( k = 0; k < cn; k++ )
             {
                 double val = s.val[k];
-                ((double*)buf)[k] = CV_CAST_64F(val);
+                buf.d[k] = CV_CAST_64F(val);
             }
             break;
         default:
@@ -2313,7 +2384,7 @@ void cvTsLogicS( const CvMat* a, CvScalar s, CvMat* c, int logic_op )
         }
 
         for( j = 0; j < ncols; j += elem_size )
-            memcpy( b_data + j, buf, elem_size );
+            memcpy( b_data + j, buf.ptr, elem_size );
     }
 
     for( i = 0; i < a->rows; i++ )
@@ -2555,13 +2626,13 @@ double cvTsMaxVal( int type )
     switch( CV_MAT_DEPTH(type) )
     {
     case CV_8U:
-        return 255;
+        return 256;
     case CV_8S:
-        return 127;
+        return 128;
     case CV_16U:
-        return 65535;
+        return 65536;
     case CV_16S:
-        return 32767;
+        return 32768;
     case CV_32S:
         return 1000000;
     case CV_32F:
@@ -2878,6 +2949,9 @@ void cvTsMinMaxFilter( const CvMat* a, CvMat* b, const IplConvKernel* kernel, in
             if( !kernel->values || kernel->values[i*kernel->nCols + j] )
                 offset[k++] = (i - kernel->anchorY)*a_step + (j - kernel->anchorX)*cn;
         }
+
+    if( k == 0 )
+        offset[k++] = 0;
 
     ker_size = k;
 

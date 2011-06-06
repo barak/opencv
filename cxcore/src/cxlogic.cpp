@@ -231,7 +231,7 @@ icvLogicS( const void* srcarr, CvScalar* scalar, void* dstarr,
         type = CV_MAT_TYPE(iterator.hdr[0]->type);
         depth = CV_MAT_DEPTH(type);
         iterator.size.width *= CV_ELEM_SIZE(type);
-        elem_size1 = CV_ELEM_SIZE(depth);
+        elem_size1 = CV_ELEM_SIZE1(depth);
 
         CV_CALL( cvScalarToRawData( scalar, buf, type, 1 ));
 
@@ -258,7 +258,7 @@ icvLogicS( const void* srcarr, CvScalar* scalar, void* dstarr,
     type = CV_MAT_TYPE(src->type);
     depth = CV_MAT_DEPTH(type);
     elem_size = CV_ELEM_SIZE(type);
-    elem_size1 = CV_ELEM_SIZE(depth);
+    elem_size1 = CV_ELEM_SIZE1(depth);
 
     if( !mask )
     {
@@ -330,7 +330,7 @@ icvLogicS( const void* srcarr, CvScalar* scalar, void* dstarr,
     __END__;
 
     if( !local_alloc )
-        cvFree( (void**)&buffer );
+        cvFree( &buffer );
 }
 
 
@@ -499,7 +499,7 @@ icvLogic( const void* srcarr1, const void* srcarr2, void* dstarr,
     __END__;
 
     if( !local_alloc )
-        cvFree( (void**)&buffer );
+        cvFree( &buffer );
 }
 
 ICV_DEF_BIN_LOG_OP_2D( CV_XOR, Xor )
@@ -653,7 +653,7 @@ cvNot( const void* srcarr, void* dstarr )
         CV_CALL( cvInitNArrayIterator( 2, arrs, 0, stubs, &iterator ));
 
         type = CV_MAT_TYPE(iterator.hdr[0]->type);
-        iterator.size.width *= icvPixSize[type];
+        iterator.size.width *= CV_ELEM_SIZE(type);
 
         do
         {
@@ -686,7 +686,7 @@ cvNot( const void* srcarr, void* dstarr )
     }
 
     type = CV_MAT_TYPE( src->type );
-    size.width *= icvPixSize[type];
+    size.width *= CV_ELEM_SIZE(type);
 
     IPPI_CALL( icvNot_8u_C1R( src->data.ptr, src_step, dst->data.ptr, dst_step, size ));
 

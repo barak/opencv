@@ -339,8 +339,8 @@ icvRotatingCalipers( CvPoint2D32f* points, int n, int mode, float* out )
         break;
     }
 
-    cvFree( (void**)&vect );
-    cvFree( (void**)&inv_vect_length );
+    cvFree( &vect );
+    cvFree( &inv_vect_length );
 }
 
 
@@ -462,10 +462,12 @@ cvMinAreaRect2( const CvArr* array, CvMemStorage* storage )
             box.center = points[0];
     }
 
+    box.angle = (float)(box.angle*180/CV_PI);
+
     __END__; 
 
     cvReleaseMemStorage( &temp_storage );
-    cvFree( (void**)&points );
+    cvFree( &points );
 
     return box;
 }

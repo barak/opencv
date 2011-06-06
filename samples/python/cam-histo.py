@@ -1,7 +1,5 @@
 #! /usr/bin/env python
 
-print "OpenCV Python wrapper test"
-
 import sys
 
 # import the necessary things for OpenCV
@@ -54,17 +52,34 @@ def hsv2rgb (hue):
 
 if __name__ == '__main__':
 
+    # a small welcome
+    print "OpenCV Python wrapper test"
+    print "OpenCV version: %s (%d, %d, %d)" % (cv.CV_VERSION,
+                                               cv.CV_MAJOR_VERSION,
+                                               cv.CV_MINOR_VERSION,
+                                               cv.CV_SUBMINOR_VERSION)
+
     # first, create the necessary windows
     highgui.cvNamedWindow ('Camera', highgui.CV_WINDOW_AUTOSIZE)
     highgui.cvNamedWindow ('Histogram', highgui.CV_WINDOW_AUTOSIZE)
 
     # move the new window to a better place
-    highgui.cvMoveWindow ('Camera', 10, 10)
+    highgui.cvMoveWindow ('Camera', 10, 40)
     highgui.cvMoveWindow ('Histogram', 10, 270)
+
+    try:
+        # try to get the device number from the command line
+        device = int (sys.argv [1])
+
+        # got it ! so remove it from the arguments
+        del sys.argv [1]
+    except (IndexError, ValueError):
+        # no device number on the command line, assume we want the 1st device
+        device = 0
 
     if len (sys.argv) == 1:
         # no argument on the command line, try to use the camera
-        capture = highgui.cvCaptureFromCAM (0)
+        capture = highgui.cvCreateCameraCapture (device)
 
         # set the wanted image size from the camera
         highgui.cvSetCaptureProperty (capture,
@@ -74,7 +89,7 @@ if __name__ == '__main__':
     else:
         # we have an argument on the command line,
         # we can assume this is a file name, so open it
-        capture = highgui.cvCaptureFromFile(sys.argv [1])            
+        capture = highgui.cvCreateFileCapture (sys.argv [1])            
 
     # check that capture device is OK
     if not capture:
@@ -126,11 +141,11 @@ if __name__ == '__main__':
         cv.cvSplit (hsv, hue, None, None, None)
 
         # select the rectangle of interest in the hue/mask arrays
-        cv.cvSetImageROI (hue, selection)
-        cv.cvSetImageROI (mask, selection)
+        hue_roi = cv.cvGetSubRect (hue, selection)
+        mask_roi = cv.cvGetSubRect (mask, selection)
 
         # it's time to compute the histogram
-        cv.cvCalcHist (hue, hist, 0, mask)
+        cv.cvCalcHist (hue_roi, hist, 0, mask_roi)
 
         # extract the min and max value of the histogram
         min_val, max_val = cv.cvGetMinMaxHistValue (hist, None, None)
@@ -143,10 +158,6 @@ if __name__ == '__main__':
 
         # scale the histograms
         cv.cvConvertScale (hist.bins, hist.bins, scale, 0)
-
-        # remove the rectangle of interest
-        cv.cvResetImageROI (hue)
-        cv.cvResetImageROI (mask)
 
         # clear the histogram image
         cv.cvSetZero (histimg)
@@ -177,6 +188,6 @@ if __name__ == '__main__':
         # handle events
         k = highgui.cvWaitKey (10)
 
-        if k == 27:
+        if k == '\x1b':
             # user has press the ESC key, so exit
             break

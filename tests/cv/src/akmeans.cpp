@@ -40,17 +40,15 @@
 //M*/
 
 #include "cvtest.h"
-#include "float.h"
+
+#if 0
                        
 /* Testing parameters */
 static char test_desc[] = "KMeans clustering";
-static char TestClass[] = "Algorithm";
 static char* func_name[] = 
 {
     "cvKMeans"
 };
-
-static int data_type = 0;
 
 //based on Ara Nefian's implementation
 float distance(float* vector_1, float *vector_2, int VecSize)
@@ -61,7 +59,7 @@ float distance(float* vector_1, float *vector_2, int VecSize)
   dist = 0.0;
   for (i = 0; i < VecSize; i++)
   {
-	  //printf ("%f, %f\n", vector_1[i], vector_2[i]);
+      //printf ("%f, %f\n", vector_1[i], vector_2[i]);
       dist = dist + (vector_1[i] - vector_2[i])*(vector_1[i] - vector_2[i]);
   }
   return dist;  
@@ -124,11 +122,11 @@ int _real_kmeans( int numClusters, float **sample, int numSamples,
       a_class[i] = 0;
       for (k = 1; k < numClusters; k++)
       {
-	    if (dist[k] < minDist)
+        if (dist[k] < minDist)
         {
            minDist = dist[k];
            a_class[i] = k;
-		}
+        }
       }
     }
     
@@ -270,11 +268,11 @@ static int fmaKMeans(void)
     //free memory
     for( i = 0; i < lNumVect; i++ )
     {
-        cvFree( (void**)&(vectors[i]) );
+        cvFree( &(vectors[i]) );
     }
-    cvFree((void**)&vectors);
-    cvFree((void**)&output);
-    cvFree((void**)&etalon_output);      
+    cvFree(&vectors);
+    cvFree(&output);
+    cvFree(&etalon_output);      
    
    if( lErrors == 0 ) return trsResult( TRS_OK, "No errors fixed for this text" );
     else return trsResult( TRS_FAIL, "Detected %d errors", lErrors );
@@ -289,3 +287,5 @@ void InitAKMeans()
     trsReg( func_name[0], test_desc, atsAlgoClass, fmaKMeans );
     
 } /* InitAKMeans */
+
+#endif

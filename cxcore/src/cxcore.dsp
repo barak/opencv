@@ -48,7 +48,7 @@ RSC=rc.exe
 # PROP Target_Dir ""
 LIB32=link.exe -lib
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /YX /FD /c
-# ADD CPP /nologo /G6 /MD /W4 /Zi /O2 /Ob2 /I "." /I "..\include" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "CVAPI_EXPORTS" /FR /Yu"_cxcore.h" /FD /c
+# ADD CPP /nologo /G6 /MD /W4 /Zi /O2 /Ob2 /I "." /I "..\include" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "CVAPI_EXPORTS" /FR /Yu"_cxcore.h" /FD /Qopenmp /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
@@ -58,7 +58,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /machine:I386
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore097.pdb" /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cxcore097.dll" /implib:"../../lib/cxcore.lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore100.pdb" /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cxcore100.dll" /implib:"../../lib/cxcore.lib"
 # SUBTRACT LINK32 /profile /pdb:none /map
 
 !ELSEIF  "$(CFG)" == "cxcore - Win32 Debug"
@@ -86,7 +86,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:windows /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore097d.pdb" /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxcore097d.dll" /implib:"../../lib/cxcored.lib"
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore100d.pdb" /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxcore100d.dll" /implib:"../../lib/cxcored.lib"
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cxcore - Win32 Debug64"
@@ -114,9 +114,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxcore097d.dll" /implib:"../../lib/cxcored.lib" /machine:AMD64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxcore100d.dll" /implib:"../../lib/cxcored.lib" /machine:AMD64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore097d_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxcore097d_64.dll" /implib:"../../lib/cxcored_64.lib" /machine:AMD64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore100d_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxcore100d_64.dll" /implib:"../../lib/cxcored_64.lib" /machine:AMD64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cxcore - Win32 Release64"
@@ -144,9 +144,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cxcore097.dll" /implib:"../../lib/cxcore.lib" /machine:AMD64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cxcore100.dll" /implib:"../../lib/cxcore.lib" /machine:AMD64
 # SUBTRACT BASE LINK32 /profile /map
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cxcore097_64.dll" /implib:"../../lib/cxcore_64.lib" /machine:AMD64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cxcore100_64.dll" /implib:"../../lib/cxcore_64.lib" /machine:AMD64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cxcore - Win32 Release64 Itanium"
@@ -174,9 +174,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cxcore097_i7.dll" /implib:"../../lib/cxcore_i7.lib" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin\cxcore100_i7.dll" /implib:"../../lib/cxcore_i7.lib" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /out:"..\..\bin\cxcore097_i7.dll" /implib:"../../lib/cxcore_i7.lib" /machine:IA64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /debug /machine:IX86 /out:"..\..\bin\cxcore100_i7.dll" /implib:"../../lib/cxcore_i7.lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cxcore - Win32 Debug64 Itanium"
@@ -204,9 +204,9 @@ BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
-# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore097d_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxcore097d_i7.dll" /implib:"../../lib/cxcored_i7.lib" /machine:IA64
+# ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore100d_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin\cxcore100d_i7.dll" /implib:"../../lib/cxcored_i7.lib" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore097d_i7.pdb" /debug /machine:IX86 /out:"..\..\bin\cxcore097d_i7.dll" /implib:"../../lib/cxcored_i7.lib" /machine:IA64
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib advapi32.lib /nologo /subsystem:windows /dll /pdb:"..\..\bin/cxcore100d_i7.pdb" /debug /machine:IX86 /out:"..\..\bin\cxcore100d_i7.dll" /implib:"../../lib/cxcored_i7.lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 
@@ -265,6 +265,10 @@ SOURCE=.\cxdxt.cpp
 # Begin Source File
 
 SOURCE=.\cxerror.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\cximage.cpp
 # End Source File
 # Begin Source File
 
@@ -353,6 +357,10 @@ SOURCE=.\cxutils.cpp
 # Begin Source File
 
 SOURCE=..\Include\cxcore.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\include\cxcore.hpp
 # End Source File
 # Begin Source File
 

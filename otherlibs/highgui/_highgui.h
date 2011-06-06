@@ -42,15 +42,15 @@
 #ifndef __HIGHGUI_H_
 #define __HIGHGUI_H_
 
+#include "highgui.h"
+#include "cxmisc.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <limits.h>
 #include <ctype.h>
 #include <assert.h>
-
-#include "highgui.h"
-#include "cxmisc.h"
 
 #ifndef WIN32
 #include "cvconfig.h"
@@ -73,23 +73,23 @@ void  FillBitmapInfo( BITMAPINFO* bmi, int width, int height, int bpp, int origi
 
 #define CV_CAPTURE_BASE_API_COUNT 6
 
-typedef void (CV_CDECL* CvCaptureCloseFunc)( CvCapture* capture );
-typedef int (CV_CDECL* CvCaptureGrabFrameFunc)( CvCapture* capture );
-typedef IplImage* (CV_CDECL* CvCaptureRetrieveFrameFunc)( CvCapture* capture );
-typedef double (CV_CDECL* CvCaptureGetPropertyFunc)( CvCapture* capture, int id );
-typedef int (CV_CDECL* CvCaptureSetPropertyFunc)( CvCapture* capture,
-                                                  int id, double value );
-typedef const char* (CV_CDECL* CvCaptureGetDescriptionFunc)( CvCapture* capture );
+typedef void         (CV_CDECL* CvCaptureCloseFunc)         ( CvCapture* capture );
+typedef int          (CV_CDECL* CvCaptureGrabFrameFunc)     ( CvCapture* capture );
+typedef IplImage   * (CV_CDECL* CvCaptureRetrieveFrameFunc) ( CvCapture* capture );
+typedef double       (CV_CDECL* CvCaptureGetPropertyFunc)   ( CvCapture* capture, int id );
+typedef int          (CV_CDECL* CvCaptureSetPropertyFunc)   ( CvCapture* capture,
+                                                              int id, double value );
+typedef const char * (CV_CDECL* CvCaptureGetDescriptionFunc)( CvCapture* capture );
 
 typedef struct CvCaptureVTable
 {
-    int     count;
-    CvCaptureCloseFunc close;
-    CvCaptureGrabFrameFunc grab_frame;
-    CvCaptureRetrieveFrameFunc retrieve_frame;
-    CvCaptureGetPropertyFunc get_property;
-    CvCaptureSetPropertyFunc set_property;
-    CvCaptureGetDescriptionFunc get_description;
+    int                           count;
+    CvCaptureCloseFunc            close;
+    CvCaptureGrabFrameFunc        grab_frame;
+    CvCaptureRetrieveFrameFunc    retrieve_frame;
+    CvCaptureGetPropertyFunc      get_property;
+    CvCaptureSetPropertyFunc      set_property;
+    CvCaptureGetDescriptionFunc   get_description;
 }
 CvCaptureVTable;
 
@@ -99,14 +99,54 @@ typedef struct CvCapture
 }
 CvCapture;
 
-#ifndef WIN32
-#ifdef HAVE_CAMV4L
-CvCapture* icvOpenCAM_V4L( int wIndex );
+
+#ifdef WIN32
+#define HAVE_VFW 1
+
+/* uncomment to enable OpenEXR codec (will not compile under MSVC6) */ 
+//#define HAVE_ILMIMF 1
+
+/* uncomment to enable CMUCamera1394 fireware camera module */
+//#define HAVE_CMU1394 1
 #endif
+
+
+#if defined (HAVE_CAMV4L) || defined (HAVE_CAMV4L2)
+CvCapture * cvCaptureFromCAM_V4L( int index );
+#endif
+
 #ifdef HAVE_DC1394
-CvCapture* icvOpenCAM_DC1394( int wIndex );
+CvCapture * cvCaptureFromCAM_DC1394( int index );
 #endif
+
+#ifdef HAVE_MIL
+CvCapture* cvCaptureFromCAM_MIL( int index );
+#endif
+
+#ifdef HAVE_CMU1394
+CvCapture * cvCaptureFromCAM_CMU( int index );
+#endif
+
+#ifdef HAVE_TYZX
+CV_IMPL CvCapture * cvCaptureFromCAM_TYZX( int index );
+#endif
+
+#ifdef WIN32
+CvCapture* cvCaptureFromCAM_VFW( int index );
+CvCapture* cvCaptureFromFile_VFW( const char* filename );
+#endif
+
+#ifdef HAVE_XINE
+CvCapture* cvCaptureFromFile_XINE   (const char* filename);
+#endif
+
+#ifdef HAVE_FFMPEG
+CvCapture* cvCaptureFromFile_FFMPEG (const char* filename);
+#endif
+
+#ifdef HAVE_QUICKTIME
+CvCapture * cvCaptureFromFile_QT (const char  * filename);
+CvCapture * cvCaptureFromCAM_QT  (const int     index);
 #endif
 
 #endif /* __HIGHGUI_H_ */
-

@@ -41,6 +41,8 @@
 
 #include "cvtest.h"
 
+#if 0
+
 /* Testing parameters */
 static char FuncName[] = "cvCalcOpticalFlowLK";
 static char TestName[] = "Optical flow (Lucas & Kanade)";
@@ -274,12 +276,12 @@ static int fmaCalcOpticalFlowLK( void )
             }
         }
     }
-    cvFree( (void**)&VelocityX );
-    cvFree( (void**)&VelocityY );
+    cvFree( &VelocityX );
+    cvFree( &VelocityY );
     
-    cvFree( (void**)&DerivativeX );
-    cvFree( (void**)&DerivativeY );
-    cvFree( (void**)&DerivativeT );
+    cvFree( &DerivativeX );
+    cvFree( &DerivativeY );
+    cvFree( &DerivativeT );
 
     cvReleaseImage( &imgA );
     cvReleaseImage( &imgB );
@@ -296,5 +298,7 @@ void InitACalcOpticalFlowLK( void )
     /* Registering test function */
     trsReg( FuncName, TestName, TestClass, fmaCalcOpticalFlowLK );
 } /* InitAACalcOpticalFlowLK */
+
+#endif
 
 /* End of file. */

@@ -303,6 +303,12 @@ CvImageFilters::CvImageFilters()
 #ifdef HAVE_PNG
     m_factories->AddFactory( new GrFmtPng() );
 #endif
+#ifdef HAVE_JASPER
+    m_factories->AddFactory( new GrFmtJpeg2000() );
+#endif
+#ifdef HAVE_ILMIMF
+    m_factories->AddFactory( new GrFmtExr() );
+#endif
 }
 
 
@@ -327,6 +333,13 @@ GrFmtWriter* CvImageFilters::FindWriter( const char* filename ) const
 *                         HighGUI loading & saving function implementation               *
 \****************************************************************************************/
 
+static int icvSetCXCOREBindings(void)
+{
+    return CV_SET_IMAGE_IO_FUNCTIONS();
+}
+
+int cxcore_bindings_initialized = icvSetCXCOREBindings();
+
 // global image I/O filters
 static CvImageFilters  g_Filters;
 
@@ -347,15 +360,21 @@ cvAddSearchPath( const char* path )
 }
 #endif
 
-CV_IMPL IplImage*
-cvLoadImage( const char* filename, int iscolor )
+static void*
+icvLoadImage( const char* filename, int flags, bool load_as_matrix )
 {
     GrFmtReader* reader = 0;
     IplImage* image = 0;
+    CvMat hdr, *matrix = 0;
+    int depth = 8;
 
     CV_FUNCNAME( "cvLoadImage" );
 
     __BEGIN__;
+
+    CvSize size;
+    int iscolor;
+    int cn;
 
     if( !filename || strlen(filename) == 0 )
         CV_ERROR( CV_StsNullPtr, "null filename" );
@@ -367,21 +386,55 @@ cvLoadImage( const char* filename, int iscolor )
     if( !reader->ReadHeader() )
         EXIT;
 
+    size.width = reader->GetWidth();
+    size.height = reader->GetHeight();
+
+    if( flags == -1 )
+        iscolor = reader->IsColor();
+    else
     {
-        CvSize size;
-        size.width = reader->GetWidth();
-        size.height = reader->GetHeight();
+        if( (flags & CV_LOAD_IMAGE_COLOR) != 0 ||
+           ((flags & CV_LOAD_IMAGE_ANYCOLOR) != 0 && reader->IsColor()) )
+            iscolor = 1;
+        else
+            iscolor = 0;
 
-        iscolor = iscolor > 0 || (iscolor < 0 && reader->IsColor());
-
-        CV_CALL( image = cvCreateImage( size, IPL_DEPTH_8U, iscolor ? 3 : 1 ));
-
-        if( !reader->ReadData( (unsigned char*)(image->imageData),
-                               image->widthStep, iscolor ))
+        if( (flags & CV_LOAD_IMAGE_ANYDEPTH) != 0 )
         {
-            cvReleaseImage( &image );
-            EXIT;
+            reader->UseNativeDepth(true);
+            depth = reader->GetDepth();
         }
+    }
+
+    cn = iscolor ? 3 : 1;
+
+    if( load_as_matrix )
+    {
+        int type;
+        if(reader->IsFloat() && depth != 8)
+            type = CV_32F;
+        else
+            type = ( depth <= 8 ) ? CV_8U : ( depth <= 16 ) ? CV_16U : CV_32S;
+        CV_CALL( matrix = cvCreateMat( size.height, size.width, CV_MAKETYPE(type, cn) ));
+    }
+    else
+    {
+        int type;
+        if(reader->IsFloat() && depth != 8)
+            type = IPL_DEPTH_32F;
+        else
+            type = ( depth <= 8 ) ? IPL_DEPTH_8U : ( depth <= 16 ) ? IPL_DEPTH_16U : IPL_DEPTH_32S;
+        CV_CALL( image = cvCreateImage( size, type, cn ));
+        matrix = cvGetMat( image, &hdr );
+    }
+
+    if( !reader->ReadData( matrix->data.ptr, matrix->step, iscolor ))
+    {
+        if( load_as_matrix )
+            cvReleaseMat( &matrix );
+        else
+            cvReleaseImage( &image );
+        EXIT;
     }
 
     __END__;
@@ -389,9 +442,27 @@ cvLoadImage( const char* filename, int iscolor )
     delete reader;
 
     if( cvGetErrStatus() < 0 )
-        cvReleaseImage( &image );
+    {
+        if( load_as_matrix )
+            cvReleaseMat( &matrix );
+        else
+            cvReleaseImage( &image );
+    }
 
-    return image;
+    return load_as_matrix ? (void*)matrix : (void*)image;
+}
+
+
+CV_IMPL IplImage*
+cvLoadImage( const char* filename, int iscolor )
+{
+    return (IplImage*)icvLoadImage( filename, iscolor, false );
+}
+
+CV_IMPL CvMat*
+cvLoadImageM( const char* filename, int iscolor )
+{
+    return (CvMat*)icvLoadImage( filename, iscolor, true );
 }
 
 
@@ -399,15 +470,15 @@ CV_IMPL int
 cvSaveImage( const char* filename, const CvArr* arr )
 {
     int origin = 0;
-    int did_flip = 0;
     GrFmtWriter* writer = 0;
+    CvMat *temp = 0, *temp2 = 0;
 
     CV_FUNCNAME( "cvSaveImage" );
 
     __BEGIN__;
 
     CvMat stub, *image;
-    int channels;
+    int channels, ipl_depth;
 
     if( !filename || strlen(filename) == 0 )
         CV_ERROR( CV_StsNullPtr, "null filename" );
@@ -427,20 +498,32 @@ cvSaveImage( const char* filename, const CvArr* arr )
 
     if( origin )
     {
-        CV_CALL( cvFlip( image, image, 0 ));
-        did_flip = 1;
+        CV_CALL( temp = cvCreateMat(image->rows, image->cols, image->type) );
+        CV_CALL( cvFlip( image, temp, 0 ));
+        image = temp;
+    }
+
+    ipl_depth = cvCvToIplDepth(image->type);
+
+    if( !writer->IsFormatSupported(ipl_depth) )
+    {
+        assert( writer->IsFormatSupported(IPL_DEPTH_8U) );
+        CV_CALL( temp2 = cvCreateMat(image->rows,
+            image->cols, CV_MAKETYPE(CV_8U,channels)) );
+        CV_CALL( cvConvertImage( image, temp2 ));
+        image = temp2;
+        ipl_depth = IPL_DEPTH_8U;
     }
 
     if( !writer->WriteImage( image->data.ptr, image->step, image->width,
-                             image->height, channels ))
+                             image->height, ipl_depth, channels ))
         CV_ERROR( CV_StsError, "could not save the image" );
 
     __END__;
 
     delete writer;
-
-    if( origin && did_flip )
-        cvFlip( arr, (void*)arr, 0 );
+    cvReleaseMat( &temp );
+    cvReleaseMat( &temp2 );
 
     return cvGetErrStatus() >= 0;
 }

@@ -46,55 +46,25 @@
 *                                  Creating Borders                                      *
 \****************************************************************************************/
 
-#define IPCV_COPY_BORDER( bordertype, flavor, arrtype )                             \
-IPCVAPI_EX( CvStatus, icvCopy##bordertype##Border_##flavor,                         \
-            "ippiCopy" #bordertype "Border_" #flavor, CV_PLUGINS1(CV_PLUGIN_IPPI),  \
-            ( const arrtype* pSrc,  int srcStep, CvSize srcRoiSize,                 \
-                    arrtype* pDst,  int dstStep, CvSize dstRoiSize,                 \
-                    int topBorderWidth, int leftBorderWidth ))
+#define IPCV_COPY_BORDER( bordertype, flavor )                                      \
+IPCVAPI_EX( CvStatus, icvCopy##bordertype##Border_##flavor##R,                      \
+    "ippiCopy" #bordertype "Border_" #flavor "R", CV_PLUGINS1(CV_PLUGIN_IPPI),      \
+    ( const void* pSrc,  int srcStep, CvSize srcRoiSize, void* pDst,  int dstStep,  \
+      CvSize dstRoiSize, int topBorderHeight, int leftBorderWidth ))                \
+                                                                                    \
+IPCVAPI_EX( CvStatus, icvCopy##bordertype##Border_##flavor##IR,                     \
+    "ippiCopy" #bordertype "Border_" #flavor "IR", CV_PLUGINS1(CV_PLUGIN_IPPI),     \
+    ( const void* pSrc,  int srcDstStep, CvSize srcRoiSize,                         \
+      CvSize dstRoiSize, int topBorderHeight, int leftBorderWidth ))
 
-IPCV_COPY_BORDER( Replicate, 8u_C1R, uchar )
-IPCV_COPY_BORDER( Replicate, 16s_C1R, ushort )
-IPCV_COPY_BORDER( Replicate, 8u_C3R, uchar )
-IPCV_COPY_BORDER( Replicate, 32s_C1R, int )
-IPCV_COPY_BORDER( Replicate, 16s_C3R, ushort )
-IPCV_COPY_BORDER( Replicate, 16s_C4R, int )
-IPCV_COPY_BORDER( Replicate, 32s_C3R, int )
-IPCV_COPY_BORDER( Replicate, 32s_C4R, int )
-IPCV_COPY_BORDER( Replicate, 64f_C3R, int )
-IPCV_COPY_BORDER( Replicate, 64f_C4R, int )
-
-#undef IPCV_COPY_BORDER
-
-#define IPCV_COPY_CONST_BORDER_C1( flavor, arrtype )                                \
-IPCVAPI_EX( CvStatus, icvCopyConstBorder_##flavor,                                  \
-            "ippiCopyConstBorder_" #flavor, CV_PLUGINS1(CV_PLUGIN_IPPI),            \
-            ( const arrtype* pSrc,  int srcStep, CvSize srcRoiSize,                 \
-                    arrtype* pDst,  int dstStep, CvSize dstRoiSize,                 \
-                    int topBorderWidth, int leftBorderWidth, arrtype value ))
-
-IPCV_COPY_CONST_BORDER_C1( 8u_C1R, uchar )
-IPCV_COPY_CONST_BORDER_C1( 16s_C1R, ushort )
-IPCV_COPY_CONST_BORDER_C1( 32s_C1R, int )
-
-#undef IPCV_COPY_CONST_BORDER_C1
-
-#define IPCV_COPY_CONST_BORDER_CN( flavor, arrtype )                                \
-IPCVAPI_EX( CvStatus, icvCopyConstBorder_##flavor,                                  \
-            "ippiCopyConstBorder_" #flavor, CV_PLUGINS1(CV_PLUGIN_IPPI),            \
-            ( const arrtype* pSrc,  int srcStep, CvSize srcRoiSize,                 \
-                    arrtype* pDst,  int dstStep, CvSize dstRoiSize,                 \
-                    int topBorderWidth, int leftBorderWidth, const arrtype* value ))
-
-IPCV_COPY_CONST_BORDER_CN( 8u_C3R, uchar )
-IPCV_COPY_CONST_BORDER_CN( 16s_C3R, ushort )
-IPCV_COPY_CONST_BORDER_CN( 16s_C4R, int )
-IPCV_COPY_CONST_BORDER_CN( 32s_C3R, int )
-IPCV_COPY_CONST_BORDER_CN( 32s_C4R, int )
-IPCV_COPY_CONST_BORDER_CN( 64f_C3R, int )
-IPCV_COPY_CONST_BORDER_CN( 64f_C4R, int )
-
-#undef IPCV_COPY_CONST_BORDER_CN
+IPCV_COPY_BORDER( Replicate, 8u_C1 )
+IPCV_COPY_BORDER( Replicate, 16s_C1 )
+IPCV_COPY_BORDER( Replicate, 8u_C3 )
+IPCV_COPY_BORDER( Replicate, 32s_C1 )
+IPCV_COPY_BORDER( Replicate, 16s_C3 )
+IPCV_COPY_BORDER( Replicate, 16s_C4 )
+IPCV_COPY_BORDER( Replicate, 32s_C3 )
+IPCV_COPY_BORDER( Replicate, 32s_C4 )
 
 /****************************************************************************************\
 *                                        Moments                                         *
@@ -225,23 +195,6 @@ ICV_PYRUP( 32f, 3 )
 *                                Geometric Transformations                               *
 \****************************************************************************************/
 
-/*#define IPCV_REMAP( flavor, cn, arrtype )                                   \
-IPCVAPI_EX( CvStatus, icvRemap_##flavor##_C##cn##R,                         \
-    "ippiRemap_" #flavor "_C" #cn "R", CV_PLUGINS1(CV_PLUGIN_IPPI),         \
-    ( const arrtype* src, CvSize srcsize, int srcstep, CvSize srcroi,       \
-      const float* xmap, int xmapstep, const float* ymap, int ymapstep,     \
-      arrtype* dst, int dststep, CvSize dstroi, int interpolation ))
-
-IPCV_REMAP( 8u, 1, uchar )
-IPCV_REMAP( 8u, 3, uchar )
-IPCV_REMAP( 8u, 4, uchar )
-
-IPCV_REMAP( 32f, 1, float )
-IPCV_REMAP( 32f, 3, float )
-IPCV_REMAP( 32f, 4, float )
-
-#undef IPCV_REMAP*/
-
 #define IPCV_RESIZE( flavor, cn )                                           \
 IPCVAPI_EX( CvStatus, icvResize_##flavor##_C##cn##R,                        \
             "ippiResize_" #flavor "_C" #cn "R", CV_PLUGINS1(CV_PLUGIN_IPPI),\
@@ -336,18 +289,19 @@ IPCV_REMAP( 32f, 4 )
 *                                      Morphology                                        *
 \****************************************************************************************/
 
-#define IPCV_MORPHOLOGY( minmaxtype, morphtype, flavor, cn )            \
-IPCVAPI_EX( CvStatus, icv##morphtype##Rect_##flavor##_C##cn##R,         \
-            "ippiFilter" #minmaxtype "_" #flavor "_C" #cn "R",          \
-            CV_PLUGINS1(CV_PLUGIN_IPPI),                                \
-            ( const void* src, int srcstep, void* dst, int dststep,     \
-              CvSize roi, CvSize esize, CvPoint anchor ))               \
-IPCVAPI_EX( CvStatus, icv##morphtype##Any_##flavor##_C##cn##R,          \
-            "ippi" #morphtype "_" #flavor "_C" #cn "R",                 \
-            CV_PLUGINS1(CV_PLUGIN_IPPI),                                \
-            ( const void* src, int srcstep, void* dst, int dststep,     \
-              CvSize roi, const uchar* element,                         \
-              CvSize esize, CvPoint anchor ))
+#define IPCV_MORPHOLOGY( minmaxtype, morphtype, flavor, cn )                    \
+IPCVAPI_EX( CvStatus, icv##morphtype##Rect_##flavor##_C##cn##R,                 \
+    "ippiFilter" #minmaxtype "BorderReplicate_" #flavor "_C" #cn "R",           \
+    CV_PLUGINS1(CV_PLUGIN_IPPCV), ( const void* src, int srcstep, void* dst,    \
+    int dststep, CvSize roi, CvSize esize, CvPoint anchor, void* buffer ))      \
+IPCVAPI_EX( CvStatus, icv##morphtype##Rect_GetBufSize_##flavor##_C##cn##R,      \
+    "ippiFilter" #minmaxtype "GetBufferSize_" #flavor "_C" #cn "R",             \
+    CV_PLUGINS1(CV_PLUGIN_IPPCV), ( int width, CvSize esize, int* bufsize ))    \
+                                                                                \
+IPCVAPI_EX( CvStatus, icv##morphtype##_##flavor##_C##cn##R,                     \
+    "ippi" #morphtype "BorderReplicate_" #flavor "_C" #cn "R",                  \
+    CV_PLUGINS1(CV_PLUGIN_IPPCV), ( const void* src, int srcstep,               \
+    void* dst, int dststep, CvSize roi, int bordertype, void* morphstate ))
 
 IPCV_MORPHOLOGY( Min, Erode, 8u, 1 )
 IPCV_MORPHOLOGY( Min, Erode, 8u, 3 )
@@ -363,6 +317,25 @@ IPCV_MORPHOLOGY( Max, Dilate, 32f, 3 )
 IPCV_MORPHOLOGY( Max, Dilate, 32f, 4 )
 
 #undef IPCV_MORPHOLOGY
+
+#define IPCV_MORPHOLOGY_INIT_ALLOC( flavor, cn )                            \
+IPCVAPI_EX( CvStatus, icvMorphInitAlloc_##flavor##_C##cn##R,                \
+    "ippiMorphologyInitAlloc_" #flavor "_C" #cn "R",                        \
+    CV_PLUGINS1(CV_PLUGIN_IPPCV), ( int width, const uchar* element,        \
+    CvSize esize, CvPoint anchor, void** morphstate ))
+
+IPCV_MORPHOLOGY_INIT_ALLOC( 8u, 1 )
+IPCV_MORPHOLOGY_INIT_ALLOC( 8u, 3 )
+IPCV_MORPHOLOGY_INIT_ALLOC( 8u, 4 )
+IPCV_MORPHOLOGY_INIT_ALLOC( 32f, 1 )
+IPCV_MORPHOLOGY_INIT_ALLOC( 32f, 3 )
+IPCV_MORPHOLOGY_INIT_ALLOC( 32f, 4 )
+
+#undef IPCV_MORPHOLOGY_INIT_ALLOC
+
+IPCVAPI_EX( CvStatus, icvMorphFree, "ippiMorphologyFree",
+    CV_PLUGINS1(CV_PLUGIN_IPPCV), ( void* morphstate ))
+
 
 /****************************************************************************************\
 *                                 Smoothing Filters                                      *
@@ -396,6 +369,64 @@ IPCV_FILTER_BOX( 32f, 4 )
 /****************************************************************************************\
 *                                 Derivative Filters                                     *
 \****************************************************************************************/
+
+#define IPCV_FILTER_SOBEL_BORDER( suffix, flavor, srctype )                             \
+IPCVAPI_EX( CvStatus, icvFilterSobel##suffix##GetBufSize_##flavor##_C1R,                \
+    "ippiFilterSobel" #suffix "GetBufferSize_" #flavor "_C1R",                          \
+    CV_PLUGINS1(CV_PLUGIN_IPPCV), ( CvSize roi, int masksize, int* buffersize ))        \
+IPCVAPI_EX( CvStatus, icvFilterSobel##suffix##Border_##flavor##_C1R,                    \
+    "ippiFilterSobel" #suffix "Border_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPCV),   \
+    ( const void* src, int srcstep, void* dst, int dststep, CvSize roi, int masksize,   \
+      int bordertype, srctype bordervalue, void* buffer ))
+
+IPCV_FILTER_SOBEL_BORDER( NegVert, 8u16s, uchar )
+IPCV_FILTER_SOBEL_BORDER( Horiz, 8u16s, uchar )
+IPCV_FILTER_SOBEL_BORDER( VertSecond, 8u16s, uchar )
+IPCV_FILTER_SOBEL_BORDER( HorizSecond, 8u16s, uchar )
+IPCV_FILTER_SOBEL_BORDER( Cross, 8u16s, uchar )
+
+IPCV_FILTER_SOBEL_BORDER( NegVert, 32f, float )
+IPCV_FILTER_SOBEL_BORDER( Horiz, 32f, float )
+IPCV_FILTER_SOBEL_BORDER( VertSecond, 32f, float )
+IPCV_FILTER_SOBEL_BORDER( HorizSecond, 32f, float )
+IPCV_FILTER_SOBEL_BORDER( Cross, 32f, float )
+
+#undef IPCV_FILTER_SOBEL_BORDER
+
+#define IPCV_FILTER_SCHARR_BORDER( suffix, flavor, srctype )                            \
+IPCVAPI_EX( CvStatus, icvFilterScharr##suffix##GetBufSize_##flavor##_C1R,               \
+    "ippiFilterScharr" #suffix "GetBufferSize_" #flavor "_C1R",                         \
+    CV_PLUGINS1(CV_PLUGIN_IPPCV), ( CvSize roi, int* buffersize ))                      \
+IPCVAPI_EX( CvStatus, icvFilterScharr##suffix##Border_##flavor##_C1R,                   \
+    "ippiFilterScharr" #suffix "Border_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPCV),  \
+    ( const void* src, int srcstep, void* dst, int dststep, CvSize roi,                 \
+      int bordertype, srctype bordervalue, void* buffer ))
+
+IPCV_FILTER_SCHARR_BORDER( Vert, 8u16s, uchar )
+IPCV_FILTER_SCHARR_BORDER( Horiz, 8u16s, uchar )
+
+IPCV_FILTER_SCHARR_BORDER( Vert, 32f, float )
+IPCV_FILTER_SCHARR_BORDER( Horiz, 32f, float )
+
+#undef IPCV_FILTER_SCHARR_BORDER
+
+
+#define IPCV_FILTER_LAPLACIAN_BORDER( flavor, srctype )                                 \
+IPCVAPI_EX( CvStatus, icvFilterLaplacianGetBufSize_##flavor##_C1R,                      \
+    "ippiFilterLaplacianGetBufferSize_" #flavor "_C1R",                                 \
+    CV_PLUGINS1(CV_PLUGIN_IPPCV), ( CvSize roi, int masksize, int* buffersize ))        \
+IPCVAPI_EX( CvStatus, icvFilterLaplacianBorder_##flavor##_C1R,                          \
+    "ippiFilterLaplacianBorder_" #flavor "_C1R", CV_PLUGINS1(CV_PLUGIN_IPPCV),          \
+    ( const void* src, int srcstep, void* dst, int dststep, CvSize roi, int masksize,   \
+      int bordertype, srctype bordervalue, void* buffer ))
+
+IPCV_FILTER_LAPLACIAN_BORDER( 8u16s, uchar )
+IPCV_FILTER_LAPLACIAN_BORDER( 32f, float )
+
+#undef IPCV_FILTER_LAPLACIAN_BORDER
+
+
+/////////////////////////////////////////////////////////////////////////////////////////
 
 #define IPCV_FILTER_SOBEL( suffix, ipp_suffix, flavor )                             \
 IPCVAPI_EX( CvStatus, icvFilterSobel##suffix##_##flavor##_C1R,                      \
@@ -565,7 +596,7 @@ IPCVAPI_EX(CvStatus, icvDistanceTransform_5x5_8u32f_C1R,
 *                               Thresholding functions                                   *
 \****************************************************************************************/
 
-IPCVAPI_EX( CvStatus, icvCompareC_8u_C1R,
+IPCVAPI_EX( CvStatus, icvCompareC_8u_C1R_cv,
             "ippiCompareC_8u_C1R", CV_PLUGINS1(CV_PLUGIN_IPPI),
             ( const uchar* src1, int srcstep1, uchar scalar,
               uchar* dst, int dststep, CvSize size, int cmp_op ))

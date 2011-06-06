@@ -742,7 +742,7 @@ cvResize( const CvArr* srcarr, CvArr* dstarr, int method )
                 CvDecimateAlpha* xofs;
                 CvResizeAreaFunc func = (CvResizeAreaFunc)area_tab.fn_2d[depth];
 
-                if( !func )
+                if( !func || cn > 4 )
                     CV_ERROR( CV_StsUnsupportedFormat, "" );
 
                 buf_size = buf_len*2*sizeof(float) + ssize.width*2*sizeof(CvDecimateAlpha);
@@ -834,14 +834,15 @@ cvResize( const CvArr* srcarr, CvArr* dstarr, int method )
                     fx = fx <= 0 ? 0.f : fx - cvFloor(fx);
                 }
 
+                if( sx < 0 )
+                    fx = 0, sx = 0;
+
                 if( sx >= ssize.width-1 )
                 {
                     fx = 0, sx = ssize.width-1;
                     if( xmax >= dsize.width )
                         xmax = dx;
                 }
-                else if( sx < 0 )
-                    fx = 0, sx = 0;
 
                 if( depth != CV_8U )
                     for( k = 0, sx *= cn; k < cn; k++ )
@@ -1122,6 +1123,8 @@ cvWarpAffine( const CvArr* srcarr, CvArr* dstarr, const CvMat* matrix,
     type = CV_MAT_TYPE(src->type);
     depth = CV_MAT_DEPTH(type);
     cn = CV_MAT_CN(type);
+    if( cn > 4 )
+        CV_ERROR( CV_BadNumChannels, "" );
 
     ssize = cvGetMatSize(src);
     dsize = cvGetMatSize(dst);
@@ -1392,6 +1395,8 @@ cvWarpPerspective( const CvArr* srcarr, CvArr* dstarr,
     type = CV_MAT_TYPE(src->type);
     depth = CV_MAT_DEPTH(type);
     cn = CV_MAT_CN(type);
+    if( cn > 4 )
+        CV_ERROR( CV_BadNumChannels, "" );
     
     ssize = cvGetMatSize(src);
     dsize = cvGetMatSize(dst);
@@ -1488,11 +1493,11 @@ cvWarpPerspective( const CvArr* srcarr, CvArr* dstarr,
  *   cij - matrix coefficients, c22 = 1
  */
 CV_IMPL CvMat*
-cvWarpPerspectiveQMatrix( const CvPoint2D32f* src,
+cvGetPerspectiveTransform( const CvPoint2D32f* src,
                           const CvPoint2D32f* dst,
                           CvMat* matrix )
 {
-    CV_FUNCNAME( "cvGetPerspectiveTransformMatrix" );
+    CV_FUNCNAME( "cvGetPerspectiveTransform" );
 
     __BEGIN__;
 
@@ -1534,6 +1539,64 @@ cvWarpPerspectiveQMatrix( const CvPoint2D32f* src,
     return matrix;
 }
 
+/* Calculates coefficients of affine transformation
+ * which maps (xi,yi) to (ui,vi), (i=1,2,3):
+ *      
+ * ui = c00*xi + c01*yi + c02
+ *
+ * vi = c10*xi + c11*yi + c12
+ *
+ * Coefficients are calculated by solving linear system:
+ * / x0 y0  1  0  0  0 \ /c00\ /u0\
+ * | x1 y1  1  0  0  0 | |c01| |u1|
+ * | x2 y2  1  0  0  0 | |c02| |u2|
+ * |  0  0  0 x0 y0  1 | |c10| |v0|
+ * |  0  0  0 x1 y1  1 | |c11| |v1|
+ * \  0  0  0 x2 y2  1 / |c12| |v2|
+ *
+ * where:
+ *   cij - matrix coefficients
+ */
+CV_IMPL CvMat*
+cvGetAffineTransform( const CvPoint2D32f * src, const CvPoint2D32f * dst, CvMat * map_matrix )
+{
+    CV_FUNCNAME( "cvGetAffineTransform" );
+
+    __BEGIN__;
+
+    CvMat mA, mX, mB;
+    double A[6*6];
+    double B[6];
+	double x[6];
+    int i;
+
+    cvInitMatHeader(&mA, 6, 6, CV_64F, A);
+    cvInitMatHeader(&mB, 6, 1, CV_64F, B);
+	cvInitMatHeader(&mX, 6, 1, CV_64F, x);
+
+	if( !src || !dst || !map_matrix )
+		CV_ERROR( CV_StsNullPtr, "" );
+
+    for( i = 0; i < 3; i++ )
+    {
+        int j = i*12;
+        int k = i*12+6;
+        A[j] = A[k+3] = src[i].x;
+        A[j+1] = A[k+4] = src[i].y;
+        A[j+2] = A[k+5] = 1;
+        A[j+3] = A[j+4] = A[j+5] = 0;
+        A[k] = A[k+1] = A[k+2] = 0;
+        B[i*2] = dst[i].x;
+        B[i*2+1] = dst[i].y;
+    }
+    cvSolve(&mA, &mB, &mX);
+
+    mX = cvMat( 2, 3, CV_64FC1, x );
+	cvConvert( &mX, map_matrix );
+
+	__END__;
+    return map_matrix;
+}
 
 /****************************************************************************************\
 *                          Generic Geometric Transformation: Remap                       *
@@ -1768,6 +1831,8 @@ cvRemap( const CvArr* srcarr, CvArr* dstarr,
     type = CV_MAT_TYPE(src->type);
     depth = CV_MAT_DEPTH(type);
     cn = CV_MAT_CN(type);
+    if( cn > 4 )
+        CV_ERROR( CV_BadNumChannels, "" );
     
     ssize = cvGetMatSize(src);
     dsize = cvGetMatSize(dst);
@@ -1952,8 +2017,8 @@ cvLogPolar( const CvArr* srcarr, CvArr* dstarr,
 
     __END__;
 
-    cvFree( (void**)&exp_tab );
-    cvFree( (void**)&buf );
+    cvFree( &exp_tab );
+    cvFree( &buf );
     cvReleaseMat( &mapx );
     cvReleaseMat( &mapy );
 }

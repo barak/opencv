@@ -159,7 +159,7 @@ void CV_FilterBaseTestImpl::get_test_array_types_and_sizes( int test_case_idx,
                                                 CvSize** sizes, int** types )
 {
     CvRNG* rng = ts->get_rng();
-    int depth = test_case_idx*CV_32F/test_case_count;
+    int depth = cvTsRandInt(rng) % CV_32F;
     int cn = cvTsRandInt(rng) % 3 + 1;
     CvArrTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
     depth += depth == CV_8S;
@@ -288,7 +288,7 @@ void CV_MorphologyBaseTestImpl::get_test_array_types_and_sizes( int test_case_id
 {
     CvRNG* rng = ts->get_rng();
     CV_FilterBaseTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
-    int depth = test_case_idx*2/test_case_count > 0 ? CV_32F : CV_8U;
+    int depth = cvTsRandInt(rng) % 2 ? CV_32F : CV_8U;
     int cn = CV_MAT_CN(types[INPUT][0]);
 
     types[INPUT][0] = types[OUTPUT][0] = types[REF_OUTPUT][0] = types[TEMP][0] = CV_MAKETYPE(depth, cn);
@@ -491,7 +491,8 @@ void CV_FilterTest::get_test_array_types_and_sizes( int test_case_idx,
                                                 CvSize** sizes, int** types )
 {
     CV_FilterBaseTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
-    int depth = test_case_idx*3/test_case_count;
+    CvRNG* rng = ts->get_rng();
+    int depth = cvTsRandInt(rng)%3;
     int cn = CV_MAT_CN(types[INPUT][0]);
     depth = depth == 0 ? CV_8U : depth == 1 ? CV_16U : CV_32F;
     types[INPUT][0] = types[OUTPUT][0] = types[REF_OUTPUT][0] = types[TEMP][0] = CV_MAKETYPE(depth, cn);
@@ -580,7 +581,7 @@ void CV_DerivBaseTest::get_test_array_types_and_sizes( int test_case_idx,
 {
     CvRNG* rng = ts->get_rng();
     CV_FilterBaseTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
-    int depth = test_case_idx*2/test_case_count;
+    int depth = cvTsRandInt(rng) % 2;
     depth = depth == 0 ? CV_8U : CV_32F;
     types[INPUT][0] = CV_MAKETYPE(depth,1);
     types[TEMP][0] = types[OUTPUT][0] = types[REF_OUTPUT][0] = CV_MAKETYPE(depth==CV_8U?CV_16S:CV_32F,1);
@@ -592,7 +593,7 @@ void CV_DerivBaseTest::get_test_array_types_and_sizes( int test_case_idx,
 double CV_DerivBaseTest::get_success_error_level( int /*test_case_idx*/, int /*i*/, int /*j*/ )
 {
     int depth = CV_MAT_DEPTH(test_mat[INPUT][0].type);
-    return depth <= CV_8S ? 1 : 1e-5;
+    return depth <= CV_8S ? 1 : 5e-4;
 }
 
 
@@ -807,6 +808,8 @@ void cvTsCalcSobelKernel2D( int dx, int dy, int _aperture_size, int origin, CvMa
     int* kx = (int*)alloca( (kernel->cols+1)*sizeof(kx[0]) );
     int* ky = (int*)alloca( (kernel->rows+1)*sizeof(ky[0]) );
 
+    assert( CV_MAT_TYPE(kernel->type) == CV_32F );
+
     cvTsCalcSobelKernel1D( dx, _aperture_size, kernel->cols, kx );
     cvTsCalcSobelKernel1D( dy, _aperture_size, kernel->rows, ky );
 
@@ -992,19 +995,15 @@ void CV_SmoothBaseTest::get_test_array_types_and_sizes( int test_case_idx,
 {
     CvRNG* rng = ts->get_rng();
     CV_FilterBaseTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
-    int depth = test_case_idx*2/test_case_count;
+    int depth = cvTsRandInt(rng) % 2;
     int cn = CV_MAT_CN(types[INPUT][0]);
     depth = depth == 0 ? CV_8U : CV_32F;
-    //depth = CV_32F;
-    //sizes[INPUT][0] = sizes[OUTPUT][0] = sizes[REF_OUTPUT][0] = cvSize(22,8);
     types[INPUT][0] = types[TEMP][0] =
         types[OUTPUT][0] = types[REF_OUTPUT][0] = CV_MAKETYPE(depth,cn);
     anchor.x = cvTsRandInt(rng)%(max_aperture_size/2+1);
     anchor.y = cvTsRandInt(rng)%(max_aperture_size/2+1);
     aperture_size.width = anchor.x*2 + 1;
     aperture_size.height = anchor.y*2 + 1;
-    //aperture_size = cvSize(9,9);
-    //anchor = cvPoint(aperture_size.width/2, aperture_size.height/2);
     sizes[INPUT][1] = aperture_size;
     sizes[TEMP][0].width = sizes[INPUT][0].width + aperture_size.width - 1;
     sizes[TEMP][0].height = sizes[INPUT][0].height + aperture_size.height - 1;
@@ -1167,7 +1166,7 @@ CV_GaussianBlurTest::CV_GaussianBlurTest() : CV_SmoothBaseTest( "filter-gaussian
 double CV_GaussianBlurTest::get_success_error_level( int /*test_case_idx*/, int /*i*/, int /*j*/ )
 {
     int depth = CV_MAT_DEPTH(test_mat[INPUT][0].type);
-    return depth <= CV_8S ? 2 : 1e-5;
+    return depth <= CV_8S ? 8 : 1e-5;
 }
 
 
@@ -1175,32 +1174,33 @@ void CV_GaussianBlurTest::get_test_array_types_and_sizes( int test_case_idx,
                                                 CvSize** sizes, int** types )
 {
     CvRNG* rng = ts->get_rng();
-    int kernel_case = cvTsRandInt(rng) % 3;
+    int kernel_case = cvTsRandInt(rng) % 2;
     CV_SmoothBaseTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
-    /*int cn = CV_MAT_CN(types[INPUT][0]);
-    types[INPUT][0] = types[OUTPUT][0] = types[TEMP][0] =
-        types[REF_OUTPUT][0] = CV_MAKETYPE(CV_32F,cn);*/
-
+    anchor = cvPoint(aperture_size.width/2,aperture_size.height/2);
+    sizes[TEMP][0].width = sizes[INPUT][0].width + aperture_size.width - 1;
+    sizes[TEMP][0].height = sizes[INPUT][0].height + aperture_size.height - 1;
+    
     sigma = exp(cvTsRandReal(rng)*5-2);
     param1 = aperture_size.width;
     param2 = aperture_size.height;
 
     if( kernel_case == 0 )
         sigma = 0.;
-    else if( kernel_case == 2 )
+    /*else if( kernel_case == 2 )
     {
         int depth = CV_MAT_DEPTH(types[INPUT][0]);
         // !!! Copied from cvSmooth, if this formula is changed in cvSmooth,
         // make sure to update this one too.
         aperture_size.width = cvRound(sigma*(depth == CV_8U ? 3 : 4)*2 + 1)|1;
+        aperture_size.width = MIN( aperture_size.width, 31 );
         aperture_size.height = aperture_size.width;
         anchor.x = aperture_size.width / 2;
         anchor.y = aperture_size.height / 2;
         sizes[INPUT][1] = aperture_size;
         sizes[TEMP][0].width = sizes[INPUT][0].width + aperture_size.width - 1;
         sizes[TEMP][0].height = sizes[INPUT][0].height + aperture_size.height - 1;
-        param1 = param2 = 0;
-    }
+        param1 = aperture_size.width; param2 = aperture_size.height;
+    }*/
 }
 
 
@@ -1331,7 +1331,8 @@ void CV_MedianBlurTest::get_test_array_types_and_sizes( int test_case_idx,
 
     sizes[INPUT][0].width = MAX( sizes[INPUT][0].width, aperture_size.width );
     sizes[INPUT][0].height = MAX( sizes[INPUT][0].height, aperture_size.width );
-    sizes[OUTPUT][0] = sizes[REF_OUTPUT][0] = sizes[INPUT][0];
+    sizes[OUTPUT][0] = sizes[INPUT][0];
+    sizes[REF_OUTPUT][0] = sizes[INPUT][0];
 
     sizes[TEMP][0].width = sizes[INPUT][0].width + aperture_size.width - 1;
     sizes[TEMP][0].height = sizes[INPUT][0].height + aperture_size.height - 1;
@@ -1366,9 +1367,9 @@ struct median_pair
 static void cvTsMedianFilter( const CvMat* src, CvMat* dst, int m )
 {
     int i, j, k, l, m2 = m*m, n;
-    int* col_buf = (int*)malloc( (m+1)*sizeof(col_buf[0]));
-    median_pair* buf0 = (median_pair*)malloc( (m*m+1)*sizeof(buf0[0]));
-    median_pair* buf1 = (median_pair*)malloc( (m*m+1)*sizeof(buf1[0]));
+    int* col_buf = (int*)cvAlloc( (m+1)*sizeof(col_buf[0]));
+    median_pair* buf0 = (median_pair*)cvAlloc( (m*m+1)*sizeof(buf0[0]));
+    median_pair* buf1 = (median_pair*)cvAlloc( (m*m+1)*sizeof(buf1[0]));
     median_pair* tbuf;
     int step = src->step/CV_ELEM_SIZE(src->type);
 
@@ -1447,9 +1448,9 @@ static void cvTsMedianFilter( const CvMat* src, CvMat* dst, int m )
         }
     }
 
-    free(col_buf);
-    free(buf0);
-    free(buf1);
+    cvFree(&col_buf);
+    cvFree(&buf0);
+    cvFree(&buf1);
 }
 
 
@@ -1531,7 +1532,7 @@ void CV_PyramidBaseTest::get_test_array_types_and_sizes( int test_case_idx, CvSi
     CvSize sz;
     CV_FilterBaseTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
 
-    int depth = test_case_idx*2/test_case_count > 0 ? CV_32F : CV_8U;
+    int depth = cvTsRandInt(rng) % 2 ? CV_32F : CV_8U;
     int cn = cvTsRandInt(rng) & 1 ? 3 : 1;
 
     aperture_size = cvSize(5,5);
@@ -1874,7 +1875,7 @@ int CV_FeatureSelBaseTestImpl::write_default_params( CvFileStorage* fs )
 double CV_FeatureSelBaseTestImpl::get_success_error_level( int /*test_case_idx*/, int /*i*/, int /*j*/ )
 {
     int depth = CV_MAT_DEPTH(test_mat[INPUT][0].type);
-    return depth <= CV_8S ? 1e-2 : depth == CV_32F ? 1e-3 : 1e-10;
+    return depth <= CV_8S ? 3e-2 : depth == CV_32F ? 1e-3 : 1e-10;
 }
 
 
@@ -1894,7 +1895,7 @@ void CV_FeatureSelBaseTestImpl::get_test_array_types_and_sizes( int test_case_id
 {
     CvRNG* rng = ts->get_rng();
     CvArrTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
-    int depth = test_case_idx*2/test_case_count, asz;
+    int depth = cvTsRandInt(rng) % 2, asz;
 
     depth = depth == 0 ? CV_8U : CV_32F;
     types[INPUT][0] = depth;
@@ -2077,9 +2078,6 @@ cvTsCornerEigenValsVecs( const CvMat* _src, CvMat* eigenv, CvMat* ocv_eigenv,
                 double l1 = 0.5*(a + c + d);
                 double l2 = 0.5*(a + c - d);
                 double x1, y1, x2, y2, s;
-
-                /*if( j == (202/6) && i == 426 )
-                    putchar('.');*/
 
                 if( fabs(a - l1) + fabs(b) >= 1e-3 )
                     x1 = b, y1 = l1 - a;
@@ -2434,7 +2432,7 @@ void CV_IntegralTest::get_test_array_types_and_sizes( int test_case_idx,
                                                 CvSize** sizes, int** types )
 {
     CvRNG* rng = ts->get_rng();
-    int depth = test_case_idx*2/test_case_count, sum_depth;
+    int depth = cvTsRandInt(rng) % 2, sum_depth;
     int cn = cvTsRandInt(rng) % 3 + 1;
     CvArrTest::get_test_array_types_and_sizes( test_case_idx, sizes, types );
     CvSize sum_size;

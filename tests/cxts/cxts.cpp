@@ -72,6 +72,7 @@ int CvTest::test_count = 0;
 #include <eh.h>
 #endif
 
+#ifdef _MSC_VER
 static void cv_seh_translator( unsigned int /*u*/, EXCEPTION_POINTERS* pExp )
 {
     int code = CvTS::FAIL_EXCEPTION;
@@ -105,7 +106,7 @@ static void cv_seh_translator( unsigned int /*u*/, EXCEPTION_POINTERS* pExp )
     }
     throw code;
 }
-
+#endif
 
 #define CV_TS_TRY_BLOCK_BEGIN                   \
     try {
@@ -480,6 +481,10 @@ CvTest::~CvTest()
     clear();
 }
 
+CvTest* CvTest::get_first_test()
+{ 
+    return first; 
+}
 
 void CvTest::clear()
 {
@@ -1014,6 +1019,7 @@ void CvTS::clear()
 CvTS::~CvTS()
 {
     clear();
+    set_data_path(0);
 
     if( written_params )
     {
@@ -1035,6 +1041,7 @@ const char* CvTS::str_from_code( int code )
     case OK: return "Ok";
     case FAIL_GENERIC: return "Generic/Unknown";
     case FAIL_MISSING_TEST_DATA: return "No test data";
+    case FAIL_INVALID_TEST_DATA: return "Invalid test data";
     case FAIL_ERROR_IN_CALLED_FUNC: return "cvError invoked";
     case FAIL_EXCEPTION: return "Hardware/OS exception";
     case FAIL_MEMORY_EXCEPTION: return "Invalid memory access";
@@ -1103,6 +1110,25 @@ void CvTS::set_handlers( bool on )
         for( int i = 0; cv_ts_sig_id[i] >= 0; i++ )
             signal( cv_ts_sig_id[i], SIG_DFL );
     #endif
+    }
+}
+
+
+void CvTS::set_data_path( const char* data_path )
+{
+    if( data_path == params.data_path )
+        return;
+    
+    if( params.data_path )
+        delete[] params.data_path;
+    if( data_path )
+    {
+        int size = (int)strlen(data_path)+1;
+        bool append_slash = data_path[size-1] != '/' && data_path[size-1] != '\\';
+        params.data_path = new char[size+1];
+        memcpy( params.data_path, data_path, size );
+        if( append_slash )
+            strcat( params.data_path, "/" );
     }
 }
 
@@ -1217,6 +1243,8 @@ int CvTS::run( int argc, char** argv )
                 params.test_mode = TIMING_MODE;
             else if( strcmp( argv[i], "-l" ) == 0 )
                 list_tests = 1;
+            else if( strcmp( argv[i], "-d" ) == 0 )
+                set_data_path(argv[++i]);
         }
     }
 
@@ -1413,6 +1441,13 @@ _exit_:
 }
 
 
+#ifdef WIN32
+const char* default_data_path = "../tests/cv/testdata/";
+#else
+const char* default_data_path = "../../../../tests/cv/testdata/";
+#endif
+
+
 int CvTS::read_params( CvFileStorage* fs )
 {
     CvFileNode* node = fs ? cvGetFileNodeByName( fs, 0, "common" ) : 0;
@@ -1432,6 +1467,27 @@ int CvTS::read_params( CvFileStorage* fs )
                                                      "functions" : "tests", "" );
     params.resource_path = cvReadStringByName( fs, node, "." );
     params.use_optimized = cvReadIntByName( fs, node, "use_optimized", -1 );
+#ifndef WIN32
+    if( !params.data_path || !params.data_path[0] ) 
+    {
+        char* srcdir = getenv("srcdir");
+        char buf[1024];
+        if( srcdir )
+        {
+            sprintf( buf, "%s/../testdata/", srcdir );
+            set_data_path(buf);
+        }
+    }
+#endif
+    if( !params.data_path || !params.data_path[0] )
+    {
+        const char* data_path =
+            cvReadStringByName( fs, node, "data_path", default_data_path );
+        set_data_path(data_path);
+    }
+    params.test_case_count_scale = cvReadRealByName( fs, node, "test_case_count_scale", 1. );
+    if( params.test_case_count_scale <= 0 )
+        params.test_case_count_scale = 1.;
     str = cvReadStringByName( fs, node, "seed", 0 );
     params.rng_seed = 0;
     if( str && strlen(str) == 16 )
@@ -1472,6 +1528,7 @@ void CvTS::write_default_params( CvFileStorage* fs )
     cvWriteInt( fs, "rerun_immediately", params.rerun_immediately );
     cvWriteString( fs, "filter_mode", params.test_filter_mode == CHOOSE_FUNCTIONS ? "functions" : "tests" );
     cvWriteString( fs, "test_mode", params.test_mode == TIMING_MODE ? "timing" : "correctness" );
+    cvWriteString( fs, "data_path", params.data_path ? params.data_path : default_data_path, 1 );
     if( params.test_mode == TIMING_MODE )
         cvWriteString( fs, "timing_mode", params.timing_mode == AVG_TIME ? "avg" : "min" );
     // test_filter, seed & output_file_base_name are not written
@@ -1525,7 +1582,7 @@ const char* CvTS::get_libs_info( const char** addon_modules )
 void CvTS::print_summary_header( int streams )
 {
     char csv_header[256], *ptr = csv_header;
-    int i, len;
+    int i;
 
     printf( streams, "Engine: %s\n", version );
     time_t t1;
@@ -1541,15 +1598,13 @@ void CvTS::print_summary_header( int streams )
     printf( streams, "Optimized Low-level Plugin\'s: %s\n", plugins );
     printf( streams, "=================================================\n");
 
-    len = 0;
-    sprintf( ptr, "funcName,dataType,channels,size,%n", &len );
-    ptr += len;
+    sprintf( ptr, "funcName,dataType,channels,size," );
+    ptr += strlen(ptr);
 
     for( i = 0; i < CvTest::TIMING_EXTRA_PARAMS; i++ )
     {
-        len = 0;
-        sprintf( ptr, "param%d,%n", i, &len );
-        ptr += len;
+        sprintf( ptr, "param%d,", i );
+        ptr += strlen(ptr);
     }
 
     sprintf( ptr, "CPE,Time(uSecs)" );
@@ -1654,9 +1709,16 @@ static char* cv_strnstr( const char* str, int len,
 int CvTS::filter( CvTest* test )
 {
     const char* pattern = params.test_filter_pattern;
+    int inverse = 0;
+
+    if( pattern && pattern[0] == '!' )
+    {
+        inverse = 1;
+        pattern++;
+    }
 
     if( !pattern || strcmp( pattern, "" ) == 0 || strcmp( pattern, "*" ) == 0 )
-        return 1;
+        return 1 ^ inverse;
 
     if( params.test_filter_mode == CHOOSE_TESTS )
     {
@@ -1698,7 +1760,7 @@ int CvTS::filter( CvTest* test )
                 break;
         }
 
-        return found;
+        return found ^ inverse;
     }
     else
     {
@@ -1741,7 +1803,7 @@ int CvTS::filter( CvTest* test )
                 if( *endptr == '*' )
                 {
                     if( name_first_match )
-                        return 1;
+                        return 1 ^ inverse;
                 }
                 else
                 {
@@ -1790,7 +1852,7 @@ int CvTS::filter( CvTest* test )
 
                             if( cv_strnstr( tmp_ptr, (int)(tmp_ptr2 - tmp_ptr) + 1,
                                              method_name_ptr, method_name_len, 1 ))
-                                return 1;
+                                return 1 ^ inverse;
 
                             tmp_ptr = cv_strnstr( tmp_ptr2, glob_len -
                                                    (int)(tmp_ptr2 - pattern),
@@ -1826,11 +1888,11 @@ int CvTS::filter( CvTest* test )
                     // make sure it is not a method
                     tmp_ptr2 = strchr( tmp_ptr, '}' );
                     if( !tmp_ptr2 )
-                        return 1;
+                        return 1 ^ inverse;
 
                     tmp_ptr3 = strchr( tmp_ptr, '{' );
                     if( tmp_ptr3 < tmp_ptr2 )
-                        return 1;
+                        return 1 ^ inverse;
 
                     tmp_ptr = tmp_ptr2 + 1;
                 }
@@ -1846,7 +1908,7 @@ int CvTS::filter( CvTest* test )
             ptr = endptr;
         }
 
-        return 0;
+        return 0 ^ inverse;
     }
 }
 

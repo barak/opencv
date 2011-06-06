@@ -49,6 +49,9 @@
 
 
 %{
+#include "cxtypes.h"
+#include "cxcore.h"
+#include "cvtypes.h"
 #include "cv.h"
 %}
 
@@ -58,13 +61,46 @@
 #define __inline  inline
 #define __const   const
 
+// SWIG needs this to be parsed before cv.h
+%include "./cvmacros.i"
+
 // A couple of typemaps helps wrapping OpenCV functions in a sensible way
 %include "./memory.i"
 %include "./typemaps.i"
 %include "./doublepointers.i"
+
+// hide COI and ROI functions
+%ignore cvSetImageCOI;
+%ignore cvSetImageROI;
+%ignore cvGetImageROI;
+%ignore cvGetImageCOI;
+
+// mask some functions that return IplImage *
+%ignore cvInitImageHeader;
+%ignore cvGetImage;
+%ignore cvCreateImageHeader;
+
+// adapt others to return CvMat * instead
+%ignore cvCreateImage;
+%rename (cvCreateImage) cvCreateImageMat;
+%ignore cvCloneImage;
+%rename (cvCloneImage) cvCloneImageMat;
+%inline %{
+extern const signed char icvDepthToType[];
+#define icvIplToCvDepth( depth ) \
+    icvDepthToType[(((depth) & 255) >> 2) + ((depth) < 0)]
+CvMat * cvCreateImageMat( CvSize size, int depth, int channels ){
+	depth = icvIplToCvDepth(depth);
+	return cvCreateMat( size.height, size.width, CV_MAKE_TYPE(depth, channels));
+}
+#define cvCloneImageMat( mat ) cvCloneMat( mat )
+%}
+CvMat * cvCloneImageMat( CvMat * mat );
+
 
 // Now include the filtered OpenCV constants and prototypes (includes cxcore as well)
 %include "../filtered/constants.h"
 %include "../filtered/cv.h"
 
 %include "./extensions.i"
+%include "./cvarr_operators.i"

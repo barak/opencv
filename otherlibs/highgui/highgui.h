@@ -116,9 +116,11 @@
 /* this function is used to set some external parameters in case of X Window */
 CVAPI(int) cvInitSystem( int argc, char** argv );
 
+CVAPI(int) cvStartWindowThread();
+
 #define CV_WINDOW_AUTOSIZE  1
 /* create window */
-CVAPI(int) cvNamedWindow( const char* name, int flags );
+CVAPI(int) cvNamedWindow( const char* name, int flags CV_DEFAULT(CV_WINDOW_AUTOSIZE) );
 
 /* display image within window (highgui windows remember their content) */
 CVAPI(void) cvShowImage( const char* name, const CvArr* image );
@@ -174,11 +176,25 @@ typedef void (CV_CDECL *CvMouseCallback )(int event, int x, int y, int flags, vo
 CVAPI(void) cvSetMouseCallback( const char* window_name, CvMouseCallback on_mouse,
                                 void* param CV_DEFAULT(NULL));
 
-/*load image from file 
-  iscolor: >0 - output image is always color,
-            0 - output image is always grayscale,
-           <0 - output image is color or grayscale dependending on the file */
-CVAPI(IplImage*) cvLoadImage( const char* filename, int iscolor CV_DEFAULT(1));
+/* 8bit, color or not */
+#define CV_LOAD_IMAGE_UNCHANGED  -1
+/* 8bit, gray */
+#define CV_LOAD_IMAGE_GRAYSCALE   0
+/* ?, color */
+#define CV_LOAD_IMAGE_COLOR       1
+/* any depth, ? */ 
+#define CV_LOAD_IMAGE_ANYDEPTH    2
+/* ?, any color */
+#define CV_LOAD_IMAGE_ANYCOLOR    4
+
+/* load image from file 
+  iscolor can be a combination of above flags where CV_LOAD_IMAGE_UNCHANGED
+  overrides the other flags
+  using CV_LOAD_IMAGE_ANYCOLOR alone is equivalent to CV_LOAD_IMAGE_UNCHANGED
+  unless CV_LOAD_IMAGE_ANYDEPTH is specified images are converted to 8bit
+*/
+CVAPI(IplImage*) cvLoadImage( const char* filename, int iscolor CV_DEFAULT(CV_LOAD_IMAGE_COLOR));
+CVAPI(CvMat*) cvLoadImageM( const char* filename, int iscolor CV_DEFAULT(CV_LOAD_IMAGE_COLOR));
 
 /* save image to file */
 CVAPI(int) cvSaveImage( const char* filename, const CvArr* image );
@@ -200,20 +216,32 @@ CVAPI(int) cvWaitKey(int delay CV_DEFAULT(0));
 typedef struct CvCapture CvCapture;
 
 /* start capturing frames from video file */
-CVAPI(CvCapture*) cvCaptureFromFile( const char* filename );
+CVAPI(CvCapture*) cvCreateFileCapture( const char* filename );
 
-#define CV_CAP_ANY      0
-#define CV_CAP_MIL      100
-#define CV_CAP_VFW      200
+#define CV_CAP_ANY      0     // autodetect
+
+#define CV_CAP_MIL      100   // MIL proprietary drivers
+
+#define CV_CAP_VFW      200   // platform native
 #define CV_CAP_V4L      200
 #define CV_CAP_V4L2     200
-#define CV_CAP_FIREWARE 300
+
+#define CV_CAP_FIREWARE 300   // IEEE 1394 drivers
 #define CV_CAP_IEEE1394 300
 #define CV_CAP_DC1394   300
 #define CV_CAP_CMU1394  300
 
+#define CV_CAP_STEREO   400   // TYZX proprietary drivers
+#define CV_CAP_TYZX     400
+#define CV_TYZX_LEFT    400
+#define CV_TYZX_RIGHT   401
+#define CV_TYZX_COLOR   402
+#define CV_TYZX_Z       403
+
+#define CV_CAP_QT       500   // QuickTime
+
 /* start capturing frames from camera: index = camera_index + domain_offset (CV_CAP_*) */
-CVAPI(CvCapture*) cvCaptureFromCAM( int index );
+CVAPI(CvCapture*) cvCreateCameraCapture( int index );
 
 /* grab a frame, return 1 on success, 0 on fail. 
   this function is thought to be fast               */  
@@ -240,6 +268,15 @@ CVAPI(void) cvReleaseCapture( CvCapture** capture );
 #define CV_CAP_PROP_FPS            5
 #define CV_CAP_PROP_FOURCC         6
 #define CV_CAP_PROP_FRAME_COUNT    7 
+#define CV_CAP_PROP_FORMAT         8
+#define CV_CAP_PROP_MODE           9
+#define CV_CAP_PROP_BRIGHTNESS    10
+#define CV_CAP_PROP_CONTRAST      11
+#define CV_CAP_PROP_SATURATION    12
+#define CV_CAP_PROP_HUE           13
+#define CV_CAP_PROP_GAIN          14
+#define CV_CAP_PROP_CONVERT_RGB   15
+
 
 /* retrieve or set capture properties */
 CVAPI(double) cvGetCaptureProperty( CvCapture* capture, int property_id );
@@ -272,6 +309,8 @@ CVAPI(void) cvReleaseVideoWriter( CvVideoWriter** writer );
 
 #ifdef HIGHGUI_BACKWARD_COMPATIBILITY
 
+#define cvCaptureFromFile cvCreateFileCapture
+#define cvCaptureFromCAM cvCreateCameraCapture
 #define cvCaptureFromAVI cvCaptureFromFile
 #define cvCreateAVIWriter cvCreateVideoWriter
 #define cvWriteToAVI cvWriteFrame

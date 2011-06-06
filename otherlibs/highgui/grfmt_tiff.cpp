@@ -679,7 +679,7 @@ void  GrFmtTiffWriter::WriteTag( TiffTag tag, TiffFieldType fieldType,
 
 
 bool  GrFmtTiffWriter::WriteImage( const uchar* data, int step,
-                                   int width, int height, int channels )
+                                   int width, int height, int /*depth*/, int channels )
 {
     bool result = false;
     int fileStep = width*channels;
@@ -707,7 +707,7 @@ bool  GrFmtTiffWriter::WriteImage( const uchar* data, int step,
         uchar* buffer = new uchar[fileStep + 32];
         int  stripOffsetsOffset = 0;
         int  stripCountsOffset = 0;
-        int  bitsPerSample = 8;
+        int  bitsPerSample = 8; // TODO support 16 bit
         int  y = 0;
 
         m_strm.PutBytes( fmtSignTiffII, 4 );
@@ -740,7 +740,7 @@ bool  GrFmtTiffWriter::WriteImage( const uchar* data, int step,
                     i == stripCount - 1);*/
         }
 
-        if( stripCount > 1 )
+        if( stripCount > 2 )
         {
             stripOffsetsOffset = m_strm.GetPos();
             for( i = 0; i < stripCount; i++ )
@@ -749,6 +749,15 @@ bool  GrFmtTiffWriter::WriteImage( const uchar* data, int step,
             stripCountsOffset = m_strm.GetPos();
             for( i = 0; i < stripCount; i++ )
                 m_strm.PutWord( stripCounts[i] );
+        }
+        else if(stripCount == 2)
+        {
+            stripOffsetsOffset = m_strm.GetPos();
+            for (i = 0; i < stripCount; i++)
+            {
+                m_strm.PutDWord (stripOffsets [i]);
+            }
+            stripCountsOffset = stripCounts [0] + (stripCounts [1] << 16);
         }
         else
         {
@@ -771,6 +780,10 @@ bool  GrFmtTiffWriter::WriteImage( const uchar* data, int step,
         // write header
         m_strm.PutWord( 9 );
 
+        /* warning: specification 5.0 of Tiff want to have tags in
+           ascending order. This is a non-fatal error, but this cause
+           warning with some tools. So, keep this in ascending order */
+
         WriteTag( TIFF_TAG_WIDTH, TIFF_TYPE_LONG, 1, width );
         WriteTag( TIFF_TAG_HEIGHT, TIFF_TYPE_LONG, 1, height );
         WriteTag( TIFF_TAG_BITS_PER_SAMPLE,
@@ -778,12 +791,12 @@ bool  GrFmtTiffWriter::WriteImage( const uchar* data, int step,
         WriteTag( TIFF_TAG_COMPRESSION, TIFF_TYPE_LONG, 1, TIFF_UNCOMP );
         WriteTag( TIFF_TAG_PHOTOMETRIC, TIFF_TYPE_SHORT, 1, channels > 1 ? 2 : 1 );
 
-        WriteTag( TIFF_TAG_SAMPLES_PER_PIXEL, TIFF_TYPE_SHORT, 1, channels );
-        WriteTag( TIFF_TAG_ROWS_PER_STRIP, TIFF_TYPE_LONG, 1, rowsPerStrip );
-        
         WriteTag( TIFF_TAG_STRIP_OFFSETS, TIFF_TYPE_LONG,
                   stripCount, stripOffsetsOffset );
 
+        WriteTag( TIFF_TAG_SAMPLES_PER_PIXEL, TIFF_TYPE_SHORT, 1, channels );
+        WriteTag( TIFF_TAG_ROWS_PER_STRIP, TIFF_TYPE_LONG, 1, rowsPerStrip );
+        
         WriteTag( TIFF_TAG_STRIP_COUNTS,
                   stripCount > 1 ? TIFF_TYPE_SHORT : TIFF_TYPE_LONG,
                   stripCount, stripCountsOffset );
@@ -804,6 +817,7 @@ bool  GrFmtTiffWriter::WriteImage( const uchar* data, int step,
 
         delete[]  stripOffsets;
         delete[]  stripCounts;
+        delete[] buffer;
 
         result = true;
     }

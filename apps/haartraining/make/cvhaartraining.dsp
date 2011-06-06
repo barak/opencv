@@ -40,8 +40,8 @@ RSC=rc.exe
 # PROP Output_Dir "../../../_temp/cvhaartraining_rls"
 # PROP Intermediate_Dir "../../../_temp/cvhaartraining_rls"
 # PROP Target_Dir ""
-MTL=midl.exe
 LINK32=link.exe
+MTL=midl.exe
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
 # ADD CPP /nologo /MD /W3 /GX /Zi /O2 /I "..\src" /I "..\include" /I "../../../cv/include" /I "../../../cv/src" /I "../../../cxcore/include" /I "../../../otherlibs/highgui" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD -Qopenmp /c
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
@@ -65,10 +65,10 @@ LIB32=xilink6.exe -lib
 # PROP Output_Dir "../../../_temp/cvhaartraining_dbg"
 # PROP Intermediate_Dir "../../../_temp/cvhaartraining_dbg"
 # PROP Target_Dir ""
-MTL=midl.exe
 LINK32=link.exe
+MTL=midl.exe
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W3 /Gm /GX /Zi /Od /I "..\src" /I "..\include" /I "../../../cv/include" /I "../../../cv/src" /I "../../../cxcore/include" /I "../../../otherlibs/highgui" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ -Qopenmp -Qopenmp_report2 /c
+# ADD CPP /nologo /MDd /W3 /Gm /GX /Zi /Od /I "..\src" /I "..\include" /I "../../../cv/include" /I "../../../cv/src" /I "../../../cxcore/include" /I "../../../otherlibs/highgui" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
 # ADD BASE RSC /l 0x419 /d "_DEBUG"
 # ADD RSC /l 0x419 /d "_DEBUG"
 BSC32=bscmake.exe

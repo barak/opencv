@@ -167,6 +167,7 @@ class CV_BaseShapeDescrTest : public CvTest
 {
 public:
     CV_BaseShapeDescrTest( const char* test_name, const char* test_funcs );
+    virtual ~CV_BaseShapeDescrTest();
     void clear();
     int write_default_params(CvFileStorage* fs);
 
@@ -180,12 +181,15 @@ protected:
 
     int min_log_size;
     int max_log_size;
+    int dims;
+    bool enable_flt_points;
 
     CvMemStorage* storage;
     CvSeq* points1;
     CvMat* points2;
     void* points;
     void* result;
+    double low_high_range;
     CvScalar low, high;
 };
 
@@ -199,15 +203,25 @@ CV_BaseShapeDescrTest::CV_BaseShapeDescrTest( const char* test_name, const char*
     storage = 0;
     test_case_count = 500;
     min_log_size = 0;
-    max_log_size = 9;
+    max_log_size = 10;
     low = high = cvScalarAll(0);
+    low_high_range = 50;
+    dims = 2;
+    enable_flt_points = true;
 
     support_testing_modes = CvTS::CORRECTNESS_CHECK_MODE;
 }
 
 
+CV_BaseShapeDescrTest::~CV_BaseShapeDescrTest()
+{
+    clear();
+}
+
+
 void CV_BaseShapeDescrTest::clear()
 {
+    CvTest::clear();
     cvReleaseMemStorage( &storage );
     cvReleaseMat( &points2 );
     points1 = 0;
@@ -217,9 +231,13 @@ void CV_BaseShapeDescrTest::clear()
 
 int CV_BaseShapeDescrTest::write_default_params( CvFileStorage* fs )
 {
-    write_param( fs, "test_case_count", test_case_count );
-    write_param( fs, "min_log_size", min_log_size );
-    write_param( fs, "max_log_size", max_log_size );
+    CvTest::write_default_params( fs );
+    if( ts->get_testing_mode() != CvTS::TIMING_MODE )
+    {
+        write_param( fs, "test_case_count", test_case_count );
+        write_param( fs, "min_log_size", min_log_size );
+        write_param( fs, "max_log_size", max_log_size );
+    }
     return 0;
 }
 
@@ -249,11 +267,16 @@ int CV_BaseShapeDescrTest::read_params( CvFileStorage* fs )
 void CV_BaseShapeDescrTest::generate_point_set( void* points )
 {
     CvRNG* rng = ts->get_rng();
-    int i, total, point_type;
+    int i, k, n, total, point_type;
     CvSeqReader reader;
     uchar* data = 0;
-    double a0 = high.val[0] - low.val[0], b0 = low.val[0];
-    double a1 = high.val[1] - low.val[1], b1 = low.val[1];
+    double a[4], b[4];
+    
+    for( k = 0; k < 4; k++ )
+    {
+        a[k] = high.val[k] - low.val[k];
+        b[k] = low.val[k];
+    }
     memset( &reader, 0, sizeof(reader) );
 
     if( CV_IS_SEQ(points) )
@@ -272,30 +295,32 @@ void CV_BaseShapeDescrTest::generate_point_set( void* points )
         data = ptm->data.ptr;
     }
 
-    assert( point_type == CV_32SC2 || point_type == CV_32FC2 );
+    n = CV_MAT_CN(point_type);
+    point_type = CV_MAT_DEPTH(point_type);
+
+    assert( (point_type == CV_32S || point_type == CV_32F) && n <= 4 );
 
     for( i = 0; i < total; i++ )
     {
-        CvPoint* pp;
-        CvPoint2D32f p;
+        int* pi;
+        float* pf;
         if( reader.ptr )
         {
-            pp = (CvPoint*)reader.ptr;
-            CV_NEXT_SEQ_ELEM( sizeof(*pp), reader );
-        }
-        else
-            pp = ((CvPoint*)data) + i;
-        p.x = (float)(cvTsRandReal(rng)*a0 + b0);
-        p.y = (float)(cvTsRandReal(rng)*a1 + b1);
-        if( point_type == CV_32SC2 )
-        {
-            pp->x = cvRound(p.x);
-            pp->y = cvRound(p.y);
+            pi = (int*)reader.ptr;
+            pf = (float*)reader.ptr;
+            CV_NEXT_SEQ_ELEM( reader.seq->elem_size, reader );
         }
         else
         {
-            *(CvPoint2D32f*)pp = p;
+            pi = (int*)data + i*n;
+            pf = (float*)data + i*n;
         }
+        if( point_type == CV_32S )
+            for( k = 0; k < n; k++ )
+                pi[k] = cvRound(cvTsRandReal(rng)*a[k] + b[k]);
+        else
+            for( k = 0; k < n; k++ )
+                pf[k] = (float)(cvTsRandReal(rng)*a[k] + b[k]);
     }
 }
 
@@ -313,7 +338,8 @@ int CV_BaseShapeDescrTest::prepare_test_case( int test_case_idx )
     clear();
     size = cvRound( exp((cvTsRandReal(rng) * (max_log_size - min_log_size) + min_log_size)*CV_LOG2) );
     use_storage = cvTsRandInt(rng) % 2;
-    point_type = cvTsRandInt(rng) % 2 ? CV_32FC2 : CV_32SC2;
+    point_type = CV_MAKETYPE(cvTsRandInt(rng) %
+        (enable_flt_points ? 2 : 1) ? CV_32F : CV_32S, dims);
 
     if( use_storage )
     {
@@ -332,10 +358,10 @@ int CV_BaseShapeDescrTest::prepare_test_case( int test_case_idx )
         points = points2;
     }
 
-    for( i = 0; i < 2; i++ )
+    for( i = 0; i < 4; i++ )
     {
-        low.val[i] = cvTsRandReal(rng)*100 - 50;
-        high.val[i] = cvTsRandReal(rng)*100 - 50;
+        low.val[i] = (cvTsRandReal(rng)-0.5)*low_high_range*2;
+        high.val[i] = (cvTsRandReal(rng)-0.5)*low_high_range*2;
         if( low.val[i] > high.val[i] )
         {
             double t;
@@ -356,7 +382,7 @@ void CV_BaseShapeDescrTest::extract_points()
         cvCvtSeqToArray( points1, points2->data.ptr );
     }
 
-    if( CV_MAT_DEPTH(points2->type) != CV_32F )
+    if( CV_MAT_DEPTH(points2->type) != CV_32F && enable_flt_points )
     {
         CvMat tmp = cvMat( points2->rows, points2->cols,
             (points2->type & ~CV_MAT_DEPTH_MASK) | CV_32F, points2->data.ptr );
@@ -388,6 +414,7 @@ class CV_ConvHullTest : public CV_BaseShapeDescrTest
 {
 public:
     CV_ConvHullTest();
+    virtual ~CV_ConvHullTest();
     void clear();
 
 protected:
@@ -410,6 +437,12 @@ CV_ConvHullTest::CV_ConvHullTest():
     hull2 = 0;
     hull_storage = 0;
     orientation = return_points = 0;
+}
+
+
+CV_ConvHullTest::~CV_ConvHullTest()
+{
+    clear();
 }
 
 
@@ -799,6 +832,718 @@ _exit_:
 
 
 CV_MinCircleTest shape_mincircle_test;
+
+
+/****************************************************************************************\
+*                                   Perimeter Test                                     *
+\****************************************************************************************/
+
+class CV_PerimeterTest : public CV_BaseShapeDescrTest
+{
+public:
+    CV_PerimeterTest();
+
+protected:
+    int prepare_test_case( int test_case_idx );
+    void run_func(void);
+    int validate_test_results( int test_case_idx );
+    CvSlice slice;
+    int is_closed;
+    double result;
+};
+
+
+CV_PerimeterTest::CV_PerimeterTest():
+    CV_BaseShapeDescrTest( "shape-perimeter", "cvArcLength" )
+{
+}
+
+
+int CV_PerimeterTest::prepare_test_case( int test_case_idx )
+{
+    int code = CV_BaseShapeDescrTest::prepare_test_case( test_case_idx );
+    CvRNG* rng = ts->get_rng();
+    int total;
+
+    if( code < 0 )
+        return code;
+
+    is_closed = cvTsRandInt(rng) % 2;
+
+    if( points1 )
+    {
+        points1->flags |= CV_SEQ_KIND_CURVE;
+        if( is_closed )
+            points1->flags |= CV_SEQ_FLAG_CLOSED;
+        total = points1->total;
+    }
+    else
+        total = points2->cols + points2->rows - 1;
+
+    if( cvTsRandInt(rng) % 3 )
+    {
+        slice.start_index = cvTsRandInt(rng) % total;
+        slice.end_index = cvTsRandInt(rng) % total;
+    }
+    else
+        slice = CV_WHOLE_SEQ;
+
+    return 1;
+}
+
+
+void CV_PerimeterTest::run_func()
+{
+    result = cvArcLength( points, slice, points1 ? -1 : is_closed );
+}
+
+
+int CV_PerimeterTest::validate_test_results( int test_case_idx )
+{
+    int code = CV_BaseShapeDescrTest::validate_test_results( test_case_idx );
+    int i, len = slice.end_index - slice.start_index, total = points2->cols + points2->rows - 1;
+    double result0 = 0;
+    CvPoint2D32f prev_pt, pt, *ptr;
+
+    if( len < 0 )
+        len += total;
+
+    len = MIN( len, total );
+    len -= !is_closed && len == total;
+    
+    ptr = (CvPoint2D32f*)points2->data.fl;
+    prev_pt = ptr[slice.start_index % total];
+
+    for( i = 1; i <= len; i++ )
+    {
+        pt = ptr[(i + slice.start_index) % total];
+        double dx = pt.x - prev_pt.x, dy = pt.y - prev_pt.y;
+        result0 += sqrt(dx*dx + dy*dy);
+        prev_pt = pt;
+    }
+
+    if( cvIsNaN(result) || cvIsInf(result) )
+    {
+        ts->printf( CvTS::LOG, "cvArcLength() returned invalid value (%g)\n", result );
+        code = CvTS::FAIL_INVALID_OUTPUT;
+    }
+    else if( fabs(result - result0) > FLT_EPSILON*100*result0 )
+    {
+        ts->printf( CvTS::LOG, "The function returned %g, while the correct result is %g\n", result, result0 );
+        code = CvTS::FAIL_BAD_ACCURACY;
+    }
+
+    if( code < 0 )
+        ts->set_failed_test_info( code );
+    return code;
+}
+
+
+CV_PerimeterTest shape_perimeter_test;
+
+
+
+/****************************************************************************************\
+*                                   FitEllipse Test                                      *
+\****************************************************************************************/
+
+class CV_FitEllipseTest : public CV_BaseShapeDescrTest
+{
+public:
+    CV_FitEllipseTest();
+
+protected:
+    int prepare_test_case( int test_case_idx );
+    void generate_point_set( void* points );
+    void run_func(void);
+    int validate_test_results( int test_case_idx );
+    CvBox2D box0, box;
+    double min_ellipse_size, max_noise;
+};
+
+
+CV_FitEllipseTest::CV_FitEllipseTest():
+    CV_BaseShapeDescrTest( "shape-fit-ellipse", "cvFitEllipse" )
+{
+    min_log_size = 4; // for robust ellipse fitting a dozen of points is needed at least
+    max_log_size = 10;
+    min_ellipse_size = 10;
+    max_noise = 0.05;
+}
+
+
+void CV_FitEllipseTest::generate_point_set( void* points )
+{
+    CvRNG* rng = ts->get_rng();
+    int i, total, point_type;
+    CvSeqReader reader;
+    uchar* data = 0;
+    double a, b;
+
+    box0.center.x = (float)((low.val[0] + high.val[0])*0.5);
+    box0.center.y = (float)((low.val[1] + high.val[1])*0.5);
+    box0.size.width = (float)(MAX(high.val[0] - low.val[0], min_ellipse_size)*2);
+    box0.size.height = (float)(MAX(high.val[1] - low.val[1], min_ellipse_size)*2);
+    box0.angle = (float)(cvTsRandReal(rng)*180);
+    a = cos(box0.angle*CV_PI/180.);
+    b = sin(box0.angle*CV_PI/180.);
+
+    if( box0.size.width > box0.size.height )
+    {
+        float t;
+        CV_SWAP( box0.size.width, box0.size.height, t );
+    }
+    memset( &reader, 0, sizeof(reader) );
+
+    if( CV_IS_SEQ(points) )
+    {
+        CvSeq* ptseq = (CvSeq*)points;
+        total = ptseq->total;
+        point_type = CV_SEQ_ELTYPE(ptseq);
+        cvStartReadSeq( ptseq, &reader );
+    }
+    else
+    {
+        CvMat* ptm = (CvMat*)points;
+        assert( CV_IS_MAT(ptm) && CV_IS_MAT_CONT(ptm->type) );
+        total = ptm->rows + ptm->cols - 1;
+        point_type = CV_MAT_TYPE(ptm->type);
+        data = ptm->data.ptr;
+    }
+
+    assert( point_type == CV_32SC2 || point_type == CV_32FC2 );
+
+    for( i = 0; i < total; i++ )
+    {
+        CvPoint* pp;
+        CvPoint2D32f p;
+        double angle = cvTsRandReal(rng)*CV_PI*2;
+        double x = box0.size.height*0.5*(cos(angle) + (cvTsRandReal(rng)-0.5)*2*max_noise);
+        double y = box0.size.width*0.5*(sin(angle) + (cvTsRandReal(rng)-0.5)*2*max_noise);
+        p.x = (float)(box0.center.x + a*x + b*y);
+        p.y = (float)(box0.center.y - b*x + a*y);
+
+        if( reader.ptr )
+        {
+            pp = (CvPoint*)reader.ptr;
+            CV_NEXT_SEQ_ELEM( sizeof(*pp), reader );
+        }
+        else
+            pp = ((CvPoint*)data) + i;
+        if( point_type == CV_32SC2 )
+        {
+            pp->x = cvRound(p.x);
+            pp->y = cvRound(p.y);
+        }
+        else
+            *(CvPoint2D32f*)pp = p;
+    }
+}
+
+
+int CV_FitEllipseTest::prepare_test_case( int test_case_idx )
+{
+    min_log_size = MAX(min_log_size,4);
+    max_log_size = MAX(min_log_size,max_log_size);
+    return CV_BaseShapeDescrTest::prepare_test_case( test_case_idx );
+}
+
+
+void CV_FitEllipseTest::run_func()
+{
+    box = cvFitEllipse2( points );
+}
+
+
+int CV_FitEllipseTest::validate_test_results( int test_case_idx )
+{
+    int code = CV_BaseShapeDescrTest::validate_test_results( test_case_idx );
+    double diff_angle;
+
+    if( cvIsNaN(box.center.x) || cvIsInf(box.center.x) ||
+        cvIsNaN(box.center.y) || cvIsInf(box.center.y) ||
+        cvIsNaN(box.size.width) || cvIsInf(box.size.width) ||
+        cvIsNaN(box.size.height) || cvIsInf(box.size.height) ||
+        cvIsNaN(box.angle) || cvIsInf(box.angle) )
+    {
+        ts->printf( CvTS::LOG, "Some of the computed ellipse parameters are invalid (x=%g,y=%g,w=%g,h=%g,angle=%g)\n",
+            box.center.x, box.center.y, box.size.width, box.size.height, box.angle );
+        code = CvTS::FAIL_INVALID_OUTPUT;
+        goto _exit_;
+    }
+
+    box.angle = (float)(90-box.angle);
+    if( box.angle < 0 )
+        box.angle += 360;
+    if( box.angle > 360 )
+        box.angle -= 360;
+
+    if( fabs(box.center.x - box0.center.x) > 3 ||
+        fabs(box.center.y - box0.center.y) > 3 ||
+        fabs(box.size.width - box0.size.width) > 0.1*fabs(box0.size.width) ||
+        fabs(box.size.height - box0.size.height) > 0.1*fabs(box0.size.height) )
+    {
+        ts->printf( CvTS::LOG, "The computed ellipse center and/or size are incorrect:\n\t"
+            "(x=%.1f,y=%.1f,w=%.1f,h=%.1f), while it should be (x=%.1f,y=%.1f,w=%.1f,h=%.1f)\n",
+            box.center.x, box.center.y, box.size.width, box.size.height,
+            box0.center.x, box0.center.y, box0.size.width, box0.size.height );
+        code = CvTS::FAIL_BAD_ACCURACY;
+        goto _exit_;
+    }
+
+    diff_angle = fabs(box0.angle - box.angle);
+    diff_angle = MIN( diff_angle, fabs(diff_angle - 360));
+    diff_angle = MIN( diff_angle, fabs(diff_angle - 180));
+
+    if( box0.size.height >= 1.3*box0.size.width && diff_angle > 30 )
+    {
+        ts->printf( CvTS::LOG, "Incorrect ellipse angle (=%1.f, should be %1.f)\n",
+            box.angle, box0.angle );
+        code = CvTS::FAIL_BAD_ACCURACY;
+        goto _exit_;
+    }
+
+_exit_:
+
+#if 0
+    cvNamedWindow( "test", 0 );
+    IplImage* img = cvCreateImage( cvSize(cvRound(low_high_range*4),
+        cvRound(low_high_range*4)), 8, 3 );
+    cvZero( img );
+
+    box.center.x += (float)low_high_range*2;
+    box.center.y += (float)low_high_range*2;
+    cvEllipseBox( img, box, CV_RGB(255,0,0), 3, 8 );
+
+    for( int i = 0; i < points2->rows + points2->cols - 1; i++ )
+    {
+        CvPoint pt;
+        pt.x = cvRound(points2->data.fl[i*2] + low_high_range*2);
+        pt.y = cvRound(points2->data.fl[i*2+1] + low_high_range*2);
+        cvCircle( img, pt, 1, CV_RGB(255,255,255), -1, 8 );
+    }
+
+    cvShowImage( "test", img );
+    cvReleaseImage( &img );
+    cvWaitKey(0);
+#endif
+
+    if( code < 0 )
+    {
+        ts->set_failed_test_info( code );
+    }
+    return code;
+}
+
+
+CV_FitEllipseTest fit_ellipse_test;
+
+
+
+/****************************************************************************************\
+*                                   FitLine Test                                         *
+\****************************************************************************************/
+
+class CV_FitLineTest : public CV_BaseShapeDescrTest
+{
+public:
+    CV_FitLineTest();
+
+protected:
+    int prepare_test_case( int test_case_idx );
+    void generate_point_set( void* points );
+    void run_func(void);
+    int validate_test_results( int test_case_idx );
+    double max_noise;
+    float line[6], line0[6];
+    int dist_type;
+    double reps, aeps;
+};
+
+
+CV_FitLineTest::CV_FitLineTest():
+    CV_BaseShapeDescrTest( "shape-fit-line", "cvFitLine" )
+{
+    min_log_size = 4; // for robust ellipse fitting a dozen of points is needed at least
+    max_log_size = 10;
+    max_noise = 0.05;
+}
+
+
+void CV_FitLineTest::generate_point_set( void* points )
+{
+    CvRNG* rng = ts->get_rng();
+    int i, k, n, total, point_type;
+    CvSeqReader reader;
+    uchar* data = 0;
+    double s = 0;
+
+    n = dims;
+    for( k = 0; k < n; k++ )
+    {
+        line0[k+n] = (float)((low.val[k] + high.val[k])*0.5);
+        line0[k] = (float)(high.val[k] - low.val[k]);
+        if( cvTsRandInt(rng) % 2 )
+            line0[k] = -line0[k];
+        s += (double)line0[k]*line0[k];
+    }
+
+    s = 1./sqrt(s);
+    for( k = 0; k < n; k++ )
+        line0[k] = (float)(line0[k]*s);
+
+    memset( &reader, 0, sizeof(reader) );
+
+    if( CV_IS_SEQ(points) )
+    {
+        CvSeq* ptseq = (CvSeq*)points;
+        total = ptseq->total;
+        point_type = CV_MAT_DEPTH(CV_SEQ_ELTYPE(ptseq));
+        cvStartReadSeq( ptseq, &reader );
+    }
+    else
+    {
+        CvMat* ptm = (CvMat*)points;
+        assert( CV_IS_MAT(ptm) && CV_IS_MAT_CONT(ptm->type) );
+        total = ptm->rows + ptm->cols - 1;
+        point_type = CV_MAT_DEPTH(CV_MAT_TYPE(ptm->type));
+        data = ptm->data.ptr;
+    }
+
+    for( i = 0; i < total; i++ )
+    {
+        int* pi;
+        float* pf;
+        float p[4], t;
+        if( reader.ptr )
+        {
+            pi = (int*)reader.ptr;
+            pf = (float*)reader.ptr;
+            CV_NEXT_SEQ_ELEM( reader.seq->elem_size, reader );
+        }
+        else
+        {
+            pi = (int*)data + i*n;
+            pf = (float*)data + i*n;
+        }
+
+        t = (float)((cvTsRandReal(rng)-0.5)*low_high_range*2);
+
+        for( k = 0; k < n; k++ )
+            p[k] = (float)((cvTsRandReal(rng)-0.5)*max_noise*2 + t*line0[k] + line0[k+n]);
+
+        if( point_type == CV_32S )
+            for( k = 0; k < n; k++ )
+                pi[k] = cvRound(p[k]);
+        else
+            for( k = 0; k < n; k++ )
+                pf[k] = p[k];
+    }
+}
+
+
+int CV_FitLineTest::prepare_test_case( int test_case_idx )
+{
+    CvRNG* rng = ts->get_rng();
+    dims = cvTsRandInt(rng) % 2 + 2;
+    min_log_size = MAX(min_log_size,5);
+    max_log_size = MAX(min_log_size,max_log_size);
+    int code = CV_BaseShapeDescrTest::prepare_test_case( test_case_idx );
+    dist_type = cvTsRandInt(rng) % 6 + 1;
+    dist_type += dist_type == CV_DIST_C;
+    reps = 0.1; aeps = 0.01;
+    return code;
+}
+
+
+void CV_FitLineTest::run_func()
+{
+    cvFitLine( points, dist_type, 0, reps, aeps, line );
+}
+
+
+int CV_FitLineTest::validate_test_results( int test_case_idx )
+{
+    int code = CV_BaseShapeDescrTest::validate_test_results( test_case_idx );
+    int k, max_k = 0;
+    double vec_diff = 0, t;
+
+    for( k = 0; k < dims*2; k++ )
+    {
+        if( cvIsNaN(line[k]) || cvIsInf(line[k]) )
+        {
+            ts->printf( CvTS::LOG, "Some of the computed line parameters are invalid (line[%d]=%g)\n",
+                k, line[k] );
+            code = CvTS::FAIL_INVALID_OUTPUT;
+            goto _exit_;
+        }
+    }
+
+    if( fabs(line0[1]) > fabs(line0[0]) )
+        max_k = 1;
+    if( fabs(line0[dims-1]) > fabs(line0[max_k]) )
+        max_k = dims-1;
+    if( line0[max_k] < 0 )
+        for( k = 0; k < dims; k++ )
+            line0[k] = -line0[k];
+    if( line[max_k] < 0 )
+        for( k = 0; k < dims; k++ )
+            line[k] = -line[k];
+
+    for( k = 0; k < dims; k++ )
+    {
+        double dt = line[k] - line0[k];
+        vec_diff += dt*dt;
+    }
+
+    if( sqrt(vec_diff) > 0.05 )
+    {
+        if( dims == 2 )
+            ts->printf( CvTS::LOG,
+                "The computed line vector (%.2f,%.2f) is different from the actual (%.2f,%.2f)\n",
+                line[0], line[1], line0[0], line0[1] );
+        else
+            ts->printf( CvTS::LOG,
+                "The computed line vector (%.2f,%.2f,%.2f) is different from the actual (%.2f,%.2f,%.2f)\n",
+                line[0], line[1], line[2], line0[0], line0[1], line0[2] );
+        code = CvTS::FAIL_BAD_ACCURACY;
+        goto _exit_;
+    }
+
+    t = (line[max_k+dims] - line0[max_k+dims])/line0[max_k];
+    for( k = 0; k < dims; k++ )
+    {
+        double p = line0[k+dims] + t*line0[k] - line[k+dims];
+        vec_diff += p*p;
+    }
+
+    if( sqrt(vec_diff) > 1*MAX(fabs(t),1) )
+    {
+        if( dims == 2 )
+            ts->printf( CvTS::LOG,
+                "The computed line point (%.2f,%.2f) is too far from the actual line\n",
+                line[2]+line0[2], line[3]+line0[3] );
+        else
+            ts->printf( CvTS::LOG,
+                "The computed line point (%.2f,%.2f,%.2f) is too far from the actual line\n",
+                line[3]+line0[3], line[4]+line0[4], line[5]+line0[5] );
+        code = CvTS::FAIL_BAD_ACCURACY;
+        goto _exit_;
+    }
+
+_exit_:
+
+    if( code < 0 )
+    {
+        ts->set_failed_test_info( code );
+    }
+    return code;
+}
+
+
+CV_FitLineTest fit_line_test;
+
+
+/****************************************************************************************\
+*                                   ContourMoments Test                                  *
+\****************************************************************************************/
+
+
+static void
+cvTsGenerateTousledBlob( CvPoint2D32f center, CvSize2D32f axes,
+    double max_r_scale, double angle, CvArr* points, CvRNG* rng )
+{
+    int i, total, point_type;
+    uchar* data = 0;
+    CvSeqReader reader;
+    memset( &reader, 0, sizeof(reader) );
+
+    if( CV_IS_SEQ(points) )
+    {
+        CvSeq* ptseq = (CvSeq*)points;
+        total = ptseq->total;
+        point_type = CV_SEQ_ELTYPE(ptseq);
+        cvStartReadSeq( ptseq, &reader );
+    }
+    else
+    {
+        CvMat* ptm = (CvMat*)points;
+        assert( CV_IS_MAT(ptm) && CV_IS_MAT_CONT(ptm->type) );
+        total = ptm->rows + ptm->cols - 1;
+        point_type = CV_MAT_TYPE(ptm->type);
+        data = ptm->data.ptr;
+    }
+
+    assert( point_type == CV_32SC2 || point_type == CV_32FC2 );
+    
+    for( i = 0; i < total; i++ )
+    {
+        CvPoint* pp;
+        CvPoint2D32f p;
+        
+        double phi0 = 2*CV_PI*i/total;
+        double phi = CV_PI*angle/180.;
+        double t = cvTsRandReal(rng)*max_r_scale + (1 - max_r_scale);
+        double ta = axes.height*t;
+        double tb = axes.width*t;
+        double c0 = cos(phi0)*ta, s0 = sin(phi0)*tb;
+        double c = cos(phi), s = sin(phi);
+        p.x = (float)(c0*c - s0*s + center.x);
+        p.y = (float)(c0*s + s0*c + center.y);
+
+        if( reader.ptr )
+        {
+            pp = (CvPoint*)reader.ptr;
+            CV_NEXT_SEQ_ELEM( sizeof(*pp), reader );
+        }
+        else
+            pp = ((CvPoint*)data) + i;
+        
+        if( point_type == CV_32SC2 )
+        {
+            pp->x = cvRound(p.x);
+            pp->y = cvRound(p.y);
+        }
+        else
+            *(CvPoint2D32f*)pp = p;
+    }
+}
+
+
+class CV_ContourMomentsTest : public CV_BaseShapeDescrTest
+{
+public:
+    CV_ContourMomentsTest();
+
+protected:
+    int prepare_test_case( int test_case_idx );
+    void generate_point_set( void* points );
+    void run_func(void);
+    int validate_test_results( int test_case_idx );
+    CvMoments moments0, moments;
+    double area0, area;
+    CvSize2D32f axes;
+    CvPoint2D32f center;
+    int max_max_r_scale;
+    double max_r_scale, angle;
+    CvSize img_size;
+};
+
+
+CV_ContourMomentsTest::CV_ContourMomentsTest():
+    CV_BaseShapeDescrTest( "shape-moments", "cvMoments, cvContourArea" )
+{
+    min_log_size = 3;
+    max_log_size = 8;
+    max_max_r_scale = 25;
+    low_high_range = 200;
+    enable_flt_points = false;
+}
+
+
+void CV_ContourMomentsTest::generate_point_set( void* points )
+{
+    CvRNG* rng = ts->get_rng();
+    float max_sz;
+
+    axes.width = (float)((cvTsRandReal(rng)*0.9 + 0.1)*low_high_range);
+    axes.height = (float)((cvTsRandReal(rng)*0.9 + 0.1)*low_high_range);
+    max_sz = MAX(axes.width, axes.height);
+
+    img_size.width = img_size.height = cvRound(low_high_range*2.2);
+
+    center.x = (float)(img_size.width*0.5 + (cvTsRandReal(rng)-0.5)*(img_size.width - max_sz*2)*0.8);
+    center.y = (float)(img_size.height*0.5 + (cvTsRandReal(rng)-0.5)*(img_size.height - max_sz*2)*0.8);
+
+    assert( 0 < center.x - max_sz && center.x + max_sz < img_size.width &&
+        0 < center.y - max_sz && center.y + max_sz < img_size.height );
+
+    max_r_scale = cvTsRandReal(rng)*max_max_r_scale*0.01;
+    angle = cvTsRandReal(rng)*360;
+
+    cvTsGenerateTousledBlob( center, axes, max_r_scale, angle, points, rng );
+
+    if( points1 )
+        points1->flags = CV_SEQ_MAGIC_VAL + CV_SEQ_POLYGON;
+}
+
+
+int CV_ContourMomentsTest::prepare_test_case( int test_case_idx )
+{
+    min_log_size = MAX(min_log_size,3);
+    max_log_size = MIN(max_log_size,8);
+    max_log_size = MAX(min_log_size,max_log_size);
+    int code = CV_BaseShapeDescrTest::prepare_test_case( test_case_idx );
+    return code;
+}
+
+
+void CV_ContourMomentsTest::run_func()
+{
+    cvMoments( points, &moments );
+    area = cvContourArea( points );
+}
+
+
+int CV_ContourMomentsTest::validate_test_results( int test_case_idx )
+{
+    int code = CV_BaseShapeDescrTest::validate_test_results( test_case_idx );
+    int i, n = (int)(sizeof(moments)/sizeof(moments.inv_sqrt_m00));
+    CvMat* img = cvCreateMat( img_size.height, img_size.width, CV_8UC1 );
+    CvPoint* pt = (CvPoint*)points2->data.i;
+    int count = points2->cols + points2->rows - 1;
+    double max_v0 = 0;
+
+    cvZero(img);
+    cvFillPoly( img, &pt, &count, 1, cvScalarAll(1));
+    cvMoments( img, &moments0 );
+
+    for( i = 0; i < n; i++ )
+    {
+        double t = fabs((&moments0.m00)[i]);
+        max_v0 = MAX(max_v0, t);
+    }
+
+    for( i = 0; i <= n; i++ )
+    {
+        double v = i < n ? (&moments.m00)[i] : area;
+        double v0 = i < n ? (&moments0.m00)[i] : moments0.m00;
+
+        if( cvIsNaN(v) || cvIsInf(v) )
+        {
+            ts->printf( CvTS::LOG,
+                "The contour %s is invalid (=%g)\n", i < n ? "moment" : "area", v );
+            code = CvTS::FAIL_INVALID_OUTPUT;
+            break;
+        }
+
+        if( fabs(v - v0) > 0.1*max_v0 )
+        {
+            ts->printf( CvTS::LOG,
+                "The computed contour %s is %g, while it should be %g\n",
+                i < n ? "moment" : "area", v, v0 );
+            code = CvTS::FAIL_BAD_ACCURACY;
+            break;
+        }
+    }
+
+    if( code < 0 )
+    {
+#if 0
+        cvCmpS( img, 0, img, CV_CMP_GT );
+        cvNamedWindow( "test", 1 );
+        cvShowImage( "test", img );
+        cvWaitKey();
+#endif
+        ts->set_failed_test_info( code );
+    }
+
+    cvReleaseMat( &img );
+    return code;
+}
+
+
+CV_ContourMomentsTest contour_moments_test;
 
 
 /* End of file. */

@@ -268,6 +268,7 @@ static void cvTsMHIGradient( const CvMat* mhi, CvMat* mask, CvMat* orientation,
 
     cvTsMinMaxFilter( src, min_mhi, element, CV_TS_MIN );
     cvTsMinMaxFilter( src, max_mhi, element, CV_TS_MAX );
+    cvReleaseMat( &src );
     cvReleaseStructuringElement( &element );
 
     if( delta1 > delta2 )
@@ -537,8 +538,6 @@ CV_MHIGlobalOrientTest::CV_MHIGlobalOrientTest()
     test_array[INPUT].push(NULL);
     test_array[INPUT].push(NULL);
     test_array[INPUT].push(NULL);
-    test_array[OUTPUT].push(NULL);
-    test_array[REF_OUTPUT].push(NULL);
     min_angle = max_angle = 0;
 
     default_timing_param_names = motempl_global_param_names;
@@ -557,6 +556,7 @@ void CV_MHIGlobalOrientTest::get_test_array_types_and_sizes( int test_case_idx, 
 
     types[INPUT][1] = CV_8UC1; // mask
     types[INPUT][2] = CV_32FC1; // orientation
+
     min_angle = cvTsRandReal(rng)*359.9;
     max_angle = cvTsRandReal(rng)*359.9;
     if( min_angle >= max_angle )

@@ -72,7 +72,7 @@ static CvTsSimpleSeq*  cvTsCreateSimpleSeq( int max_count, int elem_size )
 
 static void cvTsReleaseSimpleSeq( CvTsSimpleSeq** seq )
 {
-    cvFree( (void**)seq );
+    cvFree( seq );
 }
 
 
@@ -167,7 +167,7 @@ static CvTsSimpleSet*  cvTsCreateSimpleSet( int max_count, int elem_size )
 
 static void cvTsReleaseSimpleSet( CvTsSimpleSet** set_header )
 {
-    cvFree( (void**)set_header );
+    cvFree( set_header );
 }
 
 
@@ -252,7 +252,7 @@ static void cvTsReleaseSimpleGraph( CvTsSimpleGraph** graph )
     if( *graph )
     {
         cvTsReleaseSimpleSet( &(graph[0]->vtx) );
-        cvFree( (void**)graph );
+        cvFree( graph );
     }
 }
 
@@ -369,6 +369,7 @@ class CxCore_DynStructBaseTest : public CvTest
 {
 public:
     CxCore_DynStructBaseTest( const char* test_name, const char* test_funcs );
+    virtual ~CxCore_DynStructBaseTest();
     int write_default_params(CvFileStorage* fs);
     bool can_do_fast_forward();
     void clear();
@@ -415,6 +416,12 @@ CxCore_DynStructBaseTest::CxCore_DynStructBaseTest( const char* test_name, const
 }
 
 
+CxCore_DynStructBaseTest::~CxCore_DynStructBaseTest()
+{
+    clear();
+}
+
+
 void CxCore_DynStructBaseTest::run_func()
 {
 }
@@ -427,9 +434,10 @@ bool CxCore_DynStructBaseTest::can_do_fast_forward()
 
 void CxCore_DynStructBaseTest::clear()
 {
+    CvTest::clear();
     cvReleaseMemStorage( &storage );
-    cvFree( (void**)&cxcore_struct );
-    cvFree( (void**)&simple_struct );
+    cvFree( &cxcore_struct );
+    cvFree( &simple_struct );
 }
 
 
@@ -450,6 +458,7 @@ int CxCore_DynStructBaseTest::write_default_params( CvFileStorage* fs )
 int CxCore_DynStructBaseTest::read_params( CvFileStorage* fs )
 {
     int code = CvTest::read_params( fs );
+    double sqrt_scale = sqrt(ts->get_test_case_count_scale());
     if( code < 0 )
         return code;
 
@@ -457,6 +466,9 @@ int CxCore_DynStructBaseTest::read_params( CvFileStorage* fs )
     max_struct_size = cvReadInt( find_param( fs, "max_struct_size" ), max_struct_size );
     generations = cvReadInt( find_param( fs, "generations" ), generations );
     iterations = cvReadInt( find_param( fs, "iterations" ), iterations );
+    generations = cvRound(generations*sqrt_scale);
+    iterations = cvRound(iterations*sqrt_scale);
+
     min_log_storage_block_size = cvReadInt( find_param( fs, "min_log_storage_block_size" ),
                                             min_log_storage_block_size );
     max_log_storage_block_size = cvReadInt( find_param( fs, "max_log_storage_block_size" ),
@@ -621,7 +633,7 @@ int CxCore_SeqBaseTest::test_multi_create()
         simple_struct[i] = sseq = cvTsCreateSimpleSeq( max_struct_size, elem_size );
         cxcore_struct[i] = 0;
         sseq->count = cvTsRandInt( rng ) % max_struct_size;
-        m = cvMat( 1, sseq->count*elem_size, CV_8UC1, sseq->array );
+        m = cvMat( 1, MAX(sseq->count,1)*elem_size, CV_8UC1, sseq->array );
         cvRandArr( rng, &m, CV_RAND_UNI, cvScalarAll(0), cvScalarAll(256) );
     }
 
@@ -948,7 +960,7 @@ int  CxCore_SeqBaseTest::test_seq_ops( int iters )
                 break;
 
             count = cvTsRandInt( rng ) % (sseq->max_count - sseq->count + 1);
-            elem_mat->cols = count * elem_size;
+            elem_mat->cols = MAX(count,1) * elem_size;
             cvRandArr( rng, elem_mat, CV_RAND_UNI, cvScalarAll(0), cvScalarAll(255) );
 
             whence = op - 7;

@@ -151,7 +151,7 @@ cvReleaseHist( CvHistogram **hist )
         *hist = 0;
 
         if( CV_IS_SPARSE_HIST( temp ))
-            cvReleaseSparseMat( (CvSparseMat**)&temp->bins );
+            cvRelease( &temp->bins );
         else
         {
             cvReleaseData( temp->bins );
@@ -159,14 +159,13 @@ cvReleaseHist( CvHistogram **hist )
         }
         
         if( temp->thresh2 )
-            cvFree( (void**)&temp->thresh2 );
+            cvFree( &temp->thresh2 );
 
-        cvFree( (void**)&temp );
+        cvFree( &temp );
     }
 
     __END__;
 }
-
 
 CV_IMPL void
 cvClearHist( CvHistogram *hist )
@@ -276,11 +275,12 @@ cvGetMinMaxHistValue( const CvHistogram* hist,
                       int* idx_min, int* idx_max )
 {
     double minVal, maxVal;
-    int dims, size[CV_MAX_DIM];
 
     CV_FUNCNAME( "cvGetMinMaxHistValue" );
 
     __BEGIN__;
+
+    int i, dims, size[CV_MAX_DIM];
 
     if( !CV_IS_HIST(hist) )
         CV_ERROR( CV_StsBadArg, "Invalid histogram header" );
@@ -338,10 +338,12 @@ cvGetMinMaxHistValue( const CvHistogram* hist,
         CvSparseMat* mat = (CvSparseMat*)hist->bins;
         CvSparseMatIterator iterator;
         CvSparseNode *node;
-        int minv = CV_POS_INF;
-        int maxv = CV_NEG_INF;
+        int minv = INT_MAX;
+        int maxv = INT_MIN;
         CvSparseNode* minNode = 0;
         CvSparseNode* maxNode = 0;
+        const int *_idx_min = 0, *_idx_max = 0;
+        Cv32suf m;
 
         for( node = cvInitSparseMatIterator( mat, &iterator );
              node != 0; node = cvGetNextSparseNode( &iterator ))
@@ -361,26 +363,24 @@ cvGetMinMaxHistValue( const CvHistogram* hist,
             }
         }
 
-        if( !minNode )
+        if( minNode )
         {
-            assert( !maxNode );
-            minVal = maxVal = 0;
-            if( idx_min )
-                memset( idx_min, -1, dims*sizeof(idx_min[0]));
-            if( idx_max )
-                memset( idx_max, -1, dims*sizeof(idx_max[0]));
+            _idx_min = CV_NODE_IDX(mat,minNode);
+            _idx_max = CV_NODE_IDX(mat,maxNode);
+            m.i = CV_TOGGLE_FLT(minv); minVal = m.f;
+            m.i = CV_TOGGLE_FLT(maxv); maxVal = m.f;
         }
         else
         {
-            assert( maxNode );
-            minv = CV_TOGGLE_FLT(minv);
-            maxv = CV_TOGGLE_FLT(maxv);
-            minVal = (float&)minv;
-            maxVal = (float&)maxv;
+            minVal = maxVal = 0;
+        }
+
+        for( i = 0; i < dims; i++ )
+        {
             if( idx_min )
-                memcpy( idx_min, (uchar*)minNode+mat->idxoffset, dims*sizeof(idx_min[0]));
+                idx_min[i] = _idx_min ? _idx_min[i] : -1;
             if( idx_max )
-                memcpy( idx_max, (uchar*)maxNode+mat->idxoffset, dims*sizeof(idx_max[0]));
+                idx_max[i] = _idx_max ? _idx_max[i] : -1;
         }
     }
 
@@ -433,9 +433,13 @@ cvCompareHist( const CvHistogram* hist1,
 
     if( !CV_IS_SPARSE_MAT(hist1->bins))
     {
-        float *ptr1 = 0, *ptr2 = 0;
-        CV_CALL( cvGetRawData( hist1->bins, (uchar**)&ptr1 ));
-        CV_CALL( cvGetRawData( hist2->bins, (uchar**)&ptr2 ));
+        union { float* fl; uchar* ptr; } v;
+        float *ptr1, *ptr2;
+        v.fl = 0;
+        CV_CALL( cvGetRawData( hist1->bins, &v.ptr ));
+        ptr1 = v.fl;
+        CV_CALL( cvGetRawData( hist2->bins, &v.ptr ));
+        ptr2 = v.fl;
 
         switch( method )
         {
@@ -483,14 +487,23 @@ cvCompareHist( const CvHistogram* hist1,
                     result += b;
             }
             break;
-	case CV_COMP_BHATTACHARYYA:
-	    for (i = 0; i < total; i++ )
-	    {
-		result += cvSqrt ( ptr1 [i] * ptr2 [i]);
-	    }
-	    result = cvSqrt (1. - result);
-	    break;
-
+        case CV_COMP_BHATTACHARYYA:
+            {
+                double s1 = 0, s2 = 0;
+                for( i = 0; i < total; i++ )
+                {
+                    double a = ptr1[i];
+                    double b = ptr2[i];
+                    result += sqrt(a*b);
+                    s1 += a;
+                    s2 += b;
+                }
+                s1 *= s2;
+                s1 = fabs(s1) > FLT_EPSILON ? 1./sqrt(s1) : 1.;
+                result = 1. - result*s1;
+                result = sqrt(MAX(result,0.));
+            }
+            break;
         default:
             CV_ERROR( CV_StsBadArg, "Unknown comparison method" );
         }
@@ -592,19 +605,33 @@ cvCompareHist( const CvHistogram* hist1,
             break;
         case CV_COMP_BHATTACHARYYA:
             {
+                double s1 = 0, s2 = 0;
+                
                 for( node1 = cvInitSparseMatIterator( mat1, &iterator );
                      node1 != 0; node1 = cvGetNextSparseNode( &iterator ))
                 {
-                    float v1 = *(float*)CV_NODE_VAL(mat1,node1);
+                    double v1 = *(float*)CV_NODE_VAL(mat1,node1);
                     uchar* node2_data = cvPtrND( mat2, CV_NODE_IDX(mat1,node1),
                                                  0, 0, &node1->hashval );
+                    s1 += v1;
                     if( node2_data )
                     {
-                        float v2 = *(float*)node2_data;
-			result += cvSqrt (v1 * v2);
+                        double v2 = *(float*)node2_data;
+                        result += sqrt(v1 * v2);
                     }
                 }
-		result = cvSqrt (1. - result);
+
+                for( node1 = cvInitSparseMatIterator( mat2, &iterator );
+                     node1 != 0; node1 = cvGetNextSparseNode( &iterator ))
+                {
+                    double v2 = *(float*)CV_NODE_VAL(mat2,node1);
+                    s2 += v2;
+                }
+
+                s1 *= s2;
+                s1 = fabs(s1) > FLT_EPSILON ? 1./sqrt(s1) : 1.;
+                result = 1. - result*s1;
+                result = sqrt(MAX(result,0.));
             }
             break;
         default:
@@ -764,9 +791,9 @@ cvSetHistBinRanges( CvHistogram* hist, float** ranges, int uniform )
 #define  ICV_HIST_DUMMY_IDX  (INT_MIN/3)
 
 static CvStatus
-icvCalcHistLookupTables8x( const CvHistogram* hist, int lo, int hi,
-                           int dims, int* size, int* tab )
+icvCalcHistLookupTables8u( const CvHistogram* hist, int dims, int* size, int* tab )
 {
+    const int lo = 0, hi = 256;
     int is_sparse = CV_IS_SPARSE_HIST( hist );
     int have_range = CV_HIST_HAS_RANGES(hist);
     int i, j;
@@ -778,7 +805,7 @@ icvCalcHistLookupTables8x( const CvHistogram* hist, int lo, int hi,
             double a = have_range ? hist->thresh[i][0] : 0;
             double b = have_range ? hist->thresh[i][1] : 256;
             int sz = size[i];
-            double scale = sz/(b - a), cur = (lo - a)*scale;
+            double scale = sz/(b - a);
             int step = 1;
 
             if( !is_sparse )
@@ -786,14 +813,13 @@ icvCalcHistLookupTables8x( const CvHistogram* hist, int lo, int hi,
 
             for( j = lo; j < hi; j++ )
             {
-                int idx = cvFloor(cur);
+                int idx = cvFloor((j - a)*scale);
                 if( (unsigned)idx < (unsigned)sz )
                     idx *= step;
                 else
                     idx = ICV_HIST_DUMMY_IDX;
 
                 tab[i*(hi - lo) + j - lo] = idx;
-                cur += scale;
             }
         }
     }
@@ -854,8 +880,7 @@ static CvStatus CV_STDCALL
     dims = cvGetDims( hist->bins, histsize );
 
     tab = (int*)cvStackAlloc( dims*256*sizeof(int));
-    status = icvCalcHistLookupTables8x( hist, 0, 256, dims,
-                                        histsize, tab );
+    status = icvCalcHistLookupTables8u( hist, dims, histsize, tab );
 
     if( status < 0 )
         return status;
@@ -1102,7 +1127,7 @@ static CvStatus CV_STDCALL
     int is_sparse = CV_IS_SPARSE_HIST(hist);
     int uniform = CV_IS_UNIFORM_HIST(hist);
     int dims, histsize[CV_MAX_DIM];
-    float uni_range[CV_MAX_DIM][2];
+    double uni_range[CV_MAX_DIM][2];
     int i, x;
 
     dims = cvGetDims( hist->bins, histsize );
@@ -1112,9 +1137,9 @@ static CvStatus CV_STDCALL
     {
         for( i = 0; i < dims; i++ )
         {
-            float t = ((float)histsize[i])/(hist->thresh[i][1] - hist->thresh[i][0]);
+            double t = histsize[i]/((double)hist->thresh[i][1] - hist->thresh[i][0]);
             uni_range[i][0] = t;
-            uni_range[i][1] = (float)(-t*hist->thresh[i][0]);
+            uni_range[i][1] = -t*hist->thresh[i][0];
         }
     }
 
@@ -1129,7 +1154,7 @@ static CvStatus CV_STDCALL
             {
             case 1:
                 {
-                float a = uni_range[0][0], b = uni_range[0][1];
+                double a = uni_range[0][0], b = uni_range[0][1];
                 int sz = histsize[0];
 
                 for( ; size.height--; img[0] += step )
@@ -1180,8 +1205,8 @@ static CvStatus CV_STDCALL
                 break;
             case 2:
                 {
-                float  a0 = uni_range[0][0], b0 = uni_range[0][1];
-                float  a1 = uni_range[1][0], b1 = uni_range[1][1];
+                double  a0 = uni_range[0][0], b0 = uni_range[0][1];
+                double  a1 = uni_range[1][0], b1 = uni_range[1][1];
                 int sz0 = histsize[0], sz1 = histsize[1];
                 int step0 = ((CvMatND*)(hist->bins))->dim[0].step/sizeof(float);
 
@@ -1231,7 +1256,7 @@ static CvStatus CV_STDCALL
                             int* binptr = bins;
                             for( i = 0; i < dims; i++ )
                             {
-                                int idx = cvFloor(img[i][x]*uni_range[i][0]
+                                int idx = cvFloor((double)img[i][x]*uni_range[i][0]
                                                  + uni_range[i][1]);
                                 if( (unsigned)idx >= (unsigned)histsize[i] )
                                     break;
@@ -1250,7 +1275,7 @@ static CvStatus CV_STDCALL
                                 int* binptr = bins;
                                 for( i = 0; i < dims; i++ )
                                 {
-                                    int idx = cvFloor(img[i][x]*uni_range[i][0]
+                                    int idx = cvFloor((double)img[i][x]*uni_range[i][0]
                                                      + uni_range[i][1]);
                                     if( (unsigned)idx >= (unsigned)histsize[i] )
                                         break;
@@ -1474,8 +1499,8 @@ cvCalcArrHist( CvArr** img, CvHistogram* hist,
         for( node = cvInitSparseMatIterator( mat, &iterator );
              node != 0; node = cvGetNextSparseNode( &iterator ))
         {
-            int& val = *(int*)CV_NODE_VAL( mat, node );
-            val = cvRound( (float&)val );
+            Cv32suf* val = (Cv32suf*)CV_NODE_VAL( mat, node );
+            val->i = cvRound( val->f );
         }
     }
 
@@ -1489,7 +1514,11 @@ cvCalcArrHist( CvArr** img, CvHistogram* hist,
         IPPI_CALL( icvCalcHist_8u_C1R( ptr, step, maskptr, maskstep, size, hist ));
 	    break;
     case CV_32F:
-	    IPPI_CALL( icvCalcHist_32f_C1R( (float**)ptr, step, maskptr, maskstep, size, hist ));
+        {
+        union { uchar** ptr; float** fl; } v;
+        v.ptr = ptr;
+	    IPPI_CALL( icvCalcHist_32f_C1R( v.fl, step, maskptr, maskstep, size, hist ));
+        }
 	    break;
     default:
         CV_ERROR( CV_StsUnsupportedFormat, "Unsupported array type" );
@@ -1508,8 +1537,8 @@ cvCalcArrHist( CvArr** img, CvHistogram* hist,
         for( node = cvInitSparseMatIterator( mat, &iterator );
              node != 0; node = cvGetNextSparseNode( &iterator ))
         {
-            int& val = *(int*)CV_NODE_VAL( mat, node );
-            (float&)val = (float)val;
+            Cv32suf* val = (Cv32suf*)CV_NODE_VAL( mat, node );
+            val->f = (float)val->i;
         }
     }
     
@@ -1534,7 +1563,7 @@ static CvStatus CV_STDCALL
     dims = cvGetDims( hist->bins, histsize );
 
     tab = (int*)cvStackAlloc( dims*256*sizeof(int));
-    status = icvCalcHistLookupTables8x( hist, 0, 256, dims, histsize, tab );
+    status = icvCalcHistLookupTables8u( hist, dims, histsize, tab );
     if( status < 0 )
         return status;
 
@@ -1742,7 +1771,7 @@ static CvStatus CV_STDCALL
             }
         }
 
-        cvFree( (void**)&buffer );
+        cvFree( &buffer );
     }
     else
     {
@@ -1789,7 +1818,7 @@ static CvStatus CV_STDCALL
     int is_sparse = CV_IS_SPARSE_HIST(hist);
     int uniform = CV_IS_UNIFORM_HIST(hist);
     int dims, histsize[CV_MAX_DIM];
-    float uni_range[CV_MAX_DIM][2];
+    double uni_range[CV_MAX_DIM][2];
     int i, x;
 
     dims = cvGetDims( hist->bins, histsize );
@@ -1800,9 +1829,10 @@ static CvStatus CV_STDCALL
     {
         for( i = 0; i < dims; i++ )
         {
-            float t = ((float)histsize[i])/(hist->thresh[i][1] - hist->thresh[i][0]);
+            double t = ((double)histsize[i])/
+                ((double)hist->thresh[i][1] - hist->thresh[i][0]);
             uni_range[i][0] = t;
-            uni_range[i][1] = (float)(-t*hist->thresh[i][0]);
+            uni_range[i][1] = -t*hist->thresh[i][0];
         }
     }
 
@@ -1817,7 +1847,7 @@ static CvStatus CV_STDCALL
             {
             case 1:
                 {
-                float a = uni_range[0][0], b = uni_range[0][1];
+                double a = uni_range[0][0], b = uni_range[0][1];
                 int sz = histsize[0];
 
                 for( ; size.height--; img[0] += step, dst += dstStep )
@@ -1856,6 +1886,7 @@ static CvStatus CV_STDCALL
                     for( ; x < size.width; x++ )
                     {
                         int v0 = cvFloor(ptr[x]*a + b);
+
                         if( (unsigned)v0 < (unsigned)sz )
                             dst[x] = bins[v0];
                         else
@@ -1866,8 +1897,8 @@ static CvStatus CV_STDCALL
                 break;
             case 2:
                 {
-                float  a0 = uni_range[0][0], b0 = uni_range[0][1];
-                float  a1 = uni_range[1][0], b1 = uni_range[1][1];
+                double a0 = uni_range[0][0], b0 = uni_range[0][1];
+                double a1 = uni_range[1][0], b1 = uni_range[1][1];
                 int sz0 = histsize[0], sz1 = histsize[1];
                 int step0 = ((CvMatND*)(hist->bins))->dim[0].step/sizeof(float);
 
@@ -2089,8 +2120,12 @@ cvCalcArrBackProject( CvArr** img, CvArr* dst, const CvHistogram* hist )
         IPPI_CALL( icvCalcBackProject_8u_C1R( ptr, step, dstptr, dststep, size, hist ));
 	    break;
     case CV_32F:
-	    IPPI_CALL( icvCalcBackProject_32f_C1R( (float**)ptr, step,
+        {
+        union { uchar** ptr; float** fl; } v;
+        v.ptr = ptr;
+	    IPPI_CALL( icvCalcBackProject_32f_C1R( v.fl, step,
                                 (float*)dstptr, dststep, size, hist ));
+        }
 	    break;
     default:
         CV_ERROR( CV_StsUnsupportedFormat, "Unsupported array type" );
@@ -2103,7 +2138,7 @@ cvCalcArrBackProject( CvArr** img, CvArr* dst, const CvHistogram* hist )
 ////////////////////// B A C K   P R O J E C T   P A T C H /////////////////////////
 
 CV_IMPL void
-cvCalcArrBackProjectPatch( CvArr** arr, CvArr* dst, CvSize range, CvHistogram* hist,
+cvCalcArrBackProjectPatch( CvArr** arr, CvArr* dst, CvSize patch_size, CvHistogram* hist,
                            int method, double norm_factor )
 {
     CvHistogram* model = 0;
@@ -2129,6 +2164,9 @@ cvCalcArrBackProjectPatch( CvArr** arr, CvArr* dst, CvSize range, CvHistogram* h
         CV_ERROR( CV_StsOutOfRange,
                   "Bad normalization factor (set it to 1.0 if unsure)" );
 
+    if( patch_size.width <= 0 || patch_size.height <= 0 )
+        CV_ERROR( CV_StsBadSize, "The patch width and height must be positive" );
+
     CV_CALL( dims = cvGetDims( hist->bins ));
     CV_CALL( cvCopyHist( hist, &model ));
     CV_CALL( cvNormalizeHist( hist, norm_factor ));
@@ -2145,36 +2183,28 @@ cvCalcArrBackProjectPatch( CvArr** arr, CvArr* dst, CvSize range, CvHistogram* h
     if( CV_MAT_TYPE( dstmat->type ) != CV_32FC1 )
         CV_ERROR( CV_StsUnsupportedFormat, "Resultant image must have 32fC1 type" );
 
+    if( dstmat->cols != img[0]->width - patch_size.width + 1 ||
+        dstmat->rows != img[0]->height - patch_size.height + 1 )
+        CV_ERROR( CV_StsUnmatchedSizes,
+            "The output map must be (W-w+1 x H-h+1), "
+            "where the input images are (W x H) each and the patch is (w x h)" );
+
     size = cvGetMatSize(dstmat);
     roi.coi = 0;
+    roi.width = patch_size.width;
+    roi.height = patch_size.height;
 
     for( y = 0; y < size.height; y++ )
     {
-        roi.yOffset = y - range.height;
-        roi.height = range.height*2 + 1;
-        if( roi.yOffset < 0 )
-        {
-            roi.height += roi.yOffset;
-            roi.yOffset = 0;
-        }
-        if( roi.yOffset + roi.height > size.height )
-            roi.height = size.height - roi.yOffset;
-        
         for( x = 0; x < size.width; x++ )
         {
             double result;
             
-            roi.xOffset = x - range.width;
-            roi.width = range.width*2 + 1;
-            if( roi.xOffset < 0 )
-            {
-                roi.width += roi.xOffset;
-                roi.xOffset = 0;
-            }
-            if( roi.xOffset + roi.width > size.width )
-                roi.width = size.width - roi.xOffset;
+            roi.xOffset = x;
+            roi.yOffset = y;
 
             CV_CALL( cvCalcHist( img, model ));
+
             CV_CALL( cvNormalizeHist( model, norm_factor ));
             CV_CALL( result = cvCompareHist( model, hist, method ));
             CV_MAT_ELEM( *dstmat, float, y, x ) = (float)result;
@@ -2315,7 +2345,166 @@ CV_IMPL void cvEqualizeHist( const CvArr* src, CvArr* dst )
     CV_CALL( cvLUT( src, dst, lut ));
 
     __END__;
+
+    cvReleaseHist(&hist);
+    cvReleaseMat(&lut);
 }
+
+/* Implementation of RTTI and Generic Functions for CvHistogram */
+#define CV_TYPE_NAME_HIST "opencv-hist"
+
+static int icvIsHist( const void * ptr ){
+	return CV_IS_HIST( ((CvHistogram*)ptr) );
+}
+
+static CvHistogram * icvCloneHist( const CvHistogram * src ){
+	CvHistogram * dst=NULL;
+	cvCopyHist(src, &dst);
+	return dst;
+}
+
+static void *icvReadHist( CvFileStorage * fs, CvFileNode * node ){
+	CvHistogram * h = (CvHistogram *) cvAlloc( sizeof(CvHistogram) );
+	int is_uniform = 0;
+	int have_ranges = 0;
+
+	CV_FUNCNAME("icvReadHist");
+	__BEGIN__;
+
+	is_uniform = cvReadIntByName( fs, node, "is_uniform", 0 );
+	have_ranges = cvReadIntByName( fs, node, "have_ranges", 0);
+	h->type = CV_HIST_MAGIC_VAL | 
+		      (is_uniform ? CV_HIST_UNIFORM_FLAG : 0) |
+			  (have_ranges ? CV_HIST_RANGES_FLAG : 0);
+
+	if(is_uniform){
+		// read histogram bins
+		CvMatND * mat = (CvMatND *) cvReadByName( fs, node, "mat" );
+		int sizes[CV_MAX_DIM];
+		int i;
+		if(!CV_IS_MATND(mat)){
+			CV_ERROR( CV_StsError, "Expected CvMatND");
+		}
+		for(i=0; i<mat->dims; i++){
+			sizes[i] = mat->dim[i].size;
+		}
+
+		cvInitMatNDHeader( &(h->mat), mat->dims, sizes, mat->type, mat->data.ptr );
+		h->bins = &(h->mat);
+		
+		// take ownership of refcount pointer as well
+		h->mat.refcount = mat->refcount;
+
+		// increase refcount so freeing temp header doesn't free data
+		cvIncRefData( mat ); 
+		
+		// free temporary header
+		cvReleaseMatND( &mat );
+	}
+	else{
+		h->bins = cvReadByName( fs, node, "bins" );
+		if(!CV_IS_SPARSE_MAT(h->bins)){
+			CV_ERROR( CV_StsError, "Unknown Histogram type");
+		}
+	}
+
+	// read thresholds
+	if(have_ranges){
+		int i;
+		int dims;
+		int size[CV_MAX_DIM];
+		int total = 0;
+		CvSeqReader reader;
+		CvFileNode * thresh_node;
+
+		CV_CALL( dims = cvGetDims( h->bins, size ));
+		for( i = 0; i < dims; i++ ){
+			total += size[i]+1;
+		}
+
+		thresh_node = cvGetFileNodeByName( fs, node, "thresh" );
+		if(!thresh_node){
+			CV_ERROR( CV_StsError, "'thresh' node is missing");
+		}
+		cvStartReadRawData( fs, thresh_node, &reader );
+
+		if(is_uniform){
+			for(i=0; i<dims; i++){
+				cvReadRawDataSlice( fs, &reader, 2, h->thresh[i], "f" );
+			}
+		}
+		else{
+			float* dim_ranges;
+			CV_CALL( h->thresh2 = (float**)cvAlloc(
+						dims*sizeof(h->thresh2[0])+
+						total*sizeof(h->thresh2[0][0])));
+			dim_ranges = (float*)(h->thresh2 + dims);
+			for(i=0; i < dims; i++){
+				h->thresh2[i] = dim_ranges;
+				cvReadRawDataSlice( fs, &reader, size[i]+1, dim_ranges, "f" );
+				dim_ranges += size[i] + 1;
+			}
+		}
+
+	}
+	
+	__END__;
+
+	return h;
+}
+
+static void icvWriteHist( CvFileStorage* fs, const char* name, const void* struct_ptr, 
+		CvAttrList /*attributes*/ ){
+	const CvHistogram * hist = (const CvHistogram *) struct_ptr;
+	int sizes[CV_MAX_DIM];
+	int dims;
+	int i;
+	int is_uniform, have_ranges;
+
+	CV_FUNCNAME("icvWriteHist");
+	__BEGIN__;
+ 
+	cvStartWriteStruct( fs, name, CV_NODE_MAP, CV_TYPE_NAME_HIST );
+
+	is_uniform = (CV_IS_UNIFORM_HIST(hist) ? 1 : 0);
+	have_ranges = (hist->type & CV_HIST_RANGES_FLAG ? 1 : 0);
+	
+	cvWriteInt( fs, "is_uniform", is_uniform );
+	cvWriteInt( fs, "have_ranges", have_ranges );
+	if(CV_IS_UNIFORM_HIST(hist)){
+		cvWrite( fs, "mat", &(hist->mat) );
+	}
+	else if(CV_IS_SPARSE_HIST(hist)){
+		cvWrite( fs, "bins", hist->bins );
+	}
+	else{
+		CV_ERROR( CV_StsError, "Unknown Histogram Type" );
+	}
+
+	// write thresholds
+	if(have_ranges){
+		dims = cvGetDims( hist->bins, sizes );
+		cvStartWriteStruct( fs, "thresh", CV_NODE_SEQ + CV_NODE_FLOW );
+		if(is_uniform){
+			for(i=0; i<dims; i++){
+				cvWriteRawData( fs, hist->thresh[i], 2, "f" );
+			}
+		}
+		else{
+			for(i=0; i<dims; i++){
+				cvWriteRawData( fs, hist->thresh2[i], sizes[i]+1, "f" );
+			}
+		}
+		cvEndWriteStruct( fs );
+	}
+
+	cvEndWriteStruct( fs );
+	__END__;
+}
+
+
+CvType hist_type( CV_TYPE_NAME_HIST, icvIsHist, (CvReleaseFunc)cvReleaseHist,
+                  icvReadHist, icvWriteHist, (CvCloneFunc)icvCloneHist );
 
 /* End of file. */
 

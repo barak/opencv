@@ -47,7 +47,7 @@
 
 CV_IMPL int
 cvSampleLine( const void* img, CvPoint pt1, CvPoint pt2,
-              void* buffer, int connectivity )
+              void* _buffer, int connectivity )
 {
     int count = -1;
     
@@ -58,6 +58,7 @@ cvSampleLine( const void* img, CvPoint pt1, CvPoint pt2,
     int i, coi = 0, pix_size;
     CvMat stub, *mat = (CvMat*)img;
     CvLineIterator iterator;
+    uchar* buffer = (uchar*)_buffer;
 
     CV_CALL( mat = cvGetMat( mat, &stub, &coi ));
 
@@ -73,7 +74,7 @@ cvSampleLine( const void* img, CvPoint pt1, CvPoint pt2,
     for( i = 0; i < count; i++ )
     {
         CV_MEMCPY_AUTO( buffer, iterator.ptr, pix_size );
-        (char*&)buffer += pix_size;
+        buffer += pix_size;
         CV_NEXT_LINE_POINT( iterator );
     }
 
@@ -167,7 +168,8 @@ CvStatus CV_STDCALL icvGetRectSubPix_##flavor##_C1R                         \
     b1 = scale_macro(1.f - b);                                              \
     b2 = scale_macro(b);                                                    \
                                                                             \
-    src_step /= sizeof( src[0] );                                           \
+    src_step /= sizeof(src[0]);                                             \
+    dst_step /= sizeof(dst[0]);                                             \
                                                                             \
     if( 0 <= ip.x && ip.x + win_size.width < src_size.width &&              \
         0 <= ip.y && ip.y + win_size.height < src_size.height )             \
@@ -176,12 +178,13 @@ CvStatus CV_STDCALL icvGetRectSubPix_##flavor##_C1R                         \
         src += ip.y * src_step + ip.x;                                      \
                                                                             \
         if( icvCopySubpix_##flavor##_C1R_p &&                               \
-            icvCopySubpix_##flavor##_C1R_p( src, src_step, dst, dst_step,   \
+            icvCopySubpix_##flavor##_C1R_p( src, src_step*sizeof(src[0]),   \
+                                            dst, dst_step*sizeof(dst[0]),   \
                                             win_size, a, b ) >= 0 )         \
             return CV_OK;                                                   \
                                                                             \
         for( i = 0; i < win_size.height; i++, src += src_step,              \
-                                              (char*&)dst += dst_step )     \
+                                              dst += dst_step )             \
         {                                                                   \
             for( j = 0; j <= win_size.width - 2; j += 2 )                   \
             {                                                               \
@@ -216,7 +219,7 @@ CvStatus CV_STDCALL icvGetRectSubPix_##flavor##_C1R                         \
         src = (const srctype*)icvAdjustRect( src, src_step*sizeof(*src),    \
                                sizeof(*src), src_size, win_size,ip, &r);    \
                                                                             \
-        for( i = 0; i < win_size.height; i++, (char*&)dst += dst_step )     \
+        for( i = 0; i < win_size.height; i++, dst += dst_step )             \
         {                                                                   \
             const srctype *src2 = src + src_step;                           \
                                                                             \
@@ -278,6 +281,7 @@ static CvStatus CV_STDCALL icvGetRectSubPix_##flavor##_C3R                  \
     b = scale_macro( center.y - ip.y );                                     \
                                                                             \
     src_step /= sizeof( src[0] );                                           \
+    dst_step /= sizeof( dst[0] );                                           \
                                                                             \
     if( 0 <= ip.x && ip.x + win_size.width < src_size.width &&              \
         0 <= ip.y && ip.y + win_size.height < src_size.height )             \
@@ -286,7 +290,7 @@ static CvStatus CV_STDCALL icvGetRectSubPix_##flavor##_C3R                  \
         src += ip.y * src_step + ip.x*3;                                    \
                                                                             \
         for( i = 0; i < win_size.height; i++, src += src_step,              \
-                                              (char*&)dst += dst_step )     \
+                                              dst += dst_step )             \
         {                                                                   \
             for( j = 0; j < win_size.width; j++ )                           \
             {                                                               \
@@ -317,7 +321,7 @@ static CvStatus CV_STDCALL icvGetRectSubPix_##flavor##_C3R                  \
         src = (const srctype*)icvAdjustRect( src, src_step*sizeof(*src),    \
                              sizeof(*src)*3, src_size, win_size, ip, &r );  \
                                                                             \
-        for( i = 0; i < win_size.height; i++, (char*&)dst += dst_step )     \
+        for( i = 0; i < win_size.height; i++, dst += dst_step )             \
         {                                                                   \
             const srctype *src2 = src + src_step;                           \
                                                                             \
@@ -384,6 +388,114 @@ static CvStatus CV_STDCALL icvGetRectSubPix_##flavor##_C3R                  \
 }
 
 
+
+CvStatus CV_STDCALL icvGetRectSubPix_8u32f_C1R
+( const uchar* src, int src_step, CvSize src_size,
+  float* dst, int dst_step, CvSize win_size, CvPoint2D32f center )
+{
+    CvPoint ip;
+    float  a12, a22, b1, b2;
+    float a, b;
+    double s = 0;
+    int i, j;
+
+    center.x -= (win_size.width-1)*0.5f;
+    center.y -= (win_size.height-1)*0.5f;
+
+    ip.x = cvFloor( center.x );
+    ip.y = cvFloor( center.y );
+
+    if( win_size.width <= 0 || win_size.height <= 0 )
+        return CV_BADRANGE_ERR;
+
+    a = center.x - ip.x;
+    b = center.y - ip.y;
+    a = MAX(a,0.0001f);
+    a12 = a*(1.f-b);
+    a22 = a*b;
+    b1 = 1.f - b;
+    b2 = b;
+    s = (1. - a)/a;
+
+    src_step /= sizeof(src[0]);
+    dst_step /= sizeof(dst[0]);
+
+    if( 0 <= ip.x && ip.x + win_size.width < src_size.width &&
+        0 <= ip.y && ip.y + win_size.height < src_size.height )
+    {
+        // extracted rectangle is totally inside the image
+        src += ip.y * src_step + ip.x;
+
+#if 0
+        if( icvCopySubpix_8u32f_C1R_p &&
+            icvCopySubpix_8u32f_C1R_p( src, src_step, dst,
+                dst_step*sizeof(dst[0]), win_size, a, b ) >= 0 )
+            return CV_OK;
+#endif
+
+        for( ; win_size.height--; src += src_step, dst += dst_step )
+        {
+            float prev = (1 - a)*(b1*CV_8TO32F(src[0]) + b2*CV_8TO32F(src[src_step]));
+            for( j = 0; j < win_size.width; j++ )
+            {
+                float t = a12*CV_8TO32F(src[j+1]) + a22*CV_8TO32F(src[j+1+src_step]);
+                dst[j] = prev + t;
+                prev = (float)(t*s);
+            }
+        }
+    }
+    else
+    {
+        CvRect r;
+
+        src = (const uchar*)icvAdjustRect( src, src_step*sizeof(*src),
+                               sizeof(*src), src_size, win_size,ip, &r);
+
+        for( i = 0; i < win_size.height; i++, dst += dst_step )
+        {
+            const uchar *src2 = src + src_step;
+
+            if( i < r.y || i >= r.height )
+                src2 -= src_step;
+
+            for( j = 0; j < r.x; j++ )
+            {
+                float s0 = CV_8TO32F(src[r.x])*b1 +
+                           CV_8TO32F(src2[r.x])*b2;
+
+                dst[j] = (float)(s0);
+            }
+
+            if( j < r.width )
+            {
+                float prev = (1 - a)*(b1*CV_8TO32F(src[j]) + b2*CV_8TO32F(src2[j]));
+
+                for( ; j < r.width; j++ )
+                {
+                    float t = a12*CV_8TO32F(src[j+1]) + a22*CV_8TO32F(src2[j+1]);
+                    dst[j] = prev + t;
+                    prev = (float)(t*s);
+                }
+            }
+
+            for( ; j < win_size.width; j++ )
+            {
+                float s0 = CV_8TO32F(src[r.width])*b1 +
+                           CV_8TO32F(src2[r.width])*b2;
+
+                dst[j] = (float)(s0);
+            }
+
+            if( i < r.height )
+                src = src2;
+        }
+    }
+
+    return CV_OK;
+}
+
+
+
 #define ICV_SHIFT             16
 #define ICV_SCALE(x)          cvRound((x)*(1 << ICV_SHIFT))
 #define ICV_MUL_SCALE(x,y)    (((x)*(y) + (1 << (ICV_SHIFT-1))) >> ICV_SHIFT)
@@ -394,7 +506,7 @@ icvCopySubpix_8u32f_C1R_t icvCopySubpix_8u32f_C1R_p = 0;
 icvCopySubpix_32f_C1R_t icvCopySubpix_32f_C1R_p = 0;
 
 ICV_DEF_GET_RECT_SUB_PIX_FUNC( 8u, uchar, uchar, int, CV_NOP, ICV_SCALE, ICV_DESCALE )
-ICV_DEF_GET_RECT_SUB_PIX_FUNC( 8u32f, uchar, float, float, CV_8TO32F, CV_NOP, CV_NOP )
+//ICV_DEF_GET_RECT_SUB_PIX_FUNC( 8u32f, uchar, float, float, CV_8TO32F, CV_NOP, CV_NOP )
 ICV_DEF_GET_RECT_SUB_PIX_FUNC( 32f, float, float, float, CV_NOP, CV_NOP, CV_NOP )
 
 ICV_DEF_GET_RECT_SUB_PIX_FUNC_C3( 8u, uchar, uchar, int, CV_NOP, ICV_SCALE, ICV_MUL_SCALE )
@@ -493,32 +605,32 @@ icvGetQuadrangleSubPix_##flavor##_C1R                                       \
   dsttype *dst, int dst_step, CvSize win_size, const float *matrix )        \
 {                                                                           \
     int x, y;                                                               \
-    float dx = (win_size.width - 1)*0.5f;                                   \
-    float dy = (win_size.height - 1)*0.5f;                                  \
-    float A11 = matrix[0], A12 = matrix[1], A13 = matrix[2]-A11*dx-A12*dy;  \
-    float A21 = matrix[3], A22 = matrix[4], A23 = matrix[5]-A21*dx-A22*dy;  \
+    double dx = (win_size.width - 1)*0.5;                                   \
+    double dy = (win_size.height - 1)*0.5;                                  \
+    double A11 = matrix[0], A12 = matrix[1], A13 = matrix[2]-A11*dx-A12*dy; \
+    double A21 = matrix[3], A22 = matrix[4], A23 = matrix[5]-A21*dx-A22*dy; \
                                                                             \
     src_step /= sizeof(srctype);                                            \
     dst_step /= sizeof(dsttype);                                            \
                                                                             \
     for( y = 0; y < win_size.height; y++, dst += dst_step )                 \
     {                                                                       \
-        float xs = A12*y + A13;                                             \
-        float ys = A22*y + A23;                                             \
-        float xe = A11*(win_size.width-1) + A12*y + A13;                    \
-        float ye = A21*(win_size.height-1) + A22*y + A23;                   \
+        double xs = A12*y + A13;                                            \
+        double ys = A22*y + A23;                                            \
+        double xe = A11*(win_size.width-1) + A12*y + A13;                   \
+        double ye = A21*(win_size.width-1) + A22*y + A23;                   \
                                                                             \
-        if( (unsigned)cvFloor(xs) < (unsigned)(src_size.width - 1) &&       \
-            (unsigned)cvFloor(ys) < (unsigned)(src_size.height - 1) &&      \
-            (unsigned)cvFloor(xe) < (unsigned)(src_size.width - 1) &&       \
-            (unsigned)cvFloor(ye) < (unsigned)(src_size.height - 1))        \
+        if( (unsigned)(cvFloor(xs)-1) < (unsigned)(src_size.width - 3) &&   \
+            (unsigned)(cvFloor(ys)-1) < (unsigned)(src_size.height - 3) &&  \
+            (unsigned)(cvFloor(xe)-1) < (unsigned)(src_size.width - 3) &&   \
+            (unsigned)(cvFloor(ye)-1) < (unsigned)(src_size.height - 3))    \
         {                                                                   \
             for( x = 0; x < win_size.width; x++ )                           \
             {                                                               \
                 int ixs = cvFloor( xs );                                    \
                 int iys = cvFloor( ys );                                    \
                 const srctype *ptr = src + src_step*iys + ixs;              \
-                float a = xs - ixs, b = ys - iys, a1 = 1.f - a;             \
+                double a = xs - ixs, b = ys - iys, a1 = 1.f - a;            \
                 worktype p0 = cvt(ptr[0])*a1 + cvt(ptr[1])*a;               \
                 worktype p1 = cvt(ptr[src_step])*a1 + cvt(ptr[src_step+1])*a;\
                 xs += A11;                                                  \
@@ -532,7 +644,7 @@ icvGetQuadrangleSubPix_##flavor##_C1R                                       \
             for( x = 0; x < win_size.width; x++ )                           \
             {                                                               \
                 int ixs = cvFloor( xs ), iys = cvFloor( ys );               \
-                float a = xs - ixs, b = ys - iys, a1 = 1.f - a;             \
+                double a = xs - ixs, b = ys - iys, a1 = 1.f - a;            \
                 const srctype *ptr0, *ptr1;                                 \
                 worktype p0, p1;                                            \
                 xs += A11; ys += A21;                                       \
@@ -569,32 +681,32 @@ icvGetQuadrangleSubPix_##flavor##_C3R                                       \
   dsttype *dst, int dst_step, CvSize win_size, const float *matrix )        \
 {                                                                           \
     int x, y;                                                               \
-    float dx = (win_size.width - 1)*0.5f;                                   \
-    float dy = (win_size.height - 1)*0.5f;                                  \
-    float A11 = matrix[0], A12 = matrix[1], A13 = matrix[2]-A11*dx-A12*dy;  \
-    float A21 = matrix[3], A22 = matrix[4], A23 = matrix[5]-A21*dx-A22*dy;  \
+    double dx = (win_size.width - 1)*0.5;                                   \
+    double dy = (win_size.height - 1)*0.5;                                  \
+    double A11 = matrix[0], A12 = matrix[1], A13 = matrix[2]-A11*dx-A12*dy; \
+    double A21 = matrix[3], A22 = matrix[4], A23 = matrix[5]-A21*dx-A22*dy; \
                                                                             \
     src_step /= sizeof(srctype);                                            \
     dst_step /= sizeof(dsttype);                                            \
                                                                             \
     for( y = 0; y < win_size.height; y++, dst += dst_step )                 \
     {                                                                       \
-        float xs = A12*y + A13;                                             \
-        float ys = A22*y + A23;                                             \
-        float xe = A11*(win_size.width-1) + A12*y + A13;                    \
-        float ye = A21*(win_size.height-1) + A22*y + A23;                   \
+        double xs = A12*y + A13;                                            \
+        double ys = A22*y + A23;                                            \
+        double xe = A11*(win_size.width-1) + A12*y + A13;                   \
+        double ye = A21*(win_size.width-1) + A22*y + A23;                   \
                                                                             \
-        if( (unsigned)cvFloor(xs) < (unsigned)(src_size.width - 1) &&       \
-            (unsigned)cvFloor(ys) < (unsigned)(src_size.height - 1) &&      \
-            (unsigned)cvFloor(xe) < (unsigned)(src_size.width - 1) &&       \
-            (unsigned)cvFloor(ye) < (unsigned)(src_size.height - 1))        \
+        if( (unsigned)(cvFloor(xs)-1) < (unsigned)(src_size.width - 3) &&   \
+            (unsigned)(cvFloor(ys)-1) < (unsigned)(src_size.height - 3) &&  \
+            (unsigned)(cvFloor(xe)-1) < (unsigned)(src_size.width - 3) &&   \
+            (unsigned)(cvFloor(ye)-1) < (unsigned)(src_size.height - 3))    \
         {                                                                   \
             for( x = 0; x < win_size.width; x++ )                           \
             {                                                               \
                 int ixs = cvFloor( xs );                                    \
                 int iys = cvFloor( ys );                                    \
                 const srctype *ptr = src + src_step*iys + ixs*3;            \
-                float a = xs - ixs, b = ys - iys, a1 = 1.f - a;             \
+                double a = xs - ixs, b = ys - iys, a1 = 1.f - a;            \
                 worktype p0, p1;                                            \
                 xs += A11;                                                  \
                 ys += A21;                                                  \
@@ -617,7 +729,7 @@ icvGetQuadrangleSubPix_##flavor##_C3R                                       \
             for( x = 0; x < win_size.width; x++ )                           \
             {                                                               \
                 int ixs = cvFloor(xs), iys = cvFloor(ys);                   \
-                float a = xs - ixs, b = ys - iys;                           \
+                double a = xs - ixs, b = ys - iys;                          \
                 const srctype *ptr0, *ptr1;                                 \
                 xs += A11; ys += A21;                                       \
                                                                             \
@@ -628,7 +740,7 @@ icvGetQuadrangleSubPix_##flavor##_C3R                                       \
                                                                             \
                 if( (unsigned)ixs < (unsigned)(src_size.width - 1) )        \
                 {                                                           \
-                    float a1 = 1.f - a;                                     \
+                    double a1 = 1.f - a;                                    \
                     worktype p0, p1;                                        \
                     ptr0 += ixs*3; ptr1 += ixs*3;                           \
                     p0 = cvt(ptr0[0])*a1 + cvt(ptr0[3])*a;                  \
@@ -645,7 +757,7 @@ icvGetQuadrangleSubPix_##flavor##_C3R                                       \
                 }                                                           \
                 else                                                        \
                 {                                                           \
-                    float b1 = 1.f - b;                                     \
+                    double b1 = 1.f - b;                                    \
                     ixs = ixs < 0 ? 0 : src_size.width - 1;                 \
                     ptr0 += ixs*3; ptr1 += ixs*3;                           \
                                                                             \
@@ -673,13 +785,13 @@ icvGetQuadrangleSubPix_##flavor##_C3R                                       \
 #undef cvt
 #undef cast_macro*/
 
-ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC( 8u, uchar, uchar, float, ICV_32F8U, CV_8TO32F )
-ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC( 32f, float, float, float, CV_NOP, CV_NOP )
-ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC( 8u32f, uchar, float, float, CV_NOP, CV_8TO32F )
+ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC( 8u, uchar, uchar, double, ICV_32F8U, CV_8TO32F )
+ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC( 32f, float, float, double, CV_CAST_32F, CV_NOP )
+ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC( 8u32f, uchar, float, double, CV_CAST_32F, CV_8TO32F )
 
-ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC_C3( 8u, uchar, uchar, float, ICV_32F8U, CV_8TO32F )
-ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC_C3( 32f, float, float, float, CV_NOP, CV_NOP )
-ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC_C3( 8u32f, uchar, float, float, CV_NOP, CV_8TO32F )
+ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC_C3( 8u, uchar, uchar, double, ICV_32F8U, CV_8TO32F )
+ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC_C3( 32f, float, float, double, CV_CAST_32F, CV_NOP )
+ICV_DEF_GET_QUADRANGLE_SUB_PIX_FUNC_C3( 8u32f, uchar, float, double, CV_CAST_32F, CV_8TO32F )
 
 ICV_DEF_INIT_SUBPIX_TAB( GetQuadrangleSubPix, C1R )
 ICV_DEF_INIT_SUBPIX_TAB( GetQuadrangleSubPix, C3R )

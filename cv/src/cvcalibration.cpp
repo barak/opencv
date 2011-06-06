@@ -359,8 +359,8 @@ cvRodrigues2( const CvMat* src, CvMat* dst, CvMat* jacobian )
             if( jacobian )
             {
                 memset( J, 0, sizeof(J) );
-                J[5] = J[15] = J[19] = 1;
-                J[7] = J[11] = J[21] = -1;
+                J[5] = J[15] = J[19] = -1;
+                J[7] = J[11] = J[21] = 1;
             }
         }
         else
@@ -408,8 +408,11 @@ cvRodrigues2( const CvMat* src, CvMat* dst, CvMat* jacobian )
     }
     else if( src->cols == 3 && src->rows == 3 )
     {
-        double R[9], rx, ry, rz;
+        double R[9], U[9], V[9], W[3], rx, ry, rz;
         CvMat _R = cvMat( 3, 3, CV_64F, R );
+        CvMat _U = cvMat( 3, 3, CV_64F, U );
+        CvMat _V = cvMat( 3, 3, CV_64F, V );
+        CvMat _W = cvMat( 3, 1, CV_64F, W );
         double theta, s, c;
         int step = dst->rows > 1 ? dst->step / elem_size : 1;
         
@@ -425,17 +428,20 @@ cvRodrigues2( const CvMat* src, CvMat* dst, CvMat* jacobian )
                 cvZero(jacobian);
             EXIT;
         }
-            
+        
+        cvSVD( &_R, &_W, &_U, &_V, CV_SVD_MODIFY_A + CV_SVD_U_T + CV_SVD_V_T );
+        cvGEMM( &_U, &_V, 1, 0, 0, &_R, CV_GEMM_A_T );
+        
         rx = R[7] - R[5];
         ry = R[2] - R[6];
         rz = R[3] - R[1];
 
+        s = sqrt((rx*rx + ry*ry + rz*rz)*0.25);
         c = (R[0] + R[4] + R[8] - 1)*0.5;
         c = c > 1. ? 1. : c < -1. ? -1. : c;
         theta = acos(c);
-        s = sin(theta);
 
-        if( fabs(s) < 1e-5 )
+        if( s < 1e-5 )
         {
             double t;
 
@@ -467,7 +473,7 @@ cvRodrigues2( const CvMat* src, CvMat* dst, CvMat* jacobian )
             
             if( jacobian )
             {
-                double t, dtheta_dtr = -1./sqrt(1 - c*c);
+                double t, dtheta_dtr = -1./s;
                 // var1 = [vth;theta]
                 // var = [om1;var1] = [om1;vth;theta]
                 double dvth_dtheta = -vth*c/s;
@@ -981,8 +987,7 @@ cvFindExtrinsicCameraParams2( const CvMat* obj_points,
     // (unapply the intrinsic matrix transformation and distortion)
     for( i = 0; i < count; i++ )
     {
-        double x = m[i].x, y = m[i].y;
-        x = (x - cx)*ifx; y = (y - cy)*ify;
+        double x = (m[i].x - cx)*ifx, y = (m[i].y - cy)*ify, x0 = x, y0 = y;
 
         // compensate distortion iteratively
         if( dist_coeffs )
@@ -992,8 +997,8 @@ cvFindExtrinsicCameraParams2( const CvMat* obj_points,
                 double icdist = 1./(1 + k[0]*r2 + k[1]*r2*r2);
                 double delta_x = 2*k[2]*x*y + k[3]*(r2 + 2*x*x);
                 double delta_y = k[2]*(r2 + 2*y*y) + 2*k[3]*x*y;
-                x = (x - delta_x)*icdist;
-                y = (y - delta_y)*icdist;
+                x = (x0 - delta_x)*icdist;
+                y = (y0 - delta_y)*icdist;
             }
         mn[i].x = x; mn[i].y = y;
 
@@ -1091,7 +1096,7 @@ cvFindExtrinsicCameraParams2( const CvMat* obj_points,
             L[23] = y;
         }
 
-        cvMulTransposed( &_L, &_LL, 1 );
+        cvMulTransposed( _L, &_LL, 1 );
         cvSVD( &_LL, &_LW, 0, &_LV, CV_SVD_MODIFY_A + CV_SVD_V_T );
         _RRt = cvMat( 3, 4, CV_64F, LV + 11*12 );
         cvGetCols( &_RRt, &_RR, 0, 3 );
@@ -1145,6 +1150,7 @@ cvFindExtrinsicCameraParams2( const CvMat* obj_points,
     __END__;
 
     cvReleaseMat( &_M );
+    cvReleaseMat( &_Mxy );
     cvReleaseMat( &_m );
     cvReleaseMat( &_mn );
     cvReleaseMat( &_L );
@@ -1327,7 +1333,7 @@ cvCalibrateCamera2( const CvMat* obj_points,
         if( !CV_IS_MAT(t_vecs) || t_depth != CV_32F && t_depth != CV_64F ||
             (t_vecs->rows != img_count || t_vecs->cols*cn != 3) &&
             (t_vecs->rows != 1 || t_vecs->cols != img_count || cn != 3) )
-            CV_ERROR( CV_StsBadArg, "the output array of rotation vectors must be 3-channel "
+            CV_ERROR( CV_StsBadArg, "the output array of translation vectors must be 3-channel "
                 "1xn or nx1 array or 1-channel nx3 array, where n is the number of views" );
     }
 

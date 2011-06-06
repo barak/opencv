@@ -53,6 +53,11 @@
 #define PROC_M6     ((1<<15)|(1<<23)) /* cmov + mmx */
 #define PROC_A6     ((1<<25)|PROC_M6) /* --||-- + xmm */
 #define PROC_W7     ((1<<26)|PROC_A6) /* --||-- + emm */
+#define PROC_M7     -1
+
+#if _MSC_VER >= 1300
+#pragma warning( disable: 4996 )
+#endif
 
 /*
    determine processor type
@@ -60,8 +65,12 @@
 static int
 get_processor_type( void )
 {
-    int proc_type = PROC_PX;
+    int proc_type;
 
+#ifdef WIN64
+    proc_type = PROC_M7;
+#else
+    proc_type = PROC_PX;
     SYSTEM_INFO sys;
     GetSystemInfo( &sys );
 
@@ -120,6 +129,7 @@ get_processor_type( void )
             proc_type = features & PROC_W7;
         }
     }
+#endif
 
     return proc_type;
 }
@@ -179,8 +189,13 @@ tryLoadOpenCV( const char* name )
             version = "beta 3 (a.k.a 0.9.4) or beta 3.1 (a.k.a 0.9.5)"; // beta 3.x had cvEigenProjection and related functions
         else if( GetProcAddress( dll, "cvHoughCircles" ) == 0 )
             version = "beta 4.x (a.k.a. 0.9.5 or 0.9.6)";
+        else if( GetProcAddress( dll, "cvWatershed" ) == 0 )
+            version = "beta 5.x (a.k.a. 0.9.7)";
+        else if( GetProcAddress( dll, "cvInpaint" ) == 0 )
+            version = "1.0rc1 (a.k.a. 0.9.9)";
         else
-            version = "beta 5 (a.k.a. 0.9.7) or later";
+            version = "1.0 or later";
+            
         FreeLibrary( dll );
     }
 
@@ -236,7 +251,7 @@ static int
 find_signature( char* buffer, int size, const char* signature )
 {
     char* ptr = buffer;
-    int sig_length = strlen(signature);
+    int sig_length = (int)strlen(signature);
     
     while( ptr < buffer + size )
     {
@@ -284,7 +299,7 @@ tryLoadIPL( const char* name )
 
     HINSTANCE dll;
     const char* version = 0;
-    char* dotptr = strrchr( name, '.' );
+    const char* dotptr = strrchr( name, '.' );
     assert( dotptr != 0 );
     if( dotptr[-1] == 'l' || dotptr[-1] == 'L' ) // switcher
     {
@@ -347,10 +362,15 @@ tryLoadIppCV( const char* /*name*/, _finddata_t* finddata )
 
 void scan_folder( char* folder, int length )
 {
-    const char* cv_names[] = { "cv", "cv096", "cv097", 0 };
+    const char* cv_names[] = { "cv", "cv096", "cv097", "cv099", "cv100", 0 };
 
     _finddata_t finddata;
-    int search_id;
+#ifdef WIN64
+    intptr_t
+#else
+    int
+#endif
+        search_id;
     int i;
     const char* version = 0;
     
@@ -449,7 +469,8 @@ int main( void )
     char  folder[1024];
     int   proc_type = get_processor_type();
 
-    printf("Processor: %s or compatible\n", proc_type == PROC_W7 ? "Pentium IV" :
+    printf("Processor: %s or compatible\n", proc_type == PROC_M7 ? "EM64T-compatible" :
+                                            proc_type == PROC_W7 ? "Pentium IV" :
                                             proc_type == PROC_A6 ? "Pentium III" :
                                             proc_type == PROC_M6 ? "Pentium II" :
                                             "Generic IA32 processor"  );
@@ -458,7 +479,7 @@ int main( void )
     {
         if( *path == ';' )
         {
-            int length = path - folder_start;
+            int length = (int)(path - folder_start);
             strncpy( folder, folder_start, length );
             folder[length] = '\0';
             //printf( "%s\n", buffer );
@@ -471,6 +492,3 @@ int main( void )
 }
 
 /* End of file. */
-
-
-

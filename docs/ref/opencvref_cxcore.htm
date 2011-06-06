@@ -1150,7 +1150,7 @@ floating-point sparse array.</font>
 
     for( ; node != 0; node = cvGetNextSparseNode( &amp;mat_iterator ))
     {
-        int* idx = CV_NODE_IDX( array, node ); /* get pointer to the element indices */
+        const int* idx = CV_NODE_IDX( array, node ); /* get pointer to the element indices */
         float val = *(float*)CV_NODE_VAL( array, node ); /* get value of the element
                                                           (assume that the type is CV_32FC1) */
         printf( "(" );
@@ -1214,7 +1214,7 @@ for( i = 0; i &lt; dims; i++ )
 uchar* cvPtr1D( const CvArr* arr, int idx0, int* type=NULL );
 uchar* cvPtr2D( const CvArr* arr, int idx0, int idx1, int* type=NULL );
 uchar* cvPtr3D( const CvArr* arr, int idx0, int idx1, int idx2, int* type=NULL );
-uchar* cvPtrND( const CvArr* arr, int* idx, int* type=NULL, int create_node=1, unsigned* precalc_hashval=NULL );
+uchar* cvPtrND( const CvArr* arr, const int* idx, int* type=NULL, int create_node=1, unsigned* precalc_hashval=NULL );
 </pre><p><dl>
 <dt>arr<dd>Input array.
 <dt>idx0<dd>The first zero-based component of the element index
@@ -1247,7 +1247,7 @@ raise an error in case if the element index is out of range.
 CvScalar cvGet1D( const CvArr* arr, int idx0 );
 CvScalar cvGet2D( const CvArr* arr, int idx0, int idx1 );
 CvScalar cvGet3D( const CvArr* arr, int idx0, int idx1, int idx2 );
-CvScalar cvGetND( const CvArr* arr, int* idx );
+CvScalar cvGetND( const CvArr* arr, const int* idx );
 </pre><p><dl>
 <dt>arr<dd>Input array.
 <dt>idx0<dd>The first zero-based component of the element index
@@ -1266,7 +1266,7 @@ by the functions)</p>
 double cvGetReal1D( const CvArr* arr, int idx0 );
 double cvGetReal2D( const CvArr* arr, int idx0, int idx1 );
 double cvGetReal3D( const CvArr* arr, int idx0, int idx1, int idx2 );
-double cvGetRealND( const CvArr* arr, int* idx );
+double cvGetRealND( const CvArr* arr, const int* idx );
 </pre><p><dl>
 <dt>arr<dd>Input array. Must have a single channel.
 <dt>idx0<dd>The first zero-based component of the element index
@@ -1303,7 +1303,7 @@ checks for the row and column ranges only in debug mode.</p>
 void cvSet1D( CvArr* arr, int idx0, CvScalar value );
 void cvSet2D( CvArr* arr, int idx0, int idx1, CvScalar value );
 void cvSet3D( CvArr* arr, int idx0, int idx1, int idx2, CvScalar value );
-void cvSetND( CvArr* arr, int* idx, CvScalar value );
+void cvSetND( CvArr* arr, const int* idx, CvScalar value );
 </pre><p><dl>
 <dt>arr<dd>Input array.
 <dt>idx0<dd>The first zero-based component of the element index
@@ -1322,7 +1322,7 @@ In case of sparse array the functions create the node if it does not exist yet</
 void cvSetReal1D( CvArr* arr, int idx0, double value );
 void cvSetReal2D( CvArr* arr, int idx0, int idx1, double value );
 void cvSetReal3D( CvArr* arr, int idx0, int idx1, int idx2, double value );
-void cvSetRealND( CvArr* arr, int* idx, double value );
+void cvSetRealND( CvArr* arr, const int* idx, double value );
 </pre><p><dl>
 <dt>arr<dd>Input array.
 <dt>idx0<dd>The first zero-based component of the element index
@@ -1357,7 +1357,7 @@ checks for the row and column ranges only in debug mode.</p>
 <hr><h3><a name="decl_cvClearND">ClearND</a></h3>
 <p class="Blurb">Clears the particular array element</p>
 <pre>
-void cvClearND( CvArr* arr, int* idx );
+void cvClearND( CvArr* arr, const int* idx );
 </pre><p><dl>
 <dt>arr<dd>Input array.
 <dt>idx<dd>Array of the element indices
@@ -1417,6 +1417,40 @@ The function <code>cvSetZero</code> clears the array. In case of dense arrays
 (CvMat, CvMatND or IplImage) cvZero(array) is equivalent to cvSet(array,cvScalarAll(0),0),
 in case of sparse arrays all the elements are removed.</p>
 
+
+<hr><h3><a name="decl_cvSetIdentity">SetIdentity</a></h3>
+<p class="Blurb">Initializes scaled identity matrix</p>
+<pre>
+void cvSetIdentity( CvArr* mat, CvScalar value=cvRealScalar(1) );
+</pre><p><dl>
+<dt>arr<dd>The matrix to initialize (not necesserily square).
+<dt>value<dd>The value to assign to the diagonal elements.
+</dl><p>
+The function <code>cvSetIdentity</code> initializes scaled identity matrix:</p>
+<pre>
+arr(i,j)=value if i=j,
+       0 otherwise
+</pre>
+
+
+<hr><h3><a name="decl_cvRange">Range</a></h3>
+<p class="Blurb">Fills matrix with given range of numbers</p>
+<pre>
+void cvRange( CvArr* mat, double start, double end );
+</pre><p><dl>
+<dt>mat<dd>The matrix to initialize. It should be single-channel 32-bit, integer or floating-point.
+<dt>start<dd>The lower inclusive boundary of the range.
+<dt>end<dd>The upper exclusive boundary of the range.
+</dl><p>
+The function <code>cvRange</code> initializes the matrix as following:</p>
+<pre>
+arr(i,j)=(end-start)*(i*cols(arr)+j)/(cols(arr)*rows(arr))
+</pre>
+For example, the following code will initilize 1D vector with subsequent integer numbers.
+<pre>
+CvMat* A = cvCreateMat( 1, 10, CV_32S );
+cvRange( A, 0, A->cols ); // A will be initialized as [0,1,2,3,4,5,6,7,8,9]
+</pre>
 
 <!-- *****************************************************************************************
      *****************************************************************************************
@@ -1583,6 +1617,63 @@ otherwise if only a single source channel of the first N is not NULL, this parti
 into the destination array, otherwise an error is raised. Rest of source channels (beyond the first N)
 must always be NULL.
 For IplImage <a href="#decl_cvCopy">cvCopy</a> with COI set can be also used to insert a single channel into the image.
+</p>
+
+
+<hr><h3><a name="decl_cvMixChannels">MixChannels</a></h3>
+<p class="Blurb">Copies several channels from input arrays to
+   certain channels of output arrays</p>
+<pre>
+void cvMixChannels( const CvArr** src, int src_count,
+                    CvArr** dst, int dst_count,
+                    const int* from_to, int pair_count );
+</pre><p><dl>
+<dt>src<dd>The array of input arrays.
+<dt>src_count<dd>The number of input arrays.
+<dt>dst<dd>The array of output arrays.
+<dt>dst_count<dd>The number of output arrays.
+<dt>from_to<dd>The array of pairs of indices of the planes copied.
+<code>from_to[k*2]</code> is the 0-based index of the input plane,
+and <code>from_to[k*2+1]</code> is the index of the output plane, where the continuous numbering
+of the planes over all the input and over all the output arrays is used.
+When <code>from_to[k*2]</code> is negative, the corresponding output plane is filled with 0's.
+<dt>pair_count<dd>The number of pairs in <code>from_to</code>, or the number of the planes copied.
+</dl><p>
+The function <code>cvMixChannels</code> is a generalized form of <a href="#decl_cvSplit">cvSplit</a> and
+<a href="#decl_cvMerge">cvMerge</a> and some forms of <a href="opencvref_cv.htm#decl_cvCvtColor">cvCvtColor</a>.
+It can be used to change the order of the planes, add/remove alpha
+channel, extract or insert a single plane or multiple planes etc.
+Below is the example, how to split 4-channel RGBA image into 3-channel BGR (i.e. with R&B swapped) and
+separate alpha channel images:</p>
+<pre>
+    CvMat* rgba = cvCreateMat( 100, 100, CV_8UC4 );
+    CvMat* bgr = cvCreateMat( rgba->rows, rgba->cols, CV_8UC3 );
+    CvMat* alpha = cvCreateMat( rgba->rows, rgba->cols, CV_8UC1 );
+    CvArr* out[] = { bgr, alpha };
+    int from_to[] = { 0, 2, 1, 1, 2, 0, 3, 3 };
+    cvSet( rgba, cvScalar(1,2,3,4) );
+    cvMixChannels( (const CvArr**)&rgba, 1, out, 2, from_to, 4 );
+</pre>
+
+
+<hr><h3><a name="decl_cvRandShuffle">RandShuffle</a></h3>
+<p class="Blurb">Randomly shuffles the array elements</p>
+<pre>
+void cvRandShuffle( CvArr* mat, CvRNG* rng, double iter_factor=1. );
+</pre><p><dl>
+<dt>mat<dd>The input/output matrix. It is shuffled in-place.
+<dt>rng<dd>The <a href="#cxcore_arrays_rng">Random Number Generator</a>
+           used to shuffle the elements. When the pointer is NULL,
+           a temporary RNG will be created and used.
+<dt>iter_factor<dd>The relative parameter that characterizes intensity of the shuffling performed.
+                   See the description below.
+</dl><p>
+The function <code>cvRandShuffle</code> shuffles the matrix by swapping randomly chosen pairs
+of the matrix elements on each iteration (where each element may contain several components in case of multi-channel arrays).
+The number of iterations (i.e. pairs swapped) is <code>round(iter_factor*rows(mat)*cols(mat))</code>, so
+<code>iter_factor=0</code> means that no shuffling is done,
+<code>iter_factor=1</code> means that the function swaps
+<code>rows(mat)*cols(mat)</code> random pairs etc.
 </p>
 
 
@@ -2272,26 +2363,37 @@ are combined.
 </p>
 
 
+<hr><h3><a name="decl_cvReduce">Reduce</a></h3>
+<p class="Blurb">Reduces matrix to a vector</p>
+<pre>
+void cvReduce( const CvArr* src, CvArr* dst, int op=CV_REDUCE_SUM );
+</pre><p><dl>
+<dt>src<dd>The input matrix.
+<dt>dst<dd>The output single-row/single-column vector that accumulates
+           somehow all the matrix rows/columns.
+<dt>dim<dd>The dimension index along which the matrix is reduce.
+           0 means that the matrix is reduced to a single row,
+           1 means that the matrix is reduced to a single column.
+           -1 means that the dimension is chosen automatically by analysing the <code>dst</code> size.
+<dt>op<dd>The reduction operation. It can take of the following values:<br>
+           <code>CV_REDUCE_SUM</code> - the output is the sum of all the matrix rows/columns.<br>
+           <code>CV_REDUCE_AVG</code> - the output is the mean vector of all the matrix rows/columns.<br>
+           <code>CV_REDUCE_MAX</code> - the output is the maximum (column/row-wise) of all the matrix rows/columns.<br>
+           <code>CV_REDUCE_MIN</code> - the output is the minimum (column/row-wise) of all the matrix rows/columns.<br>
+</dl><p>
+The function <code>cvReduce</code> reduces matrix to a vector by treating the matrix rows/columns as a set
+of 1D vectors and performing the specified operation on the vectors until a single row/column is obtained.
+For example, the function can be used to compute horizontal and vertical projections of an raster image.
+In case of <code>CV_REDUCE_SUM</code> and <code>CV_REDUCE_AVG</code> the output may have a larger
+element bit-depth to preserve accuracy. And multi-channel arrays are also supported in these two reduction modes.
+</p>
+
+
 <!-- *****************************************************************************************
      *****************************************************************************************
      ***************************************************************************************** -->
 
 <hr><h2><a name="cxcore_arrays_matrix">Linear Algebra</a></h2>
-
-<hr><h3><a name="decl_cvSetIdentity">SetIdentity</a></h3>
-<p class="Blurb">Initializes scaled identity matrix</p>
-<pre>
-void cvSetIdentity( CvArr* mat, CvScalar value=cvRealScalar(1) );
-</pre><p><dl>
-<dt>arr<dd>The matrix to initialize (not necesserily square).
-<dt>value<dd>The value to assign to the diagonal elements.
-</dl><p>
-The function <code>cvSetIdentity</code> initializes scaled identity matrix:</p>
-<pre>
-arr(i,j)=value if i=j,
-       0 otherwise
-</pre>
-
 
 <hr><h3><a name="decl_cvDotProduct">DotProduct</a></h3>
 <p class="Blurb">Calculates dot product of two arrays in Euclidian metrics</p>
@@ -2310,6 +2412,50 @@ accumulated. In particular, <code><a href="#decl_cvDotProduct">cvDotProduct</a>(
 where <code>a</code> is a complex vector, will return <code>||a||<sup>2</sup></code>.
 The function can process multi-dimensional arrays, row by row, layer by layer and so on.</p>
 
+
+<hr><h3><a name="decl_cvNormalize">Normalize</a></h3>
+<p class="Blurb">Normalizes array to a certain norm or value range</p>
+<pre>
+void cvNormalize( const CvArr* src, CvArr* dst,
+                  double a=1, double b=0, int norm_type=CV_L2,
+                  const CvArr* mask=NULL );
+</pre><p><dl>
+<dt>src<dd>The input array.
+<dt>dst<dd>The output array; in-place operation is supported.
+<dt>a<dd>The minimum/maximum value of the output array or the norm of output array.
+<dt>b<dd>The maximum/minimum value of the output array.
+<dt>norm_type<dd>The normalization type. It can take one of the following values:<br>
+    <code>CV_C</code> - the C-norm (maximum of absolute values) of the array is normalized.<br>
+    <code>CV_L1</code> - the L<sub>1</sub>-norm (sum of absolute values) of the array is normalized.<br>
+    <code>CV_L2</code> - the (Euclidian) L<sub>2</sub>-norm of the array is normalized.<br>
+    <code>CV_MINMAX</code> - the array values are scaled and shifted to the specified range.<br>
+<dt>mask<dd>The operation mask. Makes the function consider and normalize only certain array elements.
+</dl><p>
+The function <code>cvNormalize</code> normalizes the input array so that it's norm or value
+range takes the certain value(s).</p>
+<p>When <code>norm_type==CV_MINMAX</code>:
+<pre>
+    dst(i,j)=(src(i,j)-min(src))*(b'-a')/(max(src)-min(src)) + a',  if mask(i,j)!=0
+    dst(i,j)=src(i,j)  otherwise
+</pre>
+where <code>b'=MAX(a,b)</code>, <code>a'=MIN(a,b)</code>;<br>
+<code>min(src)</code> and <code>max(src)</code> are the global minimum and maximum, respectively,
+of the input array, computed over the whole array or the specified subset of it.
+<p>When <code>norm_type!=CV_MINMAX</code>:
+<pre>
+    dst(i,j)=src(i,j)*a/<a href="#decl_cvNorm">cvNorm</a>(src,0,norm_type,mask), if mask(i,j)!=0
+    dst(i,j)=src(i,j)  otherwise
+</pre>
+<p>Here is the short example:</p>
+<pre>
+float v[3] = { 1, 2, 3 };
+CvMat V = cvMat( 1, 3, CV_32F, v );
+
+// make vector v unit-length;
+// equivalent to
+//   for(int i=0;i&lt;3;i++) v[i]/=sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+cvNormalize( &V, &V );
+</pre>
 
 <hr><h3><a name="decl_cvCrossProduct">CrossProduct</a></h3>
 <p class="Blurb">Calculates cross product of two 3D vectors</p>
@@ -2500,7 +2646,7 @@ The SVD methods calculate a pseudo-inverse matrix if <code>src1</code> is singul
 <hr><h3><a name="decl_cvSolve">Solve</a></h3>
 <p class="Blurb">Solves linear system or least-squares problem</p>
 <pre>
-int cvSolve( const CvArr* src1, const CvArr* src2, CvArr* dst, int method=CV_LU );
+int cvSolve( const CvArr* A, const CvArr* B, CvArr* X, int method=CV_LU );
 </pre><p><dl>
 <dt>A<dd>The source matrix.
 <dt>B<dd>The right-hand part of the linear system.
@@ -2513,7 +2659,7 @@ int cvSolve( const CvArr* src1, const CvArr* src2, CvArr* dst, int method=CV_LU 
 The function <code>cvSolve</code> solves linear system or least-squares problem (the latter
 is possible with SVD methods):</p>
 <pre>
-dst = arg min<sub>X</sub>||src1*X-src2||
+dst = arg min<sub>X</sub>||A*X-B||
 </pre>
 <p>If <code>CV_LU</code> method is used, the function returns 1 if <code>src1</code> is non-singular and
 0 otherwise, in the latter case <code>dst</code> is not valid</p>
@@ -2620,7 +2766,15 @@ The function <code>cvEigenVV</code> computes the eigenvalues and eigenvectors of
 <p>Currently the function is slower than <a href="#decl_cvSVD">cvSVD</a> yet less accurate,
 so if <code>A</code> is known to be positively-defined (for example, it is a covariation matrix),
 it is recommended to use <a href="#decl_cvSVD">cvSVD</a> to find eigenvalues and eigenvectors of <code>A</code>,
-especially if eigenvectors are not required.</p>
+especially if eigenvectors are not required. That is, instead of
+<pre>
+cvEigenVV(mat, eigenvals, eigenvects);
+</pre>
+call
+<pre>
+cvSVD(mat, eigenvals, eigenvects, 0, CV_SVD_U_T + CV_SVD_MODIFY_A);
+</pre>
+</p>
 
 
 <hr><h3><a name="decl_cvCalcCovarMatrix">CalcCovarMatrix</a></h3>
@@ -2651,14 +2805,17 @@ void cvCalcCovarMatrix( const CvArr** vects, int count, CvArr* cov_mat, CvArr* a
                        has been already calculated somehow, or if the covariation matrix is calculated by parts - in this case,
                        <code>avg</code> is not a mean vector of the input sub-set of vectors, but rather the mean vector of
                        the whole set.<br>
-                 <code>CV_COVAR_SCALE</code> - if the flag is specified, the covariation matrix is scaled.
-                       In the "normal" mode <code>scale</code> is <code>1./count</code>, in the "scrambled" mode <code>scale</code> is
-                       reciprocal of the total number of elements in every input vector. By default (if the flag is not specified)
-                       the covariation matrix is not scaled (<code>scale=1</code>).
+                 <code>CV_COVAR_SCALE</code> - if the flag is specified, the covariation matrix is scaled by
+                       the number of input vectors.
+                 <code>CV_COVAR_ROWS</code> - Means that all the input vectors are stored as rows of a single matrix, <code>vects[0]</code>.
+                       <code>count</code> is ignored in this case, and <code>avg</code> should be a single-row vector of an appropriate size.
+                 <code>CV_COVAR_COLS</code> - Means that all the input vectors are stored as columns of a single matrix, <code>vects[0]</code>.
+                       <code>count</code> is ignored in this case, and <code>avg</code> should be a single-column vector of an appropriate size.
 </dl><p>
 The function <code>cvCalcCovarMatrix</code> calculates the covariation matrix and, optionally,
 mean vector of the set of input vectors. The function can be used for PCA, for comparing vectors using Mahalanobis distance etc.
 </p>
+
 
 <hr><h3><a name="decl_cvMahalonobis">Mahalonobis</a></h3>
 <p class="Blurb">Calculates Mahalonobis distance between two vectors</p>
@@ -2677,6 +2834,80 @@ d(vec1,vec2)=sqrt( sum<sub>i,j</sub> {mat(i,j)*(vec1(i)-vec2(i))*(vec1(j)-vec2(j
 <p>The covariation matrix may be calculated using <a href="#decl_cvCalcCovarMatrix">cvCalcCovarMatrix</a> function and further
 inverted using <a href="#decl_cvInvert">cvInvert</a> function (CV_SVD method is the preffered one, because the matrix
 might be singular).</p>
+
+
+<hr><h3><a name="decl_cvCalcPCA">CalcPCA</a></h3>
+<p class="Blurb">Performs Principal Component Analysis of a vector set</p>
+<pre>
+void cvCalcPCA( const CvArr* data, CvArr* avg,
+                CvArr* eigenvalues, CvArr* eigenvectors, int flags );
+</pre><p><dl>
+<dt>data<dd>The input data; each vector is either a single row (<code>CV_PCA_DATA_AS_ROW</code>)
+            or a single column (<code>CV_PCA_DATA_AS_COL</code>).
+<dt>avg<dd>The mean (average) vector, computed inside the function or provided by user.
+<dt>eigenvalues<dd>The output eigenvalues of covariation matrix.
+<dt>eigenvectors<dd>The output eigenvectors of covariation matrix (i.e. principal components);
+                    one vector per row.
+<dt>flags<dd>The operation flags, a combination of the following values:<br>
+             <code>CV_PCA_DATA_AS_ROW</code> - the vectors are stored as rows
+             (i.e. all the components of a certain vector are stored continously)<br>
+             <code>CV_PCA_DATA_AS_COL</code> - the vectors are stored as columns
+             (i.e. values of a certain vector component are stored continuously)<br>
+             (the above two flags are mutually exclusive)<br>
+             <code>CV_PCA_USE_AVG</code> - use pre-computed average vector<br>
+</dl><p>
+The function <code>cvCalcPCA</code> performs PCA analysis of the vector set.
+First, it uses <a href="#decl_cvCalcCovarMatrix">cvCalcCovarMatrix</a> to compute covariation matrix
+and then it finds its eigenvalues and eigenvectors. The output number of eigenvalues/eigenvectors
+should be less than or equal to <code>MIN(rows(data),cols(data))</code>.
+
+
+<hr><h3><a name="decl_cvProjectPCA">ProjectPCA</a></h3>
+<p class="Blurb">Projects vectors to the specified subspace</p>
+<pre>
+void cvProjectPCA( const CvArr* data, const CvArr* avg,
+                   const CvArr* eigenvectors, CvArr* result )
+</pre><p><dl>
+<dt>data<dd>The input data; each vector is either a single row
+            or a single column.
+<dt>avg<dd>The mean (average) vector. If it is a single-row vector,
+           it means that the input vectors are stored as rows of <code>data</code>;
+           otherwise, it should be a single-column vector,
+           then the vectors are stored as columns of <code>data</code>.
+<dt>eigenvectors<dd>The eigenvectors (principal components); one vector per row.
+<dt>result<dd>The output matrix of decomposition coefficients. The number of rows must be
+              the same as the number of vectors, the number of columns must
+              be less than or equal to the number of rows in <code>eigenvectors</code>.
+              That it is less, the input vectors are projected into subspace
+              of the first <code>cols(result)</code> principal components.
+</dl><p>
+The function <code>cvProjectPCA</code> projects input vectors to the subspace represented by the
+orthonormal basis (<code>eigenvectors</code>). Before computing the dot products, <code>avg</code>
+vector is subtracted from the input vectors:</p>
+<pre>
+result(i,:)=(data(i,:)-avg)*eigenvectors' // for CV_PCA_DATA_AS_ROW layout.
+</pre>
+
+
+<hr><h3><a name="decl_cvBackProjectPCA">BackProjectPCA</a></h3>
+<p class="Blurb">Reconstructs the original vectors from the projection coefficients</p>
+<pre>
+void cvBackProjectPCA( const CvArr* proj, const CvArr* avg,
+                       const CvArr* eigenvects, CvArr* result );
+</pre><p><dl>
+<dt>proj<dd>The input data; in the same format as <code>result</code> in
+            <a href="#decl_cvProjectPCA">cvProjectPCA</a>.
+<dt>avg<dd>The mean (average) vector. If it is a single-row vector,
+           it means that the output vectors are stored as rows of <code>result</code>;
+           otherwise, it should be a single-column vector,
+           then the vectors are stored as columns of <code>result</code>.
+<dt>eigenvectors<dd>The eigenvectors (principal components); one vector per row.
+<dt>result<dd>The output matrix of reconstructed vectors.
+</dl><p>
+The function <code>cvBackProjectPCA</code> reconstructs the vectors from the projection coefficients:</p>
+<pre>
+result(i,:)=proj(i,:)*eigenvectors + avg // for CV_PCA_DATA_AS_ROW layout.
+</pre>
 
 
 <hr><h2><a name="cxcore_arrays_math">Math Functions</a></h2>
@@ -2888,7 +3119,7 @@ Where <code>C</code> is large negative number (&asymp;-700 in the current implem
 <hr><h3><a name="decl_cvSolveCubic">SolveCubic</a></h3>
 <p class="Blurb">Finds real roots of a cubic equation</p>
 <pre>
-void cvSolveCubic( const CvArr* coeffs, CvArr* roots );
+int cvSolveCubic( const CvMat* coeffs, CvMat* roots );
 </pre><p><dl>
 <dt>coeffs<dd>The equation coefficients, array of 3 or 4 elements.
 <dt>roots<dd>The output array of real roots. Should have 3 elements.
@@ -5011,6 +5242,26 @@ given in degrees. The picture below explains the meaning of the parameters.</p>
 </p>
 
 
+<hr><h3><a name="decl_cvEllipseBox">EllipseBox</a></h3>
+<p class="Blurb">Draws simple or thick elliptic arc or fills ellipse sector</p>
+<pre>
+void cvEllipseBox( CvArr* img, CvBox2D box, CvScalar color,
+                   int thickness=1, int line_type=8, int shift=0 );
+</pre><p><dl>
+<dt>img<dd>Image.
+<dt>box<dd>The enclosing box of the ellipse drawn
+<dt>thickness<dd>Thickness of the ellipse boundary.
+<dt>line_type<dd>Type of the ellipse boundary, see <a href="#decl_cvLine">cvLine</a> description.
+<dt>shift<dd>Number of fractional bits in the box vertex coordinates.
+</dl><p>
+The function <code>cvEllipseBox</code> draws a simple or thick ellipse outline,
+or fills an ellipse. The functions provides a convenient way to draw an ellipse
+approximating some shape; that is what <a href="opencvref_cv.htm#decl_cvCamShift">cvCamShift</a>
+and <a href="opencvref_cv.htm#decl_cvFitEllipse">cvFitEllipse</a> do.
+The ellipse drawn is clipped by ROI rectangle. A piecewise-linear
+approximation is used for antialiased arcs and thick arcs.</p>
+
+
 <hr><h3><a name="decl_cvFillPoly">FillPoly</a></h3>
 <p class="Blurb">Fills polygons interior</p>
 <pre>
@@ -5148,7 +5399,7 @@ string when a specified font is used.</p>
 void cvDrawContours( CvArr *img, CvSeq* contour,
                      CvScalar external_color, CvScalar hole_color,
                      int max_level, int thickness=1,
-                     int line_type=8 );
+                     int line_type=8, CvPoint offset=cvPoint(0,0) );
 </pre><p><dl>
 <dt>img<dd>Image where the contours are to be drawn. Like in any other drawing
 function, the contours are clipped with the ROI.
@@ -5163,6 +5414,9 @@ but draws child contours of <code>contour</code> up to abs(<code>max_level</code
 <dt>thickness<dd>Thickness of lines the contours are drawn with. If it is negative (e.g. =CV_FILLED),
 the contour interiors are drawn.
 <dt>line_type<dd>Type of the contour segments, see <a href="#decl_cvLine">cvLine</a> description.
+<dt>offset<dd>Shift all the point coordinates by the specified value.
+              It is useful in case if the contours retrived in some image ROI and
+              then the ROI offset needs to be taken into account during the rendering.
 </dl><p>
 The function <code>cvDrawContours</code> draws contour outlines in the image if <code>thickness</code>&gt;=0
 or fills area bounded by the contours if <code>thickness</code>&lt;0.
@@ -6839,7 +7093,7 @@ functions using <a href="#decl_cvSetMemoryManager">cvSetMemoryManager</a> functi
 <hr><h3><a name="decl_cvFree">Free</a></h3>
 <p class="Blurb">Deallocates memory buffer</p>
 <pre>
-void cvFree( void** ptr );
+void cvFree( T** ptr );
 </pre><p><dl>
 <dt>buffer<dd>Double pointer to released buffer.
 </dl><p>
@@ -7005,6 +7259,43 @@ or if all the allocation/deallocation is done by IPL and some of OpenCV function
 process the data.</p>
 
 
+<hr><h3><a name="decl_cvGetNumThreads">GetNumThreads</a></h3>
+<p class="Blurb">Returns the current number of threads used</p>
+<pre>
+int cvGetNumThreads(void);
+</pre>
+<p>
+The function <code>cvGetNumThreads</code> return the current number of threads
+that are used by parallelized (via OpenMP) OpenCV functions.</p>
+
+
+<hr><h3><a name="decl_cvSetNumThreads">SetNumThreads</a></h3>
+<p class="Blurb">Sets the number of threads</p>
+<pre>
+void cvSetNumThreads( int threads=0 );
+</pre><p><dl>
+<dt>threads<dd>The number of threads.
+</dl><p>
+The function <code>cvSetNumThreads</code> sets the number of threads
+that are used by parallelized OpenCV functions. When the argument
+is zero or negative, and at the beginning of the program,
+the number of threads is set to the number of processors in the system,
+as returned by the function <code>omp_get_num_procs()</code> from OpenMP runtime.
+</p>
+
+
+<hr><h3><a name="decl_cvGetThreadNum">GetThreadNum</a></h3>
+<p class="Blurb">Returns index of the current thread</p>
+<pre>
+int cvGetThreadNum( void );
+</pre><p>
+The function <code>cvGetThreadNum</code> returns the index, from 0 to
+<a href="#decl_cvGetNumThreads">cvGetNumThreads</a>()-1, of the thread that called the function.
+It is a wrapper for the function <code>omp_get_thread_num()</code> from OpenMP runtime.
+The retrieved index may be used to access local-thread data inside the parallelized code fragments.
+</p>
+
+
 <hr><h1><a name="cxcore_func_index">Alphabetical List of Functions</a></h1>
 
 <hr><h3>A</h3>
@@ -7030,10 +7321,23 @@ process the data.</p>
 <td width="25%%"></td>
 </tr>
 </table>
+<hr><h3>B</h3>
+<table width="100%">
+<tr>
+<td width="25%"><a href="#decl_cvBackProjectPCA">BackProjectPCA</a></td>
+<td width="25%%"></td>
+<td width="25%%"></td>
+</tr>
+</table>
 <hr><h3>C</h3>
 <table width="100%">
 <tr>
 <td width="25%"><a href="#decl_cvCalcCovarMatrix">CalcCovarMatrix</a></td>
+<td width="25%"><a href="#decl_cvCloneGraph">CloneGraph</a></td>
+<td width="25%"><a href="#decl_cvCreateGraph">CreateGraph</a></td>
+</tr>
+<tr>
+<td width="25%"><a href="#decl_cvCalcPCA">CalcPCA</a></td>
 <td width="25%"><a href="#decl_cvCloneImage">CloneImage</a></td>
 <td width="25%"><a href="#decl_cvCreateGraphScanner">CreateGraphScanner</a></td>
 </tr>
@@ -7097,11 +7401,6 @@ process the data.</p>
 <td width="25%"><a href="#decl_cvCreateData">CreateData</a></td>
 <td width="25%"><a href="#decl_cvCvtSeqToArray">CvtSeqToArray</a></td>
 </tr>
-<tr>
-<td width="25%"><a href="#decl_cvCloneGraph">CloneGraph</a></td>
-<td width="25%"><a href="#decl_cvCreateGraph">CreateGraph</a></td>
-<td width="25%%"></td>
-</tr>
 </table>
 <hr><h3>D</h3>
 <table width="100%">
@@ -7125,18 +7424,18 @@ process the data.</p>
 <table width="100%">
 <tr>
 <td width="25%"><a href="#decl_cvEigenVV">EigenVV</a></td>
+<td width="25%"><a href="#decl_cvEllipseBox">EllipseBox</a></td>
+<td width="25%"><a href="#decl_cvError">Error</a></td>
+</tr>
+<tr>
+<td width="25%"><a href="#decl_cvEllipse">Ellipse</a></td>
 <td width="25%"><a href="#decl_cvEndWriteSeq">EndWriteSeq</a></td>
 <td width="25%"><a href="#decl_cvErrorStr">ErrorStr</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvEllipse">Ellipse</a></td>
+<td width="25%"><a href="#decl_cvEllipse2Poly">Ellipse2Poly</a></td>
 <td width="25%"><a href="#decl_cvEndWriteStruct">EndWriteStruct</a></td>
 <td width="25%"><a href="#decl_cvExp">Exp</a></td>
-</tr>
-<tr>
-<td width="25%"><a href="#decl_cvEllipse2Poly">Ellipse2Poly</a></td>
-<td width="25%"><a href="#decl_cvError">Error</a></td>
-<td width="25%%"></td>
 </tr>
 </table>
 <hr><h3>F</h3>
@@ -7166,22 +7465,22 @@ process the data.</p>
 <table width="100%">
 <tr>
 <td width="25%"><a href="#decl_cvGEMM">GEMM</a></td>
-<td width="25%"><a href="#decl_cvGetImageROI">GetImageROI</a></td>
+<td width="25%"><a href="#decl_cvGetMat">GetMat</a></td>
 <td width="25%"><a href="#decl_cvGetTickCount">GetTickCount</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvGet*D">Get*D</a></td>
-<td width="25%"><a href="#decl_cvGetMat">GetMat</a></td>
+<td width="25%"><a href="#decl_cvGetModuleInfo">GetModuleInfo</a></td>
 <td width="25%"><a href="#decl_cvGetTickFrequency">GetTickFrequency</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvGetCol">GetCol</a></td>
-<td width="25%"><a href="#decl_cvGetModuleInfo">GetModuleInfo</a></td>
+<td width="25%"><a href="#decl_cvGetNextSparseNode">GetNextSparseNode</a></td>
 <td width="25%"><a href="#decl_cvGraphAddEdge">GraphAddEdge</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvGetDiag">GetDiag</a></td>
-<td width="25%"><a href="#decl_cvGetNextSparseNode">GetNextSparseNode</a></td>
+<td width="25%"><a href="#decl_cvGetNumThreads">GetNumThreads</a></td>
 <td width="25%"><a href="#decl_cvGraphAddEdgeByPtr">GraphAddEdgeByPtr</a></td>
 </tr>
 <tr>
@@ -7238,6 +7537,11 @@ process the data.</p>
 <td width="25%"><a href="#decl_cvGetImageCOI">GetImageCOI</a></td>
 <td width="25%"><a href="#decl_cvGetTextSize">GetTextSize</a></td>
 <td width="25%"><a href="#decl_cvmGet">Get</a></td>
+</tr>
+<tr>
+<td width="25%"><a href="#decl_cvGetImageROI">GetImageROI</a></td>
+<td width="25%"><a href="#decl_cvGetThreadNum">GetThreadNum</a></td>
+<td width="25%%"></td>
 </tr>
 </table>
 <hr><h3>I</h3>
@@ -7299,22 +7603,22 @@ process the data.</p>
 <tr>
 <td width="25%"><a href="#decl_cvMakeSeqHeaderForArray">MakeSeqHeaderForArray</a></td>
 <td width="25%"><a href="#decl_cvMemStorageAllocString">MemStorageAllocString</a></td>
-<td width="25%"><a href="#decl_cvMul">Mul</a></td>
+<td width="25%"><a href="#decl_cvMixChannels">MixChannels</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvMat">Mat</a></td>
 <td width="25%"><a href="#decl_cvMerge">Merge</a></td>
-<td width="25%"><a href="#decl_cvMulSpectrums">MulSpectrums</a></td>
+<td width="25%"><a href="#decl_cvMul">Mul</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvMax">Max</a></td>
 <td width="25%"><a href="#decl_cvMin">Min</a></td>
-<td width="25%"><a href="#decl_cvMulTransposed">MulTransposed</a></td>
+<td width="25%"><a href="#decl_cvMulSpectrums">MulSpectrums</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvMaxS">MaxS</a></td>
 <td width="25%"><a href="#decl_cvMinMaxLoc">MinMaxLoc</a></td>
-<td width="25%%"></td>
+<td width="25%"><a href="#decl_cvMulTransposed">MulTransposed</a></td>
 </tr>
 </table>
 <hr><h3>N</h3>
@@ -7322,12 +7626,12 @@ process the data.</p>
 <tr>
 <td width="25%"><a href="#decl_cvNextGraphItem">NextGraphItem</a></td>
 <td width="25%"><a href="#decl_cvNorm">Norm</a></td>
-<td width="25%"><a href="#decl_cvNulDevReport">NulDevReport</a></td>
+<td width="25%"><a href="#decl_cvNot">Not</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvNextTreeNode">NextTreeNode</a></td>
-<td width="25%"><a href="#decl_cvNot">Not</a></td>
-<td width="25%%"></td>
+<td width="25%"><a href="#decl_cvNormalize">Normalize</a></td>
+<td width="25%"><a href="#decl_cvNulDevReport">NulDevReport</a></td>
 </tr>
 </table>
 <hr><h3>O</h3>
@@ -7343,16 +7647,16 @@ process the data.</p>
 <tr>
 <td width="25%"><a href="#decl_cvPerspectiveTransform">PerspectiveTransform</a></td>
 <td width="25%"><a href="#decl_cvPow">Pow</a></td>
-<td width="25%"><a href="#decl_cvPutText">PutText</a></td>
+<td width="25%"><a href="#decl_cvPtr*D">Ptr*D</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvPolarToCart">PolarToCart</a></td>
 <td width="25%"><a href="#decl_cvPrevTreeNode">PrevTreeNode</a></td>
-<td width="25%%"></td>
+<td width="25%"><a href="#decl_cvPutText">PutText</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvPolyLine">PolyLine</a></td>
-<td width="25%"><a href="#decl_cvPtr*D">Ptr*D</a></td>
+<td width="25%"><a href="#decl_cvProjectPCA">ProjectPCA</a></td>
 <td width="25%%"></td>
 </tr>
 </table>
@@ -7360,62 +7664,67 @@ process the data.</p>
 <table width="100%">
 <tr>
 <td width="25%"><a href="#decl_cvRNG">RNG</a></td>
+<td width="25%"><a href="#decl_cvReadRealByName">ReadRealByName</a></td>
+<td width="25%"><a href="#decl_cvReleaseImageHeader">ReleaseImageHeader</a></td>
+</tr>
+<tr>
+<td width="25%"><a href="#decl_cvRandArr">RandArr</a></td>
 <td width="25%"><a href="#decl_cvReadString">ReadString</a></td>
 <td width="25%"><a href="#decl_cvReleaseMat">ReleaseMat</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvRandArr">RandArr</a></td>
+<td width="25%"><a href="#decl_cvRandInt">RandInt</a></td>
 <td width="25%"><a href="#decl_cvReadStringByName">ReadStringByName</a></td>
 <td width="25%"><a href="#decl_cvReleaseMatND">ReleaseMatND</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvRandInt">RandInt</a></td>
+<td width="25%"><a href="#decl_cvRandReal">RandReal</a></td>
 <td width="25%"><a href="#decl_cvRectangle">Rectangle</a></td>
 <td width="25%"><a href="#decl_cvReleaseMemStorage">ReleaseMemStorage</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvRandReal">RandReal</a></td>
+<td width="25%"><a href="#decl_cvRandShuffle">RandShuffle</a></td>
 <td width="25%"><a href="#decl_cvRedirectError">RedirectError</a></td>
 <td width="25%"><a href="#decl_cvReleaseSparseMat">ReleaseSparseMat</a></td>
 </tr>
 <tr>
+<td width="25%"><a href="#decl_cvRange">Range</a></td>
+<td width="25%"><a href="#decl_cvReduce">Reduce</a></td>
+<td width="25%"><a href="#decl_cvRemoveNodeFromTree">RemoveNodeFromTree</a></td>
+</tr>
+<tr>
 <td width="25%"><a href="#decl_cvRead">Read</a></td>
 <td width="25%"><a href="#decl_cvRegisterModule">RegisterModule</a></td>
-<td width="25%"><a href="#decl_cvRemoveNodeFromTree">RemoveNodeFromTree</a></td>
+<td width="25%"><a href="#decl_cvRepeat">Repeat</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvReadByName">ReadByName</a></td>
 <td width="25%"><a href="#decl_cvRegisterType">RegisterType</a></td>
-<td width="25%"><a href="#decl_cvRepeat">Repeat</a></td>
+<td width="25%"><a href="#decl_cvResetImageROI">ResetImageROI</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvReadInt">ReadInt</a></td>
 <td width="25%"><a href="#decl_cvRelease">Release</a></td>
-<td width="25%"><a href="#decl_cvResetImageROI">ResetImageROI</a></td>
+<td width="25%"><a href="#decl_cvReshape">Reshape</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvReadIntByName">ReadIntByName</a></td>
 <td width="25%"><a href="#decl_cvReleaseData">ReleaseData</a></td>
-<td width="25%"><a href="#decl_cvReshape">Reshape</a></td>
+<td width="25%"><a href="#decl_cvReshapeMatND">ReshapeMatND</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvReadRawData">ReadRawData</a></td>
 <td width="25%"><a href="#decl_cvReleaseFileStorage">ReleaseFileStorage</a></td>
-<td width="25%"><a href="#decl_cvReshapeMatND">ReshapeMatND</a></td>
+<td width="25%"><a href="#decl_cvRestoreMemStoragePos">RestoreMemStoragePos</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvReadRawDataSlice">ReadRawDataSlice</a></td>
 <td width="25%"><a href="#decl_cvReleaseGraphScanner">ReleaseGraphScanner</a></td>
-<td width="25%"><a href="#decl_cvRestoreMemStoragePos">RestoreMemStoragePos</a></td>
+<td width="25%"><a href="#decl_cvRound">Round</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvReadReal">ReadReal</a></td>
 <td width="25%"><a href="#decl_cvReleaseImage">ReleaseImage</a></td>
-<td width="25%"><a href="#decl_cvRound">Round</a></td>
-</tr>
-<tr>
-<td width="25%"><a href="#decl_cvReadRealByName">ReadRealByName</a></td>
-<td width="25%"><a href="#decl_cvReleaseImageHeader">ReleaseImageHeader</a></td>
 <td width="25%%"></td>
 </tr>
 </table>
@@ -7424,96 +7733,96 @@ process the data.</p>
 <tr>
 <td width="25%"><a href="#decl_cvSVBkSb">SVBkSb</a></td>
 <td width="25%"><a href="#decl_cvSeqSlice">SeqSlice</a></td>
-<td width="25%"><a href="#decl_cvSetZero">SetZero</a></td>
+<td width="25%"><a href="#decl_cvSetSeqReaderPos">SetSeqReaderPos</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSVD">SVD</a></td>
 <td width="25%"><a href="#decl_cvSeqSort">SeqSort</a></td>
-<td width="25%"><a href="#decl_cvSolve">Solve</a></td>
+<td width="25%"><a href="#decl_cvSetZero">SetZero</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSave">Save</a></td>
 <td width="25%"><a href="#decl_cvSet">Set</a></td>
-<td width="25%"><a href="#decl_cvSolveCubic">SolveCubic</a></td>
+<td width="25%"><a href="#decl_cvSolve">Solve</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSaveMemStoragePos">SaveMemStoragePos</a></td>
 <td width="25%"><a href="#decl_cvSet*D">Set*D</a></td>
-<td width="25%"><a href="#decl_cvSplit">Split</a></td>
+<td width="25%"><a href="#decl_cvSolveCubic">SolveCubic</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvScaleAdd">ScaleAdd</a></td>
 <td width="25%"><a href="#decl_cvSetAdd">SetAdd</a></td>
-<td width="25%"><a href="#decl_cvSqrt">Sqrt</a></td>
+<td width="25%"><a href="#decl_cvSplit">Split</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqElemIdx">SeqElemIdx</a></td>
 <td width="25%"><a href="#decl_cvSetData">SetData</a></td>
-<td width="25%"><a href="#decl_cvStartAppendToSeq">StartAppendToSeq</a></td>
+<td width="25%"><a href="#decl_cvSqrt">Sqrt</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqInsert">SeqInsert</a></td>
 <td width="25%"><a href="#decl_cvSetErrMode">SetErrMode</a></td>
-<td width="25%"><a href="#decl_cvStartNextStream">StartNextStream</a></td>
+<td width="25%"><a href="#decl_cvStartAppendToSeq">StartAppendToSeq</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqInsertSlice">SeqInsertSlice</a></td>
 <td width="25%"><a href="#decl_cvSetErrStatus">SetErrStatus</a></td>
-<td width="25%"><a href="#decl_cvStartReadRawData">StartReadRawData</a></td>
+<td width="25%"><a href="#decl_cvStartNextStream">StartNextStream</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqInvert">SeqInvert</a></td>
 <td width="25%"><a href="#decl_cvSetIPLAllocators">SetIPLAllocators</a></td>
-<td width="25%"><a href="#decl_cvStartReadSeq">StartReadSeq</a></td>
+<td width="25%"><a href="#decl_cvStartReadRawData">StartReadRawData</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqPartition">SeqPartition</a></td>
 <td width="25%"><a href="#decl_cvSetIdentity">SetIdentity</a></td>
-<td width="25%"><a href="#decl_cvStartWriteSeq">StartWriteSeq</a></td>
+<td width="25%"><a href="#decl_cvStartReadSeq">StartReadSeq</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqPop">SeqPop</a></td>
 <td width="25%"><a href="#decl_cvSetImageCOI">SetImageCOI</a></td>
-<td width="25%"><a href="#decl_cvStartWriteStruct">StartWriteStruct</a></td>
+<td width="25%"><a href="#decl_cvStartWriteSeq">StartWriteSeq</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqPopFront">SeqPopFront</a></td>
 <td width="25%"><a href="#decl_cvSetImageROI">SetImageROI</a></td>
-<td width="25%"><a href="#decl_cvStdErrReport">StdErrReport</a></td>
+<td width="25%"><a href="#decl_cvStartWriteStruct">StartWriteStruct</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqPopMulti">SeqPopMulti</a></td>
 <td width="25%"><a href="#decl_cvSetMemoryManager">SetMemoryManager</a></td>
-<td width="25%"><a href="#decl_cvSub">Sub</a></td>
+<td width="25%"><a href="#decl_cvStdErrReport">StdErrReport</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqPush">SeqPush</a></td>
 <td width="25%"><a href="#decl_cvSetNew">SetNew</a></td>
-<td width="25%"><a href="#decl_cvSubRS">SubRS</a></td>
+<td width="25%"><a href="#decl_cvSub">Sub</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvSeqPushFront">SeqPushFront</a></td>
+<td width="25%"><a href="#decl_cvSetNumThreads">SetNumThreads</a></td>
+<td width="25%"><a href="#decl_cvSubRS">SubRS</a></td>
+</tr>
+<tr>
+<td width="25%"><a href="#decl_cvSeqPushMulti">SeqPushMulti</a></td>
 <td width="25%"><a href="#decl_cvSetReal*D">SetReal*D</a></td>
 <td width="25%"><a href="#decl_cvSubS">SubS</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvSeqPushMulti">SeqPushMulti</a></td>
+<td width="25%"><a href="#decl_cvSeqRemove">SeqRemove</a></td>
 <td width="25%"><a href="#decl_cvSetRemove">SetRemove</a></td>
 <td width="25%"><a href="#decl_cvSum">Sum</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvSeqRemove">SeqRemove</a></td>
+<td width="25%"><a href="#decl_cvSeqRemoveSlice">SeqRemoveSlice</a></td>
 <td width="25%"><a href="#decl_cvSetRemoveByPtr">SetRemoveByPtr</a></td>
 <td width="25%"><a href="#decl_cvmSet">Set</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvSeqRemoveSlice">SeqRemoveSlice</a></td>
-<td width="25%"><a href="#decl_cvSetSeqBlockSize">SetSeqBlockSize</a></td>
-<td width="25%%"></td>
-</tr>
-<tr>
 <td width="25%"><a href="#decl_cvSeqSearch">SeqSearch</a></td>
-<td width="25%"><a href="#decl_cvSetSeqReaderPos">SetSeqReaderPos</a></td>
+<td width="25%"><a href="#decl_cvSetSeqBlockSize">SetSeqBlockSize</a></td>
 <td width="25%%"></td>
 </tr>
 </table>
@@ -7569,4 +7878,3 @@ process the data.</p>
 
 </body>
 </html>
-

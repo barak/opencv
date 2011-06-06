@@ -300,7 +300,7 @@ folderlist = [
     "tests\\cv\\src",
 ]
 
-for cxx in [vc,icl,bcc,gcc]:
+for cxx in [bcc]:
     makefile = open( "..\\_make\\makefile." + cxx.name, "w" );
 
     makefile.write( "# " + cxx.desc + \

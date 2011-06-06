@@ -46,6 +46,9 @@
 #include <limits.h>
 //#include "cv.h"
 //#include "windows.h"
+
+#include <stdio.h>
+
 /* Valery Mosyagin */
 
 /* Function defenitions */
@@ -769,7 +772,7 @@ int icvCompute3ProjectMatricesNPointsStatus( CvMat** points,/* 3 arrays of point
 
     /* Free allocated memory */
     cvReleaseMat(&status);
-    cvFree((void**)&comStat);
+    cvFree( &comStat);
     cvReleaseMat(&status);
 
     cvReleaseMat(&triPoints[0]);
@@ -1280,7 +1283,7 @@ int icvComputeProjectMatricesNPoints(  CvMat* points1,CvMat* points2,CvMat* poin
 #endif
             } while ( needRepeat );
 
-            cvFree((void**)&goodFlags);
+            cvFree( &goodFlags);
 
 
 
@@ -1316,8 +1319,8 @@ int icvComputeProjectMatricesNPoints(  CvMat* points1,CvMat* points2,CvMat* poin
 
     __END__;
 
-    cvFree((void**)&flags);
-    cvFree((void**)&bestFlags);
+    cvFree( &flags);
+    cvFree( &bestFlags);
 
     cvReleaseMat(&recPoints4D);
     cvReleaseMat(&tmpProjPoints[0]);

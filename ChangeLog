@@ -1,4 +1,176 @@
 =============================================================================
+                      OpenCV 1.0, October 18, 2006
+=============================================================================
+
+>>> New functionality/features: <<<
+
+  - General:
+    * Windows installation package now includes precompiled Python module
+    * Borland C++ (v5.6+) makefiles re-added (see _make\make_all_bc.mak)
+
+  - CV:
+    * Inpainting was added, see samples/c/inpaint.cpp
+      (thanks to Alexander Kibkalo and Alexey Kalinichenko)
+
+  - MLL:
+    * Boosted tree classifiers added, see MLL reference manual
+
+  - HighGUI:
+    * Jpeg2000 and EXR support in highgui using JasPer and OpenEXR (thanks to Nils Hasler)
+      OpenEXR is not built-in to highgui on Windows by default. See
+      otherlibs/_graphics/readme.txt.
+    * >8-bit image input/output for PNG, Jpeg2000 and OpenEXR (thanks to Nils Hasler)
+    * Updated CMUcamera wrapper.
+    * Several V4L2 improvements and fixes
+  
+  - New samples (opencv/samples):
+    * Camera calibration sample: calibrate.cpp
+    * Inpainting sample: inpaint.cpp
+    * Letter recognition using the existing database with
+      random trees/boosted trees/neural nets: leter_recog.cpp
+    * A few new Python samples.
+
+  - Tests:
+    * Most old cv tests have been rewritten/converted to use cxts instead of trs.
+      TRS is not used by the tests anymore.
+    
+>>> Bug fixes: <<<
+     Many thanks to everybody who submitted bug reports and/or provided the patches!
+
+     * Incorrect normalization in cvFindFundamentalMat (SF #1550855)
+     * Occasional cvGetQuadrangleSubPix crashes (SF #1549168)
+     * Occasional cvCalcOpticalFlowPyrLK crashes
+     * Internal GCC 3.x error in cvFloor/cvCeil (SF #1546657)
+     * Several Python-related bugs (SF #1570109, SF #1572800, SF #1543593)
+     * Bugs in contour processing/rendering (SF #1550889, 
+     * x86-64 related bugs (SF #1526133, SF #1527997)
+     * OpenCV dispatcher tried to load old versions of IPP (pre 4.x)
+       that caused many failures (see SF #1555093, for example)
+     * Inaccurate results in some cases in cvFitEllipse, cvFitLine, cvHoughCircles.
+     * Severe bug in Bayesian classifier, broken regression tree in MLL
+     * Overflow in blurring filter
+     * cvSaveImage() modified saved images leading to potential problems in threaded apps.
+     * Numeric values in XML/YAML were emitted/parsed incorrectly
+       on some non-US locales in Linux
+     * VS2005 Express/Standard Editions could not build OpenCV
+       (due to missing OpenMP support)
+     * ...
+
+>>> Known issues:
+    * Certain tests may fail on IA64 (Itanium), e.g.
+      gaussian filter, fundamental matrix estimation, chessboard detector.
+
+=============================================================================
+                      OpenCV 1.0 RC1, August 11, 2006
+=============================================================================
+
+>>> New functionality/features: <<<
+  - New Compilers/Environments supported:
+     * GCC 4.x 
+     * Visual Studio .NET 2005.
+       Note that: a) Project files .vcproj's and the corresponding solution files
+                     have been converted to VS.NET 2005 format, thus they can not
+                     be opened with VS.NET 2003. As a workaround, one may convert
+                     project files and workspaces for Visual Studio 6.0 to VS.NET 2003.
+                  b) The projects can be built for Win32 and x64 (a.k.a. EM64T/AMD64) platforms.
+                  c) OpenMP support is turned on by default.
+     * On MacOSX universal OpenCV binaries are now built by default, so both
+       PPC and Intel Mac's are fully supported.
+     * Borland C++ support has been removed. There is still script
+       utils\gen_make.py available that can generate makefile.bcc's out of
+       MSVC's project files (not tested with rc1).
+     * New command-line makefiles _make\makefile.* are introduced that allow user
+       to build OpenCV for Win64 (EM64T/AMD64 and Itanium). For details, see INSTALL file.
+
+  - cxcore:
+     * added several new functions:
+       cvMixChannels, cvRandShuffle, cvRange, cvCalcPCA, cvProjectPCA, cvBackProjectPCA,
+       cvNormalize, cvReduce, cvGetNumThreads, cvSetNumThreads, cvGetThreadNum.
+       See docs/ref/opencvref_cxcore.htm for details.
+     * extended cvCalcCovarMatrix, cvMulTransposed
+     * added macros for the library version: see cxcore/include/cvver.h
+     * added C++ classes CvImage and CvMatrix:
+       see cxcore/include/cxcore.hpp and the sample samples/c/image.cpp
+     * the maximum number of channels in matrices has been increased up to 64.
+       though, only the basic functions can handle such images.
+  - cv:
+    * new functions:
+      cvPyrMeanShiftFiltering, cvWatershed, cvGetAffineTransform.
+      see docs/ref/opencvref_cv.htm for details.
+    * extended:
+      cvDistTransform (true distance transform algorithm),
+      cvThresh (Otsu adaptive algorithm),
+      cvCanny (using true gradient as an option)
+    * all the filtering functionality has been reworked,
+      new C++ classes for linear separable and non-separable filtering,
+      morphology, laplace, box filer (blur) have been added.
+      see cv/include/cv.hpp.
+      The older C API is still supported and is preferrable sometimes
+      (e.g. when IPP is used).
+    ****** API changes:
+      * cvCamShift, cvBoxPoints and all the other functions
+        taking/returning an angle (as a field of the structure CvBox2D
+        or as a standalone parameter) now measure the angles in degrees.
+
+  - cvaux:
+    * new large video surveillance module has been added
+      (cvaux/src/vs and cvaux/include/cvvidsurv.h).
+      It implements smart blob tracking. See the description at docs/vidsurv)
+  - ml (stands for Machine Learining):
+    * this is a completely new C++ module containing classes for statistical
+      classification, regression and clustering. See docs/ref/opencvref_ml.htm.
+  - highgui:
+    * the whole video capturing code has been restructured and split by modules,
+      better function names have been introduced (older names are supported via macros)
+    * Quicktime (MacOSX) and Xine (Linux, (attention: watch the license!)) support added.
+    * many small and big improvements have been made
+      in most of the video capturing modules
+    * a helper thread can be used to refresh highgui windows content w/o having to
+      call cvWaitKey() (Linux only).
+
+  - Bindings/interfaces:
+    * IPP 5.1.* is now supported and this is a recommended version of IPP
+      to use with OpenCV. One may build custom IPP DLL for easier binary
+      redistribution (see interfaces/ipp)
+    * Python bindings have been greatly improved and extended
+      (see interfaces/swig[/python] and samples/python).
+
+>>> Optimizations: <<<
+  -  The following filtering functions have been significantly optimized
+     using the new IPP 5.1 functionality:
+     cvSobel, cvLaplace, cvErode, cvDilate.
+  -  cvFilter2D now runs much faster with larger kernels (using DFT-based method)
+  -  Several functions have been parallelized with OpenMP:
+     cvHaarDetectObjects, cvCalcOpticalFlowPyrLK, cvDistTransform (the new algorithm only),
+     so they should run ~50-80% faster on dual core CPUs, when the code is built
+     with Intel compiler or MSVC2005 (as the precompiled OpenCV binaries are).
+
+>>> Bug fixes: <<<
+
+  -  A lot of bugs have been fixed. We would like to thank all the people
+     who submitted bug reports and/or patches.
+     This is incomplete list of the bugs fixed.
+
+     * cvFilter2D (CVS version crashed occasionally)
+     * cvInitUndistortMap mem leak
+     * cvRodrigues2 (several bugs and numerical instability)
+     * cvAdaptiveThresh incorrect handling of extreme cases
+     * Graph traversal (cvNextGraphItem) failed on some graphs
+     * Probabilistic Hough Transform mem leak and running beyond the buffers.
+     * Numerous records in SF bug tracker have been adressed (below are
+     the IDs of the records):
+     1344667, 1458680, 1358957, 1358962, 1489946, 1176530, 1405941,
+     1291046, 1307735, 1307660, 1297619, 1263481, 1295583, 1229649,
+     1242376, 1184122, 1145216, 1115824, 1144060, 1106466, 1055967,
+     1080061, 1034397, 1080669, 1068438, 1061664, 1067400, 952756,
+     709670, 972533, 709670, 706225, 667748, 661480
+
+>>> Known issues:
+  - Some of the tests fail/crash on Win64:
+    * EM64T/AMD64: tests for cvMatchTemplate and cvRemap fail
+    * IA64 (Itanium): tests for cvDCT, cvDFT and cvCamShift fail, test for cvCanny crashes.
+
+=============================================================================
                       OpenCV beta 5, Thursday, July 21, 2005
 =============================================================================
 

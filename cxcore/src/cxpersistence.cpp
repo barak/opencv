@@ -70,6 +70,7 @@ static char* icv_itoa( int _val, char* buffer, int /*radix*/ )
     return ptr;
 }
 
+
 typedef struct CvGenericHash
 {
     CV_SET_FIELDS()
@@ -404,11 +405,11 @@ cvReleaseFileStorage( CvFileStorage** p_fs )
 
         cvReleaseMemStorage( &fs->strstorage );
 
-        cvFree( (void**)&fs->buffer_start );
+        cvFree( &fs->buffer_start );
         cvReleaseMemStorage( &fs->memstorage );
 
         memset( fs, 0, sizeof(*fs) );
-        cvFree( (void**)&fs );
+        cvFree( &fs );
     }
 
     __END__;
@@ -694,7 +695,12 @@ cvGetFileNodeFromSeq( CvFileStorage* fs,
 static char*
 icvDoubleToString( char* buf, double value )
 {
-    unsigned ieee754_hi = (unsigned)(*(uint64*)&value >> 32);
+    Cv64suf val;
+    unsigned ieee754_hi;
+
+    val.f = value;
+    ieee754_hi = (unsigned)(val.u >> 32);
+
     if( (ieee754_hi & 0x7ff00000) != 0x7ff00000 )
     {
         int ivalue = cvRound(value);
@@ -704,12 +710,19 @@ icvDoubleToString( char* buf, double value )
         {
             static const char* fmt[] = {"%.16e", "%.16f"};
             double avalue = fabs(value);
+            char* ptr = buf;
             sprintf( buf, fmt[0.01 <= avalue && avalue < 1000], value );
+            if( *ptr == '+' || *ptr == '-' )
+                ptr++;
+            for( ; isdigit(*ptr); ptr++ )
+                ;
+            if( *ptr == ',' )
+                *ptr = '.';
         }
     }
     else
     {
-        unsigned ieee754_lo = (unsigned)*(uint64*)&value;
+        unsigned ieee754_lo = (unsigned)val.u;
         if( (ieee754_hi & 0x7fffffff) + (ieee754_lo != 0) > 0x7ff00000 )
             strcpy( buf, ".Nan" );
         else
@@ -723,7 +736,11 @@ icvDoubleToString( char* buf, double value )
 static char*
 icvFloatToString( char* buf, float value )
 {
-    unsigned ieee754 = *(unsigned*)&value;
+    Cv32suf val;
+    unsigned ieee754;
+    val.f = value;
+    ieee754 = val.u;
+
     if( (ieee754 & 0x7f800000) != 0x7f800000 )
     {
         int ivalue = cvRound(value);
@@ -733,7 +750,14 @@ icvFloatToString( char* buf, float value )
         {
             static const char* fmt[] = {"%.8e", "%.8f"};
             double avalue = fabs((double)value);
+            char* ptr = buf;
             sprintf( buf, fmt[0.01 <= avalue && avalue < 1000], value );
+            if( *ptr == '+' || *ptr == '-' )
+                ptr++;
+            for( ; isdigit(*ptr); ptr++ )
+                ;
+            if( *ptr == ',' )
+                *ptr = '.';
         }
     }
     else
@@ -777,6 +801,28 @@ icvProcessSpecialDouble( CvFileStorage* fs, char* buf, double* value, char** end
     *endptr = buf + 4;
 
     __END__;
+}
+
+
+static double icv_strtod( CvFileStorage* fs, char* ptr, char** endptr )
+{
+    double fval = strtod( ptr, endptr );
+    if( **endptr == '.' )
+    {
+        char* dot_pos = *endptr;
+        *dot_pos = ',';
+        double fval2 = strtod( ptr, endptr );
+        *dot_pos = '.';
+        if( *endptr > dot_pos )
+            fval = fval2;
+        else
+            *endptr = dot_pos;
+    }
+
+    if( *endptr == ptr || isalpha(**endptr) )
+        icvProcessSpecialDouble( fs, ptr, &fval, endptr );
+
+    return fval;
 }
 
 
@@ -963,9 +1009,9 @@ icvYMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
         if( *endptr == '.' || *endptr == 'e' )
         {
 force_real:
-            fval = strtod( ptr, &endptr );
-            if( endptr == ptr || isalpha(*endptr) )
-                CV_CALL( icvProcessSpecialDouble( fs, endptr, &fval, &endptr ));
+            fval = icv_strtod( fs, ptr, &endptr );
+            /*if( endptr == ptr || isalpha(*endptr) )
+                CV_CALL( icvProcessSpecialDouble( fs, endptr, &fval, &endptr ));*/
 
             node->tag = CV_NODE_REAL;
             node->data.f = fval;
@@ -1230,7 +1276,7 @@ icvYMLParse( CvFileStorage* fs )
                 else if( is_first )
                     break;
             }
-            else if( isalnum(*ptr) )
+            else if( isalnum(*ptr) || *ptr=='_')
             {
                 if( !is_first )
                     CV_PARSE_ERROR( "The YAML streams must start with '---', except the first one" );
@@ -1850,9 +1896,9 @@ icvXMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
                     endptr++;
                 if( *endptr == '.' || *endptr == 'e' )
                 {
-                    fval = strtod( ptr, &endptr );
-                    if( endptr == ptr || isalpha(*endptr) )
-                        CV_CALL( icvProcessSpecialDouble( fs, ptr, &fval, &endptr ));
+                    fval = icv_strtod( fs, ptr, &endptr );
+                    /*if( endptr == ptr || isalpha(*endptr) )
+                        CV_CALL( icvProcessSpecialDouble( fs, ptr, &fval, &endptr ));*/
                     elem->tag = CV_NODE_REAL;
                     elem->data.f = fval;
                 }
@@ -1921,15 +1967,15 @@ icvXMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
                                 if( c != ';' )
                                     CV_PARSE_ERROR( "Invalid character in the symbol entity name" );
                                 len = (int)(endptr - ptr);
-                                if( len == 2 && memcmp( ptr, "lt", 4 ) == 0 )
+                                if( len == 2 && memcmp( ptr, "lt", len ) == 0 )
                                     c = '<';
-                                else if( len == 2 && memcmp( ptr, "gt", 4 ) == 0 )
+                                else if( len == 2 && memcmp( ptr, "gt", len ) == 0 )
                                     c = '>';
-                                else if( len == 3 && memcmp( ptr, "amp", 4 ) == 0 )
+                                else if( len == 3 && memcmp( ptr, "amp", len ) == 0 )
                                     c = '&';
-                                else if( len == 4 && memcmp( ptr, "apos", 4 ) == 0 )
+                                else if( len == 4 && memcmp( ptr, "apos", len ) == 0 )
                                     c = '\'';
-                                else if( len == 4 && memcmp( ptr, "quot", 4 ) == 0 )
+                                else if( len == 4 && memcmp( ptr, "quot", len ) == 0 )
                                     c = '\"';
                                 else
                                 {
@@ -2575,8 +2621,8 @@ icvXMLWriteComment( CvFileStorage* fs, const char* comment, int eol_comment )
     if( !multiline )
     {
         ptr = icvFSResizeWriteBuffer( fs, ptr, len + 9 );
-        len = 0;
-        sprintf( ptr, "<!-- %s -->%n", comment, &len );
+        sprintf( ptr, "<!-- %s -->", comment );
+        len = (int)strlen(ptr);
     }
     else
     {
@@ -2610,9 +2656,8 @@ icvXMLWriteComment( CvFileStorage* fs, const char* comment, int eol_comment )
             fs->buffer = ptr;
             ptr = icvXMLFlush( fs );
         }
-        len = 0;
-        sprintf( ptr, "-->%n", &len );
-        fs->buffer = ptr + len;
+        sprintf( ptr, "-->" );
+        fs->buffer = ptr + 3;
         icvXMLFlush( fs );
     }
     
@@ -2655,12 +2700,6 @@ cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags )
     if( !fs->file )
         EXIT;
 
-    {
-        char* dot_pos = strrchr( fs->filename, '.' );
-        fs->is_xml = dot_pos && (strcmp( dot_pos, ".xml" ) == 0 ||
-                      strcmp( dot_pos, ".XML" ) == 0 || strcmp( dot_pos, ".Xml" ) == 0);
-    }
-
     fs->roots = 0;
     fs->struct_indent = 0;
     fs->struct_flags = 0;
@@ -2671,6 +2710,10 @@ cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags )
         // we use factor=6 for XML (the longest characters (' and ") are encoded with 6 bytes (&apos; and &quot;)
         // and factor=4 for YAML ( as we use 4 bytes for non ASCII characters (e.g. \xAB))
         int buf_size = CV_FS_MAX_LEN*(fs->is_xml ? 6 : 4) + 1024;
+
+        char* dot_pos = strrchr( fs->filename, '.' );
+        fs->is_xml = dot_pos && (strcmp( dot_pos, ".xml" ) == 0 ||
+                      strcmp( dot_pos, ".XML" ) == 0 || strcmp( dot_pos, ".Xml" ) == 0);
 
         if( append )
             fseek( fs->file, 0, SEEK_END );
@@ -2712,7 +2755,7 @@ cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags )
                         ptr = strstr( ptr, substr );
                         if( !ptr )
                             break;
-                        last_occurence = line_offset + (ptr - ptr0);
+                        last_occurence = line_offset + (int)(ptr - ptr0);
                         ptr += strlen(substr);
                     }
                 }
@@ -2752,6 +2795,10 @@ cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags )
     else
     {
         int buf_size;
+        const char* yaml_signature = "%YAML:";
+        char buf[16];
+        fgets( buf, sizeof(buf)-2, fs->file );
+        fs->is_xml = strncmp( buf, yaml_signature, strlen(yaml_signature) ) != 0;
         
         fseek( fs->file, 0, SEEK_END );
         buf_size = ftell( fs->file );
@@ -2780,7 +2827,7 @@ cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags )
         //cvSetErrMode( mode );
 
         // release resources that we do not need anymore
-        cvFree( (void**)&fs->buffer_start );
+        cvFree( &fs->buffer_start );
         fs->buffer = fs->buffer_end = 0;
     }
 
@@ -2799,7 +2846,7 @@ cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags )
         }
     }
 
-    cvFree( (void**)&xml_buf );
+    cvFree( &xml_buf );
 
     return  fs;
 }
@@ -3160,6 +3207,10 @@ cvStartReadRawData( const CvFileStorage* fs, const CvFileNode* src, CvSeqReader*
     {
         CV_CALL( cvStartReadSeq( src->data.seq, reader, 0 ));
     }
+    else if( node_type == CV_NODE_NONE )
+    {
+        memset( reader, 0, sizeof(*reader) );
+    }
     else
         CV_ERROR( CV_StsBadArg, "The file node should be a numerical scalar or a sequence" );
 
@@ -3392,6 +3443,10 @@ icvWriteFileNode( CvFileStorage* fs, const char* name, const CvFileNode* node )
         icvWriteCollection( fs, node );
         fs->end_write_struct( fs );
         break;
+    case CV_NODE_NONE:
+        fs->start_write_struct( fs, name, CV_NODE_SEQ, 0 );
+        fs->end_write_struct( fs );
+        break;
     default:
         CV_ERROR( CV_StsBadFlag, "Unknown type of file node" );
     }
@@ -3464,7 +3519,7 @@ cvGetFileNodeName( const CvFileNode* file_node )
 static int
 icvIsMat( const void* ptr )
 {
-    return CV_IS_MAT(ptr);
+    return CV_IS_MAT_HDR(ptr);
 }
 
 static void
@@ -3507,7 +3562,8 @@ icvWriteMat( CvFileStorage* fs, const char* name,
 static int
 icvFileNodeSeqLen( CvFileNode* node )
 {
-    return CV_NODE_IS_COLLECTION(node->tag) ? node->data.seq->total : 1;
+    return CV_NODE_IS_COLLECTION(node->tag) ? node->data.seq->total :
+           CV_NODE_TYPE(node->tag) != CV_NODE_NONE;
 }
 
 
@@ -3569,7 +3625,7 @@ icvWriteMatND( CvFileStorage* fs, const char* name,
 
     __BEGIN__;
 
-    const CvMatND* mat = (const CvMatND*)struct_ptr;
+    void* mat = (void*)struct_ptr;
     CvMatND stub;
     CvNArrayIterator iterator;
     int dims, sizes[CV_MAX_DIM];
@@ -3582,10 +3638,10 @@ icvWriteMatND( CvFileStorage* fs, const char* name,
     cvStartWriteStruct( fs, "sizes", CV_NODE_SEQ + CV_NODE_FLOW );
     cvWriteRawData( fs, sizes, dims, "i" );
     cvEndWriteStruct( fs );
-    cvWriteString( fs, "dt", icvEncodeFormat( CV_MAT_TYPE(mat->type), dt ), 0 );
+    cvWriteString( fs, "dt", icvEncodeFormat( cvGetElemType(mat), dt ), 0 );
     cvStartWriteStruct( fs, "data", CV_NODE_SEQ + CV_NODE_FLOW );
     
-    CV_CALL( cvInitNArrayIterator( 1, (void**)&mat, 0, &stub, &iterator ));
+    CV_CALL( cvInitNArrayIterator( 1, &mat, 0, &stub, &iterator ));
 
     do
         cvWriteRawData( fs, iterator.ptr[0], iterator.size.width, dt );
@@ -3845,7 +3901,7 @@ icvReadSparseMat( CvFileStorage* fs, CvFileNode* node )
 static int
 icvIsImage( const void* ptr )
 {
-    return CV_IS_IMAGE(ptr);
+    return CV_IS_IMAGE_HDR(ptr);
 }
 
 static void
@@ -3859,7 +3915,7 @@ icvWriteImage( CvFileStorage* fs, const char* name,
     const IplImage* image = (const IplImage*)struct_ptr;
     char dt_buf[16], *dt;
     CvSize size;
-    int y;
+    int y, depth;
 
     assert( CV_IS_IMAGE(image) );
 
@@ -3885,13 +3941,13 @@ icvWriteImage( CvFileStorage* fs, const char* name,
         cvEndWriteStruct( fs );
     }
 
-    sprintf( dt_buf, "%d%c", image->nChannels,
-             icvTypeSymbol[icvIplToCvDepth(image->depth)] );
+    depth = icvIplToCvDepth(image->depth);
+    sprintf( dt_buf, "%d%c", image->nChannels, icvTypeSymbol[depth] );
     dt = dt_buf + (dt_buf[2] == '\0' && dt_buf[0] == '1');
     cvWriteString( fs, "dt", dt, 0 );
 
     size = cvSize(image->width, image->height);
-    if( size.width*image->nChannels*icvIplToCvDepth(image->depth) == image->widthStep )
+    if( size.width*image->nChannels*CV_ELEM_SIZE(depth) == image->widthStep )
     {
         size.width *= size.height;
         size.height = 1;
@@ -4564,8 +4620,8 @@ icvWriteGraph( CvFileStorage* fs, const char* name,
 
     __END__;
 
-    cvFree( (void**)&write_buf );
-    cvFree( (void**)&flag_buf );
+    cvFree( &write_buf );
+    cvFree( &flag_buf );
 }
 
 
@@ -4748,8 +4804,8 @@ icvReadGraph( CvFileStorage* fs, CvFileNode* node )
 
     __END__;
 
-    cvFree( (void**)&read_buf );
-    cvFree( (void**)&vtx_buf );
+    cvFree( &read_buf );
+    cvFree( &vtx_buf );
 
     return ptr;
 }
@@ -4758,65 +4814,56 @@ icvReadGraph( CvFileStorage* fs, CvFileNode* node )
 *                                    RTTI Functions                                      *
 \****************************************************************************************/
 
-static CvTypeInfo*
-icvInitTypeInfo( CvTypeInfo* info, const char* type_name,
-                 CvIsInstanceFunc is_instance, CvReleaseFunc release,
-                 CvReadFunc read, CvWriteFunc write,
-                 CvCloneFunc clone )
-{
-    info->flags = 0;
-    info->header_size = sizeof(CvTypeInfo);
-    info->type_name = type_name;
-    info->prev = info->next = 0;
-    info->is_instance = is_instance;
-    info->release = release;
-    info->clone = clone;
-    info->read = read;
-    info->write = write;
+CvTypeInfo *CvType::first = 0, *CvType::last = 0;
 
-    return info;
+CvType::CvType( const char* type_name,
+                CvIsInstanceFunc is_instance, CvReleaseFunc release,
+                CvReadFunc read, CvWriteFunc write, CvCloneFunc clone )
+{
+    CvTypeInfo _info;
+    _info.flags = 0;
+    _info.header_size = sizeof(_info);
+    _info.type_name = type_name;
+    _info.prev = _info.next = 0;
+    _info.is_instance = is_instance;
+    _info.release = release;
+    _info.clone = clone;
+    _info.read = read;
+    _info.write = write;
+
+    cvRegisterType( &_info );
+    info = first;
 }
 
 
-static CvTypeInfo *icvFirstType = 0, *icvLastType = 0;
-
-static void
-icvCreateStandardTypes(void)
+CvType::~CvType()
 {
-    CvTypeInfo info;
-    CvTypeInfo dummy_first;
-
-    dummy_first.prev = dummy_first.next = 0;
-    icvFirstType = icvLastType = &dummy_first;
-
-    cvRegisterType( icvInitTypeInfo( &info, CV_TYPE_NAME_SEQ, icvIsSeq,
-                                     icvReleaseSeq, icvReadSeq,
-                                     icvWriteSeqTree /* this is the entry point for
-                                     writing a single sequence too */, icvCloneSeq ));
-    cvRegisterType( icvInitTypeInfo( &info, CV_TYPE_NAME_SEQ_TREE, icvIsSeq,
-                                     icvReleaseSeq, icvReadSeqTree,
-                                     icvWriteSeqTree, icvCloneSeq ));
-    cvRegisterType( icvInitTypeInfo( &info, CV_TYPE_NAME_GRAPH, icvIsGraph,
-                                     icvReleaseGraph, icvReadGraph,
-                                     icvWriteGraph, icvCloneGraph ));
-    cvRegisterType( icvInitTypeInfo( &info, CV_TYPE_NAME_SPARSE_MAT, icvIsSparseMat,
-                                     (CvReleaseFunc)cvReleaseSparseMat, icvReadSparseMat,
-                                     icvWriteSparseMat, (CvCloneFunc)cvCloneSparseMat ));
-    cvRegisterType( icvInitTypeInfo( &info, CV_TYPE_NAME_IMAGE, icvIsImage,
-                                    (CvReleaseFunc)cvReleaseImage,
-                                    icvReadImage, icvWriteImage,
-                                    (CvCloneFunc)cvCloneImage ));
-    cvRegisterType( icvInitTypeInfo( &info, CV_TYPE_NAME_MAT, icvIsMat,
-                                     (CvReleaseFunc)cvReleaseMat, icvReadMat,
-                                     icvWriteMat, (CvCloneFunc)cvCloneMat ));
-    cvRegisterType( icvInitTypeInfo( &info, CV_TYPE_NAME_MATND, icvIsMatND,
-                                     (CvReleaseFunc)cvReleaseMatND, icvReadMatND,
-                                     icvWriteMatND, (CvCloneFunc)cvCloneMatND ));
-
-    icvLastType = icvLastType->prev;
-    icvLastType->next = 0;
+    cvUnregisterType( info->type_name );
 }
 
+
+CvType seq_type( CV_TYPE_NAME_SEQ, icvIsSeq, icvReleaseSeq, icvReadSeq,
+                 icvWriteSeqTree /* this is the entry point for
+                 writing a single sequence too */, icvCloneSeq );
+
+CvType seq_tree_type( CV_TYPE_NAME_SEQ_TREE, icvIsSeq, icvReleaseSeq,
+                      icvReadSeqTree, icvWriteSeqTree, icvCloneSeq );
+
+CvType seq_graph_type( CV_TYPE_NAME_GRAPH, icvIsGraph, icvReleaseGraph,
+                       icvReadGraph, icvWriteGraph, icvCloneGraph );
+
+CvType sparse_mat_type( CV_TYPE_NAME_SPARSE_MAT, icvIsSparseMat,
+                        (CvReleaseFunc)cvReleaseSparseMat, icvReadSparseMat,
+                        icvWriteSparseMat, (CvCloneFunc)cvCloneSparseMat );
+    
+CvType image_type( CV_TYPE_NAME_IMAGE, icvIsImage, (CvReleaseFunc)cvReleaseImage,
+                   icvReadImage, icvWriteImage, (CvCloneFunc)cvCloneImage );
+
+CvType mat_type( CV_TYPE_NAME_MAT, icvIsMat, (CvReleaseFunc)cvReleaseMat,
+                 icvReadMat, icvWriteMat, (CvCloneFunc)cvCloneMat );
+    
+CvType matnd_type( CV_TYPE_NAME_MATND, icvIsMatND, (CvReleaseFunc)cvReleaseMatND,
+                   icvReadMatND, icvWriteMatND, (CvCloneFunc)cvCloneMatND );
 
 CV_IMPL  void
 cvRegisterType( const CvTypeInfo* _info )
@@ -4829,8 +4876,8 @@ cvRegisterType( const CvTypeInfo* _info )
     int i, len;
     char c;
     
-    if( !icvFirstType )
-        icvCreateStandardTypes();
+    //if( !CvType::first )
+    //    icvCreateStandardTypes();
 
     if( !_info || _info->header_size != sizeof(CvTypeInfo) )
         CV_ERROR( CV_StsBadSize, "Invalid type info" );
@@ -4862,8 +4909,13 @@ cvRegisterType( const CvTypeInfo* _info )
     memcpy( (char*)info->type_name, _info->type_name, len + 1 );
 
     info->flags = 0;
-    info->next = icvFirstType;
-    icvFirstType = icvFirstType->prev = info;
+    info->next = CvType::first;
+    info->prev = 0;
+    if( CvType::first )
+        CvType::first->prev = info;
+    else
+        CvType::last = info;
+    CvType::first = info;
 
     __END__;
 }
@@ -4884,17 +4936,17 @@ cvUnregisterType( const char* type_name )
         if( info->prev )
             info->prev->next = info->next;
         else
-            icvFirstType = info->next;
+            CvType::first = info->next;
 
         if( info->next )
             info->next->prev = info->prev;
         else
-            icvLastType = info->prev;
+            CvType::last = info->prev;
 
-        if( !icvFirstType || !icvLastType )
-            icvFirstType = icvLastType = 0;
+        if( !CvType::first || !CvType::last )
+            CvType::first = CvType::last = 0;
 
-        cvFree( (void**)&info );
+        cvFree( &info );
     }
 
     __END__;
@@ -4904,20 +4956,7 @@ cvUnregisterType( const char* type_name )
 CV_IMPL CvTypeInfo*
 cvFirstType( void )
 {
-    CvTypeInfo* info = 0;
-
-    /*CV_FUNCNAME("cvFirstType" );*/
-
-    __BEGIN__;
-
-    if( !icvFirstType )
-        icvCreateStandardTypes();
-
-    info = icvFirstType;
-
-    __END__;
-
-    return info;
+    return CvType::first;
 }
 
 
@@ -4926,18 +4965,9 @@ cvFindType( const char* type_name )
 {
     CvTypeInfo* info = 0;
 
-    //CV_FUNCNAME("cvFindType" );
-
-    __BEGIN__;
-
-    if( !icvFirstType )
-        icvCreateStandardTypes();
-
-    for( info = icvFirstType; info != 0; info = info->next )
+    for( info = CvType::first; info != 0; info = info->next )
         if( strcmp( info->type_name, type_name ) == 0 )
             break;
-
-    __END__;
 
     return info;
 }
@@ -4948,18 +4978,9 @@ cvTypeOf( const void* struct_ptr )
 {
     CvTypeInfo* info = 0;
 
-    /*CV_FUNCNAME("cvFindType" );*/
-
-    __BEGIN__;
-
-    if( !icvFirstType )
-        icvCreateStandardTypes();
-
-    for( info = icvFirstType; info != 0; info = info->next )
+    for( info = CvType::first; info != 0; info = info->next )
         if( info->is_instance( struct_ptr ))
             break;
-
-    __END__;
 
     return info;
 }
@@ -5115,7 +5136,15 @@ cvSave( const char* filename, const void* struct_ptr,
         ptr++;
         if( ptr == ptr2 )
             CV_ERROR( CV_StsBadArg, "Invalid filename" );
-        for( name = name_buf; ptr < ptr2; )
+        
+        name=name_buf;
+
+        // name must start with letter or '_'
+        if( !isalpha(*ptr) && *ptr!= '_' ){
+            *name++ = '_';
+        }
+
+        while( ptr < ptr2 )
         {
             char c = *ptr++;
             if( !isalnum(c) && c != '-' && c != '_' )

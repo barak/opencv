@@ -71,7 +71,7 @@ void bsBSwapBlock( uchar *start, uchar *end )
 
 bool  bsIsBigEndian( void )
 {
-    return (((const int*)"\0x\x1\x2\x3\x4\x5\x6\x7")[0] & 255) != 0;
+    return (((const int*)"\0\x1\x2\x3\x4\x5\x6\x7")[0] & 255) != 0;
 }
 
 /////////////////////////  RBaseStream ////////////////////////////
@@ -600,7 +600,7 @@ bool bsCreateDecodeHuffmanTable( const int* src, short* table, int max_size )
     int  i, k;
     
     /* calc bit depths of sub tables */
-    memset( sub_tables, 0, (1 << first_bits)*sizeof(sub_tables[0]) );
+    memset( sub_tables, 0, ((size_t)1 << first_bits)*sizeof(sub_tables[0]) );
     for( i = 1, k = 1; src[k] >= 0; i++ )
     {
         int code_count = src[k++];

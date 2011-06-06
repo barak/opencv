@@ -46,12 +46,15 @@ IPCVAPI_IMPL( CvStatus, icvUpdateMotionHistory_8u32f_C1IR,
      CvSize size, float timestamp, float mhi_duration),
      (silIm, silStep, mhiIm, mhiStep, size, timestamp, mhi_duration) )
 {
-    int y;
-    int delbound;
+    int x, y;
 
     /* function processes floating-point images using integer arithmetics */
-    int ts = *((int *) &timestamp);
+    Cv32suf v;
+    int ts, delbound;
     int *mhi = (int *) mhiIm;
+
+    v.f = timestamp;
+    ts = v.i;
 
     if( !silIm || !mhiIm )
         return CV_NULLPTR_ERR;
@@ -65,9 +68,11 @@ IPCVAPI_IMPL( CvStatus, icvUpdateMotionHistory_8u32f_C1IR,
         return CV_BADFACTOR_ERR;
 
     mhi_duration = timestamp - mhi_duration;
-    delbound = CV_TOGGLE_FLT( (*(int *) &mhi_duration) );
 
-    mhiStep /= CV_SIZEOF_FLOAT;
+    v.f = mhi_duration;
+    delbound = CV_TOGGLE_FLT( v.i );
+
+    mhiStep /= sizeof(mhi[0]);
 
     if( mhiStep == size.width && silStep == size.width )
     {
@@ -77,9 +82,6 @@ IPCVAPI_IMPL( CvStatus, icvUpdateMotionHistory_8u32f_C1IR,
 
     if( delbound > 0 )
         for( y = 0; y < size.height; y++, silIm += silStep, mhi += mhiStep )
-        {
-            int x;
-
             for( x = 0; x < size.width; x++ )
             {
                 int val = mhi[x];
@@ -89,12 +91,8 @@ IPCVAPI_IMPL( CvStatus, icvUpdateMotionHistory_8u32f_C1IR,
                 val ^= (ts ^ val) & ((silIm[x] == 0) - 1);
                 mhi[x] = val;
             }
-        }
     else
         for( y = 0; y < size.height; y++, silIm += silStep, mhi += mhiStep )
-        {
-            int x;
-
             for( x = 0; x < size.width; x++ )
             {
                 int val = mhi[x];
@@ -104,7 +102,6 @@ IPCVAPI_IMPL( CvStatus, icvUpdateMotionHistory_8u32f_C1IR,
                 val ^= (ts ^ val) & ((silIm[x] == 0) - 1);
                 mhi[x] = val;
             }
-        }
 
     return CV_OK;
 }
@@ -178,7 +175,7 @@ cvCalcMotionGradient( const CvArr* mhiimg, CvArr* maskimg,
     CvSize size;
     int x, y;
 
-    float  gradient_epsilon = 1e-4f * aperture_size;
+    float  gradient_epsilon = 1e-4f * aperture_size * aperture_size;
     float  min_delta, max_delta;
 
     CV_CALL( mhi = cvGetMat( mhi, &mhistub ));
@@ -238,6 +235,7 @@ cvCalcMotionGradient( const CvArr* mhiimg, CvArr* maskimg,
         {
             float dY = dY_max_row.data.fl[x];
             float dX = dX_min_row.data.fl[x];
+
             if( fabs(dX) < gradient_epsilon && fabs(dY) < gradient_epsilon )
             {
                 mask_row.data.ptr[x] = 0;
@@ -264,6 +262,7 @@ cvCalcMotionGradient( const CvArr* mhiimg, CvArr* maskimg,
         for( x = 0; x < size.width; x++ )
         {
             float d0 = dY_max_row.data.fl[x] - dX_min_row.data.fl[x];
+
             if( mask_row.data.ptr[x] == 0 || d0 < min_delta || max_delta < d0 )
             {
                 mask_row.data.ptr[x] = 0;
@@ -295,9 +294,15 @@ cvCalcGlobalOrientation( const void* orientation, const void* maskimg, const voi
     CvMat  mhistub, *mhi = (CvMat*)mhiimg;
     CvMat  maskstub, *mask = (CvMat*)maskimg;
     CvMat  orientstub, *orient = (CvMat*)orientation;
+    void*  _orient;
     float _ranges[] = { 0, 360 };
     float* ranges = _ranges;
     int base_orient;
+    double shift_orient = 0, shift_weight = 0, fbase_orient;
+    double a, b;
+    float delbound;
+    CvMat mhi_row, mask_row, orient_row;
+    int x, y, mhi_rows, mhi_cols;
 
     CV_CALL( mhi = cvGetMat( mhi, &mhistub ));
     CV_CALL( mask = cvGetMat( mask, &maskstub ));
@@ -321,7 +326,8 @@ cvCalcGlobalOrientation( const void* orientation, const void* maskimg, const voi
 
     // calculate histogram of different orientation values
     CV_CALL( hist = cvCreateHist( 1, &hist_size, CV_HIST_ARRAY, &ranges ));
-    cvCalcArrHist( (CvArr**)&orient, hist, 0, mask );
+    _orient = orient;
+    cvCalcArrHist( &_orient, hist, 0, mask );
 
     // find the maximum index (the dominant orientation)
     cvGetMinMaxHistValue( hist, 0, 0, 0, &base_orient );
@@ -331,71 +337,67 @@ cvCalcGlobalOrientation( const void* orientation, const void* maskimg, const voi
     cvMinMaxLoc( mhi, 0, &curr_mhi_timestamp, 0, 0, mask );
 
     // find the shift relative to the dominant orientation as weighted sum of relative angles
+    a = 254. / 255. / mhi_duration;
+    b = 1. - curr_mhi_timestamp * a;
+    fbase_orient = base_orient;
+    delbound = (float)(curr_mhi_timestamp - mhi_duration);
+    mhi_rows = mhi->rows;
+    mhi_cols = mhi->cols;
+
+    if( CV_IS_MAT_CONT( mhi->type & mask->type & orient->type ))
     {
-        double shift_orient = 0, shift_weight = 0;
-        double a = (254. / 255.) / mhi_duration;
-        double b = 1. - curr_mhi_timestamp * a;
-        double fbase_orient = base_orient;
-        float delbound = (float)(curr_mhi_timestamp - mhi_duration);
-        CvMat mhi_row, mask_row, orient_row;
-        int x, y, mhi_rows = mhi->rows, mhi_cols = mhi->cols;
-
-        if( CV_IS_MAT_CONT( mhi->type & mask->type & orient->type ))
-        {
-            mhi_cols *= mhi_rows;
-            mhi_rows = 1;
-        }
-
-        cvGetRow( mhi, &mhi_row, 0 );
-        cvGetRow( mask, &mask_row, 0 );
-        cvGetRow( orient, &orient_row, 0 );
-
-        /*
-           a = 254/(255*dt)
-           b = 1 - t*a = 1 - 254*t/(255*dur) =
-           (255*dt - 254*t)/(255*dt) =
-           (dt - (t - dt)*254)/(255*dt);
-           --------------------------------------------------------
-           ax + b = 254*x/(255*dt) + (dt - (t - dt)*254)/(255*dt) =
-           (254*x + dt - (t - dt)*254)/(255*dt) =
-           ((x - (t - dt))*254 + dt)/(255*dt) =
-           (((x - (t - dt))/dt)*254 + 1)/255 = (((x - low_time)/dt)*254 + 1)/255
-         */
-        for( y = 0; y < mhi_rows; y++ )
-        {
-            mhi_row.data.ptr = mhi->data.ptr + mhi->step*y;
-            mask_row.data.ptr = mask->data.ptr + mask->step*y;
-            orient_row.data.ptr = orient->data.ptr + orient->step*y;
-
-            for( x = 0; x < mhi_cols; x++ )
-                if( mask_row.data.ptr[x] != 0 && mhi_row.data.fl[x] > delbound )
-                {
-                    /*
-                       orient in 0..360, base_orient in 0..360
-                       -> (rel_angle = orient - base_orient) in -360..360.
-                       rel_angle is translated to -180..180
-                     */
-                    double weight = mhi_row.data.fl[x] * a + b;
-                    int rel_angle = cvRound( orient_row.data.fl[x] - fbase_orient );
-
-                    rel_angle += (rel_angle < -180 ? 360 : 0);
-                    rel_angle += (rel_angle > 180 ? -360 : 0);
-
-                    if( abs(rel_angle) < 90 )
-                    {
-                        shift_orient += weight * rel_angle;
-                        shift_weight += weight;
-                    }
-                }
-        }
-
-        // add the dominant orientation and the relative shift
-        if( shift_weight == 0 )
-            shift_weight = 0.01;
-
-        base_orient = base_orient + cvRound( shift_orient / shift_weight );
+        mhi_cols *= mhi_rows;
+        mhi_rows = 1;
     }
 
+    cvGetRow( mhi, &mhi_row, 0 );
+    cvGetRow( mask, &mask_row, 0 );
+    cvGetRow( orient, &orient_row, 0 );
+
+    /*
+       a = 254/(255*dt)
+       b = 1 - t*a = 1 - 254*t/(255*dur) =
+       (255*dt - 254*t)/(255*dt) =
+       (dt - (t - dt)*254)/(255*dt);
+       --------------------------------------------------------
+       ax + b = 254*x/(255*dt) + (dt - (t - dt)*254)/(255*dt) =
+       (254*x + dt - (t - dt)*254)/(255*dt) =
+       ((x - (t - dt))*254 + dt)/(255*dt) =
+       (((x - (t - dt))/dt)*254 + 1)/255 = (((x - low_time)/dt)*254 + 1)/255
+     */
+    for( y = 0; y < mhi_rows; y++ )
+    {
+        mhi_row.data.ptr = mhi->data.ptr + mhi->step*y;
+        mask_row.data.ptr = mask->data.ptr + mask->step*y;
+        orient_row.data.ptr = orient->data.ptr + orient->step*y;
+
+        for( x = 0; x < mhi_cols; x++ )
+            if( mask_row.data.ptr[x] != 0 && mhi_row.data.fl[x] > delbound )
+            {
+                /*
+                   orient in 0..360, base_orient in 0..360
+                   -> (rel_angle = orient - base_orient) in -360..360.
+                   rel_angle is translated to -180..180
+                 */
+                double weight = mhi_row.data.fl[x] * a + b;
+                int rel_angle = cvRound( orient_row.data.fl[x] - fbase_orient );
+
+                rel_angle += (rel_angle < -180 ? 360 : 0);
+                rel_angle += (rel_angle > 180 ? -360 : 0);
+
+                if( abs(rel_angle) < 90 )
+                {
+                    shift_orient += weight * rel_angle;
+                    shift_weight += weight;
+                }
+            }
+    }
+
+    // add the dominant orientation and the relative shift
+    if( shift_weight == 0 )
+        shift_weight = 0.01;
+
+    base_orient = base_orient + cvRound( shift_orient / shift_weight );
     base_orient -= (base_orient < 360 ? 0 : 360);
     base_orient += (base_orient >= 0 ? 0 : 360);
 
@@ -421,9 +423,8 @@ cvSegmentMotion( const CvArr* mhiimg, CvArr* segmask, CvMemStorage* storage,
 
     CvMat  mhistub, *mhi = (CvMat*)mhiimg;
     CvMat  maskstub, *mask = (CvMat*)segmask;
-    float  ts = (float)timestamp;
-    float  comp_idx = 1;
-    float  stub_val = FLT_MAX*0.1f;
+    Cv32suf v, comp_idx;
+    int stub_val, ts;
     int x, y;
 
     if( !storage )
@@ -443,6 +444,10 @@ cvSegmentMotion( const CvArr* mhiimg, CvArr* segmask, CvMemStorage* storage,
     cvZero( mask );
     CV_CALL( components = cvCreateSeq( CV_SEQ_KIND_GENERIC, sizeof(CvSeq),
                                        sizeof(CvConnectedComp), storage ));
+    
+    v.f = (float)timestamp; ts = v.i;
+    v.f = FLT_MAX*0.1f; stub_val = v.i;
+    comp_idx.f = 1;
 
     for( y = 0; y < mhi->rows; y++ )
     {
@@ -450,7 +455,7 @@ cvSegmentMotion( const CvArr* mhiimg, CvArr* segmask, CvMemStorage* storage,
         for( x = 0; x < mhi->cols; x++ )
         {
             if( mhi_row[x] == 0 )
-                mhi_row[x] = (int&)stub_val;
+                mhi_row[x] = stub_val;
         }
     }
 
@@ -461,7 +466,7 @@ cvSegmentMotion( const CvArr* mhiimg, CvArr* segmask, CvMemStorage* storage,
 
         for( x = 0; x < mhi->cols; x++ )
         {
-            if( mhi_row[x] == (int&)ts && mask8u_row[x] == 0 )
+            if( mhi_row[x] == ts && mask8u_row[x] == 0 )
             {
                 CvConnectedComp comp;
                 int x1, y1;
@@ -483,11 +488,11 @@ cvSegmentMotion( const CvArr* mhiimg, CvArr* segmask, CvMemStorage* storage,
                         if( mask8u_row1[x1] > 1 )
                         {
                             mask8u_row1[x1] = 1;
-                            mask_row1[x1] = (int&)comp_idx;
+                            mask_row1[x1] = comp_idx.i;
                         }
                     }
                 }
-                comp_idx++;
+                comp_idx.f++;
                 cvSeqPush( components, &comp );
             }
         }
@@ -498,7 +503,7 @@ cvSegmentMotion( const CvArr* mhiimg, CvArr* segmask, CvMemStorage* storage,
         int* mhi_row = (int*)(mhi->data.ptr + y*mhi->step);
         for( x = 0; x < mhi->cols; x++ )
         {
-            if( mhi_row[x] == (int&)stub_val )
+            if( mhi_row[x] == stub_val )
                 mhi_row[x] = 0;
         }
     }
@@ -506,7 +511,6 @@ cvSegmentMotion( const CvArr* mhiimg, CvArr* segmask, CvMemStorage* storage,
     __END__;
 
     cvReleaseMat( &mask8u );
-
     return components;
 }
 

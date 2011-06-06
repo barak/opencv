@@ -47,7 +47,7 @@ RSC=rc.exe
 # PROP Target_Dir ""
 F90=df.exe
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MD /W4 /GX /Zi /O2 /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /c
+# ADD CPP /nologo /MD /W4 /GX /Zi /O2 /I "." /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /c
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
 # ADD RSC /l 0x419 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -55,7 +55,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /machine:I386
-# ADD LINK32 cv.lib cvaux.lib cxcore.lib highgui.lib trs.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib cxts.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\..\bin\cvtest.exe" /libpath:"..\..\..\lib"
+# ADD LINK32 cv.lib cvaux.lib cxcore.lib highgui.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib cxts.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\..\bin\cvtest.exe" /libpath:"..\..\..\lib"
 # SUBTRACT LINK32 /nodefaultlib
 
 !ELSEIF  "$(CFG)" == "cvtest - Win32 Debug"
@@ -73,7 +73,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 F90=df.exe
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W4 /Gm /GX /Zi /Od /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /GZ /c
+# ADD CPP /nologo /MDd /W4 /Gm /GX /Zi /Od /I "." /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /GZ /c
 # ADD BASE RSC /l 0x419 /d "_DEBUG"
 # ADD RSC /l 0x419 /d "_DEBUG"
 BSC32=bscmake.exe
@@ -81,7 +81,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 cvd.lib cvauxd.lib cxcored.lib highguid.lib trsd.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib cxtsd.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\..\bin\cvtestd.exe" /pdbtype:sept /libpath:"..\..\..\lib"
+# ADD LINK32 cvd.lib cvauxd.lib cxcored.lib highguid.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib cxtsd.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\..\bin\cvtestd.exe" /pdbtype:sept /libpath:"..\..\..\lib"
 
 !ELSEIF  "$(CFG)" == "cvtest - Win32 Release64"
 
@@ -99,7 +99,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 F90=df.exe
 # ADD BASE CPP /nologo /MD /W4 /GX /Zi /O2 /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /c
-# ADD CPP /nologo /MD /W4 /GX /Zi /O2 /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D "WIN32" /D "WIN64" /D "EM64T" /Yu"cvtest.h" /FD /c
+# ADD CPP /nologo /MD /W4 /GX /Zi /O2 /I "." /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D "WIN32" /D "WIN64" /D "EM64T" /Yu"cvtest.h" /FD /c
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
 # ADD RSC /l 0x419 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -108,7 +108,7 @@ BSC32=bscmake.exe
 LINK32=xilink6.exe
 # ADD BASE LINK32 cv.lib cvaux.lib cxcore.lib highgui.lib trs.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib cxts.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\..\bin\cvtest.exe" /libpath:"..\..\..\lib"
 # SUBTRACT BASE LINK32 /nodefaultlib
-# ADD LINK32 cv_64.lib cvaux_64.lib cxcore_64.lib highgui_64.lib trs_64.lib cxts_64.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtest_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\..\bin\cvtest_64.exe" /libpath:"..\..\..\lib" /machine:AMD64
+# ADD LINK32 cv_64.lib cvaux_64.lib cxcore_64.lib highgui_64.lib cxts_64.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtest_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\..\bin\cvtest_64.exe" /libpath:"..\..\..\lib" /machine:AMD64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cvtest - Win32 Debug64"
@@ -127,7 +127,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 F90=df.exe
 # ADD BASE CPP /nologo /MDd /W4 /Gm /GX /Zi /Od /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /Yu"cvtest.h" /FD /GZ /c
-# ADD CPP /nologo /MDd /W4 /Gm /GX /Zi /Od /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /D "WIN32" /D "WIN64" /D "EM64T" /Yu"cvtest.h" /FD /Wp64 /c
+# ADD CPP /nologo /MDd /W4 /Gm /GX /Zi /Od /I "." /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /D "WIN32" /D "WIN64" /D "EM64T" /Yu"cvtest.h" /FD /Wp64 /c
 # ADD BASE RSC /l 0x419 /d "_DEBUG"
 # ADD RSC /l 0x419 /d "_DEBUG"
 BSC32=bscmake.exe
@@ -135,7 +135,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 cvd.lib cvauxd.lib cxcored.lib highguid.lib trsd.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib cxtsd.lib /nologo /subsystem:console /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\..\bin\cvtestd.exe" /pdbtype:sept /libpath:"..\..\..\lib"
-# ADD LINK32 cvd_64.lib cvauxd_64.lib cxcored_64.lib highguid_64.lib trsd_64.lib cxtsd_64.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtestd_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\..\bin\cvtestd_64.exe" /libpath:"..\..\..\lib" /machine:AMD64
+# ADD LINK32 cvd_64.lib cvauxd_64.lib cxcored_64.lib highguid_64.lib cxtsd_64.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtestd_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\..\bin\cvtestd_64.exe" /libpath:"..\..\..\lib" /machine:AMD64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cvtest - Win32 Release64 Itanium"
@@ -154,7 +154,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 F90=df.exe
 # ADD BASE CPP /nologo /MD /W4 /GX /Zi /O2 /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D "WIN32" /D "WIN64" /D "EM64T" /Yu"cvtest.h" /FD /c
-# ADD CPP /nologo /MD /w /W0 /GX /Zi /O2 /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "_CONSOLE" /D "_MBCS" /D "NDEBUG" /D "WIN32" /D "WIN64" /Yu"cvtest.h" /FD /c
+# ADD CPP /nologo /MD /w /W0 /GX /Zi /O2 /I "." /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "_CONSOLE" /D "_MBCS" /D "NDEBUG" /D "WIN32" /D "WIN64" /Yu"cvtest.h" /FD /c
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
 # ADD RSC /l 0x419 /d "NDEBUG"
 BSC32=bscmake.exe
@@ -163,7 +163,7 @@ BSC32=bscmake.exe
 LINK32=xilink6.exe
 # ADD BASE LINK32 cv_i7.lib cvaux_i7.lib cxcore_i7.lib highgui_i7.lib trs_i7.lib cxts_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtest_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\..\bin\cvtest_i7.exe" /libpath:"..\..\..\lib" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 cv_i7.lib cvaux_i7.lib cxcore_i7.lib highgui_i7.lib trs_i7.lib cxts_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtest_i7.pdb" /debug /machine:IX86 /out:"..\..\..\bin\cvtest_i7.exe" /libpath:"..\..\..\lib" /machine:IA64
+# ADD LINK32 cv_i7.lib cvaux_i7.lib cxcore_i7.lib highgui_i7.lib cxts_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtest_i7.pdb" /debug /machine:IX86 /out:"..\..\..\bin\cvtest_i7.exe" /libpath:"..\..\..\lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ELSEIF  "$(CFG)" == "cvtest - Win32 Debug64 Itanium"
@@ -182,7 +182,7 @@ LINK32=xilink6.exe
 # PROP Target_Dir ""
 F90=df.exe
 # ADD BASE CPP /nologo /MDd /W4 /Gm /GX /Zi /Od /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /D "WIN32" /D "WIN64" /D "EM64T" /Yu"cvtest.h" /FD /Wp64 /c
-# ADD CPP /nologo /MDd /W3 /Gm /GX /Zi /Od /I "." /I "..\..\trs" /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "_CONSOLE" /D "_MBCS" /D "_DEBUG" /D "WIN32" /D "WIN64" /Yu"cvtest.h" /FD /Qwd167 /c
+# ADD CPP /nologo /MDd /W3 /Gm /GX /Zi /Od /I "." /I "..\..\cxts" /I "..\..\..\cxcore\include" /I "..\..\..\cv\include" /I "..\..\..\cvaux\include" /I "..\..\..\otherlibs\highgui" /D "_CONSOLE" /D "_MBCS" /D "_DEBUG" /D "WIN32" /D "WIN64" /Yu"cvtest.h" /FD /Qwd167 /c
 # ADD BASE RSC /l 0x419 /d "_DEBUG"
 # ADD RSC /l 0x419 /d "_DEBUG"
 BSC32=bscmake.exe
@@ -191,7 +191,7 @@ BSC32=bscmake.exe
 LINK32=xilink6.exe
 # ADD BASE LINK32 cvd_i7.lib cvauxd_i7.lib cxcored_i7.lib highguid_i7.lib trsd_i7.lib cxtsd_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtestd_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\..\bin\cvtestd_i7.exe" /libpath:"..\..\..\lib" /machine:IA64
 # SUBTRACT BASE LINK32 /pdb:none
-# ADD LINK32 cvd_i7.lib cvauxd_i7.lib cxcored_i7.lib highguid_i7.lib trsd_i7.lib cxtsd_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtestd_i7.pdb" /debug /machine:IX86 /out:"..\..\..\bin\cvtestd_i7.exe" /libpath:"..\..\..\lib" /machine:IA64
+# ADD LINK32 cvd_i7.lib cvauxd_i7.lib cxcored_i7.lib highguid_i7.lib cxtsd_i7.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib /nologo /subsystem:console /pdb:"..\..\..\bin/cvtestd_i7.pdb" /debug /machine:IX86 /out:"..\..\..\bin\cvtestd_i7.exe" /libpath:"..\..\..\lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 
@@ -245,14 +245,6 @@ SOURCE=.\acondens.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\acontourcollection.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\acontourmoments.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\acontours.cpp
 # End Source File
 # Begin Source File
@@ -285,14 +277,6 @@ SOURCE=.\afilter.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\afitellipse.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\afitlines.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\afloodfill.cpp
 # End Source File
 # Begin Source File
@@ -302,10 +286,6 @@ SOURCE=.\afundam.cpp
 # Begin Source File
 
 SOURCE=.\ahistograms.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\ahmmobs.cpp
 # End Source File
 # Begin Source File
 
@@ -333,14 +313,6 @@ SOURCE=.\amatchcontourtrees.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\ameanshift.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\aminarearect.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\amoments.cpp
 # End Source File
 # Begin Source File
@@ -365,19 +337,11 @@ SOURCE=.\aoptflowpyrlk.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\apixelaccess.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\aposit.cpp
 # End Source File
 # Begin Source File
 
 SOURCE=.\apyrsegmentation.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\asamplers.cpp
 # End Source File
 # Begin Source File
 
@@ -397,37 +361,12 @@ SOURCE=.\athresh.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\ats.cpp
-# ADD CPP /Yu
-# End Source File
-# Begin Source File
-
-SOURCE=.\canny.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\cvtest.cpp
 # ADD CPP /Yc"cvtest.h"
 # End Source File
 # Begin Source File
 
 SOURCE=.\tsysa.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\ucontours.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\ugraphics.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\uiplutils.cpp
-# End Source File
-# Begin Source File
-
-SOURCE=.\ureadfile.cpp
 # End Source File
 # End Group
 # Begin Group "Header Files"
