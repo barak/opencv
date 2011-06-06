@@ -1,0 +1,211 @@
+Basic Installation
+==================
+
+Windows
+=======
+
+	Installation under Windows is pretty strightforward.
+	Download executable installation from SourceForge and run it.
+	It installs OpenCV, registers DirectShow filters and does
+	other post-installation procedures.
+	After that you may start using OpenCV.
+
+	Also, it is possible to build core OpenCV binaries manually
+	from source distribution for Linux (though, executable installation
+	includes sources as well):
+	 
+    + Download and unpack the OpenCV-*.tar.gz package somewhere, e.g. C:\MySoft\
+      (the root folder is referred further as <opencv_root>)
+      The tree should look like
+      <opencv_root>
+            _dsw
+            cv
+                include
+                src
+                make
+            cvaux
+                ...
+            ...
+   
+    + Add <opencv_root>\bin to the system path. Under Windows 9x/ME it is done
+      by mofifying autoexec.bat. Under NT/2000/XP it can be done by instantly at
+      MyComputer--right button click-->Properties->Advanced->Environment Variables.
+      
+    + Highgui requires graphic libraries by default, so remove HAVE_JPEG, HAVE_TIFF
+      and HAVE_PNG from preprocessor definitions and libjpeg.lib, libtiff.lib,
+      libpng.lib and zlib.lib from linker command line. The resultant Highgui
+      will be able to read & write most of jpeg's, bmp's, uncompressed tiff's,
+      pxm's and sun raster images; capture video from AVI or camera via VFW
+      and write AVIs via VFW - not quite few :).
+
+   Building OpenCV from sources
+   ----------------------------
+
+   You need to have some C/C++ compiler. Below are some variants considered:
+
+     === Microsoft Visual C++ (6.0 or higher) ===:
+       This is a preffered variant, because most of the demos
+       are written for it (i.e. using MFC).
+
+       * If you are going to build DirectShow filters, acquire and setup DirectX SDK
+       as described in <opencv_root>\docs\faq.htm or <opencv_root>\cv\include\cvstreams.h.
+
+       * If you are going to build MIL-enabled version highgui, setup MIL include
+       and library paths in Developer Studio.
+
+       * If you are going to build MATLAB wrappers, you need to have MATLAB C/C++
+       interface libraries and setup Developer Studio properly. Read
+       opencv/interfaces/matlab/readme.txt for details
+
+       * If you are going to build TCL\TK demo applications
+          (including with the source package only), you will need TCL\TK and BWidgets.
+          The easiest way to obtain both is to download and install ActiveTcl from
+          http://www.activestate.com. After installing ActiveTCL:
+          - add <tcl_root>\bin to the system path (if installer didn't do it),
+          - add <tcl_root>\include and <tcl_root>\lib to Developer Studio search paths
+            (tools->options->directories)
+
+       Open <opencv_root>\_dsw\opencv.dsw.
+
+       Choose from menu Build->Batch Build->Build
+
+       Wait and enjoy. If you want to debug OpenCV directshow filters,
+       register them using regsvr32 (e.g. regsvr32 <opencv_root>\bin\CamShiftd.ax)
+
+     === Other compilers ===
+     In case of other compilers you still can build core libraries (cv,cvaux,highgui),
+     algorithmic tests and samples (<opencv_root>\samples\c).
+     The following compilers are supported by default:
+
+     === Intel compiler 6.0 or greater ===
+
+        run nmake /f makefile.icl in the root OpenCV folder.
+        
+        Because the produced binaries should be compatible with Visual C++,
+        you can then use the DLLs with VisualC++ -build applications etc.
+
+     === Borland C++ 5.5 (free) or greater ===
+       
+        run make -f makefile.bcc in the root OpenCV folder.
+
+        Before running compilation, make sure <BorlandC_root>\bin is in the system path
+        and <BorlandC_root>\bin\bcc32.cfg contains:
+           -I<BorlandC_root>\bcc\include -L<BorlandC_root>\bcc\lib -L<BorlandC_root>\bcc\lib\psdk
+        (where <BorlandC_root> denotes the root folder of Borland C++ installation)
+
+     === GNU C/C++ 2.95.3 or greater ===
+
+       Run mingw32-make -f makefile.gcc in the root OpenCV folder.
+
+       Make sure that <gcc_root>\bin is in the system path.
+       To build VFW-enabled highgui, read instructions in
+       <opencv_root>\otherlibs\_graphics\readme.txt
+
+
+   How to test built OpenCV binaries
+   ---------------------------------
+
+   Run samples at <opencv_root>\samples\c.
+   (Note: some of the demos need AVI or Camera, e.g. motempl.c)
+   
+   or run algorithmic tests: <opencv_root>\bin\cvtest.exe.
+   It will produce cvtest.sum and cvtest.lst. cvtest.sum should contain all OK's.
+
+   How to add support for other compiler, or how to update the makefiles
+   if OpenCV has changed, or how to add more projects
+   ---------------------------------------------------------------------
+
+   Look at <opencv_root>\utils\gen_make.py. It looks at .dsp files in the specified
+   folders and generates makefiles for all compilers it knows. GCC is now handled
+   a little bit ugly, because linker couldn't handle too long lists of files and
+   I don't know if it is possible to use temporary inline files.
+
+Linux
+=====
+
+   There is no prebuilt binaries for Linux version (because of different
+   C++-incompatible versions of GCC in different distributions), so you'd have
+   to build it from sources.
+   The following has been tested on RedHat 8.0 (GCC 3.2) and SuSE 8.0 (GCC 2.95.3)
+
+   That's what you need to build fully-functionaly libraries and demos:
+   ======
+
+   + motif (LessTif or OpenMotif) with development files.
+     configure script assumes it is at /usr/X11R6/lib & /usr/X11R6/include/Xm.
+
+   + libpng, libjpeg and libtiff with development files.
+
+   + libavcodec from ffmpeg 0.4.6(pre) + headers.
+     Earlier version do not fit, because of changed interface and because of GPL license
+     (newer version is LGPL).
+     However, static linking is still prohibited for non-GPL software (as OpenCV),
+     so:
+        get CVS snapshot of ffmpeg from ffmpeg.sourceforge.net
+        ./configure --enable-shared
+        make
+        make install
+        you will have got: /usr/local/lib/libavcodec.so &
+                           /usr/local/include/ffmpeg/*.h
+
+   + (for demo applications only)
+     fltk 1.1.x (1.1.1 is the preferred one at the moment of writing this doc) with
+     development files.
+     If you do not have it, get it from www.fltk.org. In case of RPM-based distribution
+     it is possible to build fltk RPMs by
+        rpmbuild -ta fltk-x.y.z-source.tar.gz (for RH 8.x) or
+        rpm -ta fltk-x.y.z-source.tar.gz (for others).
+
+   + (for demo applications only)
+     TCL/TK 8.3.x with development files + BWidgets >=1.3.x.
+     Take bwidgets here: http://sourceforge.net/projects/tcllib/
+
+   Now build OpenCV:  
+   ======
+   
+   a) if your distribution uses RPM, you may build RPMs via:
+         rpmbuild -ta OpenCV-x.y.z.tar.gz" (for RH 8.x) or
+         rpm -ta OpenCV-x.y.z.tar.gz" (for others)
+      where OpenCV-x.y.z.tar.gz should be put to /usr/src/redhat/SOURCES/ or
+      similar folder  
+
+      it will build OpenCV-x.y.z.*.rpm (there is no OpenCV-devel,
+      everything is in one package)
+      
+      then install it by:
+        rpm -i --nodeps OpenCV-x.y.z.*.rpm
+        
+      --nodeps is needed in this version, because it can not find
+        libavcodec.so, even if it is in the path (a weird bug somewhere).
+
+   b) if your distribution does not support RPM, build and install it
+      in *nix traditional way:
+
+      ./configure --with-apps  # or simply ./configure
+      make
+      make install # as root
+      ldconfig # as root
+
+   both a&b (post-install))
+      
+      default installation path is /usr/local/lib and /usr/local/include/opencv,
+      so you need to add /usr/local/lib to /etc/ld.so.conf (and run ldconfig after)
+
+   How to test OpenCV:
+   =======
+
+   + run /usr/local/bin/cvtest
+   
+   + or
+     compile and run simple c examples at
+     /usr/local/share/opencv/samples, e.g.:
+
+     g++ `opencv-config --cxxflags` -o morphology morphology.c `opencv-config --libs`.
+     Plain gcc won't work because of unresolved c++-specific symbols (located in highgui?)
+
+   + or
+     run /usr/local/bin/{cvlkdemo|cvcsdemo|cvenv|vmdemotk}
+
+   
+
+   

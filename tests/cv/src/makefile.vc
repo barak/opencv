@@ -1,0 +1,292 @@
+# Makefile for Microsoft Visual C++ >=6.0
+
+CXX = cl
+LINK = link
+
+!ifdef debug
+
+SUFFIX = d
+DR = _Dbg
+
+!else
+
+SUFFIX = 
+DR = _Rls
+
+!endif
+
+OUTBIN = ..\..\..\bin\cvtest$(SUFFIX).exe
+OUTLIB = ..\..\..\lib\cvtest$(SUFFIX).lib
+
+OBJS = ..\..\..\_temp\cvtest$(DR)_vc\aabsdiff.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aaccum.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aadaptthresh.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aapproxpoly.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aarithm.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aarrayiterator.obj \
+..\..\..\_temp\cvtest$(DR)_vc\abackproject.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acalccontrasthist.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acalculate.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acameracalibration.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acamshift.obj ..\..\..\_temp\cvtest$(DR)_vc\acanny.obj \
+..\..\..\_temp\cvtest$(DR)_vc\achesscorners.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acondens.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acontourcollection.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acontourmoments.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acontours.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acontoursmatch.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aconvert.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aconvhull.obj ..\..\..\_temp\cvtest$(DR)_vc\acorner.obj \
+..\..\..\_temp\cvtest$(DR)_vc\acreatecontourtree.obj \
+..\..\..\_temp\cvtest$(DR)_vc\adistancetransform.obj \
+..\..\..\_temp\cvtest$(DR)_vc\adrawing.obj \
+..\..\..\_temp\cvtest$(DR)_vc\adrawing_regress.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aeigenobjects.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aemd.obj ..\..\..\_temp\cvtest$(DR)_vc\afitellipse.obj \
+..\..\..\_temp\cvtest$(DR)_vc\afitlines.obj \
+..\..\..\_temp\cvtest$(DR)_vc\afloodfill.obj \
+..\..\..\_temp\cvtest$(DR)_vc\afloodfill8.obj ..\..\..\_temp\cvtest$(DR)_vc\ahaar.obj \
+..\..\..\_temp\cvtest$(DR)_vc\ahistogram.obj \
+..\..\..\_temp\cvtest$(DR)_vc\ahistograms.obj \
+..\..\..\_temp\cvtest$(DR)_vc\ahmmobs.obj \
+..\..\..\_temp\cvtest$(DR)_vc\ahoughtransform.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aimage.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aimagestatistics.obj \
+..\..\..\_temp\cvtest$(DR)_vc\akalman.obj ..\..\..\_temp\cvtest$(DR)_vc\akmeans.obj \
+..\..\..\_temp\cvtest$(DR)_vc\alogic.obj ..\..\..\_temp\cvtest$(DR)_vc\amaskaccum.obj \
+..\..\..\_temp\cvtest$(DR)_vc\amatchcontourtrees.obj \
+..\..\..\_temp\cvtest$(DR)_vc\amathutils.obj \
+..\..\..\_temp\cvtest$(DR)_vc\amatrix.obj ..\..\..\_temp\cvtest$(DR)_vc\amatrix2.obj \
+..\..\..\_temp\cvtest$(DR)_vc\ameanshift.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aminarearect.obj \
+..\..\..\_temp\cvtest$(DR)_vc\amineval.obj ..\..\..\_temp\cvtest$(DR)_vc\amoments.obj \
+..\..\..\_temp\cvtest$(DR)_vc\amorphology.obj \
+..\..\..\_temp\cvtest$(DR)_vc\amotiontemplates.obj \
+..\..\..\_temp\cvtest$(DR)_vc\amotseg.obj \
+..\..\..\_temp\cvtest$(DR)_vc\anodeiterator.obj \
+..\..\..\_temp\cvtest$(DR)_vc\anorm.obj ..\..\..\_temp\cvtest$(DR)_vc\anormmask.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aoperations.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aoptflowhs.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aoptflowlk.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aoptflowpyrlk.obj \
+..\..\..\_temp\cvtest$(DR)_vc\apixelaccess.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aposit.obj ..\..\..\_temp\cvtest$(DR)_vc\aprecorner.obj \
+..\..\..\_temp\cvtest$(DR)_vc\apyramids.obj \
+..\..\..\_temp\cvtest$(DR)_vc\apyrsegmentation.obj \
+..\..\..\_temp\cvtest$(DR)_vc\asamplers.obj \
+..\..\..\_temp\cvtest$(DR)_vc\asequence.obj ..\..\..\_temp\cvtest$(DR)_vc\asnakes.obj \
+..\..\..\_temp\cvtest$(DR)_vc\asobel.obj \
+..\..\..\_temp\cvtest$(DR)_vc\astoragearray.obj \
+..\..\..\_temp\cvtest$(DR)_vc\asubdivisions.obj \
+..\..\..\_temp\cvtest$(DR)_vc\asvd.obj ..\..\..\_temp\cvtest$(DR)_vc\atemplmatch.obj \
+..\..\..\_temp\cvtest$(DR)_vc\athresh.obj ..\..\..\_temp\cvtest$(DR)_vc\atree.obj \
+..\..\..\_temp\cvtest$(DR)_vc\atreeiterator.obj ..\..\..\_temp\cvtest$(DR)_vc\ats.obj \
+..\..\..\_temp\cvtest$(DR)_vc\aundistort.obj ..\..\..\_temp\cvtest$(DR)_vc\canny.obj \
+..\..\..\_temp\cvtest$(DR)_vc\cvtest.obj ..\..\..\_temp\cvtest$(DR)_vc\tsysa.obj \
+..\..\..\_temp\cvtest$(DR)_vc\ucontours.obj \
+..\..\..\_temp\cvtest$(DR)_vc\ugraphics.obj \
+..\..\..\_temp\cvtest$(DR)_vc\uiplutils.obj \
+..\..\..\_temp\cvtest$(DR)_vc\ureadfile.obj 
+
+
+
+INC = ./cvtest.h 
+
+
+CXXFLAGS2 = /I"../../../cvaux/include" /I"../../trs/include" /I"../../../cv/include" /I"../../../otherlibs/highgui" /I"." /D"CV_BATCH_MSVC" /nologo /GX /GB /W4 /Zm200 /c /Fo 
+LINKFLAGS2 = /libpath:"../../../lib" /nologo /subsystem:console /pdb:none /machine:I386 /out:$(OUTBIN) 
+
+!ifdef debug
+
+CXXFLAGS = /D"WIN32" /D"_MBCS" /D"_CONSOLE" /D"_DEBUG" /MDd /Gm /Zi /Od /FD /GZ $(CXXFLAGS2)
+LIBS = cvd.lib cvauxd.lib highguid.lib trsd.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib 
+LINKFLAGS = $(LINKFLAGS2) /debug
+
+!else
+
+CXXFLAGS = /D"WIN32" /D"NDEBUG" /D"_CONSOLE" /D"_MBCS" /MD /Ox /Ob2 $(CXXFLAGS2)
+LIBS = cv.lib cvaux.lib highgui.lib trs.lib kernel32.lib user32.lib gdi32.lib comdlg32.lib advapi32.lib shell32.lib 
+LINKFLAGS = $(LINKFLAGS2) 
+
+!endif
+
+
+$(OUTBIN): $(OBJS)
+	-mkdir ..\..\..\bin 2> nul
+	-mkdir ..\..\..\lib 2> nul
+	$(LINK) $(LINKFLAGS) $** $(LIBS) 
+	
+
+all: $(OUTBIN)
+
+..\..\..\_temp\cvtest$(DR)_vc\aabsdiff.obj: .\aabsdiff.cpp ./cvtest.h
+	@-mkdir ..\..\..\_temp\cvtest$(DR)_vc 2>nul
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aabsdiff.obj .\aabsdiff.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aaccum.obj: .\aaccum.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aaccum.obj .\aaccum.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aadaptthresh.obj: .\aadaptthresh.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aadaptthresh.obj .\aadaptthresh.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aapproxpoly.obj: .\aapproxpoly.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aapproxpoly.obj .\aapproxpoly.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aarithm.obj: .\aarithm.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aarithm.obj .\aarithm.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aarrayiterator.obj: .\aarrayiterator.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aarrayiterator.obj .\aarrayiterator.cpp
+..\..\..\_temp\cvtest$(DR)_vc\abackproject.obj: .\abackproject.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\abackproject.obj .\abackproject.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acalccontrasthist.obj: .\acalccontrasthist.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acalccontrasthist.obj .\acalccontrasthist.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acalculate.obj: .\acalculate.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acalculate.obj .\acalculate.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acameracalibration.obj: .\acameracalibration.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acameracalibration.obj .\acameracalibration.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acamshift.obj: .\acamshift.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acamshift.obj .\acamshift.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acanny.obj: .\acanny.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acanny.obj .\acanny.cpp
+..\..\..\_temp\cvtest$(DR)_vc\achesscorners.obj: .\achesscorners.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\achesscorners.obj .\achesscorners.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acondens.obj: .\acondens.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acondens.obj .\acondens.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acontourcollection.obj: .\acontourcollection.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acontourcollection.obj .\acontourcollection.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acontourmoments.obj: .\acontourmoments.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acontourmoments.obj .\acontourmoments.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acontours.obj: .\acontours.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acontours.obj .\acontours.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acontoursmatch.obj: .\acontoursmatch.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acontoursmatch.obj .\acontoursmatch.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aconvert.obj: .\aconvert.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aconvert.obj .\aconvert.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aconvhull.obj: .\aconvhull.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aconvhull.obj .\aconvhull.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acorner.obj: .\acorner.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acorner.obj .\acorner.cpp
+..\..\..\_temp\cvtest$(DR)_vc\acreatecontourtree.obj: .\acreatecontourtree.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\acreatecontourtree.obj .\acreatecontourtree.cpp
+..\..\..\_temp\cvtest$(DR)_vc\adistancetransform.obj: .\adistancetransform.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\adistancetransform.obj .\adistancetransform.cpp
+..\..\..\_temp\cvtest$(DR)_vc\adrawing.obj: .\adrawing.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\adrawing.obj .\adrawing.cpp
+..\..\..\_temp\cvtest$(DR)_vc\adrawing_regress.obj: .\adrawing_regress.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\adrawing_regress.obj .\adrawing_regress.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aeigenobjects.obj: .\aeigenobjects.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aeigenobjects.obj .\aeigenobjects.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aemd.obj: .\aemd.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aemd.obj .\aemd.cpp
+..\..\..\_temp\cvtest$(DR)_vc\afitellipse.obj: .\afitellipse.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\afitellipse.obj .\afitellipse.cpp
+..\..\..\_temp\cvtest$(DR)_vc\afitlines.obj: .\afitlines.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\afitlines.obj .\afitlines.cpp
+..\..\..\_temp\cvtest$(DR)_vc\afloodfill.obj: .\afloodfill.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\afloodfill.obj .\afloodfill.cpp
+..\..\..\_temp\cvtest$(DR)_vc\afloodfill8.obj: .\afloodfill8.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\afloodfill8.obj .\afloodfill8.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ahaar.obj: .\ahaar.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ahaar.obj .\ahaar.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ahistogram.obj: .\ahistogram.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ahistogram.obj .\ahistogram.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ahistograms.obj: .\ahistograms.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ahistograms.obj .\ahistograms.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ahmmobs.obj: .\ahmmobs.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ahmmobs.obj .\ahmmobs.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ahoughtransform.obj: .\ahoughtransform.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ahoughtransform.obj .\ahoughtransform.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aimage.obj: .\aimage.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aimage.obj .\aimage.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aimagestatistics.obj: .\aimagestatistics.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aimagestatistics.obj .\aimagestatistics.cpp
+..\..\..\_temp\cvtest$(DR)_vc\akalman.obj: .\akalman.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\akalman.obj .\akalman.cpp
+..\..\..\_temp\cvtest$(DR)_vc\akmeans.obj: .\akmeans.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\akmeans.obj .\akmeans.cpp
+..\..\..\_temp\cvtest$(DR)_vc\alogic.obj: .\alogic.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\alogic.obj .\alogic.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amaskaccum.obj: .\amaskaccum.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amaskaccum.obj .\amaskaccum.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amatchcontourtrees.obj: .\amatchcontourtrees.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amatchcontourtrees.obj .\amatchcontourtrees.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amathutils.obj: .\amathutils.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amathutils.obj .\amathutils.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amatrix.obj: .\amatrix.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amatrix.obj .\amatrix.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amatrix2.obj: .\amatrix2.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amatrix2.obj .\amatrix2.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ameanshift.obj: .\ameanshift.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ameanshift.obj .\ameanshift.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aminarearect.obj: .\aminarearect.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aminarearect.obj .\aminarearect.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amineval.obj: .\amineval.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amineval.obj .\amineval.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amoments.obj: .\amoments.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amoments.obj .\amoments.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amorphology.obj: .\amorphology.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amorphology.obj .\amorphology.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amotiontemplates.obj: .\amotiontemplates.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amotiontemplates.obj .\amotiontemplates.cpp
+..\..\..\_temp\cvtest$(DR)_vc\amotseg.obj: .\amotseg.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\amotseg.obj .\amotseg.cpp
+..\..\..\_temp\cvtest$(DR)_vc\anodeiterator.obj: .\anodeiterator.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\anodeiterator.obj .\anodeiterator.cpp
+..\..\..\_temp\cvtest$(DR)_vc\anorm.obj: .\anorm.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\anorm.obj .\anorm.cpp
+..\..\..\_temp\cvtest$(DR)_vc\anormmask.obj: .\anormmask.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\anormmask.obj .\anormmask.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aoperations.obj: .\aoperations.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aoperations.obj .\aoperations.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aoptflowhs.obj: .\aoptflowhs.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aoptflowhs.obj .\aoptflowhs.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aoptflowlk.obj: .\aoptflowlk.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aoptflowlk.obj .\aoptflowlk.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aoptflowpyrlk.obj: .\aoptflowpyrlk.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aoptflowpyrlk.obj .\aoptflowpyrlk.cpp
+..\..\..\_temp\cvtest$(DR)_vc\apixelaccess.obj: .\apixelaccess.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\apixelaccess.obj .\apixelaccess.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aposit.obj: .\aposit.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aposit.obj .\aposit.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aprecorner.obj: .\aprecorner.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aprecorner.obj .\aprecorner.cpp
+..\..\..\_temp\cvtest$(DR)_vc\apyramids.obj: .\apyramids.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\apyramids.obj .\apyramids.cpp
+..\..\..\_temp\cvtest$(DR)_vc\apyrsegmentation.obj: .\apyrsegmentation.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\apyrsegmentation.obj .\apyrsegmentation.cpp
+..\..\..\_temp\cvtest$(DR)_vc\asamplers.obj: .\asamplers.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\asamplers.obj .\asamplers.cpp
+..\..\..\_temp\cvtest$(DR)_vc\asequence.obj: .\asequence.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\asequence.obj .\asequence.cpp
+..\..\..\_temp\cvtest$(DR)_vc\asnakes.obj: .\asnakes.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\asnakes.obj .\asnakes.cpp
+..\..\..\_temp\cvtest$(DR)_vc\asobel.obj: .\asobel.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\asobel.obj .\asobel.cpp
+..\..\..\_temp\cvtest$(DR)_vc\astoragearray.obj: .\astoragearray.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\astoragearray.obj .\astoragearray.cpp
+..\..\..\_temp\cvtest$(DR)_vc\asubdivisions.obj: .\asubdivisions.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\asubdivisions.obj .\asubdivisions.cpp
+..\..\..\_temp\cvtest$(DR)_vc\asvd.obj: .\asvd.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\asvd.obj .\asvd.cpp
+..\..\..\_temp\cvtest$(DR)_vc\atemplmatch.obj: .\atemplmatch.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\atemplmatch.obj .\atemplmatch.cpp
+..\..\..\_temp\cvtest$(DR)_vc\athresh.obj: .\athresh.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\athresh.obj .\athresh.cpp
+..\..\..\_temp\cvtest$(DR)_vc\atree.obj: .\atree.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\atree.obj .\atree.cpp
+..\..\..\_temp\cvtest$(DR)_vc\atreeiterator.obj: .\atreeiterator.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\atreeiterator.obj .\atreeiterator.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ats.obj: .\ats.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ats.obj .\ats.cpp
+..\..\..\_temp\cvtest$(DR)_vc\aundistort.obj: .\aundistort.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\aundistort.obj .\aundistort.cpp
+..\..\..\_temp\cvtest$(DR)_vc\canny.obj: .\canny.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\canny.obj .\canny.cpp
+..\..\..\_temp\cvtest$(DR)_vc\cvtest.obj: .\cvtest.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\cvtest.obj .\cvtest.cpp
+..\..\..\_temp\cvtest$(DR)_vc\tsysa.obj: .\tsysa.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\tsysa.obj .\tsysa.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ucontours.obj: .\ucontours.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ucontours.obj .\ucontours.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ugraphics.obj: .\ugraphics.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ugraphics.obj .\ugraphics.cpp
+..\..\..\_temp\cvtest$(DR)_vc\uiplutils.obj: .\uiplutils.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\uiplutils.obj .\uiplutils.cpp
+..\..\..\_temp\cvtest$(DR)_vc\ureadfile.obj: .\ureadfile.cpp ./cvtest.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\cvtest$(DR)_vc\ureadfile.obj .\ureadfile.cpp

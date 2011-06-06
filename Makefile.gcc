@@ -1,0 +1,15 @@
+# GNU C/C++ >=2.95.3
+
+ifdef debug
+OPT= debug=1
+else
+OPT= 
+endif
+
+all:
+	mingw32-make -C cv\make -f makefile.gcc
+	mingw32-make -C cvaux\make -f makefile.gcc
+	mingw32-make -C otherlibs\highgui -f makefile.gcc
+	mingw32-make -C tests\trs\make -f makefile.gcc
+	mingw32-make -C tests\cv\src -f makefile.gcc
+	mingw32-make -C samples\c -f makefile.gcc

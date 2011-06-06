@@ -1,0 +1,117 @@
+# Makefile for Borland C++ >=5.5
+
+CXX = bcc32
+LINK = bcc32
+
+!ifdef debug
+
+SUFFIX = d
+DR = _Dbg
+
+!else
+
+SUFFIX = 
+DR = _Rls
+
+!endif
+
+OUTBIN = ..\..\bin\cvaux$(SUFFIX).dll
+OUTLIB = ..\..\lib\cvaux$(SUFFIX).lib
+
+OBJS = ..\..\_temp\cvaux$(DR)_bcc\cv3dtracker.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvaux.obj ..\..\_temp\cvaux$(DR)_bcc\cvauxutils.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvcalibfilter.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvdpstereo.obj ..\..\_temp\cvaux$(DR)_bcc\cvepilines.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvface.obj ..\..\_temp\cvaux$(DR)_bcc\cvfacedetection.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvfacetemplate.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvfindface.obj ..\..\_temp\cvaux$(DR)_bcc\cvhaar.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvhaarfacecascade.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvhmm1d.obj ..\..\_temp\cvaux$(DR)_bcc\cvlcm.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvlee.obj ..\..\_temp\cvaux$(DR)_bcc\cvmat.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvmorphcontours.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvsegment.obj ..\..\_temp\cvaux$(DR)_bcc\cvsubdiv2.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvtexture.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvvecfacetracking.obj \
+..\..\_temp\cvaux$(DR)_bcc\cvvideo.obj ..\..\_temp\cvaux$(DR)_bcc\precomp.obj 
+
+
+
+INC = ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h \
+../include/cvaux.hpp ../include/cvmat.hpp 
+
+
+CXXFLAGS2 = -I"../src" -I"../include" -I"../../cv/include" -I"../../cv/src" -3 -a8 -b- -c -d -RT- -tWM -w-inl -w-aus -j200 -o 
+LINKFLAGS2 = -L"../../lib"  -tWD -e$(OUTBIN) 
+
+!ifdef debug
+
+CXXFLAGS = -D"WIN32" -D"_WINDOWS" -D"_DEBUG" -D"CVAUX_DLL" -Od -v $(CXXFLAGS2)
+LIBS = cvd.lib kernel32.lib user32.lib gdi32.lib 
+LINKFLAGS = $(LINKFLAGS2) 
+
+!else
+
+CXXFLAGS = -D"WIN32" -D"NDEBUG" -D"_WINDOWS" -D"CVAUX_DLL" -O2 $(CXXFLAGS2)
+LIBS = cv.lib kernel32.lib user32.lib gdi32.lib 
+LINKFLAGS = $(LINKFLAGS2) 
+
+!endif
+
+
+$(OUTBIN): $(OBJS)
+	-mkdir ..\..\bin 2> nul
+	-mkdir ..\..\lib 2> nul
+	$(LINK) @&&|
+$(LINKFLAGS) $** $(LIBS) 
+|
+	implib $(OUTLIB) $(OUTBIN)
+
+all: $(OUTBIN)
+
+..\..\_temp\cvaux$(DR)_bcc\cv3dtracker.obj: ..\src\cv3dtracker.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	@-mkdir ..\..\_temp\cvaux$(DR)_bcc 2>nul
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cv3dtracker.obj ..\src\cv3dtracker.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvaux.obj: ..\src\cvaux.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvaux.obj ..\src\cvaux.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvauxutils.obj: ..\src\cvauxutils.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvauxutils.obj ..\src\cvauxutils.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvcalibfilter.obj: ..\src\cvcalibfilter.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvcalibfilter.obj ..\src\cvcalibfilter.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvdpstereo.obj: ..\src\cvdpstereo.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvdpstereo.obj ..\src\cvdpstereo.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvepilines.obj: ..\src\cvepilines.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvepilines.obj ..\src\cvepilines.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvface.obj: ..\src\cvface.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvface.obj ..\src\cvface.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvfacedetection.obj: ..\src\cvfacedetection.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvfacedetection.obj ..\src\cvfacedetection.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvfacetemplate.obj: ..\src\cvfacetemplate.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvfacetemplate.obj ..\src\cvfacetemplate.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvfindface.obj: ..\src\cvfindface.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvfindface.obj ..\src\cvfindface.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvhaar.obj: ..\src\cvhaar.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvhaar.obj ..\src\cvhaar.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvhaarfacecascade.obj: ..\src\cvhaarfacecascade.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvhaarfacecascade.obj ..\src\cvhaarfacecascade.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvhmm1d.obj: ..\src\cvhmm1d.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvhmm1d.obj ..\src\cvhmm1d.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvlcm.obj: ..\src\cvlcm.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvlcm.obj ..\src\cvlcm.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvlee.obj: ..\src\cvlee.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvlee.obj ..\src\cvlee.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvmat.obj: ..\src\cvmat.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvmat.obj ..\src\cvmat.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvmorphcontours.obj: ..\src\cvmorphcontours.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvmorphcontours.obj ..\src\cvmorphcontours.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvsegment.obj: ..\src\cvsegment.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvsegment.obj ..\src\cvsegment.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvsubdiv2.obj: ..\src\cvsubdiv2.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvsubdiv2.obj ..\src\cvsubdiv2.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvtexture.obj: ..\src\cvtexture.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvtexture.obj ..\src\cvtexture.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvvecfacetracking.obj: ..\src\cvvecfacetracking.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvvecfacetracking.obj ..\src\cvvecfacetracking.cpp
+..\..\_temp\cvaux$(DR)_bcc\cvvideo.obj: ..\src\cvvideo.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\cvvideo.obj ..\src\cvvideo.cpp
+..\..\_temp\cvaux$(DR)_bcc\precomp.obj: ..\src\precomp.cpp ../src/_cvaux.h ../src/_cvfacedetection.h ../include/cvaux.h ../include/cvaux.hpp ../include/cvmat.hpp
+	-$(CXX) $(CXXFLAGS)..\..\_temp\cvaux$(DR)_bcc\precomp.obj ..\src\precomp.cpp

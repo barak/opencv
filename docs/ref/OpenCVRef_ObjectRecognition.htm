@@ -1,0 +1,429 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<html><head>
+<link rel="STYLESHEET" href="opencvref.css" charset="ISO-8859-1" type="text/css">
+<title>OpenCV: Object Recognition Reference</title>
+</head><body>
+
+<h1>Object Recognition Reference</h1>
+
+<hr><p><ul>
+<li><a href="#ch5_pca">Eigen Objects (PCA) Functions</a>
+<ul>
+<li><a href="#decl_cvCalcCovarMatrixEx">CalcCovarMatrixEx</a>
+<li><a href="#decl_cvCalcEigenObjects">CalcEigenObjects</a>
+<li><a href="#decl_cvCalcDecompCoeff">CalcDecompCoeff</a>
+<li><a href="#decl_cvEigenDecomposite">EigenDecomposite</a>
+<li><a href="#decl_cvEigenProjection">EigenProjection</a>
+</ul>
+<li><a href="#ch5_hmm">Embedded Hidden Markov Models Functions</a>
+<ul>
+<li><a href="#decl_CvHMM">HMM</a>
+<li><a href="#decl_CvImgObsInfo">ImgObsInfo</a>
+<li><a href="#decl_cvCreate2DHMM">Create2DHMM</a>
+<li><a href="#decl_cvRelease2DHMM">Release2DHMM</a>
+<li><a href="#decl_cvCreateObsInfo">CreateObsInfo</a>
+<li><a href="#decl_cvReleaseObsInfo">ReleaseObsInfo</a>
+<li><a href="#decl_cvImgToObs_DCT">ImgToObs_DCT</a>
+<li><a href="#decl_cvUniformImgSegm">UniformImgSegm</a>
+<li><a href="#decl_cvInitMixSegm">InitMixSegm</a>
+<li><a href="#decl_cvEstimateHMMStateParams">EstimateHMMStateParams</a>
+<li><a href="#decl_cvEstimateTransProb">EstimateTransProb</a>
+<li><a href="#decl_cvEstimateObsProb">EstimateObsProb</a>
+<li><a href="#decl_cvEViterbi">EViterbi</a>
+<li><a href="#decl_cvMixSegmL2">MixSegmL2</a>
+</ul></ul></p>
+
+
+<hr><h2><a name="ch5_pca">Eigen Objects (PCA) Functions</a></h2>
+
+<p>The functions described in this section do PCA analysis and compression for
+a set of 8-bit images that may not fit into memory all together.
+If your data fits into memory and the vectors are not 8-bit (or you want a simpler
+interface), use
+<a href="OpenCVRef_BasicFuncs.htm#decl_cvCalcCovarMatrix">cvCalcCovarMatrix</a>,
+<a href="OpenCVRef_BasicFuncs.htm#decl_cvSVD">cvSVD</a> and
+<a href="OpenCVRef_BasicFuncs.htm#decl_cvGEMM">cvGEMM</a>
+to do PCA</p>
+
+<hr><h3><a name="decl_cvCalcCovarMatrixEx">CalcCovarMatrixEx</a></h3>
+<p class="Blurb">Calculates covariance matrix for group of input objects</p>
+<pre>
+void cvCalcCovarMatrixEx( int nObjects, void* input, int ioFlags,
+                          int ioBufSize, uchar* buffer, void* userData,
+                          IplImage* avg, float* covarMatrix );
+</pre><p><dl>
+<dt>nObjects<dd>Number of source objects.
+<dt>input<dd>Pointer either to the array of <em>IplImage</em> input objects or to the read
+callback function according to the value of the parameter <em>ioFlags</em>.
+<dt>ioFlags<dd>Input/output flags.
+<dt>ioBufSize<dd>Input/output buffer size.
+<dt>buffer<dd>Pointer to the input/output buffer.
+<dt>userData<dd>Pointer to the structure that contains all necessary data for the
+<dt>callback<dd>functions.
+<dt>avg<dd>Averaged object.
+<dt>covarMatrix<dd>Covariance matrix. An output parameter; must be allocated before the
+call.
+</dl><p>
+The function <a href="#decl_cvCalcCovarMatrixEx">cvCalcCovarMatrixEx</a> calculates a covariance matrix of the input
+objects group using previously calculated averaged object. Depending on <em>ioFlags</em>
+parameter it may be used either in direct access or callback mode. If <em>ioFlags</em> is
+not <em>CV_EIGOBJ_NO_CALLBACK</em>, buffer must be allocated before calling the
+function.
+
+</p><hr><h3><a name="decl_cvCalcEigenObjects">CalcEigenObjects</a></h3>
+<p class="Blurb">Calculates orthonormal eigen basis and averaged object for group of input
+objects</p>
+<pre>
+void cvCalcEigenObjects( int nObjects, void* input, void* output, int ioFlags,
+                         int ioBufSize, void* userData, CvTermCriteria* calcLimit,
+                         IplImage* avg, float* eigVals );
+</pre><p><dl>
+<dt>nObjects<dd>Number of source objects.
+<dt>input<dd>Pointer either to the array of <em>IplImage</em> input objects or to the read
+callback function according to the value of the parameter <em>ioFlags</em>.
+<dt>output<dd>Pointer either to the array of eigen objects or to the write callback
+function according to the value of the parameter ioFlags .
+<dt>ioFlags<dd>Input/output flags.
+<dt>ioBufSize<dd>Input/output buffer size in bytes. The size is zero, if unknown.
+<dt>userData<dd>Pointer to the structure that contains all necessary data for the
+callback functions.
+<dt>calcLimit<dd>Criteria that determine when to stop calculation of eigen objects.
+<dt>avg<dd>Averaged object.
+<dt>eigVals<dd>Pointer to the eigenvalues array in the descending order; may be <em>NULL</em> .
+</dl><p>
+The function <a href="#decl_cvCalcEigenObjects">cvCalcEigenObjects</a> calculates orthonormal eigen basis and the
+averaged object for a group of the input objects. Depending on <em>ioFlags</em> parameter
+it may be used either in direct access or callback mode. Depending on the
+parameter <em>calcLimit</em>, calculations are finished either after first
+<em>calcLimit.maxIters</em> dominating eigen objects are retrieved or if the ratio of the
+current eigenvalue to the largest eigenvalue comes down to <em>calcLimit.epsilon</em>
+threshold. The value <em>calcLimit -> type</em> must be <em>CV_TERMCRIT_NUMB,
+CV_TERMCRIT_EPS</em>, or <em>CV_TERMCRIT_NUMB | CV_TERMCRIT_EPS</em> . The function returns
+the real values <em>calcLimit -> maxIter</em> and <em>calcLimit -> epsilon</em> .
+<p>
+The function also calculates the averaged object, which must be created
+previously. Calculated eigen objects are arranged according to the corresponding
+eigenvalues in the descending order.
+</p>
+The parameter <em>eigVals</em> may be equal to <em>NULL</em>, if eigenvalues are not needed.
+<p>
+The function <a href="#decl_cvCalcEigenObjects">cvCalcEigenObjects</a> uses the function
+<a href="#decl_cvCalcCovarMatrixEx">cvCalcCovarMatrixEx</a>.
+</p>
+
+<hr><h3><a name="decl_cvCalcDecompCoeff">CalcDecompCoeff</a></h3>
+<p class="Blurb">Calculates decomposition coefficient of input object</p>
+<pre>
+double cvCalcDecompCoeff( IplImage* obj, IplImage* eigObj, IplImage* avg );
+</pre><p><dl>
+<dt>obj<dd>Input object.
+<dt>eigObj<dd>Eigen object.
+<dt>avg<dd>Averaged object.
+</dl><p>
+The function <a href="#decl_cvCalcDecompCoeff">cvCalcDecompCoeff</a> calculates one decomposition coefficient of the
+input object using the previously calculated eigen object and the averaged
+object.
+</p>
+
+
+<hr><h3><a name="decl_cvEigenDecomposite">EigenDecomposite</a></h3>
+<p class="Blurb">Calculates all decomposition coefficients for input object</p>
+<pre>
+void cvEigenDecomposite( IplImage* obj, int nEigObjs, void* eigInput,
+                         int ioFlags, void* userData, IplImage* avg, float* coeffs );
+</pre><p><dl>
+<dt>obj<dd>Input object.
+<dt>nEigObjs<dd>Number of eigen objects.
+<dt>eigInput<dd>Pointer either to the array of <em>IplImage</em> input objects or to the read
+callback function according to the value of the parameter <em>ioFlags</em>.
+<dt>ioFlags<dd>Input/output flags.
+<dt>userData<dd>Pointer to the structure that contains all necessary data for the
+callback functions.
+<dt>avg<dd>Averaged object.
+<dt>coeffs<dd>Calculated coefficients; an output parameter.
+</dl><p>
+The function <a href="#decl_cvEigenDecomposite">cvEigenDecomposite</a> calculates all decomposition coefficients for the
+input object using the previously calculated eigen objects basis and the
+averaged object. Depending on <em>ioFlags</em> parameter it may be used either in direct
+access or callback mode.
+</p>
+
+
+<hr><h3><a name="decl_cvEigenProjection">EigenProjection</a></h3>
+<p class="Blurb">Calculates object projection to the eigen sub-space</p>
+<pre>
+void cvEigenProjection( int nEigObjs, void* eigInput, int ioFlags,
+                        void* userData, float* coeffs,
+                        IplImage* avg, IplImage* proj );
+</pre><p><dl>
+<dt>nEigObjs<dd>Number of eigen objects.
+<dt>eigInput<dd>Pointer either to the array of <em>IplImage</em> input objects or to the read
+callback function according to the value of the parameter <em>ioFlags</em>.
+<dt>ioFlags<dd>Input/output flags.
+<dt>userData<dd>Pointer to the structure that contains all necessary data for the
+callback functions.
+<dt>coeffs<dd>Previously calculated decomposition coefficients.
+<dt>avg<dd>Averaged object.
+<dt>proj<dd>Decomposed object projection to the eigen sub-space.
+</dl><p>
+The function <a href="#decl_cvEigenProjection">cvEigenProjection</a> calculates an object projection to the eigen
+sub-space or, in other words, restores an object using previously calculated
+eigen objects basis, averaged object, and decomposition coefficients of the
+restored object. Depending on <em>ioFlags</em> parameter it may be used either in direct
+access or callback mode.</p>
+<p>
+The functions of the eigen objects group have been developed to be used for any
+number of objects, even if their total size exceeds free RAM size. So the
+functions may be used in two main modes.
+</p>
+Direct access mode is the best choice if the size of free RAM is sufficient for
+all input and eigen objects allocation. This mode is set if the parameter
+<em>ioFlags</em> is equal to <em>CV_EIGOBJ_NO_CALLBACK</em> . In this case <em>input</em> and <em>output</em>
+parameters are pointers to arrays of input/output objects of <em>IplImage*</em> type. The
+parameters <em>ioBufSize</em> and <em>userData</em> are not used.
+</p>
+
+<hr><h2><a name="ch5_hmm">Embedded Hidden Markov Models Functions</a></h2>
+
+<p>
+In order to support embedded models the user must define structures to represent
+1D HMM and 2D embedded HMM model.
+</p>
+<hr><h3><a name="decl_CvHMM">CvHMM</a></h3>
+<p class="Blurb">Embedded HMM Structure</p>
+<pre>
+    typedef struct _CvEHMM 
+    { 
+        int level; 
+        int num_states; 
+        float* transP; 
+        float** obsProb; 
+        union 
+        { 
+            CvEHMMState* state;
+            struct _CvEHMM* ehmm; 
+        } u;
+    } CvEHMM; 
+</pre><p><dl>
+<dt>level<dd>Level of embedded HMM. If <em>level ==0</em>, HMM is most external. In 2D HMM
+there are two types of HMM: 1 external and several embedded. External HMM has
+<em>level ==1</em>, embedded HMMs have <em>level ==0</em> .
+<dt>num_states<dd>Number of states in 1D HMM.
+<dt>transP<dd>State-to-state transition probability, square matrix <em>(num_state&times;num_state )</em>.
+<dt>obsProb<dd>Observation probability matrix.
+<dt>state<dd>Array of HMM states. For the last-level HMM, that is, an HMM without
+embedded HMMs, HMM states are real.
+<dt>ehmm<dd>Array of embedded HMMs. If HMM is not last-level, then HMM states are not
+real and they are HMMs.
+</dl></p>
+<p>For representation of observations the following structure is defined:</p>
+
+<hr><h3><a name="decl_CvImgObsInfo">CvImgObsInfo</a></h3>
+<p class="Blurb">Image Observation Structure</p>
+<pre>
+    typedef struct CvImgObsInfo
+    {
+        int obs_x;
+        int obs_y;
+        int obs_size;
+        float** obs;
+        int* state;
+        int* mix;
+    } CvImgObsInfo;
+</pre><p><dl>
+<dt>obs_x<dd>Number of observations in the horizontal direction.
+<dt>obs_y<dd>Number of observations in the vertical direction.
+<dt>obs_size<dd>Length of every observation vector.
+<dt>obs<dd>Pointer to observation vectors stored consequently. Number of vectors is
+<em>obs_x*obs_y</em> .
+<dt>state<dd>Array of indices of states, assigned to every observation vector.
+<dt>mix<dd>Index of mixture component, corresponding to the observation vector within
+an assigned state.
+</dl></p> 
+
+
+<hr><h3><a name="decl_cvCreate2DHMM">Create2DHMM</a></h3>
+<p class="Blurb">Creates 2D embedded HMM</p>
+<pre>
+CvEHMM* cvCreate2DHMM( int* stateNumber, int* numMix, int obsSize );
+</pre><p><dl>
+<dt>stateNumber<dd>Array, the first element of the which specifies the number of
+superstates in the HMM. All subsequent elements specify the number of states in
+every embedded HMM, corresponding to each superstate. So, the length of the
+array is <em>stateNumber [0]+1</em> .
+<dt>numMix<dd>Array with numbers of Gaussian mixture components per each internal
+state. The number of elements in the array is equal to number of internal states
+in the HMM, that is, superstates are not counted here.
+<dt>obsSize<dd>Size of observation vectors to be used with created HMM.
+</dl><p>
+The function <a href="#decl_cvCreate2DHMM">cvCreate2DHMM</a> returns the created structure of the type <a href="#decl_CvEHMM">CvEHMM</a> with
+specified parameters.
+
+</p><hr><h3><a name="decl_cvRelease2DHMM">Release2DHMM</a></h3>
+<p class="Blurb">Releases 2D embedded HMM</p>
+<pre>
+void cvRelease2DHMM(CvEHMM** hmm );
+</pre><p><dl>
+<dt>hmm<dd>Address of pointer to HMM to be released.
+</dl><p>
+The function <a href="#decl_cvRelease2DHMM">cvRelease2DHMM</a> frees all the memory used by HMM and clears the
+pointer to HMM.
+
+</p><hr><h3><a name="decl_cvCreateObsInfo">CreateObsInfo</a></h3>
+<p class="Blurb">Creates structure to store image observation vectors</p>
+<pre>
+CvImgObsInfo* cvCreateObsInfo( CvSize numObs, int obsSize );
+</pre><p><dl>
+<dt>numObs<dd>Numbers of observations in the horizontal and vertical directions. For
+the given image and scheme of extracting observations the parameter can be
+computed via the macro <em>CV_COUNT_OBS( roi, dctSize, delta, numObs )</em>, where <em>roi,
+dctSize, delta, numObs</em> are the pointers to structures of the type <a href="#decl_CvSize ">CvSize </a>. The
+pointer <em>roi</em> means size of <em>roi</em> of image observed, <em>numObs</em> is the output parameter
+of the macro.
+<dt>obsSize<dd>Size of observation vectors to be stored in the structure.
+</dl><p>
+The function <a href="#decl_cvCreateObsInfo">cvCreateObsInfo</a> creates new structures to store image observation
+vectors. For definitions of the parameters <em>roi, dctSize</em>, and <em>delta</em> see the
+specification of the function <a href="#decl_cvImgToObs_DCT">cvImgToObs_DCT</a>.
+
+</p><hr><h3><a name="decl_cvReleaseObsInfo">ReleaseObsInfo</a></h3>
+<p class="Blurb">Releases observation vectors structure</p>
+<pre>
+void cvReleaseObsInfo( CvImgObsInfo** obsInfo );
+</pre><p><dl>
+<dt>obsInfo<dd>Address of the pointer to the structure <a href="#decl_CvImgObsInfo">CvImgObsInfo</a> .
+</dl><p>
+The function <a href="#decl_cvReleaseObsInfo">cvReleaseObsInfo</a> frees all memory used by observations and clears
+pointer to the structure <a href="#decl_CvImgObsInfo">CvImgObsInfo</a> .
+
+</p><hr><h3><a name="decl_cvImgToObs_DCT">ImgToObs_DCT</a></h3>
+<p class="Blurb">Extracts observation vectors from image</p>
+<pre>
+void cvImgToObs_DCT( IplImage* image, float* obs, CvSize dctSize,
+                     CvSize obsSize, CvSize delta );
+</pre><p><dl>
+<dt>image<dd>Input image.
+<dt>obs<dd>Pointer to consequently stored observation vectors.
+<dt>dctSize<dd>Size of image blocks for which DCT (Discrete Cosine Transform)
+coefficients are to be computed.
+<dt>obsSize<dd>Number of the lowest DCT coefficients in the horizontal and vertical
+directions to be put into the observation vector.
+<dt>delta<dd>Shift in pixels between two consecutive image blocks in the horizontal and
+vertical directions.
+</dl><p>
+The function <a href="#decl_cvImgToObs_DCT">cvImgToObs_DCT</a> extracts observation vectors, that is, DCT
+coefficients, from the image. The user must pass <em>obsInfo.obs</em> as the parameter
+<em>obs</em> to use this function with other HMM functions and use the structure <em>obsInfo</em>
+of the <a href="#decl_CvImgObsInfo">CvImgObsInfo</a> type.
+</p><p>
+<em>Calculating Observations for HMM</em>
+<pre>
+    CvImgObsInfo* obs_info;
+
+        ...
+
+        cvImgToObs_DCT( image,obs_info->obs, //!!!
+
+        dctSize, obsSize, delta );
+</pre>
+
+</p><hr><h3><a name="decl_cvUniformImgSegm">UniformImgSegm</a></h3>
+<p class="Blurb">Performs uniform segmentation of image observations by HMM states</p>
+<pre>
+void cvUniformImgSegm( CvImgObsInfo* obsInfo, CvEHMM* hmm );
+</pre><p><dl>
+<dt>obsInfo<dd>Observations structure.
+<dt>hmm<dd>HMM structure.
+</dl><p>
+The function <a href="#decl_cvUniformImgSegm">cvUniformImgSegm</a> segments image observations by HMM states uniformly
+(see <u><font color=blue>Initial Segmentation</font></u> for 2D Embedded HMM for 2D embedded HMM with 5
+superstates and 3, 6, 6, 6, 3 internal states of every corresponding
+superstate).
+<p>
+<font color=blue>  Initial Segmentation for 2D Embedded HMM </font>
+</p>
+<p>
+<img align=center src="pics/face.png">  
+</p>
+
+</p><hr><h3><a name="decl_cvInitMixSegm">InitMixSegm</a></h3>
+<p class="Blurb">Segments all observations within every internal state of HMM by state mixture
+components</p>
+<pre>
+void cvInitMixSegm( CvImgObsInfo** obsInfoArray, int numImg, CvEHMM* hmm );
+</pre><p><dl>
+<dt>obsInfoArray<dd>Array of pointers to the observation structures.
+<dt>numImg<dd>Length of above array.
+<dt>hmm<dd>HMM.
+</dl><p>
+The function <a href="#decl_cvInitMixSegm">cvInitMixSegm</a> takes a group of observations from several training
+images already segmented by states and splits a set of observation vectors
+within every internal HMM state into as many clusters as the number of mixture
+components in the state.
+
+</p><hr><h3><a name="decl_cvEstimateHMMStateParams">EstimateHMMStateParams</a></h3>
+<p class="Blurb">Estimates all parameters of every HMM state</p>
+<pre>
+void cvEstimateHMMStateParams( CvImgObsInfo** obsInfoArray, int numImg, CvEHMM* hmm );
+</pre><p><dl>
+<dt>obsInfoArray<dd>Array of pointers to the observation structures.
+<dt>numImg<dd>Length of the array.
+<dt>hmm<dd>HMM.
+</dl><p>
+The function <a href="#decl_cvEstimateHMMStateParams">cvEstimateHMMStateParams</a> computes all inner parameters of every HMM
+state, including Gaussian means, variances, etc.
+
+</p><hr><h3><a name="decl_cvEstimateTransProb">EstimateTransProb</a></h3>
+<p class="Blurb">Computes transition probability matrices for embedded HMM</p>
+<pre>
+void cvEstimateTransProb( CvImgObsInfo** obsInfoArray, int numImg, CvEHMM* hmm );
+</pre><p><dl>
+<dt>obsInfoArray<dd>Array of pointers to the observation structures.
+<dt>numImg<dd>Length of the above array.
+<dt>hmm<dd>HMM.
+</dl><p>
+The function <a href="#decl_cvEstimateTransProb">cvEstimateTransProb</a> uses current segmentation of image observations
+to compute transition probability matrices for all embedded and external HMMs.
+
+</p><hr><h3><a name="decl_cvEstimateObsProb">EstimateObsProb</a></h3>
+<p class="Blurb">Computes probability of every observation of several images</p>
+<pre>
+void cvEstimateObsProb( CvImgObsInfo* obsInfo, CvEHMM* hmm );
+</pre><p><dl>
+<dt>obsInfo<dd>Observation structure.
+<dt>hmm<dd>HMM structure.
+</dl><p>
+The function <a href="#decl_cvEstimateObsProb">cvEstimateObsProb</a> computes Gaussian probabilities of each observation
+to occur in each of the internal HMM states.
+
+</p><hr><h3><a name="decl_cvEViterbi">EViterbi</a></h3>
+<p class="Blurb">Executes Viterbi algorithm for embedded HMM</p>
+<pre>
+float cvEViterbi( CvImgObsInfo* obsInfo, CvEHMM* hmm );
+</pre><p><dl>
+<dt>obsInfo<dd>Observation structure.
+<dt>hmm<dd>HMM structure.
+</dl><p>
+The function <a href="#decl_cvEViterbi">cvEViterbi</a> executes Viterbi algorithm for embedded HMM. Viterbi
+algorithm evaluates the likelihood of the best match between the given image
+observations and the given HMM and performs segmentation of image observations
+by HMM states. The segmentation is done on the basis of the match found.
+
+</p><hr><h3><a name="decl_cvMixSegmL2">MixSegmL2</a></h3>
+<p class="Blurb">Segments observations from all training images by mixture components of newly
+assigned states</p>
+<pre>
+void cvMixSegmL2( CvImgObsInfo** obsInfoArray, int numImg, CvEHMM* hmm );
+</pre><p><dl>
+<dt>obsInfoArray<dd>Array of pointers to the observation structures.
+<dt>numImg<dd>Length of the array.
+<dt>hmm<dd>HMM.
+</dl><p>
+The function <a href="#decl_cvMixSegmL2">cvMixSegmL2</a> segments observations from all training images by mixture
+components of newly Viterbi algorithm-assigned states. The function uses
+Euclidean distance to group vectors around the existing mixtures centers.
+</p>
+
+</body>
+</html>
+

@@ -1,0 +1,64 @@
+# Makefile for Borland C++ >=5.5
+
+CXX = bcc32
+LINK = bcc32
+
+!ifdef debug
+
+SUFFIX = d
+DR = _Dbg
+
+!else
+
+SUFFIX = 
+DR = _Rls
+
+!endif
+
+OUTBIN = ..\..\..\bin\trs$(SUFFIX).dll
+OUTLIB = ..\..\..\lib\trs$(SUFFIX).lib
+
+OBJS = ..\..\..\_temp\trs$(DR)_bcc\trsapi.obj \
+..\..\..\_temp\trs$(DR)_bcc\trserror.obj ..\..\..\_temp\trs$(DR)_bcc\trsread.obj 
+
+
+
+INC = ../include/trsapi.h ../include/trserror.h ../include/trsipi.h \
+../include/trswind.h 
+
+
+CXXFLAGS2 = -I"../../../ippicvlib/include" -I"../include" -3 -a8 -b- -c -d -RT- -tWM -w-inl -w-aus -j200 -o 
+LINKFLAGS2 =  -tWD -e$(OUTBIN) 
+
+!ifdef debug
+
+CXXFLAGS = -D"_CVL_PX" -D"WIN32" -D"_CVL_DEBUG" -D"_DEBUG" -D"TRS_W32DLL" -D"_WINDOWS" -Od -v $(CXXFLAGS2)
+LIBS = kernel32.lib user32.lib gdi32.lib 
+LINKFLAGS = $(LINKFLAGS2) 
+
+!else
+
+CXXFLAGS = -D"_CVL_PX" -D"NDEBUG" -D"TRS_W32DLL" -D"WIN32" -D"_WINDOWS" -O2 $(CXXFLAGS2)
+LIBS = kernel32.lib user32.lib gdi32.lib 
+LINKFLAGS = $(LINKFLAGS2) 
+
+!endif
+
+
+$(OUTBIN): $(OBJS)
+	-mkdir ..\..\..\bin 2> nul
+	-mkdir ..\..\..\lib 2> nul
+	$(LINK) @&&|
+$(LINKFLAGS) $** $(LIBS) 
+|
+	implib $(OUTLIB) $(OUTBIN)
+
+all: $(OUTBIN)
+
+..\..\..\_temp\trs$(DR)_bcc\trsapi.obj: ..\src\trsapi.c ../include/trsapi.h ../include/trserror.h ../include/trsipi.h ../include/trswind.h
+	@-mkdir ..\..\..\_temp\trs$(DR)_bcc 2>nul
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\trs$(DR)_bcc\trsapi.obj ..\src\trsapi.c
+..\..\..\_temp\trs$(DR)_bcc\trserror.obj: ..\src\trserror.c ../include/trsapi.h ../include/trserror.h ../include/trsipi.h ../include/trswind.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\trs$(DR)_bcc\trserror.obj ..\src\trserror.c
+..\..\..\_temp\trs$(DR)_bcc\trsread.obj: ..\src\trsread.c ../include/trsapi.h ../include/trserror.h ../include/trsipi.h ../include/trswind.h
+	-$(CXX) $(CXXFLAGS)..\..\..\_temp\trs$(DR)_bcc\trsread.obj ..\src\trsread.c

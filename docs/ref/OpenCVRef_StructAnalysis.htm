@@ -1,0 +1,963 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<html><head>
+<link rel="STYLESHEET" href="opencvref.css" charset="ISO-8859-1" type="text/css">
+<title>OpenCV: Structural Analysis Reference</title>
+</head><body>
+
+<h1>Structural Analysis Reference</h1>
+
+<hr><p><ul>
+<li><a href="#ch3_contours">Contour Processing Functions</a>
+<ul>
+<li><a href="#decl_cvApproxChains">ApproxChains</a>
+<li><a href="#decl_cvStartReadChainPoints">StartReadChainPoints</a>
+<li><a href="#decl_cvReadChainPoint">ReadChainPoint</a>
+<li><a href="#decl_cvApproxPoly">ApproxPoly</a>
+<li><a href="#decl_cvBoundingRect">BoundingRect</a>
+<li><a href="#decl_cvContourArea">ContourArea</a>
+<li><a href="#decl_cvArcLength">ArcLength</a>
+<li><a href="#decl_cvMatchShapes">MatchShapes</a>
+<li><a href="#decl_cvCreateContourTree">CreateContourTree</a>
+<li><a href="#decl_cvContourFromContourTree">ContourFromContourTree</a>
+<li><a href="#decl_cvMatchContourTrees">MatchContourTrees</a>
+</ul>
+<li><a href="#ch3_geometry">Geometry Functions</a>
+<ul>
+<li><a href="#decl_cvMaxRect">MaxRect</a>
+<li><a href="#decl_CvBox2D">Box2D</a>
+<li><a href="#decl_cvBoxPoints">BoxPoints</a>
+<li><a href="#decl_cvFitEllipse">FitEllipse</a>
+<li><a href="#decl_cvFitLine2D">FitLine2D</a>
+<li><a href="#decl_cvConvexHull2">ConvexHull2</a>
+<li><a href="#decl_cvCheckContourConvexity">CheckContourConvexity</a>
+<li><a href="#decl_CvConvexityDefect">ConvexityDefect</a>
+<li><a href="#decl_cvConvexityDefects">ConvexityDefects</a>
+<li><a href="#decl_cvMinAreaRect2">MinAreaRect2</a>
+<li><a href="#decl_cvMinEnclosingCircle">MinEnclosingCircle</a>
+<li><a href="#decl_cvCalcPGH">CalcPGH</a>
+<li><a href="#decl_cvKMeans">KMeans</a>
+<li><a href="#decl_cvMinEnclosingCircle">MinEnclosingCircle</a>
+</ul>
+<li><a href="#ch3_subdivs">Planar Subdivisions</a>
+<ul>
+<li><a href="#decl_CvSubdiv2D">Subdiv2D</a>
+<li><a href="#decl_CvQuadEdge2D">QuadEdge2D</a>
+<li><a href="#decl_CvSubdiv2DPoint">Subdiv2DPoint</a>
+<li><a href="#decl_cvSubdiv2DGetEdge">Subdiv2DGetEdge</a>
+<li><a href="#decl_cvSubdiv2DRotateEdge">Subdiv2DRotateEdge</a>
+<li><a href="#decl_cvSubdiv2DEdgeOrg">Subdiv2DEdgeOrg</a>
+<li><a href="#decl_cvSubdiv2DEdgeDst">Subdiv2DEdgeDst</a>
+<li><a href="#decl_cvCreateSubdivDelaunay2D">CreateSubdivDelaunay2D</a>
+<li><a href="#decl_cvSubdivDelaunay2DInsert">SubdivDelaunay2DInsert</a>
+<li><a href="#decl_cvSubdiv2DLocate">Subdiv2DLocate</a>
+<li><a href="#decl_cvFindNearestPoint2D">FindNearestPoint2D</a>
+<li><a href="#decl_cvCalcSubdivVoronoi2D">CalcSubdivVoronoi2D</a>
+<li><a href="#decl_cvClearSubdivVoronoi2D">ClearSubdivVoronoi2D</a>
+</ul></ul></p>
+
+
+<hr><h2><a name="ch3_contours">Contour Processing Functions</a></h2>
+
+<hr><h3><a name="decl_cvApproxChains">ApproxChains</a></h3>
+<p class="Blurb">Approximates Freeman chain(s) with polygonal curve</p>
+<pre>
+CvSeq* cvApproxChains( CvSeq* srcSeq, CvMemStorage* storage,
+                       CvChainApproxMethod method=CV_CHAIN_APPROX_SIMPLE,
+                       double parameter=0, int minimalPerimeter=0, int recursive=0 );
+</pre><p><dl>
+<dt>srcSeq<dd>Pointer to the chain that can refer to other chains.
+<dt>storage<dd>Storage location for the resulting polylines.
+<dt>method<dd>Approximation method (see the description of the function
+<a href="OpenCVRef_ImageProcessing.htm#decl_cvFindContours">cvFindContours</a>).
+<dt>parameter<dd>Method parameter (not used now).
+<dt>minimalPerimeter<dd>Approximates only those contours whose perimeters are not less
+than <em>minimalPerimeter</em>. Other chains are removed from the resulting structure.
+<dt>recursive<dd>If not 0, the function approximates all chains that access can be
+obtained to from <em>srcSeq</em> by <em>h_next</em> or <em>v_next links</em>. If 0, the single chain is
+approximated.
+</dl><p>
+This is a stand-alone approximation routine. The function <a href="#decl_cvApproxChains">cvApproxChains</a> works
+exactly in the same way as <a href="OpenCVRef_ImageProcessing.htm#decl_cvFindContours">cvFindContours</a> with the corresponding approximation flag.
+The function returns pointer to the first resultant contour.
+Other approximated contours, if any, can be accessed via <em>v_next</em> or
+<em>h_next</em> fields of the returned structure.
+</p>
+
+
+<hr><h3><a name="decl_cvStartReadChainPoints">StartReadChainPoints</a></h3>
+<p class="Blurb">Initializes chain reader</p>
+<pre>
+void cvStartReadChainPoints( CvChain* chain, CvChainPtReader* reader );
+</pre><p><dl>
+chain Pointer to chain.
+reader Chain reader state.
+</dl><p>
+The function <a href="#decl_cvStartReadChainPoints">cvStartReadChainPoints</a> initializes a special reader
+(see <a href="OpenCVRef_BasicFuncs.htm#ch1_dynamic_structs">Dynamic Data Structures</a>
+for more information on sets and sequences).
+</p>
+
+
+<hr><h3><a name="decl_cvReadChainPoint">ReadChainPoint</a></h3>
+<p class="Blurb">Gets next chain point</p>
+<pre>
+CvPoint cvReadChainPoint( CvChainPtReader* reader );
+</pre><p><dl>
+<dt>reader<dd>Chain reader state.
+</dl><p>
+The function <a href="#decl_cvReadChainPoint">cvReadChainPoint</a> returns the current chain point and updates the reader position.</p>
+
+
+<hr><h3><a name="decl_cvApproxPoly">ApproxPoly</a></h3>
+<p class="Blurb">Approximates polygonal curve(s) with desired precision</p>
+<pre>
+CvSeq* cvApproxPoly( const void* srcSeq, int headerSize, CvMemStorage* storage,
+                     int method, double parameter,
+                     int parameter2=0 );
+</pre><p><dl>
+<dt>srcSeq<dd>Sequence of array of points.
+<dt>headerSize<dd>Header size of approximated curve[s].
+<dt>storage<dd>Container for approximated contours. If it is NULL, the input sequences' storage is used.
+<dt>method<dd>Approximation method; only <em>CV_POLY_APPROX_DP</em> is supported, that
+corresponds to Douglas-Peucker algorithm.
+<dt>parameter<dd>Method-specific parameter; in case of <em>CV_POLY_APPROX_DP</em> it is a desired approximation accuracy.
+<dt>parameter2<dd>If case if <em>srcSeq</em> is sequence it means whether the single sequence should
+be approximated or all sequences on the same level or below <em>srcSeq</em> (see <a href="OpenCVRef_ImageProcessing.htm#decl_cvFindContours">cvFindContours</a> for
+description of hierarchical contour structures). And if <em>srcSeq</em> is array (<a href="#decl_CvMat">CvMat</a>*) of
+points, the parameter specifies whether the curve is closed (<em>parameter2</em>!=0) or
+not (<em>parameter2</em>=0).
+</dl><p>
+The function <a href="#decl_cvApproxPoly">cvApproxPoly</a> approximates one or more curves and returns the approximation
+result[s]. In case of multiple curves approximation the resultant tree will have the same structure as
+the input one (1:1 correspondence).
+</p>
+
+
+<hr><h3><a name="decl_cvBoundingRect">BoundingRect</a></h3>
+<p class="Blurb">Calculates up-right bounding rectangle of point set</p>
+<pre>
+CvRect cvBoundingRect( CvArr* contour, int update );
+</pre><p><dl>
+<dt>contour<dd>Sequence or array of points.
+<dt>update<dd>The update flag. Here is list of possible combination of the flag values and type of <em>contour</em>:
+<ul>
+<li>update=0, contour ~ CvContour*: the bounding rectangle is not calculated, but it is taken from <em>rect</em> field of the contour header.
+<li>update=1, contour ~ CvContour*: the bounding rectangle is calculated and written to <em>rect</em> field of the contour header.
+<li>update=0, contour ~ CvSeq* or CvMat*: the bounding rectangle is calculated and returned.
+<li>update=1, contour ~ CvSeq* or CvMat*: runtime error is raised.
+</ul></dl><p>
+The function <a href="#decl_cvBoundingRect">cvBoundingRect</a> returns the up-right bounding rectangle for 2d point set.
+</p>
+
+
+<hr><h3><a name="decl_cvContourArea">ContourArea</a></h3>
+<p class="Blurb">Calculates area of the whole contour or contour section</p>
+<pre>
+double cvContourArea( const CvArr* contour, CvSlice slice=CV_WHOLE_SEQ );
+</pre><p><dl>
+<dt>contour<dd>Contour (sequence or array of vertices).
+<dt>slice<dd>Starting and ending points of the contour section of interest, by default area of the whole
+contour is calculated.
+</dl><p>
+The function <a href="#decl_cvContourArea">cvContourArea</a> calculates area of the whole contour or contour section. In the latter
+case the total area bounded by the contour arc and the chord connecting the 2 selected points is calculated as
+shown on the picture below:</p>
+<p>
+<p>
+<img align="center" src="pics/contoursecarea.png" width=150 height=150 >
+</p>
+<p><b>NOTE:</b> Orientation of the contour affects the area sign, thus the function may return
+<em>negative</em> result. Use <em>fabs()</em> function from C runtime to get the absolute value of
+area.</p>
+
+
+<hr><h3><a name="decl_cvArcLength">ArcLength</a></h3>
+<p class="Blurb">Calculates contour perimeter or curve length</p>
+<pre>
+double cvArcLength( const void* curve, CvSlice slice=CV_WHOLE_SEQ, int isClosed=-1 );
+</pre><p><dl>
+<dt>curve<dd>Sequence or array of the curve points.
+<dt>slice<dd>Starting and ending points of the curve, by default the whole curve length is
+calculated.
+<dt>isClosed<dd>Indicates whether the curve is closed or not. There are 3 cases:<ul>
+                <li>isClosed=0 - the curve is assumed to be unclosed.
+                <li>isClosed&gt;0 - the curve is assumed to be closed.
+                <li>isClosed&lt;0 - if curve is sequence, the flag CV_SEQ_FLAG_CLOSED of
+                    ((CvSeq*)curve)->flags is checked to determine if the curve is closed or not,
+                     otherwise (curve is represented by array (CvMat*) of points) it is assumed
+                     to be unclosed.
+</ul>
+</dl><p>
+The function <a href="#decl_cvArcLength">cvArcLength</a> calculates length or curve as sum of lengths of segments
+between subsequent points</p>
+
+
+<hr><h3><a name="decl_cvMatchShapes">MatchShapes</a></h3>
+<p class="Blurb">Compares two shapes</p>
+<pre>
+double cvMatchShapes( const void* A, const void* B,
+                      int method, double parameter=0 );
+</pre><p><dl>
+<dt>A<dd>First contour or grayscale image
+<dt>B<dd>Second contour or grayscale image
+<dt>method<dd>Comparison method, one of CV_CONTOUR_MATCH_I1, CV_CONTOURS_MATCH_I2 or CV_CONTOURS_MATCH_I3.
+<dt>parameter<dd>Method-specific parameter (is not used now).
+</dl><p>
+The function <a href="#decl_cvMatchShapes">cvMatchShapes</a> compares two shapes. The 3 implemented methods all
+use Hu moments (see <a href="OpenCVRef_ImageProcessing.htm#decl_cvGetHuMoments">cvGetHuMoments</a>):</p>
+<pre>
+method=CV_CONTOUR_MATCH_I1:
+I<sub>1</sub>(A,B)=sum<sub>i=1..7</sub>abs(1/m<sup>A</sup><sub>i</sub> - 1/m<sup>B</sup><sub>i</sub>)
+
+method=CV_CONTOUR_MATCH_I2:
+I<sub>2</sub>(A,B)=sum<sub>i=1..7</sub>abs(m<sup>A</sup><sub>i</sub> - m<sup>B</sup><sub>i</sub>)
+
+method=CV_CONTOUR_MATCH_I3:
+I<sub>3</sub>(A,B)=sum<sub>i=1..7</sub>abs(m<sup>A</sup><sub>i</sub> - m<sup>B</sup><sub>i</sub>)/abs(m<sup>A</sup><sub>i</sub>)
+
+where
+m<sup>A</sup><sub>i</sub>=sign(h<sup>A</sup><sub>i</sub>)&bull;log(h<sup>A</sup><sub>i</sub>),
+m<sup>B</sup><sub>i</sub>=sign(h<sup>B</sup><sub>i</sub>)&bull;log(h<sup>B</sup><sub>i</sub>),
+h<sup>A</sup><sub>i</sub>, h<sup>B</sup><sub>i</sub> - Hu moments of A and B, respectively.
+</pre>
+
+<hr><h3><a name="decl_cvCreateContourTree">CreateContourTree</a></h3>
+<p class="Blurb">Creates hierarchical representation of contour</p>
+<pre>
+CvContourTree* cvCreateContourTree( cont CvSeq* contour, CvMemStorage* storage, double threshold );
+</pre><p><dl>
+<dt>contour<dd>Input contour.
+<dt>storage<dd>Container for output tree.
+<dt>threshold<dd>Approximation accuracy.
+</dl><p>
+The function <a href="#decl_cvCreateContourTree">cvCreateContourTree</a> creates binary tree representation for the input
+<em>contour</em> and returns the pointer to its root. If the parameter <em>threshold</em>
+is less than or equal to 0, the function creates full binary tree
+representation. If the threshold is greater than 0, the function creates
+representation with the precision <em>threshold</em>: if the vertices with the
+interceptive area of its base line are less than <em>threshold</em>, the tree should not
+be built any further. The function returns the created tree.
+</p>
+
+
+<hr><h3><a name="decl_cvContourFromContourTree">ContourFromContourTree</a></h3>
+<p class="Blurb">Restores contour from tree</p>
+<pre>
+CvSeq* cvContourFromContourTree( const CvContourTree* tree, CvMemStorage* storage,
+                                 CvTermCriteria criteria );
+</pre><p><dl>
+<dt>tree<dd>Contour tree.
+<dt>storage<dd>Container for the reconstructed contour.
+<dt>criteria<dd>Criteria, where to stop reconstruction.
+</dl><p>
+The function <a href="#decl_cvContourFromContourTree">cvContourFromContourTree</a> restores the contour from its binary tree
+representation. The parameter <em>criteria</em> determines the accuracy and/or the
+number of tree levels used for reconstruction, so it is possible to build approximated contour.
+The function returns reconstructed contour.
+</p>
+
+
+<hr><h3><a name="decl_cvMatchContourTrees">MatchContourTrees</a></h3>
+<p class="Blurb">Compares two contours using their tree representations</p>
+<pre>
+double cvMatchContourTrees( const CvContourTree* tree1, const CvContourTree* tree2,
+                            CvTreeMatchMethod method, double threshold );
+</pre><p><dl>
+<dt>tree1<dd>First contour tree.
+<dt>tree2<dd>Second contour tree.
+<dt>method<dd>Similarity measure, only <em>CV_CONTOUR_TREES_MATCH_I1</em> is supported.
+<dt>threshold<dd>Similarity threshold.
+</dl><p>
+The function <a href="#decl_cvMatchContourTrees">cvMatchContourTrees</a> calculates the value of the matching measure for
+two contour trees. The similarity measure is calculated level by level from the
+binary tree roots. If at the certain level difference between contours becomes less than <em>threshold</em>,
+the reconstruction process is interrupted and the current difference is returned.
+</p>
+
+
+<hr><h2><a name="ch3_geometry">Geometry Functions</a></h2>
+
+
+<hr><h3><a name="decl_cvMaxRect">MaxRect</a></h3>
+<p class="Blurb">Finds bounding rectangle for two given rectangles</p>
+<pre>
+CvRect cvMaxRect( const CvRect* rect1, const CvRect* rect2 );
+</pre><p><dl>
+<dt>rect1<dd>First rectangle
+<dt>rect2<dd>Second rectangle
+</dl></p><p>
+The function <a href="#decl_cvMaxRect">cvMaxRect</a> finds minimum area rectangle that contains both input rectangles inside:</p>
+<p>
+<img align="center" src="pics/maxrect.png">
+</p>
+
+
+<hr><h3><a name="decl_CvBox2D">CvBox2D</a></h3>
+<p class="Blurb">Rotated 2D box</p>
+<pre>
+typedef struct CvBox2D
+{
+    CvPoint2D32f center;  /* center of the box */
+    CvSize2D32f  size;    /* box width and length */
+    float angle;          /* angle between the horizontal axis
+                             and the first side (i.e. length) in radians */
+}
+CvBox2D;
+</pre>
+
+<hr><h3><a name="decl_cvBoxPoints">BoxPoints</a></h3>
+<p class="Blurb">Finds box vertices</p>
+<pre>
+void cvBoxPoints( CvBox2D box, CvPoint2D32f pt[4] );
+</pre><p><dl>
+<dt>box<dd>Box
+<dt>pt<dd>Array of vertices
+</dl></p><p>
+The function <a href="#decl_cvBoxPoints">cvBoxPoints</a> calculates vertices of the input 2d box.
+Here is the function code:</p>
+<pre>
+void cvBoxPoints( CvBox2D box, CvPoint2D32f pt[4] )
+{
+    float a = (float)cos(box.angle)*0.5f;
+    float b = (float)sin(box.angle)*0.5f;
+
+    pt[0].x = box.center.x - a*box.size.height - b*box.size.width;
+    pt[0].y = box.center.y + b*box.size.height - a*box.size.width;
+    pt[1].x = box.center.x + a*box.size.height - b*box.size.width;
+    pt[1].y = box.center.y - b*box.size.height - a*box.size.width;
+    pt[2].x = 2*box.center.x - pt[0].x;
+    pt[2].y = 2*box.center.y - pt[0].y;
+    pt[3].x = 2*box.center.x - pt[1].x;
+    pt[3].y = 2*box.center.y - pt[1].y;
+}
+</pre>
+
+
+<hr><h3><a name="decl_cvFitEllipse">FitEllipse</a></h3>
+<p class="Blurb">Fits ellipse to set of 2D points</p>
+<pre>
+CvBox2D cvFitEllipse2( const CvArr* points );
+</pre><p><dl>
+<dt>points<dd>Sequence or array of points.
+</dl><p>
+The function <a href="#decl_cvFitEllipse">cvFitEllipse</a> calculates ellipse that fits best (in least-squares sense)
+to a set of 2D points. The meaning of the returned structure fields is similar to those
+in <a href="OpenCVRef_ImageProcessing.htm#decl_cvEllipse">cvEllipse</a> except that <em>size</em> stores the full lengths of the ellipse axises,
+not half-lengths</p>
+
+
+<hr><h3><a name="decl_cvFitLine2D">FitLine</a></h3>
+<p class="Blurb">Fits line to 2D or 3D point set</p>
+<pre>
+void  cvFitLine( const CvArr* points, CvDisType disType, double C,
+                 double reps, double aeps, float* line );
+</pre><p><dl>
+<dt>points<dd>Sequence or array of 2D or 3D points with 32-bit integer or floating-point coordinates.
+<dt>disType<dd>The distance used for fitting (see the discussion).
+<dt>C<dd>Numerical parameter for some types of distances, if 0 then some optimal value is chosen.
+<dt>reps, aeps<dd>Sufficient accuracy for radius (distance between the coordinate origin and the line)
+and angle, respectively, 0.01 would be a good defaults for both.
+is used.
+<dt>line<dd>The output line parameters. In case of 2d fitting it is array of 4 floats <em>(vx, vy, x0, y0)</em>
+where <em>(vx, vy)</em> is a normalized vector collinear to the line and <em>(x0, y0)</em> is some point on the line.
+In case of 3D fitting it is array of 6 floats <em>(vx, vy, vz, x0, y0, z0)</em>
+where <em>(vx, vy, vz)</em> is a normalized vector collinear to the line and <em>(x0, y0, z0)</em> is some point on the line.
+</dl><p>
+The function <a href="#decl_cvFitLine">cvFitLine</a> fits line to 2D or 3D point set by minimizing sum<sub>i</sub>&rho;(r<sub>i</sub>),
+where r<sub>i</sub> is distance between i-th point and the line and &rho;(r) is a distance function, one of:</p>
+<pre>
+disType=CV_DIST_L2 (L<sub>2</sub>):
+&rho;(r)=r<sup>2</sup>/2 (the simplest and the fastest least-squares method)
+
+disType=CV_DIST_L1 (L<sub>1</sub>):
+&rho;(r)=r
+
+disType=CV_DIST_L12 (L<sub>1</sub>-L<sub>2</sub>):
+&rho;(r)=2&bull;[sqrt(1+r<sup>2</sup>/2) - 1]
+
+disType=CV_DIST_FAIR (Fair):
+&rho;(r)=C<sup>2</sup>&bull;[r/C - log(1 + r/C)],  C=1.3998
+
+disType=CV_DIST_WELSCH (Welsch):
+&rho;(r)=C<sup>2</sup>/2&bull;[1 - exp(-(r/C)<sup>2</sup>)],  C=2.9846
+
+disType=CV_DIST_HUBER (Huber):
+&rho;(r)= r<sup>2</sup>/2,   if r &lt; C
+      C&bull;(r-C/2),   otherwise;   C=1.345
+
+</pre>
+
+<hr><h3><a name="decl_cvConvexHull2">ConvexHull2</a></h3>
+<p class="Blurb">Finds convex hull of points set</p>
+<pre>
+CvSeq* cvConvexHull2( const void* points, void* hullStorage=0,
+                      int orientation=CV_CLOCKWISE, int returnPoints=0 );
+</pre><p><dl>
+<dt>points<dd>Sequence or array of 2D points with 32-bit integer or floating-point coordinates.
+<dt>hullStorage<dd>The destination array (CvMat*) or memory storage (CvMemStorage*) that will store the convex hull.
+                   If it is array, it should be 1d and have the same number of elements as the input array/sequence.
+                   On output the header is modified so to truncate the array downto the hull size.
+<dt>orientation<dd>Desired orientation of convex hull: <em>CV_CLOCKWISE</em> or <em>CV_COUNTER_CLOCKWISE</em>.
+<dt>returnPoints<dd>If non-zero, the points themselves will be stored
+                    in the hull instead of indices if <em>hullStorage</em> is array, or pointers if <em>hullStorage</em> is memory storage.
+</dl><p>
+The function <a href="#decl_cvConvexHull2">cvConvexHull2</a> finds convex hull of 2D point set using Sklansky's algorithm.
+If <em>hullStorage</em> is memory storage, the function creates a sequence containing the hull points or
+pointers to them, depending on <em>returnPoints</em> value and returns the sequence on output.
+</p>
+<h4>Example. Building convex hull for a sequence or array of points</h4>
+<pre>
+#include "cv.h"
+#include "highgui.h"
+#include &lt;stdlib.h&gt;
+
+#define ARRAY  0 /* switch between array/sequence method by replacing 0&lt;=&gt;1 */
+
+void main( int argc, char** argv )
+{
+    IplImage* img = cvCreateImage( cvSize( 500, 500 ), 8, 3 );
+    cvNamedWindow( "hull", 1 );
+
+#if !ARRAY
+        CvMemStorage* storage = cvCreateMemStorage();
+#endif
+
+    for(;;)
+    {
+        int i, count = rand()%100 + 1, hullcount;
+        CvPoint pt0;
+#if !ARRAY
+        CvSeq* ptseq = cvCreateSeq( CV_SEQ_KIND_GENERIC|CV_32SC2, sizeof(CvContour),
+                                     sizeof(CvPoint), storage );
+        CvSeq* hull;
+
+        for( i = 0; i &lt; count; i++ )
+        {
+            pt0.x = rand() % (img->width/2) + img->width/4;
+            pt0.y = rand() % (img->height/2) + img->height/4;
+            cvSeqPush( ptseq, &pt0 );
+        }
+        hull = cvConvexHull2( ptseq, 0, CV_CLOCKWISE, 0 );
+        hullcount = hull->total;
+#else
+        CvPoint* points = (CvPoint*)malloc( count * sizeof(points[0]));
+        int* hull = (int*)malloc( count * sizeof(hull[0]));
+        CvMat pointMat = cvMat( 1, count, CV_32SC2, points );
+        CvMat hullMat = cvMat( 1, count, CV_32SC1, hull );
+
+        for( i = 0; i &lt; count; i++ )
+        {
+            pt0.x = rand() % (img->width/2) + img->width/4;
+            pt0.y = rand() % (img->height/2) + img->height/4;
+            points[i] = pt0;
+        }
+        cvConvexHull2( &pointMat, &hullMat, CV_CLOCKWISE, 0 );
+        hullcount = hullMat.cols;
+#endif
+        cvZero( img );
+        for( i = 0; i &lt; count; i++ )
+        {
+#if !ARRAY
+            pt0 = *CV_GET_SEQ_ELEM( CvPoint, ptseq, i );
+#else
+            pt0 = points[i];
+#endif
+            cvCircle( img, pt0, 2, CV_RGB( 255, 0, 0 ), CV_FILLED );
+        }
+
+#if !ARRAY
+        pt0 = **CV_GET_SEQ_ELEM( CvPoint*, hull, hullcount - 1 );
+#else
+        pt0 = points[hull[hullcount-1]];
+#endif
+
+        for( i = 0; i &lt; hullcount; i++ )
+        {
+#if !ARRAY
+            CvPoint pt = **CV_GET_SEQ_ELEM( CvPoint*, hull, i );
+#else
+            CvPoint pt = points[hull[i]];
+#endif
+            cvLine( img, pt0, pt, CV_RGB( 0, 255, 0 ));
+            pt0 = pt;
+        }
+
+        cvShowImage( "hull", img );
+
+        int key = cvWaitKey(0);
+        if( key == 27 ) // 'ESC'
+            break;
+
+#if !ARRAY
+        cvClearMemStorage( storage );
+#else
+        free( points );
+        free( hull );
+#endif
+    }
+}
+</pre>
+
+
+<hr><h3><a name="decl_cvCheckContourConvexity">CheckContourConvexity</a></h3>
+<p class="Blurb">Tests contour convex</p>
+<pre>
+int cvCheckContourConvexity( const void* contour );
+</pre><p><dl>
+<dt>contour<dd>Tested contour (sequence or array of points).
+</dl><p>
+The function <a href="#decl_cvCheckContourConvexity">cvCheckContourConvexity</a> tests whether the input contour is convex or not.
+The contour must be simple, i.e. without self-intersections.
+</p>
+
+
+<hr><h3><a name="decl_CvConvexityDefect">CvConvexityDefect</a></h3>
+<p class="Blurb">Structure describing a single contour convexity detect</p>
+<pre>
+typedef struct CvConvexityDefect
+{
+    CvPoint* start; /* point of the contour where the defect begins */
+    CvPoint* end; /* point of the contour where the defect ends */
+    CvPoint* depth_point; /* the farthest from the convex hull point within the defect */
+    float depth; /* distance between the farthest point and the convex hull */
+} CvConvexityDefect;
+</pre>
+<h4>Picture. Convexity defects for hand contour.</h4>
+<p>
+<img src="pics/defects.png" width=200 height=200>
+</p>
+
+
+<hr><h3><a name="decl_cvConvexityDefects">ConvexityDefects</a></h3>
+<p class="Blurb">Finds convexity defects of contour</p>
+<pre>
+CvSeq* cvConvexityDefects( const void* contour, const void* convexhull,
+                           CvMemStorage* storage=0 );
+</pre><p><dl>
+<dt>contour<dd>Input contour.
+<dt>convexhull<dd>Convex hull obtained using <a href="#decl_cvConvexHull2">cvConvexHull2</a> that should contain pointers or indices
+to the contour points, not the hull points themselves, i.e. <em>returnPoints</em> parameter in <a href="#decl_cvConvexHull2">cvConvexHull2</a>
+should be 0.
+<dt>storage<dd>Container for output sequence of convexity defects. If it is NULL, contour or hull
+(in that order) storage is used.
+</dl><p>
+The function <a href="#decl_cvConvexityDefects">cvConvexityDefects</a> finds all convexity defects of the input contour
+and returns a sequence of the <a href="#decl_CvConvexityDefect">CvConvexityDefect</a> structures.
+</p>
+
+
+<hr><h3><a name="decl_cvMinAreaRect2">MinAreaRect2</a></h3>
+<p class="Blurb">Finds circumscribed rectangle of minimal area for given 2D point set</p>
+<pre>
+CvBox2D  cvMinAreaRect2( const void* points, CvMemStorage* storage=0 );
+</pre><p><dl>
+<dt>points<dd>Sequence or array of points.
+<dt>storage<dd>Optional temporary memory storage.
+</dl><p>
+The function <a href="#decl_cvMinAreaRect2">cvMinAreaRect2</a> finds a circumscribed rectangle of the minimal area for 2D point set
+by building convex hull for the set and applying rotating calipers technique to the hull.</p>
+<h4>Picture. Minimal-area bounding rectangle for contour</h4>
+<p>
+<img align=center src="pics/minareabox.png">
+</p>
+
+
+<hr><h3><a name="decl_cvMinEnclosingCircle">MinEnclosingCircle</a></h3>
+<p class="Blurb">Finds circumscribed circle of minimal area for given 2D point set</p>
+<pre>
+void cvMinEnclosingCircle( const void* points, CvPoint2D32f* center, float* radius );
+</pre><p><dl>
+<dt>points<dd>Sequence or array of 2D points.
+<dt>center<dd>Output parameter. The center of the enclosing circle.
+<dt>radius<dd>Output parameter. The radius of the enclosing circle.
+</dl><p>
+The function <a href="#decl_cvMinEnclosingCircle">cvMinEnclosingCircle</a> finds the minimal circumscribed circle for
+2D point set using iterative algorithm.
+</p>
+
+
+<hr><h3><a name="decl_cvCalcPGH">CalcPGH</a></h3>
+<p class="Blurb">Calculates pair-wise geometrical histogram for contour</p>
+<pre>
+void cvCalcPGH( const CvSeq* contour, CvHistogram* hist );
+</pre><p><dl>
+<dt>contour<dd>Input contour. Currently, only integer point coordinates are allowed.
+<dt>hist<dd>Calculated histogram; must be two-dimensional.
+</dl><p>
+The function <a href="#decl_cvCalcPGH">cvCalcPGH</a> calculates 2D pair-wise geometrical histogram (PGH), described in
+<a href="#pgh_paper">[Iivarinen97]</a>, for the contour.
+The algorithm considers every pair of the contour edges. The angle
+between the edges and the minimum/maximum distances are determined for every
+pair. To do this each of the edges in turn is taken as the base, while the
+function loops through all the other edges. When the base edge and any other
+edge are considered, the minimum and maximum distances from the points on the
+non-base edge and line of the base edge are selected. The angle between the
+edges defines the row of the histogram in which all the bins that correspond to
+the distance between the calculated minimum and maximum distances are
+incremented (that is, the histogram is transposed relatively to [Iivarninen97] definition).
+The histogram can be used for contour matching.
+</p>
+<p><a name="disttrans_paper"></a><b>
+[Iivarinen97] Jukka Iivarinen, Markus Peura, Jaakko Srel, and Ari Visa.
+Comparison of Combined Shape Descriptors for Irregular Objects, 8th British Machine Vision Conference, BMVC'97.
+</b>
+You may find online version at <a href="http://www.cis.hut.fi/research/IA/paper/publications/bmvc97/bmvc97.html">
+http://www.cis.hut.fi/research/IA/paper/publications/bmvc97/bmvc97.html</a>
+</p>
+
+
+<hr><h3><a name="decl_cvKMeans">KMeans</a></h3>
+<p class="Blurb">Splits set of vectors by given number of clusters</p>
+<pre>
+void cvKMeans2( const CvArr* samples, int numClusters,
+                CvArr* clusterIdx, CvTermCriteria termcrit );
+</pre><p><dl>
+<dt>samples<dd>Floating-point matrix of input samples, one row per sample.
+<dt>numClusters<dd>Number of clusters to split the set by.
+<dt>clusterIdx<dd>Output integer vector storing cluster indices for every sample.
+<dt>termcrit<dd>Specifies maximum number of iterations and/or accuracy (distance the centers move by
+between the subsequent iterations).
+</dl><p>
+The function <a href="#decl_cvKMeans2">cvKMeans2</a> implements k-means algorithm that finds centers of <em>numClusters</em> clusters
+and groups the input samples around the clusters. On output <em>clusterIdx(i)</em> contains a cluster index
+for sample stored in i-th rows of <em>samples</em>.
+<h4>Example. Clustering random samples of multi-gaussian distribution with k-means</h4>
+<pre>
+#include "cv.h"
+#include "highgui.h"
+
+void main( int argc, char** argv )
+{
+    #define MAX_CLUSTERS 5
+    static const int color_tab[MAX_CLUSTERS] =
+    {
+        CV_RGB(255,0,0), CV_RGB(0,255,0), CV_RGB(100,100,255),
+        CV_RGB(255,0,255), CV_RGB(255,255,0)
+    };
+    IplImage* img = cvCreateImage( cvSize( 500, 500 ), 8, 3 );
+    CvRandState rng;
+    cvRandInit( &rng, 0, 1, -1, CV_RAND_NORMAL );
+
+    cvNamedWindow( "clusters", 1 );
+
+    for(;;)
+    {
+        int k, cluster_count = cvRandNext(&rng)%MAX_CLUSTERS + 1;
+        int i, sample_count = cvRandNext(&rng)%1000 + 1;
+        CvMat* points = cvCreateMat( sample_count, 1, CV_32FC2 );
+        CvMat* clusters = cvCreateMat( sample_count, 1, CV_32SC1 );
+
+        /* generate random sample from multigaussian distribution */
+        for( k = 0; k &lt; cluster_count; k++ )
+        {
+            CvPoint center;
+            CvMat point_chunk;
+            center.x = cvRandNext(&rng)%img->width;
+            center.y = cvRandNext(&rng)%img->height;
+            cvRandSetRange( &rng, center.x, img->width/6, 0 );
+            cvRandSetRange( &rng, center.y, img->height/6, 1 );
+            cvGetRows( points, &point_chunk, k*sample_count/cluster_count,
+                       k == cluster_count - 1 ? sample_count : (k+1)*sample_count/cluster_count );
+
+            cvRand( &rng, &point_chunk );
+        }
+
+        /* shuffle samples */
+        for( i = 0; i &lt; sample_count/2; i++ )
+        {
+            CvPoint2D32f* pt1 = (CvPoint2D32f*)points->data.fl + cvRandNext(&rng)%sample_count;
+            CvPoint2D32f* pt2 = (CvPoint2D32f*)points->data.fl + cvRandNext(&rng)%sample_count;
+            CvPoint2D32f temp;
+            CV_SWAP( *pt1, *pt2, temp );
+        }
+
+        cvKMeans2( points, cluster_count, clusters,
+                   cvTermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 10, 1.0 ));
+
+        cvZero( img );
+
+        for( i = 0; i &lt; sample_count; i++ )
+        {
+            CvPoint2D32f pt = ((CvPoint2D32f*)points->data.fl)[i];
+            int cluster_idx = clusters->data.i[i];
+            cvCircle( img, cvPointFrom32f(pt), 2, color_tab[cluster_idx], CV_FILLED );
+        }
+
+        cvReleaseMat( &points );
+        cvReleaseMat( &clusters );
+
+        cvShowImage( "clusters", img );
+
+        int key = cvWaitKey(0);
+        if( key == 27 ) // 'ESC'
+            break;
+    }
+}
+</pre>
+
+
+<hr><h3><a name="decl_cvMinEnclosingCircle">MinEnclosingCircle</a></h3>
+<p class="Blurb">Finds circumscribed circle of minimal area for given 2D point set</p>
+<pre>
+void cvMinEnclosingCircle( const void* points, CvPoint2D32f* center, float* radius );
+</pre><p><dl>
+<dt>points<dd>Sequence or array of 2D points.
+<dt>center<dd>Output parameter. The center of the enclosing circle.
+<dt>radius<dd>Output parameter. The radius of the enclosing circle.
+</dl><p>
+The function <a href="#decl_cvMinEnclosingCircle">cvMinEnclosingCircle</a> finds the minimal circumscribed circle for
+2D point set using iterative algorithm.
+</p>
+
+
+<hr><h2><a name="ch3_subdivs">Planar Subdivisions</a></h2>
+
+<hr><h3><a name="decl_CvSubdiv2D">CvSubdiv2D</a></h3>
+<p class="Blurb">Planar subdivision</p>
+<pre>
+#define CV_SUBDIV2D_FIELDS()    \
+    CV_GRAPH_FIELDS()           \
+    int  quad_edges;            \
+    int  is_geometry_valid;     \
+    CvSubdiv2DEdge recent_edge; \
+    CvPoint2D32f  topleft;      \
+    CvPoint2D32f  bottomright;
+
+typedef struct CvSubdiv2D
+{
+    CV_SUBDIV2D_FIELDS()
+}
+CvSubdiv2D;
+</pre><p>
+Planar subdivision is a subdivision of a plane into a set of non-overlapped regions (facets) that
+cover the whole plane. The above structure describes a subdivision built on 2d point set, where
+the points are linked together and form a planar graph, which, together with a few edges connecting
+exterior subdivision points (namely, convex hull points) with infinity, subdivides a plane into facets
+by its edges.
+</p><p>
+For every subdivision there exists dual subdivision there facets and points (subdivision vertices)
+swap their roles, that is, a facet is treated as a vertex (called virtual point below) of dual subdivision
+and the original subdivision vertices become facets. On the picture below original subdivision is marked with solid lines
+and dual subdivision with dot lines</p>
+<p>
+<img src="pics/subdiv.png">
+</p><p>
+OpenCV subdivides plane into triangles using Delaunay's algorithm.
+Subdivision is built iteratively starting from a dummy triangle that includes
+all the subdivision points for sure.
+In this case the dual subdivision is Voronoi diagram of input 2d point set.
+The subdivisions can be used for 3d piece-wise transformation of a plane, morphing, fast location of
+points on the plane, building special graphs (such as NNG,RNG) etc.</p>
+
+
+<hr><h3><a name="decl_CvQuadEdge2D">CvQuadEdge2D</a></h3>
+<p class="Blurb">Quad-edge of planar subdivision</p>
+<pre>
+/* one of edges within quad-edge, lower 2 bits is index (0..3)
+   and upper bits are quad-edge pointer */
+typedef long CvSubdiv2DEdge;
+
+/* quad-edge structure fields */
+#define CV_QUADEDGE2D_FIELDS()     \
+    int flags;                     \
+    struct CvSubdiv2DPoint* pt[4]; \
+    CvSubdiv2DEdge  next[4];
+
+typedef struct CvQuadEdge2D
+{
+    CV_QUADEDGE2D_FIELDS()
+}
+CvQuadEdge2D;
+</pre><p>
+Quad-edge is a basic element of subdivision, it contains four edges (e, eRot and reversed e & eRot):
+</p><p>
+<img src="pics/quadedge.png" width=200 height=200>
+</p>
+
+
+<hr><h3><a name="decl_CvSubdiv2DPoint">CvSubdiv2DPoint</a></h3>
+<p class="Blurb">Point of original or dual subdivision</p>
+<pre>
+#define CV_SUBDIV2D_POINT_FIELDS()\
+    int            flags;      \
+    CvSubdiv2DEdge first;      \
+    CvPoint2D32f   pt;
+
+#define CV_SUBDIV2D_VIRTUAL_POINT_FLAG (1 &lt;&lt; 30)
+
+typedef struct CvSubdiv2DPoint
+{
+    CV_SUBDIV2D_POINT_FIELDS()
+}
+CvSubdiv2DPoint;
+</pre>
+
+
+<hr><h3><a name="decl_cvSubdiv2DGetEdge">Subdiv2DGetEdge</a></h3>
+<p class="Blurb">Returns one of edges related to given</p>
+<pre>
+CvSubdiv2DEdge  cvSubdiv2DGetEdge( CvSubdiv2DEdge edge, CvNextEdgeType type );
+#define cvSubdiv2DNextEdge( edge ) cvSubdiv2DGetEdge( edge, CV_NEXT_AROUND_ORG )
+</pre><p><dl>
+<dt>edge<dd>Subdivision edge (not a quad-edge)
+<dt>type<dd>Specifies, which of related edges to return, one of:<ul>
+<li>CV_NEXT_AROUND_ORG - next around the edge origin (<em>eOnext</em> on the picture above if <em>e</em> is the input edge)
+<li>CV_NEXT_AROUND_DST - next around the edge vertex (<em>eDnext</em>)
+<li>CV_PREV_AROUND_ORG - previous around the edge origin (reversed <em>eRnext</em>)
+<li>CV_PREV_AROUND_DST - previous around the edge destination (reversed <em>eLnext</em>)
+<li>CV_NEXT_AROUND_LEFT - next around the left facet (<em>eLnext</em>)
+<li>CV_NEXT_AROUND_RIGHT - next around the right facet (<em>eRnext</em>)
+<li>CV_PREV_AROUND_LEFT - previous around the left facet (reversed <em>eOnext</em>)
+<li>CV_PREV_AROUND_RIGHT - previous around the right facet (reversed <em>eDnext</em>)
+</ul>
+</dl><p>
+The function <a href="#decl_cvSubdiv2DGetEdge">cvSubdiv2DGetEdge</a> returns one the edges related to the input edge.
+</p>
+
+
+<hr><h3><a name="decl_cvSubdiv2DRotateEdge">Subdiv2DRotateEdge</a></h3>
+<p class="Blurb">Returns another edge of the same quad-edge</p>
+<pre>
+CvSubdiv2DEdge  cvSubdiv2DRotateEdge( CvSubdiv2DEdge edge, int rotate );
+</pre><p><dl>
+<dt>edge<dd>Subdivision edge (not a quad-edge)
+<dt>type<dd>Specifies, which of edges of the same quad-edge as the input one to return, one of:<ul>
+<li>0 - the input edge (<em>e</em> on the picture above if <em>e</em> is the input edge)
+<li>1 - the rotated edge (<em>eRot</em>)
+<li>2 - the reversed edge (reversed <em>e</em> (in green))
+<li>3 - the reversed rotated edge (reversed <em>eRot</em> (in green))
+</ul>
+</dl><p>
+The function <a href="#decl_cvSubdiv2DRotateEdge">cvSubdiv2DRotateEdge</a> returns one the edges of the same quad-edge as the input edge.
+</p>
+
+
+<hr><h3><a name="decl_cvSubdiv2DEdgeOrg">Subdiv2DEdgeOrg</a></h3>
+<p class="Blurb">Returns edge origin</p>
+<pre>
+CvSubdiv2DPoint* cvSubdiv2DEdgeOrg( CvSubdiv2DEdge edge );
+</pre><p><dl>
+<dt>edge<dd>Subdivision edge (not a quad-edge)
+</dl><p>
+The function <a href="#decl_cvSubdiv2DEdgeOrg">cvSubdiv2DEdgeOrg</a> returns the edge origin. The returned pointer may be NULL if
+the edge is from dual subdivision and the virtual point coordinates are not calculated yet.
+The virtual points can be calculated using function <a href="#decl_cvCalcSubdivVoronoi2D">cvCalcSubdivVoronoi2D</a>.
+</p>
+
+<hr><h3><a name="decl_cvSubdiv2DEdgeDst">Subdiv2DEdgeDst</a></h3>
+<p class="Blurb">Returns edge destination</p>
+<pre>
+CvSubdiv2DPoint* cvSubdiv2DEdgeDst( CvSubdiv2DEdge edge );
+</pre><p><dl>
+<dt>edge<dd>Subdivision edge (not a quad-edge)
+</dl><p>
+The function <a href="#decl_cvSubdiv2DEdgeDst">cvSubdiv2DEdgeDst</a> returns the edge destination. The returned pointer may be NULL if
+the edge is from dual subdivision and the virtual point coordinates are not calculated yet.
+The virtual points can be calculated using function <a href="#decl_cvCalcSubdivVoronoi2D">cvCalcSubdivVoronoi2D</a>.
+</p>
+
+
+<hr><h3><a name="decl_cvCreateSubdivDelaunay2D">CreateSubdivDelaunay2D</a></h3>
+<p class="Blurb">Creates empty Delaunay triangulation</p>
+<pre>
+CvSubdiv2D* cvCreateSubdivDelaunay2D( CvRect rect, CvMemStorage* storage );
+</pre><p><dl>
+<dt>rect<dd>Rectangle that includes all the 2d points that are to be added to subdivision.
+<dt>storage<dd>Container for subdivision.
+</dl><p>
+The function <a href="#decl_cvCreateSubdivDelaunay2D">cvCreateSubdivDelaunay2D</a> creates an empty Delaunay subdivision,
+where 2d points can be added further using function <a href="#decl_cvSubdivDelaunay2DInsert">cvSubdivDelaunay2DInsert</a>.
+All the points to be added must be within the specified rectangle, otherwise a runtime error will be
+raised.
+</p>
+
+
+<hr><h3><a name="decl_cvSubdivDelaunay2DInsert">SubdivDelaunay2DInsert</a></h3>
+<p class="Blurb">Inserts a single point to Delaunay triangulation</p>
+<pre>
+CvSubdiv2DPoint*  cvSubdivDelaunay2DInsert( CvSubdiv2D* subdiv, CvPoint2D32f pt);
+</pre><p><dl>
+<dt>subdiv<dd>Delaunay subdivision created by function <a href="#decl_cvCreateSubdivDelaunay2D">cvCreateSubdivDelaunay2D</a>.
+<dt>pt<dd>Inserted point.
+</dl><p>
+The function <a href="#decl_cvSubdivDelaunay2DInsert">cvSubdivDelaunay2DInsert</a> inserts a single point to subdivision and
+modifies the subdivision topology appropriately.
+If a points with same coordinates exists already, no new points is added.
+The function returns pointer to the allocated point.
+No virtual points coordinates is calculated at this stage.
+</p>
+
+
+<hr><h3><a name="decl_cvSubdiv2DLocate">Subdiv2DLocate</a></h3>
+<p class="Blurb">Inserts a single point to Delaunay triangulation</p>
+<pre>
+CvSubdiv2DPointLocation  cvSubdiv2DLocate( CvSubdiv2D* subdiv, CvPoint2D32f pt,
+                                           CvSubdiv2DEdge *edge,
+                                           CvSubdiv2DPoint** vertex=0 );
+</pre><p><dl>
+<dt>subdiv<dd>Delaunay or another subdivision.
+<dt>pt<dd>The point to locate.
+<dt>edge<dd>The output edge the point falls onto or right to.
+<dt>vertex<dd>Optional output vertex double pointer the input point coinsides with.
+</dl><p>
+The function <a href="#decl_cvSubdiv2DLocate">cvSubdiv2DLocate</a> locates input point within subdivision.
+There are 5 cases:<ul>
+<li>point falls into some facet. The function returns CV_PTLOC_INSIDE and <em>*edge</em> will contain one of edges of the facet.
+<li>point falls onto the edge. The function returns CV_PTLOC_ON_EDGE and <em>*edge</em> will contain this edge.
+<li>point coinsides with one of subdivision vertices. The function returns CV_PTLOC_VERTEX and <em>*vertex</em> will contain pointer to the vertex.
+<li>point is outside the subdivsion reference rectangle. The function returns CV_PTLOC_OUTSIDE_RECT and no pointers is filled.
+<li>one of input arguments is invalid. Runtime error is raised or, if silent or "parent" error processing mode
+is selected, CV_PTLOC_ERROR is returnd.
+</ul>
+</p>
+
+
+<hr><h3><a name="decl_cvFindNearestPoint2D">FindNearestPoint2D</a></h3>
+<p class="Blurb">Finds the closest subdivision vertex to given point</p>
+<pre>
+CvSubdiv2DPoint* cvFindNearestPoint2D( CvSubdiv2D* subdiv, CvPoint2D32f pt );
+</pre><p><dl>
+<dt>subdiv<dd>Delaunay or another subdivision.
+<dt>pt<dd>Input point.
+</dl><p>
+The function <a href="#decl_cvFindNearestPoint2D">cvFindNearestPoint2D</a> is another function that locates input point within subdivision.
+It finds subdivision vertex that is the closest to the input point. It is not necessarily one of
+vertices of the facet containing the input point, though the facet (located using <a href="#decl_cvSubdiv2DLocate">cvSubdiv2DLocate</a>)
+is used as a starting point. The function returns pointer to the found subdivision vertex</em>
+
+
+<hr><h3><a name="decl_cvCalcSubdivVoronoi2D">CalcSubdivVoronoi2D</a></h3>
+<p class="Blurb">Calculates coordinates of Voronoi diagram cells</p>
+<pre>
+void cvCalcSubdivVoronoi2D( CvSubdiv2D* subdiv );
+</pre><p><dl>
+<dt>subdiv<dd>Delaunay subdivision, where all the points are added already.
+</dl><p>
+The function <a href="#decl_cvCalcSubdivVoronoi2D">cvCalcSubdivVoronoi2D</a> calculates coordinates of virtual points.
+All virtual points corresponding to some vertex of original subdivision form (when connected together)
+a boundary of Voronoi cell of that point.
+</p>
+
+
+<hr><h3><a name="decl_cvClearSubdivVoronoi2D">ClearSubdivVoronoi2D</a></h3>
+<p class="Blurb">Removes all virtual points</p>
+<pre>
+void cvClearSubdivVoronoi2D( CvSubdiv2D* subdiv );
+</pre><p><dl>
+<dt>subdiv<dd>Delaunay subdivision.
+</dl><p>
+The function <a href="#decl_cvClearSubdivVoronoi2D">cvClearSubdivVoronoi2D</a> removes all virtual points.
+It is called internally in <a href="#decl_cvCalcSubdivVoronoi2D">cvCalcSubdivVoronoi2D</a> if the subdivision was modified
+after previous call to the function.
+</p>
+
+<hr><p>
+There are a few other lower-level functions that work with planar subdivisions, see cv.h
+and the sources. Demo script delaunay.c that builds Delaunay triangulation and Voronoi diagram of
+random 2d point set can be found at opencv/samples/c.
+</p>
+
+</body>
+</html>
+
+

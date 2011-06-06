@@ -1,0 +1,107 @@
+Microsoft Developer Studio Workspace File, Format Version 6.00
+# WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
+
+###############################################################################
+
+Project: "CV"=..\CV\make\CV.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "HighGUI"=..\OtherLibs\HighGUI\HighGUI.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name CV
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "cvaux"=..\cvaux\MAKE\cvaux.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name CV
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "cvinfo"=..\utils\cvinfo\cvinfo.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "cvtest"=..\tests\cv\src\cvtest.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name CV
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name cvaux
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name HighGUI
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name trs
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "trs"=..\tests\trs\make\trs.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Global:
+
+Package=<5>
+{{{
+}}}
+
+Package=<3>
+{{{
+}}}
+
+###############################################################################
+
