@@ -1,5 +1,13 @@
+From: Debian Scientific Computing Team <pkg-scicomp-devel@lists.alioth.debian.org>
+Date: Mon, 6 Jun 2011 14:26:35 +0100
+Subject: [PATCH] fix_build_pdf
+
+---
+ doc/CMakeLists.txt |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
 diff --git a/doc/CMakeLists.txt b/doc/CMakeLists.txt
-index 6a2a046..23aa3d1 100644
+index 6dadcc6..79fa480 100644
 --- a/doc/CMakeLists.txt
 +++ b/doc/CMakeLists.txt
 @@ -41,7 +41,7 @@ foreach(f ${FILES_TEX})
@@ -11,3 +19,4 @@ index 6a2a046..23aa3d1 100644
  "\"\\newcommand{\\genc}{true}\\newcommand{\\genpy}{true}\\newcommand{\\targetlang}{c}\\input{opencv.tex}\"")
  
  add_custom_command(
+-- 

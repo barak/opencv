@@ -1,0 +1,40 @@
+From: Debian Scientific Computing Team <pkg-scicomp-devel@lists.alioth.debian.org>
+Date: Mon, 6 Jun 2011 14:26:35 +0100
+Subject: [PATCH] fix_3rdparty_build
+
+# Copyright Nobuhiro Iwamatsu <iwamatsu@debian.org>
+# This patch disable building 3rdparty library and set using debian package.
+---
+ 3rdparty/CMakeLists.txt |    4 ++--
+ OpenCVConfig.cmake.in   |    2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/3rdparty/CMakeLists.txt b/3rdparty/CMakeLists.txt
+index ba69648..6b59471 100644
+--- a/3rdparty/CMakeLists.txt
++++ b/3rdparty/CMakeLists.txt
+@@ -2,8 +2,8 @@ if(ANDROID)
+  configure_file("${CMAKE_SOURCE_DIR}/Android.mk.modules.in" "${CMAKE_CURRENT_BINARY_DIR}/Android.mk")
+ endif()
+ 
+-add_subdirectory(lapack)
+-add_subdirectory(zlib)
++# add_subdirectory(lapack)
++# add_subdirectory(zlib)
+ if(WITH_JASPER AND NOT JASPER_FOUND)
+ 	add_subdirectory(libjasper)
+ endif()
+diff --git a/OpenCVConfig.cmake.in b/OpenCVConfig.cmake.in
+index 8efd602..11845b5 100644
+--- a/OpenCVConfig.cmake.in
++++ b/OpenCVConfig.cmake.in
+@@ -91,7 +91,7 @@ IF (NOT @OPENCV_BUILD_SHARED_LIB@)
+ 
+ 	set(OpenCV_LIBS @OPENCV_LINKER_LIBS@ @IPP_LIBS@ @HIGHGUI_LIBRARIES@ ${OpenCV_LIBS})
+ 
+-    set(OPENCV_EXTRA_COMPONENTS @JPEG_LIBRARIES@ @PNG_LIBRARIES@ @TIFF_LIBRARIES@ @JASPER_LIBRARIES@ zlib opencv_lapack)
++    set(OPENCV_EXTRA_COMPONENTS @JPEG_LIBRARIES@ @PNG_LIBRARIES@ @TIFF_LIBRARIES@ @JASPER_LIBRARIES@ lapack z)
+ 
+     if (CMAKE_MAJOR_VERSION GREATER 2  OR  CMAKE_MINOR_VERSION GREATER 4)
+         foreach(__EXTRA_LIB ${OPENCV_EXTRA_COMPONENTS})
+-- 
