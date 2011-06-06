@@ -1,0 +1,8 @@
+usr/include
+usr/lib/*.a
+usr/lib/*.so
+usr/lib/pkgconfig
+#usr/share/opencv/haarcascades
+#usr/share/opencv/lbpcascades
+usr/bin
+usr/share/opencv/OpenCVConfig.cmake
