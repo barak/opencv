@@ -32,8 +32,8 @@ class CXX_Compiler:
         self.if_prefix = "!"
         self.linkpoststep = ""
         # hack to remove MIL
-        #self.lib_synonyms = {}
-        self.lib_synonyms = { "mil" : "kernel32", "milmet2" : "kernel32" }
+        self.lib_synonyms = {}
+        # self.lib_synonyms = { "mil" : "kernel32", "milmet2" : "kernel32" }
 
 vc = CXX_Compiler("vc")
 vc.desc = "Microsoft Visual C++ >=6.0"
@@ -42,7 +42,7 @@ vc.link = "link"
 vc.cxx_switch = "/"
 vc.libdir_opt = "/libpath:"
 vc.dependents = "$**"
-vc.cxxflags_all = '/D"CV_BATCH_MSVC" /nologo /GX /GB /W4 /Zm200 /c /Fo '
+vc.cxxflags_all = '/nologo /GX /GB /W4 /Zm200 /c /Fo '
 vc.cxxflags_release = "/MD /Ox /Ob2 "
 vc.cxxflags_debug = "/MDd /Gm /Zi /Od /FD /GZ "
 vc.linkflags_all = "/nologo /subsystem:windows /dll /pdb:none " + \
@@ -56,10 +56,10 @@ icl = copy.copy(vc)
 icl.name = "icl"
 icl.cxx = "icl"
 icl.desc = "Intel Proton Compiler >=5.0"
-icl.cxxflags_all = '/nologo /GX /G6 /W4 "/Qwd68,171,424,444,869,981,522,9" /Qaxi /Qxi /c /Fo '
+icl.cxxflags_all = '/nologo /GX /G6 /W4 "/Qwd68,171,424,444,869,981,522,9" /c /Fo '
 icl.cxxflags_release = "/MD /O3 /Ob2 "
 icl.cxxflags_debug = "/MDd /Gm /Zi /Od /FD /GZ "
-icl.linkflags_all = vc.linkflags_all + "/nodefaultlib:libm /nodefaultlib:libirc "
+icl.linkflags_all = vc.linkflags_all + "/nodefaultlib:libmmd /nodefaultlib:libmmdd /nodefaultlib:libm /nodefaultlib:libirc "
 
 bcc = CXX_Compiler("bcc")
 bcc.desc = "Borland C++ >=5.5"
@@ -79,7 +79,7 @@ bcc.lib_synonyms.update({ "zlib" : "zlib_bcc", "libpng" : "libpng_bcc",
                      "libjpeg" : "libjpeg_bcc", "libtiff" : "libtiff_bcc" })
 
 gcc = CXX_Compiler("gcc")
-gcc.desc = "GNU C/C++ >=2.95.3"
+gcc.desc = "GNU C/C++ 3.x or later"
 gcc.cxx = gcc.link = "g++"
 gcc.obj = ".o"
 gcc.lib_prefix = "lib"
@@ -88,8 +88,8 @@ gcc.lib_link_ext = ""
 gcc.lib_link = "-l"
 gcc.if_prefix = ""
 gcc.dependents = ""
-gcc.cxxflags_all = "-Wall -c -fvtable-thunks=2 -o "
-gcc.cxxflags_release = "-O3 -g -fomit-frame-pointer -mcpu=i686 -march=i386 -ffast-math "
+gcc.cxxflags_all = "-Wall -c -o "
+gcc.cxxflags_release = "-O3 -g -fomit-frame-pointer -march=i686 -ffast-math "
 #gcc.cxxflags_release = "-O0 -s "
 gcc.cxxflags_debug = "-O0 -ggdb3 "
 gcc.libdir_opt = "-L"
@@ -100,12 +100,11 @@ gcc.lib_synonyms.update( { "zlib" : "z", "vfw32" : "vfw_avi32 -lvfw_cap32 -lvfw_
 
 def create_makefile( dsppath, level, cxx, outfilename ):
 
-    binname = re.findall(r"([^/\\]+)\.dsp$", dsppath.lower() )[0]
+    projname = re.findall(r"([^/\\]+)\.dsp$", dsppath.lower() )[0]
     top="..\\" * level;
 
-    temppath = top + "_temp\\" + binname + "$(DR)_" + cxx.name
-    dllpath = top + "bin\\" + binname + "$(SUFFIX).dll"
-    libpath = top + "lib\\" + cxx.lib_prefix + binname + "$(SUFFIX)" + cxx.lib_ext
+    temppath = top + "_temp\\" + projname + "$(DR)_" + cxx.name
+    libpath = top + "lib\\" + cxx.lib_prefix + projname + "$(SUFFIX)" + cxx.lib_ext
 
     dspfile_handle = open( dsppath, "r" )
     dspfile = dspfile_handle.readlines()
@@ -118,20 +117,11 @@ def create_makefile( dsppath, level, cxx, outfilename ):
     # find out if it is DLL or EXE
     for line in dspfile:
         if re.match( r"^# ADD LINK32.+", line ):
-            if re.search( r"/subsystem:console", line ):
-                # exe only
-                dllpath = top + "bin\\" + binname + "$(SUFFIX).exe"
-                exe_flag = 1
-                break
-            elif re.search( r"/subsystem:windows", line ):
-                if re.search(r"/dll", line ):
-                    dllpath = top + "bin\\" + binname + "$(SUFFIX).dll";
-                    break
-                else:
-                    dllpath = top + "bin\\" + binname + "$(SUFFIX).exe"
+            n = re.findall( r'/out:"(.+?)d\.(dll|exe)"', line )
+            if n and n[0]:
+                dllpath = n[0][0] + "$(SUFFIX)." + n[0][1]
+                if dllpath.endswith('.exe'):
                     exe_flag = 1
-                    break
-
     outfile.write( \
            "# Makefile for " + cxx.desc + \
            "\n\nCXX = " + cxx.cxx + \
@@ -213,7 +203,7 @@ def create_makefile( dsppath, level, cxx, outfilename ):
                 lib_link = cxx.lib_synonyms.get( lib_link.lower(), lib_link )
                 libs_str = libs_str + cxx.lib_link + lib_link.lower() + cxx.lib_link_ext + " "
 
-            if re.search( r"d\.(lib|dll|exe)", line ):
+            if re.search( r'/out:".+?d\.(dll|exe)"', line ):
                 libs_debug= libs_str
             else:
                 libs_release = libs_str
@@ -298,16 +288,18 @@ def create_makefile( dsppath, level, cxx, outfilename ):
 ###################### Main Loop ############################
 
 folderlist = [
-    "cv\\make",
-    "cvaux\\make",
+    "cxcore\\src",
+    "cv\\src",
+    "cvaux\\src",
     "otherlibs\\highgui",
-    "tests\\trs\\make",
+    "tests\\cxts",
+    "tests\\cxcore\\src",
+    "tests\\trs",
     "tests\\cv\\src",
-    "samples\\c",
 ]
 
 for cxx in [vc,icl,bcc,gcc]:
-    makefile = open( "..\\makefile." + cxx.name, "w" );
+    makefile = open( "..\\_make\\makefile." + cxx.name, "w" );
 
     makefile.write( "# " + cxx.desc + \
                     "\n\n" + cxx.if_prefix + "ifdef debug" + \
@@ -327,12 +319,12 @@ for cxx in [vc,icl,bcc,gcc]:
             if dsppath != "":
                 create_makefile( dsppath, level, cxx, "..\\" + folder + "\\makefile." + cxx.name )
             if cxx.name != "gcc":
-                makefile.write( "\n\tcd " + folder + \
+                makefile.write( "\n\tcd ..\\" + folder + \
                                 "\n\t" + cxx.make + " -f makefile." + \
                                 cxx.name + " $(OPT)" + \
-                                "\n\tcd " + "..\\" * (level - 1) + ".." )
+                                "\n\tcd " + "..\\" * level + "_make" )
             else:
-                makefile.write( "\n\t" + cxx.make + " -C " + folder + \
+                makefile.write( "\n\t" + cxx.make + " -C ..\\" + folder + \
                                 " -f makefile." + cxx.name )
 
     makefile.close()

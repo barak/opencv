@@ -49,8 +49,6 @@
 
 #define _MAX_BUFF_SIZE__  10
 
-#define PI() (acos(-1))
-
 /*****************************************************************************/
 /*                          Secondaty function                               */
 /*****************************************************************************/
@@ -339,8 +337,8 @@ CvSeq* arccos( CvMemStorage* Storage )
         Y_Mul = GetVali( Y_Mul_Max ,1);
         X_Mul = GetVali( X_Mul_Max ,1);
 
-        interval = GetVald( 2 * PI()  );
-        displacement = GetVald( 2 * PI() - interval );
+        interval = GetVald( 2 * CV_PI  );
+        displacement = GetVald( 2 * CV_PI - interval );
 
         t_step = (int)( interval * X_Mul );
         t_step = interval / t_step;
@@ -351,7 +349,7 @@ CvSeq* arccos( CvMemStorage* Storage )
     FirstPt.y = static_cast<int>( acos( displacement ) * Y_Mul );
     cvSeqPush( Seq, &FirstPt );
 
-    for( t = displacement - PI() ; t < interval + displacement ; t += t_step )
+    for( t = displacement - CV_PI ; t < interval + displacement ; t += t_step )
     {
         SecondPt.x = FirstPt.x;
         SecondPt.y = FirstPt.y;
@@ -397,8 +395,8 @@ CvSeq* arctan( CvMemStorage* Storage )
         Y_Mul = GetVali( Y_Mul_Max ,1);
         X_Mul = GetVali( X_Mul_Max ,1);
 
-        interval = GetVald( 2 * PI() -0.1, 0.1 );
-        displacement = GetVald( 2 * PI() - interval - 0.1, 0.1);
+        interval = GetVald( 2 * CV_PI -0.1, 0.1 );
+        displacement = GetVald( 2 * CV_PI - interval - 0.1, 0.1);
 
         t_step = (int)( interval * X_Mul );
         t_step = interval / t_step;
@@ -409,7 +407,7 @@ CvSeq* arctan( CvMemStorage* Storage )
     FirstPt.y = static_cast<int>( atan( displacement ) * Y_Mul );
     cvSeqPush( Seq, &FirstPt );
 
-    for( t = displacement - PI() ; t < interval + displacement ; t += t_step )
+    for( t = displacement - CV_PI ; t < interval + displacement ; t += t_step )
     {
         SecondPt.x = FirstPt.x;
         SecondPt.y = FirstPt.y;
@@ -907,7 +905,7 @@ CvSeq* Ellips( CvMemStorage* Storage )
     FirstPt.y = static_cast<int>( 0 );
     cvSeqPush( Seq, &FirstPt );
 
-    for( t = 0 ; t < 2 * PI() ; t += t_step )
+    for( t = 0 ; t < 2 * CV_PI ; t += t_step )
     {
         SecondPt.x = FirstPt.x;
         SecondPt.y = FirstPt.y;

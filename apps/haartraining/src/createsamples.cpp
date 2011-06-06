@@ -48,6 +48,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <cvhaartraining.h>
 
@@ -68,6 +69,8 @@ int main( int argc, char* argv[] )
     double maxyangle = 1.1;
     double maxzangle = 0.5;
     int showsamples = 0;
+    /* the samples are adjusted to this scale in the sample preview window */
+    double scale = 4.0;
     int width  = 24;
     int height = 24;
 
@@ -83,15 +86,15 @@ int main( int argc, char* argv[] )
                 "  [-maxxangle <max_x_rotation_angle = %f>]\n"
                 "  [-maxyangle <max_y_rotation_angle = %f>]\n"
                 "  [-maxzangle <max_z_rotation_angle = %f>]\n"
-                "  [-show]\n"
+                "  [-show [<scale = %f>]]\n"
                 "  [-w <sample_width = %d>]\n  [-h <sample_height = %d>]\n",
                 argv[0], num, bgcolor, bgthreshold, maxintensitydev,
-                maxxangle, maxyangle, maxzangle, width, height );
+                maxxangle, maxyangle, maxzangle, scale, width, height );
         
         return 0;
     }
 
-    for( i = 1; i < argc; i++ )
+    for( i = 1; i < argc; ++i )
     {
         if( !strcmp( argv[i], "-info" ) )
         {
@@ -148,6 +151,13 @@ int main( int argc, char* argv[] )
         else if( !strcmp( argv[i], "-show" ) )
         {
             showsamples = 1;
+            if( i+1 < argc && strlen( argv[i+1] ) > 0 && argv[i+1][0] != '-' )
+            {
+                double d;
+                d = strtod( argv[i+1], 0 );
+                if( d != -HUGE_VAL && d != HUGE_VAL && d > 0 ) scale = d;
+                ++i;
+            }
         }
         else if( !strcmp( argv[i], "-w" ) )
         {
@@ -169,10 +179,14 @@ int main( int argc, char* argv[] )
     printf( "Invert: %s\n", (invert == CV_RANDOM_INVERT) ? "RANDOM"
                                 : ( (invert) ? "TRUE" : "FALSE" ) );
     printf( "Max intensity deviation: %d\n", maxintensitydev );
-    printf( "Max x angle: %f\n", maxxangle );
-    printf( "Max y angle: %f\n", maxyangle );
-    printf( "Max z angle: %f\n", maxzangle );
+    printf( "Max x angle: %g\n", maxxangle );
+    printf( "Max y angle: %g\n", maxyangle );
+    printf( "Max z angle: %g\n", maxzangle );
     printf( "Show samples: %s\n", (showsamples) ? "TRUE" : "FALSE" );
+    if( showsamples )
+    {
+        printf( "Scale: %g\n", scale );
+    }
     printf( "Width: %d\n", width );
     printf( "Height: %d\n", height );
 
@@ -211,9 +225,9 @@ int main( int argc, char* argv[] )
     }
     else if( vecname )
     {
-        printf( "View samples from vec file...\n" );
+        printf( "View samples from vec file (press ESC to exit)...\n" );
 
-        cvShowVecSamples( vecname, width, height );
+        cvShowVecSamples( vecname, width, height, scale );
 
         printf( "Done\n" );
     }

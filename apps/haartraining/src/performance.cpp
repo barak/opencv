@@ -44,12 +44,10 @@
  *
  * Measure performance of classifier
  */
-
+#include "cv.h"
 #include <stdio.h>
 #include <math.h>
 #include <highgui.h>
-#include <cvaux.h>
-
 #include <time.h>
 
 #ifdef _WIN32
@@ -88,7 +86,7 @@ int main( int argc, char* argv[] )
     float maxPosDiff  = 0.3F;
 
     /* number of stages. if <=0 all stages are used */
-    int nos = -1;
+    int nos = -1, nos0;
 
     int width  = 24;
     int height = 24;
@@ -103,7 +101,6 @@ int main( int argc, char* argv[] )
     char detname[] = "det-";
 
     CvHaarClassifierCascade* cascade;
-    CvHidHaarClassifierCascade* hid_cascade;
     CvMemStorage* storage;
     CvSeq* objects;
     
@@ -182,22 +179,17 @@ int main( int argc, char* argv[] )
     }
 
     int* numclassifiers = new int[cascade->count];
-    numclassifiers[0] = cascade->stageClassifier[0].count;
+    numclassifiers[0] = cascade->stage_classifier[0].count;
     for( i = 1; i < cascade->count; i++ )
     {
-        numclassifiers[i] = numclassifiers[i-1] + cascade->stageClassifier[i].count;
+        numclassifiers[i] = numclassifiers[i-1] + cascade->stage_classifier[i].count;
     }
 
-    hid_cascade = cvCreateHidHaarClassifierCascade( cascade );
-    cvReleaseHaarClassifierCascade( &cascade );
     storage = cvCreateMemStorage();
 
-    if( nos > 0 )
-    {
-        ((HidCascade *) hid_cascade)->count = 
-            MIN( ((HidCascade *) hid_cascade)->count, nos );
-    }
-    nos = ((HidCascade *) hid_cascade)->count;
+    nos0 = cascade->count;
+    if( nos <= 0 )
+        nos = nos0;
 
     strcpy( fullname, infoname );
     filename = strrchr( fullname, '\\' );
@@ -247,7 +239,7 @@ int main( int argc, char* argv[] )
         {
             if( fscanf( info, "%s %d", filename, &refcount ) != 2 || refcount <= 0 ) break;
 
-            img = cvvLoadImage( fullname );
+            img = cvLoadImage( fullname );
             if( !img ) continue;
 
             ref = (ObjectPos*) cvAlloc( refcount * sizeof( *ref ) );
@@ -264,9 +256,12 @@ int main( int argc, char* argv[] )
             if( !error )
             {
                 cvClearMemStorage( storage );
+
+                cascade->count = nos;
                 totaltime -= time( 0 );
-                objects = cvHaarDetectObjects( img, hid_cascade, storage, scale_factor, 1 );
+                objects = cvHaarDetectObjects( img, cascade, storage, scale_factor, 1 );
                 totaltime += time( 0 );
+                cascade->count = nos0;
                 
                 detcount = ( objects ? objects->total : 0);                
                 det = (detcount > 0) ?
@@ -285,7 +280,7 @@ int main( int argc, char* argv[] )
                     {
                         cvRectangle( img, cvPoint( r.rect.x, r.rect.y ),
                             cvPoint( r.rect.x + r.rect.width, r.rect.y + r.rect.height ),
-                            (double) CV_RGB( 255, 0, 0 ), 3 );
+                            CV_RGB( 255, 0, 0 ), 3 );
                     }
 
                     found = 0;
@@ -371,7 +366,7 @@ int main( int argc, char* argv[] )
 
     delete[] numclassifiers;
 
-    cvReleaseHidHaarClassifierCascade( &hid_cascade );
+    cvReleaseHaarClassifierCascade( &cascade );
     cvReleaseMemStorage( &storage );
 
     return 0;

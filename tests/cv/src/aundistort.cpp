@@ -81,13 +81,13 @@ void  UnDistortTest_C1 ( uchar* srcImage,
                 double   x2 = x*x;
                 double   r2 = x2 + y2;
                 double  dst = r2*k1 + r2*r2*k2;
-                double dstx = dst + 2.f*p1*y + p2*( r2/x + 2.f*x );
-                double dsty = dst + 2.f*p2*x + p1*( r2/y + 2.f*y );
+                double dstx = dst + 2.f*p1*y + p2*( r2/(x?x:0.1) + 2.f*x );
+                double dsty = dst + 2.f*p2*x + p1*( r2/(y?y:0.1) + 2.f*y );
                 int      ud = u + cvRound( du*dstx );
                 int      vd = v + cvRound( dv*dsty );
                 if( ud<0 || ud>=size.width || vd<0 || vd>=size.height )
                     dstImage[u] = 0;
-                else 
+                else
                     dstImage[u] = srcImage[vd*step + ud];
             }
         }
@@ -106,8 +106,8 @@ void  UnDistortTest_C1 ( uchar* srcImage,
                 double   x2 = x*x;
                 double   r2 = x2 + y2;
                 double  dst = r2*k1 + r2*r2*k2;
-                double dstx = dst + 2.f*p1*y + p2*( r2/x + 2.f*x );
-                double dsty = dst + 2.f*p2*x + p1*( r2/y + 2.f*y );
+                double dstx = dst + 2.f*p1*y + p2*( r2/(x?x:0.1) + 2.f*x );
+                double dsty = dst + 2.f*p2*x + p1*( r2/(y?y:0.1) + 2.f*y );
                 double   eu = du*dstx;
                 double   ev = dv*dsty;
                 int      ud = cvFloor( eu );
@@ -160,8 +160,8 @@ void  UnDistortTest_C3 ( uchar* srcImage,
                 double   x2 = x*x;
                 double   r2 = x2 + y2;
                 double  dst = r2*k1 + r2*r2*k2;
-                double dstx = dst + 2.f*p1*y + p2*( r2/x + 2.f*x );
-                double dsty = dst + 2.f*p2*x + p1*( r2/y + 2.f*y );
+                double dstx = dst + 2.f*p1*y + p2*( r2/(x?x:0.1) + 2.f*x );
+                double dsty = dst + 2.f*p2*x + p1*( r2/(y?y:0.1) + 2.f*y );
                 int     ud = u + cvRound( du*dstx );
                 int     vd = v + cvRound( dv*dsty );
                 int     u3 = 3*u;
@@ -191,8 +191,8 @@ void  UnDistortTest_C3 ( uchar* srcImage,
                 double   x2 = x*x;
                 double   r2 = x2 + y2;
                 double  dst = r2*k1 + r2*r2*k2;
-                double dstx = dst + 2.f*p1*y + p2*( r2/x + 2.f*x );
-                double dsty = dst + 2.f*p2*x + p1*( r2/y + 2.f*y );
+                double dstx = dst + 2.f*p1*y + p2*( r2/(x?x:0.1) + 2.f*x );
+                double dsty = dst + 2.f*p2*x + p1*( r2/(y?y:0.1) + 2.f*y );
                 double   eu = du*dstx;
                 double   ev = dv*dsty;
                 int     ud = cvFloor( eu );
@@ -257,7 +257,7 @@ static int fmaUnDistort( void )
     a      = (float*)cvAlloc( sizeof(float) * 9 );
     k      = (float*)cvAlloc( sizeof(float) * 4 );
     //data   = (int*)   icvAlloc(   3*n*sizeof(int) );
-    
+
     src  = cvCreateImage( size, IPL_DEPTH_8U, 1 );
     cvSetImageROI( src, cvRect(0, 0, src->width, src->height) );
     dst  = cvCreateImage( size, IPL_DEPTH_8U, 1 );
@@ -339,8 +339,8 @@ begin:
             norm = norm1 = 0.0;
             for(i=0; i<n; i++)
             {
-                norm  += fabs( dstImg[i] - tstImg[i] );
-                norm1 += fabs( tstImg[i] );
+                norm  += abs( dstImg[i] - tstImg[i] );
+                norm1 += abs( tstImg[i] );
             }
             norm /= norm1;
             printf( " 8u C1 without interpolation:  %g\n", norm );
@@ -361,8 +361,8 @@ begin:
             norm = norm1 = 0.0;
             for(i=0; i<n; i++)
             {
-                norm  += fabs( dstImg[i] - tstImg[i] );
-                norm1 += fabs( tstImg[i] );
+                norm  += abs( dstImg[i] - tstImg[i] );
+                norm1 += abs( tstImg[i] );
             }
             norm /= norm1;
             printf( "                               %g\n", norm );
@@ -386,8 +386,8 @@ begin:
             norm = norm1 = 0.0;
             for(i=0; i<n; i++)
             {
-                norm  += fabs( dstImg[i] - tstImg[i] );
-                norm1 += fabs( tstImg[i] );
+                norm  += abs( dstImg[i] - tstImg[i] );
+                norm1 += abs( tstImg[i] );
             }
             norm /= norm1;
             printf( " 8u C1 with    interpolation:  %g\n", norm );
@@ -408,8 +408,8 @@ begin:
             norm = norm1 = 0.0;
             for(i=0; i<n; i++)
             {
-                norm  += fabs( dstImg[i] - tstImg[i] );
-                norm1 += fabs( tstImg[i] );
+                norm  += abs( dstImg[i] - tstImg[i] );
+                norm1 += abs( tstImg[i] );
             }
             norm /= norm1;
             printf( "                               %g\n", norm );
@@ -439,8 +439,8 @@ begin:
             norm = norm1 = 0.0;
             for(i=0; i<n3; i++)
             {
-                norm  += fabs( dstImg3[i] - tstImg3[i] );
-                norm1 += fabs( tstImg3[i] );
+                norm  += abs( dstImg3[i] - tstImg3[i] );
+                norm1 += abs( tstImg3[i] );
             }
             norm /= norm1;
             printf( " 8u C3 without interpolation:  %g\n", norm );
@@ -455,8 +455,8 @@ begin:
             norm = norm1 = 0.0;
             for(i=0; i<n3; i++)
             {
-                norm  += fabs( dstImg3[i] - tstImg3[i] );
-                norm1 += fabs( tstImg3[i] );
+                norm  += abs( dstImg3[i] - tstImg3[i] );
+                norm1 += abs( tstImg3[i] );
             }
             norm /= norm1;
             printf( "                               %g\n", norm );
@@ -486,8 +486,8 @@ begin:
             norm = norm1 = 0.0;
             for(i=0; i<n3; i++)
             {
-                norm  += fabs( dstImg3[i] - tstImg3[i] );
-                norm1 += fabs( tstImg3[i] );
+                norm  += abs( dstImg3[i] - tstImg3[i] );
+                norm1 += abs( tstImg3[i] );
             }
             norm /= norm1;
             printf( " 8u C3 with    interpolation:  %g\n", norm );
@@ -502,8 +502,8 @@ begin:
             norm = norm1 = 0.0;
             for(i=0; i<n3; i++)
             {
-                norm  += fabs( dstImg3[i] - tstImg3[i] );
-                norm1 += fabs( tstImg3[i] );
+                norm  += abs( dstImg3[i] - tstImg3[i] );
+                norm1 += abs( tstImg3[i] );
             }
             norm /= norm1;
             printf( "                               %g\n", norm );
@@ -574,7 +574,7 @@ begin:
 
     if( err == 0 ) return trsResult( TRS_OK, "No errors fixed by this test" );
     else return trsResult( TRS_FAIL, "Total fixed %d errors", err );
-    
+
 } /*fma*/
 /*------------------------------------------- Initialize function ------------------------ */
 void InitAUnDistort( void )

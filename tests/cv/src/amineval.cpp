@@ -58,9 +58,9 @@ static  void calcMinVal(IplImage* src32f, IplImage* eigenv32f, int kerSize, int 
 {
     int* GaussKer;
     int* DiffKer;
-	CvSize KerLens;
+    CvSize KerLens;
          
-	IplImage* fldstX;
+    IplImage* fldstX;
     IplImage* fldstY;
     IplImage* fldstXX;
     IplImage* fldstYY;
@@ -80,7 +80,7 @@ static  void calcMinVal(IplImage* src32f, IplImage* eigenv32f, int kerSize, int 
     KerLens.height = kerSize;
 
     /* Creating images for testing */
-	fldstX = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
+    fldstX = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
     fldstY = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
     fldstXX = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
     fldstXY = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
@@ -89,7 +89,7 @@ static  void calcMinVal(IplImage* src32f, IplImage* eigenv32f, int kerSize, int 
     flBluredXY = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
     flBluredYY = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
 
-	atsCalcKernel(IPL_DEPTH_32F,0,1,kerSize,(char*)GaussKer,(char*)DiffKer,&KerLens,IPL_ORIGIN_TL);
+    atsCalcKernel(IPL_DEPTH_32F,0,1,kerSize,(char*)GaussKer,(char*)DiffKer,&KerLens,IPL_ORIGIN_TL);
     GaussKerX = atsCreateConvKernelFP(kerSize,1,kerSize/2,0,(float*)GaussKer);
     GaussKerY = atsCreateConvKernelFP(1,kerSize,0,kerSize/2,(float*)GaussKer);
 
@@ -137,7 +137,7 @@ static  void calcMinVal(IplImage* src32f, IplImage* eigenv32f, int kerSize, int 
             float Sqrt  = (float)sqrt( discr );
             lambda = (apc - Sqrt)/2;
             ((float*)(eigenv32f->imageData))[i*eigenv32f->widthStep/4 + j] = lambda;
-			            
+                        
         }
     }
 
@@ -159,7 +159,6 @@ static int fcaMinEVal( void )
 {
     long lErrors = 0;
     IplImage* src8u;
-    IplImage* src8s;
     IplImage* src32f;
     IplImage* tmpsrc;
     IplImage* eigenv32f;
@@ -184,15 +183,13 @@ static int fcaMinEVal( void )
     
     /* Creating images for testing */
     src8u = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_8U, 1);
-    src8s = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_8S, 1);
-	src32f = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
+    src32f = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
     tmpsrc = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
-	eigenv32f = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
+    eigenv32f = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
     testdst = cvCreateImage(cvSize(lImageWidth, lImageHeight), IPL_DEPTH_32F, 1);
-	
+    
     atsFillRandomImage(src8u,0, 255);
-    atsFillRandomImage(src8s,-128, 127);
-	atsFillRandomImage(src32f,-255, 255);
+    atsFillRandomImage(src32f,-255, 255);
 
     atsConvert(src8u,tmpsrc);
     calcMinVal(tmpsrc,eigenv32f,kerSize,lBlockSize);
@@ -204,10 +201,6 @@ static int fcaMinEVal( void )
             float a = ((float*)eigenv32f->imageData)[i*eigenv32f->widthStep/4+j];
             float b = ((float*)testdst->imageData)[i*testdst->widthStep/4+j];
         }*/
-    atsConvert(src8s,tmpsrc);
-    calcMinVal(tmpsrc,eigenv32f,kerSize,lBlockSize);
-    cvCornerMinEigenVal(src8s,testdst,kerSize,lBlockSize);
-    lErrors += (long)cvNorm(eigenv32f,testdst,CV_C);
     calcMinVal(src32f,eigenv32f,kerSize,lBlockSize);
     cvCornerMinEigenVal(src32f,testdst,kerSize,lBlockSize);
     int err = 0;
@@ -231,10 +224,3 @@ void InitAMinEVal (void)
 } /* InitASobel */
 
 /* End of file. */
-
-
-
-
-
-
-

@@ -131,9 +131,7 @@ static void intergate_etalon( IplImage* img, IplImage* sum,
 static int haar_test( void )
 {
     const double success_error_level = 0;
-
     int   seed = atsGetSeed();
-    int   code = TRS_OK;
 
     /* position where the maximum error occured */
     int   i, merr_iter = 0;
@@ -236,15 +234,12 @@ test_exit:
     cvReleaseImage( &sqsum1 );
     cvReleaseImage( &sqsum2 );
 
-    if( code == TRS_OK )
-    {
-        trsWrite( ATS_LST, "Max err is %g at iter = %d, seed = %08x",
-                           max_err, merr_iter, seed );
+    trsWrite( ATS_LST, "Max err is %g at iter = %d, seed = %08x",
+                       max_err, merr_iter, seed );
 
-        return max_err <= success_error_level ?
-            trsResult( TRS_OK, "No errors" ) :
-            trsResult( TRS_FAIL, "Bad accuracy" );
-    }
+    return max_err <= success_error_level ?
+        trsResult( TRS_OK, "No errors" ) :
+        trsResult( TRS_FAIL, "Bad accuracy" );
 }
 
 

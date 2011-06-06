@@ -51,39 +51,7 @@
 #endif
 
 /************************* Reading AVIs & Camera data **************************/
-
-/***************************** Common definitions ******************************/
-
-#define CV_CAPTURE_BASE_API_COUNT 6
-
-typedef void (CV_CDECL* CvCaptureCloseFunc)( CvCapture* capture );
-typedef int (CV_CDECL* CvCaptureGrabFrameFunc)( CvCapture* capture );
-typedef IplImage* (CV_CDECL* CvCaptureRetrieveFrameFunc)( CvCapture* capture );
-typedef double (CV_CDECL* CvCaptureGetPropertyFunc)( CvCapture* capture, int id );
-typedef int (CV_CDECL* CvCaptureSetPropertyFunc)( CvCapture* capture,
-                                                  int id, double value );
-typedef const char* (CV_CDECL* CvCaptureGetDescriptionFunc)( CvCapture* capture );
-
-typedef struct CvCaptureVTable
-{
-    int     count;
-    CvCaptureCloseFunc close;
-    CvCaptureGrabFrameFunc grab_frame;
-    CvCaptureRetrieveFrameFunc retrieve_frame;
-    CvCaptureGetPropertyFunc get_property;
-    CvCaptureSetPropertyFunc set_property;
-    CvCaptureGetDescriptionFunc get_description;
-}
-CvCaptureVTable;
-
-typedef struct CvCapture
-{
-    CvCaptureVTable* vtable;
-}
-CvCapture;
-
-
-HIGHGUI_IMPL void cvReleaseCapture( CvCapture** pcapture )
+CV_IMPL void cvReleaseCapture( CvCapture** pcapture )
 {
     if( pcapture && *pcapture )
     {
@@ -97,7 +65,7 @@ HIGHGUI_IMPL void cvReleaseCapture( CvCapture** pcapture )
 }
 
 
-HIGHGUI_IMPL IplImage* cvQueryFrame( CvCapture* capture )
+CV_IMPL IplImage* cvQueryFrame( CvCapture* capture )
 {
     if( capture && capture->vtable &&
         capture->vtable->count >= CV_CAPTURE_BASE_API_COUNT &&
@@ -107,7 +75,7 @@ HIGHGUI_IMPL IplImage* cvQueryFrame( CvCapture* capture )
     return 0;
 }
 
-HIGHGUI_IMPL int cvGrabFrame( CvCapture* capture )
+CV_IMPL int cvGrabFrame( CvCapture* capture )
 {
     if( capture && capture->vtable &&
         capture->vtable->count >= CV_CAPTURE_BASE_API_COUNT &&
@@ -116,7 +84,7 @@ HIGHGUI_IMPL int cvGrabFrame( CvCapture* capture )
     return 0;
 } 
 
-HIGHGUI_IMPL IplImage* cvRetrieveFrame( CvCapture* capture )
+CV_IMPL IplImage* cvRetrieveFrame( CvCapture* capture )
 {
     if( capture && capture->vtable &&
         capture->vtable->count >= CV_CAPTURE_BASE_API_COUNT &&
@@ -125,7 +93,7 @@ HIGHGUI_IMPL IplImage* cvRetrieveFrame( CvCapture* capture )
     return 0;
 }                                       
 
-HIGHGUI_IMPL double cvGetCaptureProperty( CvCapture* capture, int id )
+CV_IMPL double cvGetCaptureProperty( CvCapture* capture, int id )
 {
     if( capture && capture->vtable &&
         capture->vtable->count >= CV_CAPTURE_BASE_API_COUNT &&
@@ -135,7 +103,7 @@ HIGHGUI_IMPL double cvGetCaptureProperty( CvCapture* capture, int id )
 }
 
 
-HIGHGUI_IMPL int cvSetCaptureProperty( CvCapture* capture, int id, double value )
+CV_IMPL int cvSetCaptureProperty( CvCapture* capture, int id, double value )
 {
     if( capture && capture->vtable &&
         capture->vtable->count >= CV_CAPTURE_BASE_API_COUNT &&
@@ -187,6 +155,7 @@ typedef struct CvCaptureAVI_VFW
     double fps;
     int pos;
     IplImage frame;
+    CvSize size;
 }
 CvCaptureAVI_VFW;
 
@@ -210,7 +179,7 @@ static void icvCloseAVI_VFW( CvCaptureAVI_VFW* capture )
     }
     capture->bmih = 0;
     capture->pos = 0;
-    capture->film_range.startIndex = capture->film_range.endIndex = 0;
+    capture->film_range.start_index = capture->film_range.end_index = 0;
     memset( &capture->frame, 0, sizeof(capture->frame));
 }
 
@@ -234,17 +203,18 @@ static int icvOpenAVI_VFW( CvCaptureAVI_VFW* capture, const char* filename )
                                     sizeof(capture->aviinfo));
             if( SUCCEEDED(hr))
             {
+                capture->size.width = capture->aviinfo.rcFrame.right -
+                                      capture->aviinfo.rcFrame.left;
+                capture->size.height = capture->aviinfo.rcFrame.bottom -
+                                      capture->aviinfo.rcFrame.top;
                 BITMAPINFOHEADER bmih = icvBitmapHeader(
-                    capture->aviinfo.rcFrame.right -
-                    capture->aviinfo.rcFrame.left,
-                    capture->aviinfo.rcFrame.bottom -
-                    capture->aviinfo.rcFrame.top,
-                    24 );
-                capture->film_range.startIndex = (int)capture->aviinfo.dwStart;
-                capture->film_range.endIndex = capture->film_range.startIndex +
+                    capture->size.width, capture->size.height, 24 );
+                
+                capture->film_range.start_index = (int)capture->aviinfo.dwStart;
+                capture->film_range.end_index = capture->film_range.start_index +
                                                 (int)capture->aviinfo.dwLength;
                 capture->fps = ((double)capture->aviinfo.dwRate)/capture->aviinfo.dwScale;
-                capture->pos = capture->film_range.startIndex;
+                capture->pos = capture->film_range.start_index;
                 capture->getframe = AVIStreamGetFrameOpen( capture->avistream, &bmih );
                 if( capture->getframe != 0 )
                     return 1;
@@ -292,22 +262,21 @@ static double icvGetPropertyAVI_VFW( CvCaptureAVI_VFW* capture, int property_id 
     {
     case CV_CAP_PROP_POS_MSEC:
         return cvRound(capture->pos*1000./capture->fps);
-        break;
     case CV_CAP_PROP_POS_FRAMES:
         return capture->pos;
     case CV_CAP_PROP_POS_AVI_RATIO:
-        return (capture->pos - capture->film_range.startIndex)/
-               (capture->film_range.endIndex - capture->film_range.startIndex + 1e-10);
+        return (capture->pos - capture->film_range.start_index)/
+               (capture->film_range.end_index - capture->film_range.start_index + 1e-10);
     case CV_CAP_PROP_FRAME_WIDTH:
-        return capture->frame.width;
+        return capture->size.width;
     case CV_CAP_PROP_FRAME_HEIGHT:
-        return capture->frame.height;
+        return capture->size.height;
     case CV_CAP_PROP_FPS:
         return capture->fps;
     case CV_CAP_PROP_FOURCC:
         return capture->aviinfo.fccHandler;
     case CV_CAP_PROP_FRAME_COUNT:
-        return capture->film_range.endIndex - capture->film_range.startIndex;
+        return capture->film_range.end_index - capture->film_range.start_index;
     }
     return 0;
 }
@@ -329,17 +298,17 @@ static int icvSetPropertyAVI_VFW( CvCaptureAVI_VFW* capture,
                 pos = cvRound(value*capture->fps*0.001);
                 break;
             case CV_CAP_PROP_POS_AVI_RATIO:
-                pos = cvRound(value*(capture->film_range.endIndex - 
-                                     capture->film_range.startIndex) +
-                              capture->film_range.startIndex);
+                pos = cvRound(value*(capture->film_range.end_index - 
+                                     capture->film_range.start_index) +
+                              capture->film_range.start_index);
                 break;
             default:
                 pos = cvRound(value);
             }
-            if( pos < capture->film_range.startIndex )
-                pos = capture->film_range.startIndex;
-            if( pos > capture->film_range.endIndex )
-                pos = capture->film_range.endIndex;
+            if( pos < capture->film_range.start_index )
+                pos = capture->film_range.start_index;
+            if( pos > capture->film_range.end_index )
+                pos = capture->film_range.end_index;
             capture->pos = pos;
         }
         break;
@@ -362,15 +331,20 @@ static CvCaptureVTable captureAVI_VFW_vtable =
 };
 
 
-HIGHGUI_IMPL CvCapture* cvCaptureFromAVI( const char* filename )
+CV_IMPL CvCapture* cvCaptureFromFile( const char* filename )
 {
-    CvCaptureAVI_VFW* capture = (CvCaptureAVI_VFW*)cvAlloc( sizeof(*capture));
-    memset( capture, 0, sizeof(*capture));
+    CvCaptureAVI_VFW* capture = 0;
 
-    capture->vtable = &captureAVI_VFW_vtable;
+    if( filename )
+    {
+        capture = (CvCaptureAVI_VFW*)cvAlloc( sizeof(*capture));
+        memset( capture, 0, sizeof(*capture));
 
-    if( !icvOpenAVI_VFW( capture, filename ))
-        cvReleaseCapture( (CvCapture**)&capture );
+        capture->vtable = &captureAVI_VFW_vtable;
+
+        if( !icvOpenAVI_VFW( capture, filename ))
+            cvReleaseCapture( (CvCapture**)&capture );
+    }
 
     return (CvCapture*)capture;
 }
@@ -585,13 +559,19 @@ static CvCaptureVTable captureCAM_VFW_vtable =
 //#ifdef WIN32
 
 /* Small patch to cope with automatically generated Makefiles */
-#if !defined _MSC_VER || defined __ICL || defined CV_BATCH_MSVC
-#undef USE_MIL 
+#if !defined _MSC_VER
+#undef HAVE_MIL
+#define HAVE_MIL 0
 #endif
 
-#ifdef USE_MIL 
+#if HAVE_MIL 
 #include "mil.h" /* to build MIL-enabled version of HighGUI you
                     should have MIL installed */
+
+#if _MSC_VER >= 1200
+#pragma comment(lib,"mil.lib")
+#pragma comment(lib,"milmet2.lib")
+#endif
 
 struct 
 {      
@@ -740,10 +720,10 @@ static CvCaptureVTable captureCAM_MIL_vtable =
     (CvCaptureGetDescriptionFunc)0
 };
 
-#endif //USE_MIL 
+#endif //HAVE_MIL 
 //#endif //WIN32
 
-HIGHGUI_IMPL CvCapture* cvCaptureFromCAM( int index )
+CV_IMPL CvCapture* cvCaptureFromCAM( int index )
 {
     if( index < 100 ) //try VFW 
     {
@@ -756,7 +736,7 @@ HIGHGUI_IMPL CvCapture* cvCaptureFromCAM( int index )
             cvReleaseCapture( (CvCapture**)&capture );
         else return (CvCapture*)capture;
     }
-#ifdef USE_MIL
+#if HAVE_MIL
     if( index >= 100 || index < 0 ) //try MIL 
     {
         CvCaptureCAM_MIL* capture = (CvCaptureCAM_MIL*)cvAlloc( sizeof(*capture));
@@ -775,7 +755,7 @@ HIGHGUI_IMPL CvCapture* cvCaptureFromCAM( int index )
 
 /*************************** writing AVIs ******************************/
 
-typedef struct CvAVIWriter
+typedef struct CvAVI_VFW_Writer
 {
     PAVIFILE avifile;
     PAVISTREAM compressed;
@@ -786,10 +766,10 @@ typedef struct CvAVIWriter
     long pos;
     int fourcc;
 }
-CvAVIWriter;
+CvAVI_VFW_Writer;
 
 
-static void icvCloseAVIWriter( CvAVIWriter* writer )
+static void icvCloseAVIWriter( CvAVI_VFW_Writer* writer )
 {
     if( writer )
     {
@@ -805,7 +785,7 @@ static void icvCloseAVIWriter( CvAVIWriter* writer )
 }
 
 
-static int icvInitAVIWriter( CvAVIWriter* writer, int fourcc,
+static int icvInitAVIWriter( CvAVI_VFW_Writer* writer, int fourcc,
                              double fps, CvSize frameSize )
 {
     if( writer && writer->avifile )
@@ -865,10 +845,10 @@ static int icvInitAVIWriter( CvAVIWriter* writer, int fourcc,
 }
 
 
-HIGHGUI_IMPL CvAVIWriter* cvCreateAVIWriter( const char* filename, int fourcc,
-                                             double fps, CvSize frameSize )
+CV_IMPL CvVideoWriter* cvCreateAVIWriter( const char* filename, int fourcc,
+                                          double fps, CvSize frameSize )
 {
-    CvAVIWriter* writer = (CvAVIWriter*)cvAlloc( sizeof(CvAVIWriter));
+    CvAVI_VFW_Writer* writer = (CvAVI_VFW_Writer*)cvAlloc( sizeof(CvAVI_VFW_Writer));
     memset( writer, 0, sizeof(*writer));
 
     icvInitCapture_VFW();
@@ -878,7 +858,7 @@ HIGHGUI_IMPL CvAVIWriter* cvCreateAVIWriter( const char* filename, int fourcc,
         if( frameSize.width > 0 && frameSize.height > 0 )
         {
             if( !icvInitAVIWriter( writer, fourcc, fps, frameSize ))
-                cvReleaseAVIWriter( &writer );
+                cvReleaseVideoWriter( (CvVideoWriter**)&writer );
         }
         else if( fourcc == -1 )
         {
@@ -893,12 +873,14 @@ HIGHGUI_IMPL CvAVIWriter* cvCreateAVIWriter( const char* filename, int fourcc,
         }
     }
     
-    return writer;
+    return (CvVideoWriter*)writer;
 }
 
 
-HIGHGUI_IMPL int cvWriteToAVI( CvAVIWriter* writer, const IplImage* image )
+CV_IMPL int cvWriteFrame( CvVideoWriter* _writer, const IplImage* image )
 {
+    CvAVI_VFW_Writer* writer = (CvAVI_VFW_Writer*)_writer;
+    
     if( writer && (writer->compressed ||
         icvInitAVIWriter( writer, writer->fourcc, writer->fps, writer->frameSize )))
     {
@@ -917,11 +899,11 @@ HIGHGUI_IMPL int cvWriteToAVI( CvAVIWriter* writer, const IplImage* image )
 }
 
 
-HIGHGUI_IMPL void cvReleaseAVIWriter( CvAVIWriter** writer )
+CV_IMPL void cvReleaseVideoWriter( CvVideoWriter** writer )
 {
     if( writer && *writer )
     {
-        icvCloseAVIWriter( *writer );
+        icvCloseAVIWriter( (CvAVI_VFW_Writer*)*writer );
         cvFree( (void**)writer );
     }
 }
@@ -956,8 +938,7 @@ typedef struct CvCaptureAVI_FFMPEG
     CvCaptureVTable* vtable;
     AVCodec *codec;
     AVCodecContext *avctx;
-    AVFrame* picture;
-    AVPicture rgb_picture;
+    AVFrame picture, rgb_picture;
 
     int codec_fourcc;
     int codec_sub_fourcc;
@@ -1022,8 +1003,8 @@ static void icvCloseAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
     if( capture->avctx )
     {
         avcodec_close( capture->avctx );
-        cvFree( (void**)&capture->avctx );
-        //capture->avctx = 0;
+        av_free( capture->avctx );
+        capture->avctx = 0;
     }
 
     if( capture->file )
@@ -1032,11 +1013,8 @@ static void icvCloseAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
         capture->file = 0;
     }
 
-    if( capture->picture )
-    {
-        free( capture->picture );
-        capture->picture = 0;
-    }
+    /*if( capture->picture.data[0] )
+        cvFree( (void**)&capture->picture.data[0] );*/
     
     if( capture->rgb_picture.data[0] )
         cvFree( (void**)&capture->rgb_picture.data[0] );
@@ -1045,7 +1023,7 @@ static void icvCloseAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
 
     capture->codec = 0;
     capture->pos = 0;
-    capture->film_range.startIndex = capture->film_range.endIndex = 0;
+    capture->film_range.start_index = capture->film_range.end_index = 0;
     memset( &capture->frame, 0, sizeof(capture->frame));
 }
 
@@ -1056,10 +1034,6 @@ static int icvOpenAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture, const char* filename
     int val;
     icvInitCapture_FFMPEG();
     
-    capture->file = fopen( filename, "rb" );
-    if(!capture->file)
-        return 0;
-
     capture->stream_index = -1;
     capture->file = fopen( filename, "rb" );
     if( !capture->file )
@@ -1107,7 +1081,7 @@ static int icvOpenAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture, const char* filename
                 read4( capture ); // bit-rate
                 read4( capture ); // reserved
                 read4( capture ); // flags
-                capture->film_range.endIndex = read4( capture );
+                capture->film_range.end_index = read4( capture );
                 read4( capture ); // initial frames
                 streams = read4( capture ); // nstreams
                 capture->buffer_size = read4( capture );
@@ -1173,7 +1147,7 @@ static int icvOpenAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture, const char* filename
             capture->offset = new_offset;
             size /= sizeof(entries[0]);
 
-            capture->entries = (avi_entry_compact*)cvAlloc( capture->film_range.endIndex*
+            capture->entries = (avi_entry_compact*)cvAlloc( capture->film_range.end_index*
                                                             sizeof(capture->entries[0]) );
             for( i = 0; i < size; i++ )
             {
@@ -1221,19 +1195,24 @@ static int icvOpenAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture, const char* filename
             if( err >= 0 )
             {
                 capture->rgb_picture.data[0] = (uchar*)cvAlloc(
-                                avpicture_get_size( PIX_FMT_RGB24,
+                                avpicture_get_size( PIX_FMT_BGR24,
                                 capture->avctx->width, capture->avctx->height ));
                 avpicture_fill( (AVPicture*)&capture->rgb_picture, capture->rgb_picture.data[0],
-                                PIX_FMT_RGB24, capture->avctx->width, capture->avctx->height );
+                                PIX_FMT_BGR24, capture->avctx->width, capture->avctx->height );
+                /*capture->picture.data[0] = (uchar*)cvAlloc(
+                                avpicture_get_size( capture->avctx->pix_fmt,
+                                capture->avctx->width, capture->avctx->height ));
+                avpicture_fill( (AVPicture*)&capture->picture, capture->picture.data[0],
+                                capture->avctx->pix_fmt, capture->avctx->width, capture->avctx->height );*/
 
                 cvInitImageHeader( &capture->frame, cvSize( capture->avctx->width,
                                    capture->avctx->height ), 8, 3, 0, 4 );
                 cvSetData( &capture->frame, capture->rgb_picture.data[0],
                            capture->rgb_picture.linesize[0] );
 
-                capture->picture = avcodec_alloc_frame();
                 capture->pos = 0;
                 capture->fps = capture->avctx->frame_rate*1e-4;
+                capture->picture.data[0] = 0;
                 fseek( capture->file, (long)capture->data_offset, SEEK_SET );
                 capture->offset = capture->data_offset;
                 valid = 1;
@@ -1266,8 +1245,7 @@ static int icvGrabFrameAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
                 ((char)(val>>24) == 'b' || (char)(val>>24) == 'c'))
             {
                 int stream_index = ((char)(val>>8) - '0') + ((char)val - '0')*10;
-                int size0 = read4( capture );
-				int size = (size0 + 1) & -2;
+                int size = (read4( capture ) + 1) & -2;
 
                 if( stream_index == capture->stream_index )
                 {
@@ -1283,15 +1261,16 @@ static int icvGrabFrameAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
                     fread( capture->buffer, 1, size, capture->file );
                     capture->offset += size;
 
-                    ret = avcodec_decode_video( capture->avctx, capture->picture,
-                                                &got_picture, (uchar*)capture->buffer, size0 );
-                    
-                    if( ret >= 0 && got_picture )
+                    ret = avcodec_decode_video( capture->avctx, &capture->picture,
+                                                &got_picture, (uchar*)capture->buffer, size );
+                    if( got_picture )
                     {
                         capture->pos++;
                         return 1;
                     }
-                    return 0;
+                    //if( ret <= 0 )
+                    //   return 0;
+                    continue;   
                 }
                 else
                     skip( capture, size );
@@ -1305,12 +1284,14 @@ static int icvGrabFrameAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
 
 static const IplImage* icvRetrieveFrameAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture )
 {
-    if( capture && capture->avctx )
+    if( capture && capture->avctx && capture->picture.data[0] )
     {
-        img_convert( &capture->rgb_picture, PIX_FMT_RGB24,
-                     (AVPicture*)capture->picture, capture->avctx->pix_fmt,
+        img_convert( (AVPicture*)&capture->rgb_picture, PIX_FMT_BGR24,
+                     (AVPicture*)&capture->picture, capture->avctx->pix_fmt,
                      capture->avctx->width, capture->avctx->height );
-        cvCvtColor( &capture->frame, &capture->frame, CV_RGB2BGR );
+        /*icvCvt_RGB2BGR_8u_C3R( (uchar*)capture->frame->imageData, capture->frame->widthStep,
+                               (uchar*)capture->frame->imageData, capture->frame->widthStep,
+                               cvSize(capture->frame->width,capture->frame->height) );*/
         return &capture->frame;
     }
 
@@ -1359,25 +1340,25 @@ static int icvSetPropertyAVI_FFMPEG( CvCaptureAVI_FFMPEG* capture,
                 pos = cvRound(value*capture->fps*0.001);
                 break;
             case CV_CAP_PROP_POS_AVI_RATIO:
-                pos = cvRound(value*(capture->film_range.endIndex - 
-                                     capture->film_range.startIndex) +
-                              capture->film_range.startIndex);
+                pos = cvRound(value*(capture->film_range.end_index - 
+                                     capture->film_range.start_index) +
+                              capture->film_range.start_index);
                 break;
             default:
                 pos = cvRound(value);
             }
             pos -= 10; // to make sure the frame is updated properly
-            if( pos < capture->film_range.startIndex )
-                pos = capture->film_range.startIndex;
-            if( pos > capture->film_range.endIndex )
-                pos = capture->film_range.endIndex;
+            if( pos < capture->film_range.start_index )
+                pos = capture->film_range.start_index;
+            if( pos > capture->film_range.end_index )
+                pos = capture->film_range.end_index;
             for( ; pos > 0; pos-- )
                 if( capture->entries[pos].flags & 16 )
                     break;
             capture->pos = pos;
             capture->offset = capture->entries[pos].offset + capture->data_offset;
             fseek( capture->file, (long)capture->offset, SEEK_SET );
-			avcodec_flush_buffers( capture->avctx );
+            avcodec_flush_buffers( capture->avctx );
         }
         break;
     default:
@@ -1398,22 +1379,28 @@ static CvCaptureVTable captureAVI_FFMPEG_vtable =
     (CvCaptureGetDescriptionFunc)0
 };
 
-HIGHGUI_IMPL CvCapture* cvCaptureFromAVI( const char* filename )
+
+CV_IMPL CvCapture* cvCaptureFromFile( const char* filename )
 {
-    CvCaptureAVI_FFMPEG* capture = (CvCaptureAVI_FFMPEG*)cvAlloc( sizeof(*capture));
-    memset( capture, 0, sizeof(*capture));
+    CvCaptureAVI_FFMPEG* capture = 0;
 
-    capture->vtable = &captureAVI_FFMPEG_vtable;
+    if( filename )
+    {
+        capture = (CvCaptureAVI_FFMPEG*)cvAlloc( sizeof(*capture));
+        memset( capture, 0, sizeof(*capture));
 
-    if( !icvOpenAVI_FFMPEG( capture, filename ))
-        cvReleaseCapture( (CvCapture**)&capture );
+        capture->vtable = &captureAVI_FFMPEG_vtable;
+
+        if( !icvOpenAVI_FFMPEG( capture, filename ))
+            cvReleaseCapture( (CvCapture**)&capture );
+    }
 
     return (CvCapture*)capture;
 }
 
 #else
 
-HIGHGUI_IMPL CvCapture* cvCaptureFromAVI( const char* filename )
+CV_IMPL CvCapture* cvCaptureFromFile( const char* filename )
 {
     fprintf( stderr, "HIGHGUI ERROR: Unsupported function. Rebuilt OpenCV with FFMPEG support\n" );
     return 0;
@@ -1421,27 +1408,41 @@ HIGHGUI_IMPL CvCapture* cvCaptureFromAVI( const char* filename )
 
 #endif
 
-HIGHGUI_IMPL CvCapture* cvCaptureFromCAM( int /*index*/ )
+
+CV_IMPL CvCapture* cvCaptureFromCAM( int index )
 {
-    fprintf( stderr, "HIGHGUI ERROR: Video capturing is not supported\n" );
+    CvCapture* cap = NULL;
+#if !defined HAVE_DC1394 && !defined HAVE_CAMV4L
+    fprintf( stderr, "HIGHGUI ERROR: Video capturing is not supported\n"
+                     "(rebuild with DC1394 and/or V4L support)\n" );
+#else
+#ifdef HAVE_DC1394
+    cap = icvOpenCAM_DC1394( index );
+#endif
+#ifdef HAVE_CAMV4L
+    if( !cap ) 
+        cap = icvOpenCAM_V4L( index );
+#endif
+#endif
+    return cap;
+}
+
+
+CV_IMPL CvVideoWriter* cvCreateVideoWriter( const char* /*filename*/, int /*fourcc*/,
+                                            double /*fps*/, CvSize /*frameSize*/ )
+{
+    fprintf( stderr, "HIGHGUI ERROR: Writing to video files is not supported\n" );
     return 0;
 }
 
 
-HIGHGUI_IMPL CvAVIWriter* cvCreateAVIWriter( const char* /*filename*/, int /*fourcc*/,
-                                             double /*fps*/, CvSize /*frameSize*/ )
+CV_IMPL int cvWriteFrame( CvVideoWriter* /*writer*/, const IplImage* /*image*/ )
 {
     return 0;
 }
 
 
-HIGHGUI_IMPL int cvWriteToAVI( CvAVIWriter* /*writer*/, const IplImage* /*image*/ )
-{
-    return 0;
-}
-
-
-HIGHGUI_IMPL void cvReleaseAVIWriter( CvAVIWriter** /*writer*/ )
+CV_IMPL void cvReleaseVideoWriter( CvVideoWriter** /*writer*/ )
 {
 }
 
@@ -1460,8 +1461,8 @@ int main( int argc, char** argv )
         return 0;
     }
 
-    cvvNamedWindow( "window", 1 );
-    capture = cvCaptureFromAVI( argv[1] );
+    cvNamedWindow( "window", 1 );
+    capture = cvCaptureFromFile( argv[1] );
 
     if( capture )
     {
@@ -1469,10 +1470,10 @@ int main( int argc, char** argv )
         {
             IplImage* frame = cvQueryFrame( capture );
             if( frame )
-                cvvShowImage( "window", frame );
+                cvShowImage( "window", frame );
             else
                 break;
-            int ch = cvvWaitKeyEx( 0, 10 );
+            int ch = cvWaitKey( 10 );
             if( ch == '\x1b' )
                 break;
         }

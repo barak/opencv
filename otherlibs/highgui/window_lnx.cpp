@@ -43,29 +43,34 @@
 
 #ifndef WIN32
 
-#include <Xm/Xm.h>
-#include <Xm/PanedW.h>
-#include <Xm/DrawingA.h>
-#include <Xm/RowColumn.h>
-#include <Xm/Scale.h>
-#include <X11/keysym.h>
-#include <X11/extensions/XShm.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+#ifdef HAVE_GTK
+
+#include "gtk/gtk.h"
+#include "gdk/gdkkeysyms.h"
+#include <stdio.h>
+
+/*#if _MSC_VER >= 1200
+#pragma warning( disable: 4505 )
+#pragma comment(lib,"gtk-win32-2.0.lib")
+#pragma comment(lib,"glib-2.0.lib")
+#pragma comment(lib,"gobject-2.0.lib")
+#pragma comment(lib,"gdk-win32-2.0.lib")
+#pragma comment(lib,"gdk_pixbuf-2.0.lib")
+#endif*/
 
 struct CvWindow;
 
 typedef struct CvTrackbar
 {
     int signature;
-    Widget widget;
+    GtkWidget* widget;
     char* name;
     CvTrackbar* next;
     CvWindow* parent;
     int* data;
     int pos;
     int maxval;
-    void (*notify)(int);
+    CvTrackbarCallback notify;
 }
 CvTrackbar;
 
@@ -73,19 +78,15 @@ CvTrackbar;
 typedef struct CvWindow
 {
     int signature;
-    Widget area;
-    Widget frame;
-    Widget paned;
-    Widget trackbars;
+    GtkWidget* area;
+    GtkWidget* frame;
+    GtkWidget* paned;
     char* name;
     CvWindow* prev;
     CvWindow* next;
     
-    XShmSegmentInfo* xshmseg;
-
-    GC gc;
-    IplImage* image;
-    XImage* dst_image;
+    CvMat* image;
+    CvMat* dst_image;
     int converted;
     int last_key;
     int flags;
@@ -112,24 +113,19 @@ if( !(exp) )                                                    \
 }
 
 static void icvPutImage( CvWindow* window );
-static void icvCloseWindow( Widget w, XEvent* event, String* params, Cardinal* num_params );
-static void icvDrawingAreaCallback( Widget widget, XtPointer client_data, XtPointer call_data);
-static void icvTrackbarJumpProc( Widget w, XtPointer client_data, XtPointer call_data );
+static gboolean icvOnClose( GtkWidget* widget, GdkEvent* event, gpointer user_data );
+static gboolean icvOnExpose( GtkWidget* widget,
+                GdkEventExpose *event, gpointer user_data );
+static gboolean icvOnKeyPress( GtkWidget* widget, GdkEventKey* event, gpointer user_data );
+static void icvOnTrackbar( GtkWidget* widget, gpointer user_data );
+static gboolean icvOnMouse( GtkWidget *widget, GdkEvent *event, gpointer user_data );
 
-static Widget       topLevel;
-static XtAppContext appContext;
-static Atom         wm_delete_window;
-static XtActionsRec actions[] = { { "quit", icvCloseWindow  }, { 0, 0 } };
-static XtTranslations translations;
-
-static int             last_key;
-static XtIntervalId    timer = 0;
-Widget cvvTopLevelWidget = 0;
+static int             last_key = -1;
+GtkWidget*             cvTopLevelWidget = 0;
 
 static CvWindow* hg_windows = 0;
 
-
-HIGHGUI_IMPL int cvInitSystem( int argc, char** argv )
+CV_IMPL int cvInitSystem( int argc, char** argv )
 {
     static int wasInitialized = 0;    
 
@@ -138,30 +134,23 @@ HIGHGUI_IMPL int cvInitSystem( int argc, char** argv )
     {
         hg_windows = 0;
 
-        topLevel = XtAppInitialize( &appContext, "HighGUI",
-                                    (XrmOptionDescList) NULL, 0, &argc, argv,
-                                    (String *) NULL, (ArgList) NULL, 0);
-        XtAppAddActions(appContext, actions, XtNumber(actions));
-        wm_delete_window = XInternAtom(XtDisplay(topLevel),"WM_DELETE_WINDOW",False);
-    
-        translations = XtParseTranslationTable("<Message>WM_PROTOCOLS:quit()");
+        gtk_init( &argc, &argv );
         wasInitialized = 1;
     }
 
-    return HG_OK;
+    return 0;
 }
 
 static CvWindow* icvFindWindowByName( const char* name )
 {
     CvWindow* window = hg_windows;
-
-    for( ; window != 0 && strcmp( name, window->name) != 0; window = window->next )
-        ;
+    while( window != 0 && strcmp(name, window->name) != 0 )
+        window = window->next;
 
     return window;
 }
 
-static CvWindow* icvWindowByWidget( Widget widget )
+static CvWindow* icvWindowByWidget( GtkWidget* widget )
 {
     CvWindow* window = hg_windows;
 
@@ -173,7 +162,36 @@ static CvWindow* icvWindowByWidget( Widget widget )
 }
 
 
-HIGHGUI_IMPL int cvNamedWindow( const char* name, int flags )
+static void
+icvUpdateWindowSize( const CvWindow* window )
+{
+    int width = 0, height = 0;
+    CvTrackbar* t;
+
+    if( !window->frame )
+        return;
+    gtk_window_get_size( GTK_WINDOW(window->frame), &width, &height );
+    if( window->image )
+    {
+        width = MAX(window->image->width,width);
+        height = window->image->height;
+    }
+
+    //gtk_widget_translate_coordinates( window->area, window->paned, 0, 0, &dw, &dh );
+    //height += dh;
+
+    for( t = window->toolbar.first; t != 0; t = t->next )
+        height += 50;
+    
+    //if( window->flags & CV_WINDOW_AUTOSIZE )
+    //    gtk_window_set_resizable( GTK_WINDOW(window->frame), TRUE );
+    gtk_window_resize( GTK_WINDOW(window->frame), width, height );
+    //if( window->flags & CV_WINDOW_AUTOSIZE )
+    //    gtk_window_set_resizable( GTK_WINDOW(window->frame), FALSE );
+}
+
+
+CV_IMPL int cvNamedWindow( const char* name, int flags )
 {
     int result = 0;
     CV_FUNCNAME( "cvNamedWindow" );
@@ -181,11 +199,9 @@ HIGHGUI_IMPL int cvNamedWindow( const char* name, int flags )
     __BEGIN__;
 
     CvWindow* window;
-    int len, n;
-    Arg args[16];
+    int len;
 
     cvInitSystem(0,0);
-
     if( !name )
         CV_ERROR( CV_StsNullPtr, "NULL name string" );
 
@@ -199,58 +215,48 @@ HIGHGUI_IMPL int cvNamedWindow( const char* name, int flags )
     len = strlen(name);
     CV_CALL( window = (CvWindow*)cvAlloc(sizeof(CvWindow) + len + 1));
     memset( window, 0, sizeof(*window));
-
-    window->signature = HG_WINDOW_SIGNATURE;
-
-    n = 0;
-    XtSetArg( args[n], XmNwidth, 100 ); n++;
-    XtSetArg( args[n], XmNheight, 100 ); n++;
-    
-    window->frame = XtCreatePopupShell( name,
-                        topLevelShellWidgetClass, topLevel,
-                        args, n );
-    n = 0;
-    XtSetArg( args[n], XmNorientation, XmVERTICAL ); n++;
-    window->paned = XmCreatePanedWindow( window->frame, "pane", args, n );
-    n = 0;
-    XtSetArg( args[n], XmNorientation, XmVERTICAL ); n++;
-    XtSetArg( args[n], XmNpacking, XmPACK_COLUMN ); n++;
-    window->trackbars = XmCreateRowColumn( window->paned, "trackbars", args, n );
-    XtManageChild( window->trackbars );
-
-    n = 0;
-    window->area = XmCreateDrawingArea( window->paned, "area", args, n);
-    XtAddCallback( window->area, XmNinputCallback, icvDrawingAreaCallback, window );
-    XtAddCallback( window->area, XmNexposeCallback, icvDrawingAreaCallback, window );
-    
-    XtManageChild( window->area );
-    XtManageChild( window->paned );
-                                
     window->name = (char*)(window + 1);
     memcpy( window->name, name, len + 1 );
     window->flags = flags;
-    window->signature = HG_WINDOW_SIGNATURE;
+    window->signature = CV_WINDOW_MAGIC_VAL;
     window->image = 0;
-    window->gc = 0;
     window->last_key = 0;
-    
     window->on_mouse = 0;
-
     memset( &window->toolbar, 0, sizeof(window->toolbar));
-
     window->next = hg_windows;
     window->prev = 0;
     if( hg_windows )
         hg_windows->prev = window;
     hg_windows = window;
-    
-    window->xshmseg = (XShmSegmentInfo*)cvAlloc(sizeof(XShmSegmentInfo));
-    memset( window->xshmseg, 0, sizeof(*window->xshmseg) );
-    
-    XtPopup(window->frame, XtGrabNone);
-    /*XMapRaised( XtDisplay(window->frame), window->frame );*/
 
-    XtOverrideTranslations( window->frame, XtParseTranslationTable("<Message>WM_PROTOCOLS:quit()") );
+    window->frame = gtk_window_new( GTK_WINDOW_TOPLEVEL );
+    window->paned = gtk_vbox_new( FALSE, 0 );
+    //window->trackbars = 0;
+    window->area = gtk_drawing_area_new();
+    gtk_box_pack_end( GTK_BOX(window->paned), window->area, TRUE, TRUE, 0 );
+    gtk_widget_show( window->area );
+    gtk_container_add( GTK_CONTAINER(window->frame), window->paned );
+    gtk_widget_show( window->paned );
+    gtk_widget_set_size_request( window->frame, 100, 100 );
+    //gtk_window_set_transient_for( window->area, GTK_WINDOW(window->frame) );
+    gtk_signal_connect( GTK_OBJECT(window->area), "expose-event",
+                        GTK_SIGNAL_FUNC(icvOnExpose), window );
+    gtk_signal_connect( GTK_OBJECT(window->frame), "key-press-event",
+                        GTK_SIGNAL_FUNC(icvOnKeyPress), window );
+    gtk_signal_connect( GTK_OBJECT(window->area), "button-press-event",
+                        GTK_SIGNAL_FUNC(icvOnMouse), window );
+    gtk_signal_connect( GTK_OBJECT(window->area), "button-release-event",
+                        GTK_SIGNAL_FUNC(icvOnMouse), window );
+    gtk_signal_connect( GTK_OBJECT(window->area), "motion-notify-event",
+                        GTK_SIGNAL_FUNC(icvOnMouse), window );
+    gtk_signal_connect( GTK_OBJECT(window->frame), "delete-event",
+                        GTK_SIGNAL_FUNC(icvOnClose), window );
+    gtk_widget_set_events( window->area, GDK_EXPOSURE_MASK | GDK_BUTTON_RELEASE_MASK |
+                                         GDK_BUTTON_PRESS_MASK | GDK_POINTER_MOTION_MASK );
+
+    gtk_widget_show( window->frame );
+    gtk_window_set_title( GTK_WINDOW(window->frame), name );
+    //gtk_window_set_resizable( GTK_WINDOW(window->frame), (flags & CV_WINDOW_AUTOSIZE) == 0 );
 
     result = 1;
     __END__;
@@ -273,26 +279,10 @@ static void icvDeleteWindow( CvWindow* window )
 
     window->prev = window->next = 0;
 
-    cvReleaseImage( &window->image );
-    
-    if( window->dst_image )
-    {
-        /*XImage* image = window->dst_image;
-        window->dst_image = 0;
-        cvFree( (void**)&image->data );
-        XDestroyImage( image );*/
+    cvReleaseMat( &window->image );
+    cvReleaseMat( &window->dst_image );
 
-        XShmDetach( XtDisplay(window->area), window->xshmseg );
-        XDestroyImage( window->dst_image );
-        shmdt( window->xshmseg->shmaddr );
-        shmctl( window->xshmseg->shmid, IPC_RMID, NULL );        
-        window->dst_image = 0;
-    }
-
-    if( window->gc )
-        ;
-
-    XtDestroyWidget( window->frame );
+    gtk_widget_destroy( window->frame );
     
     for( trackbar = window->toolbar.first; trackbar != 0; )
     {
@@ -300,14 +290,12 @@ static void icvDeleteWindow( CvWindow* window )
         cvFree( (void**)&trackbar );
         trackbar = next;
     }
-    
 
-    cvFree( (void**)&window->xshmseg ); 
     cvFree( (void**)&window );
 }
 
 
-HIGHGUI_IMPL void cvDestroyWindow( const char* name )
+CV_IMPL void cvDestroyWindow( const char* name )
 {
     CV_FUNCNAME( "cvDestroyWindow" );
     
@@ -328,7 +316,7 @@ HIGHGUI_IMPL void cvDestroyWindow( const char* name )
 }
 
 
-HIGHGUI_IMPL void
+CV_IMPL void
 cvDestroyAllWindows( void )
 {
     while( hg_windows )
@@ -339,7 +327,7 @@ cvDestroyAllWindows( void )
 }
 
 
-HIGHGUI_IMPL void
+CV_IMPL void
 cvShowImage( const char* name, const CvArr* arr )
 {
     CV_FUNCNAME( "cvShowImage" );
@@ -348,7 +336,7 @@ cvShowImage( const char* name, const CvArr* arr )
     
     CvWindow* window;
     int origin = 0;
-    CvMat stub, dst, *image;
+    CvMat stub, *image;
 
     if( !name )
         CV_ERROR( CV_StsNullPtr, "NULL name" );
@@ -363,43 +351,32 @@ cvShowImage( const char* name, const CvArr* arr )
     CV_CALL( image = cvGetMat( arr, &stub ));
 
     if( !window->image )
-        cvResizeWindow( name, image->width, image->height );
+        cvResizeWindow( name, image->cols, image->rows );
 
     if( window->image &&
-        (window->image->width  != image->width  ||
-         window->image->height != image->height) )
-    {
-        cvReleaseImage( &window->image );
-    }
+        !CV_ARE_SIZES_EQ(window->image, image) )
+        cvReleaseMat( &window->image );
 
     if( !window->image )
-    {
-		Display* display = XtDisplay(window->area);
-        int   depth = DefaultDepth(display, 0);
-        int   channels = depth < 8 ? 1 : depth <= 16 ? 2 : 4;
-        window->image = cvCreateImage( cvGetSize(image), IPL_DEPTH_8U, channels );
-                
-        if( window->flags )
-            XtVaSetValues( window->area,
-                           XtNwidth, image->width,
-                           XtNheight, image->height, 0 );
-    }
+		window->image = cvCreateMat( image->rows, image->cols, CV_8UC3 );
 
-    cvConvertImage( image, window->image, origin != 0 );
+    cvConvertImage( image, window->image,
+        (origin != 0 ? CV_CVTIMG_FLIP : 0) + CV_CVTIMG_SWAP_RB );
     icvPutImage( window );
+    icvUpdateWindowSize( window );
 
     __END__;
 }
 
 
-HIGHGUI_IMPL void cvResizeWindow(const char* name, int width, int height )
+CV_IMPL void cvResizeWindow(const char* name, int width, int height )
 {
     CV_FUNCNAME( "cvResizeWindow" );
 
     __BEGIN__;
     
     CvWindow* window;
-    CvTrackbar* trackbar;
+    //CvTrackbar* trackbar;
 
     if( !name )
         CV_ERROR( CV_StsNullPtr, "NULL name" );
@@ -408,19 +385,15 @@ HIGHGUI_IMPL void cvResizeWindow(const char* name, int width, int height )
     if(!window)
         EXIT;
 
-    for( trackbar = window->toolbar.first; trackbar != 0; trackbar = trackbar->next )
-        height += 10;
-    if( hg_windows->flags )
-        XtVaSetValues( window->area, 
-                       XtNminWidth, width, XtNmaxWidth, width,
-                       XtNminHeight, height, XtNmaxHeight, height, 0 );
-    XtVaSetValues( window->frame, XtNwidth, width, XtNheight, height, 0 );
+    // TODO: take into account frame borders and trackbars
+    gtk_window_resize( GTK_WINDOW(window->frame), width, height );
+    //gtk_widget_set_size_request( window->area, width, height );
 
     __END__;
 }
 
 
-HIGHGUI_IMPL void cvMoveWindow( const char* name, int x, int y )
+CV_IMPL void cvMoveWindow( const char* name, int x, int y )
 {
     CV_FUNCNAME( "cvMoveWindow" );
 
@@ -435,7 +408,7 @@ HIGHGUI_IMPL void cvMoveWindow( const char* name, int x, int y )
     if(!window)
         EXIT;
     
-    XtVaSetValues( window->frame, XmNx, x, XmNy, y, 0 );
+    gtk_window_move( GTK_WINDOW(window->frame), x, y );
 
     __END__;
 }
@@ -453,7 +426,7 @@ icvFindTrackbarByName( const CvWindow* window, const char* name )
 }
 
 
-HIGHGUI_IMPL int
+CV_IMPL int
 cvCreateTrackbar( const char* trackbar_name, const char* window_name,
                   int* val, int count, CvTrackbarCallback on_notify )
 {
@@ -480,49 +453,34 @@ cvCreateTrackbar( const char* trackbar_name, const char* window_name,
     trackbar = icvFindTrackbarByName(window,trackbar_name);
     if( !trackbar )
     {
-        int height = 0, theight = 50;
         int len = strlen(trackbar_name);
-        Arg args[16];
-        int n = 0;
-        XmString xmname = XmStringCreateLocalized( (String)trackbar_name );
-        CvTrackbar* t;
-        int tcount = 0;
-        
         trackbar = (CvTrackbar*)cvAlloc(sizeof(CvTrackbar) + len + 1);
         memset( trackbar, 0, sizeof(*trackbar));
-        trackbar->signature = HG_TRACKBAR_SIGNATURE;
+        trackbar->signature = CV_TRACKBAR_MAGIC_VAL;
         trackbar->name = (char*)(trackbar+1);
         memcpy( trackbar->name, trackbar_name, len + 1 );
         trackbar->parent = window;
         trackbar->next = window->toolbar.first;
         window->toolbar.first = trackbar;
-        XtSetArg( args[n], XmNorientation, XmHORIZONTAL ); n++;
-        XtSetArg(args[n], XmNtitleString, xmname ); n++;
-        XtSetArg(args[n], XmNshowValue, True); n++;
         
-        trackbar->widget = XmCreateScale( window->trackbars, (char*)trackbar_name, args, n );
-        XmStringFree( xmname );
-        
-        for( t = window->toolbar.first; t != 0; t = t->next )
-            tcount++;
-            
-        
-        XtAddCallback( trackbar->widget, XmNdragCallback,
-                       icvTrackbarJumpProc, (XtPointer)trackbar );
-        XtAddCallback( trackbar->widget, XmNvalueChangedCallback,
-                       icvTrackbarJumpProc, (XtPointer)trackbar );
-                       
-        XtVaSetValues( window->trackbars, XmNpaneMinimum,
-                       theight*tcount, 0 );
-        XtVaGetValues( window->frame, XmNheight, &height, 0 );
-        XtVaSetValues( window->frame, XmNheight, height + theight, 0 );
-        XtManageChild( trackbar->widget );
-    }
-    
-    XtVaSetValues( trackbar->widget, XmNmaximum, count, 0 );
+        GtkWidget* hscale_box = gtk_hbox_new( FALSE, 10 );
+        GtkWidget* hscale_label = gtk_label_new( trackbar_name );
+        GtkWidget* hscale = gtk_hscale_new_with_range( 0, count, 1 );
+        gtk_range_set_update_policy( GTK_RANGE(hscale), GTK_UPDATE_CONTINUOUS );
+        gtk_scale_set_digits( GTK_SCALE(hscale), 0 );
+        //gtk_scale_set_value_pos( hscale, GTK_POS_TOP );
+        gtk_scale_set_draw_value( GTK_SCALE(hscale), TRUE );
 
-    trackbar->data = val;
-    trackbar->pos = 0;
+        trackbar->widget = hscale;
+        gtk_box_pack_start( GTK_BOX(hscale_box), hscale_label, FALSE, FALSE, 5 );
+        gtk_widget_show( hscale_label );
+        gtk_box_pack_start( GTK_BOX(hscale_box), hscale, TRUE, TRUE, 5 );
+        gtk_widget_show( hscale );
+        gtk_box_pack_start( GTK_BOX(window->paned), hscale_box, FALSE, FALSE, 5 );
+        gtk_widget_show( hscale_box );
+
+        icvUpdateWindowSize( window );
+    }
         
     if( val )
     {
@@ -531,12 +489,18 @@ cvCreateTrackbar( const char* trackbar_name, const char* window_name,
             value = 0;
         if( value > count )
             value = count;
-        XtVaSetValues( trackbar->widget, XmNvalue, value, 0 );
+        gtk_range_set_value( GTK_RANGE(trackbar->widget), value );
         trackbar->pos = value;
+        trackbar->data = val;
     }
         
     trackbar->maxval = count;
     trackbar->notify = on_notify;
+    gtk_signal_connect( GTK_OBJECT(trackbar->widget), "value-changed",
+                        GTK_SIGNAL_FUNC(icvOnTrackbar), trackbar );
+
+    if( (window->flags & CV_WINDOW_AUTOSIZE) && (window->image) )
+        gtk_widget_set_size_request( window->frame, window->image->width, window->image->height );
 
     result = 1;
 
@@ -546,7 +510,7 @@ cvCreateTrackbar( const char* trackbar_name, const char* window_name,
 }
 
 
-HIGHGUI_IMPL void
+CV_IMPL void
 cvSetMouseCallback( const char* window_name, CvMouseCallback on_mouse )
 {
     CV_FUNCNAME( "cvSetMouseCallback" );
@@ -568,7 +532,7 @@ cvSetMouseCallback( const char* window_name, CvMouseCallback on_mouse )
 }
 
 
-HIGHGUI_IMPL int cvGetTrackbarPos( const char* trackbar_name, const char* window_name )
+CV_IMPL int cvGetTrackbarPos( const char* trackbar_name, const char* window_name )
 {
     int pos = -1;
     
@@ -595,7 +559,7 @@ HIGHGUI_IMPL int cvGetTrackbarPos( const char* trackbar_name, const char* window
 }
 
 
-HIGHGUI_IMPL void cvSetTrackbarPos( const char* trackbar_name, const char* window_name, int pos )
+CV_IMPL void cvSetTrackbarPos( const char* trackbar_name, const char* window_name, int pos )
 {
     CV_FUNCNAME( "cvSetTrackbarPos" );
 
@@ -619,13 +583,13 @@ HIGHGUI_IMPL void cvSetTrackbarPos( const char* trackbar_name, const char* windo
         if( pos > trackbar->maxval )
             pos = trackbar->maxval;
     }
-    XtVaSetValues( trackbar->widget, XmNvalue, pos, 0 );
+    gtk_range_set_value( GTK_RANGE(trackbar->widget), pos );
 
     __END__;
 }
 
 
-HIGHGUI_IMPL void* cvGetWindowHandle( const char* window_name )
+CV_IMPL void* cvGetWindowHandle( const char* window_name )
 {
     void* widget = 0;
     
@@ -648,7 +612,7 @@ HIGHGUI_IMPL void* cvGetWindowHandle( const char* window_name )
 }
     
 
-HIGHGUI_IMPL const char* cvGetWindowName( void* window_handle )
+CV_IMPL const char* cvGetWindowName( void* window_handle )
 {
     const char* window_name = "";
     
@@ -661,7 +625,7 @@ HIGHGUI_IMPL const char* cvGetWindowName( void* window_handle )
     if( window_handle == 0 )
         CV_ERROR( CV_StsNullPtr, "NULL window" );
 
-    window = icvWindowByWidget( (Widget)window_handle );
+    window = icvWindowByWidget( (GtkWidget*)window_handle );
     if( window )
         window_name = window->name;
 
@@ -674,226 +638,283 @@ HIGHGUI_IMPL const char* cvGetWindowName( void* window_handle )
 /* draw image to frame */
 static void icvPutImage( CvWindow* window )
 {
-    int width = 10, height = 10;
     Assert( window != 0 );
-
     if( window->image == 0 )
         return;
 
-    XtVaGetValues( window->area, XtNwidth, &width, XtNheight, &height, 0 );
-   
-    if( width <= 0 || height <= 0 )
-        return;
-
-    if( window->flags )
-    {
-        width = MIN(width, window->image->width);
-        height = MIN(height, window->image->height);
-    }
-
-    if( window->dst_image &&
-        (window->dst_image->width < width  ||
-        window->dst_image->height < height) )
-    {
-        /*cvFree( (void**)&window->dst_image->data );*/
-        XShmDetach( XtDisplay(window->area), window->xshmseg );
-        XDestroyImage( window->dst_image );
-        shmdt( window->xshmseg->shmaddr );
-        shmctl( window->xshmseg->shmid, IPC_RMID, NULL );
-        window->dst_image = 0;
-    }
-
-    if( !window->dst_image )
-    {
-        int new_width = (width + 7) & -8;
-        int new_height = (height + 7) & -8;
-
-        /*int step = (new_width * (window->image->depth / 8) + 3) & ~3;
-        char* data = (char*)cvAlloc( step * new_height );
-        window->dst_image = XCreateImage( XtDisplay(window->area),
-                                          CopyFromParent,
-                                          window->image->depth,
-                                          ZPixmap, 0, data, new_width, new_height,
-                                          8, step );
-        window->dst_image->bits_per_pixel = window->dst_image->depth;*/
-
-        Display* display = XtDisplay(window->frame);
-        Visual* visual = DefaultVisualOfScreen(DefaultScreenOfDisplay(display));
-        int depth = DefaultDepth(display, 0);
-        window->dst_image = XShmCreateImage( display, visual, depth, ZPixmap,
-                                             NULL, window->xshmseg,
-                                             new_width, new_height );
-        window->xshmseg->shmid = shmget(IPC_PRIVATE,
-                                        window->dst_image->height*
-                                        window->dst_image->bytes_per_line,
-                                        IPC_CREAT|0777);
-        assert( window->xshmseg != 0 && window->xshmseg->shmid != -1);
-        window->xshmseg->shmaddr = window->dst_image->data =
-                (char*)shmat(window->xshmseg->shmid, 0, 0) ;
-        window->xshmseg->readOnly = False;
-        XShmAttach( display, window->xshmseg );
-    }
-    
-    {
-        CvMat src;
-        CvMat dst;
-        int dst_type = ((window->dst_image->bits_per_pixel/8) - 1)*8 + CV_8U;
-
-        OPENCV_CALL( cvInitMatHeader( &dst, height, width, dst_type,
-                                      window->dst_image->data,
-                                      window->dst_image->bytes_per_line ));
-
-        if( window->flags )
-        {
-            OPENCV_CALL( cvInitMatHeader( &src, height, width,
-                                          dst_type, window->image->imageData,
-                                          window->image->widthStep ));
-            OPENCV_CALL( cvCopy( &src, &dst, 0 ));
-        }
-        else
-        {
-            OPENCV_CALL( cvInitMatHeader( &src, window->image->height, window->image->width,
-                                          dst_type, window->image->imageData,
-                                          window->image->widthStep ));
-            OPENCV_CALL( cvResize( &src, &dst, CV_INTER_NN ));
-        }
-    }
-
-    {
-    Display* display = XtDisplay(window->area);
-    GC gc = XCreateGC( display, XtWindow(window->area), 0, 0 );
-    XShmPutImage( display, XtWindow(window->area), gc,
-                  window->dst_image, 0, 0, 0, 0,
-                  width, height, False );
-    /*XPutImage( display, XtWindow(window->area), gc,
-               window->dst_image, 0, 0, 0, 0,
-               width, height );*/
-    XFlush( display );
-    XFreeGC( display, gc );
-    }
+    gdk_draw_rgb_image( window->area->window, window->area->style->fg_gc[GTK_STATE_NORMAL],
+		                0, 0, window->image->cols, window->image->rows,
+                        GDK_RGB_DITHER_MAX, window->image->data.ptr, window->image->step );
 }                                                   
                                                     
 
-static void icvDrawingAreaCallback( Widget widget, XtPointer client_data, XtPointer call_data)
+static gboolean icvOnExpose( GtkWidget *widget,
+                GdkEventExpose* /*event*/, gpointer user_data )
 {
-    XmDrawingAreaCallbackStruct *cbs = (XmDrawingAreaCallbackStruct *) call_data;
-    XEvent *event = cbs->event;
-    CvWindow* window = (CvWindow*)client_data;
-    
-    if (cbs->reason == XmCR_INPUT)
-    {
-        if( (event->xany.type == ButtonPress || event->xany.type == ButtonRelease) &&
-            window->on_mouse && window->image &&
-            widget == window->area )
-        {
-            int event_type = (event->xany.type == ButtonPress ?
-                            CV_EVENT_LBUTTONDOWN : CV_EVENT_LBUTTONUP) +
-                            (event->xbutton.button == Button1 ? 0 :
-                             event->xbutton.button == Button2 ? 1 : 2);
-            int flags = (event->xbutton.state & Button1Mask ? CV_EVENT_FLAG_LBUTTON : 0) |
-                        (event->xbutton.state & Button2Mask ? CV_EVENT_FLAG_RBUTTON : 0) |
-                        (event->xbutton.state & Button3Mask ? CV_EVENT_FLAG_MBUTTON : 0) |
-                        (event->xbutton.state & ShiftMask ? CV_EVENT_FLAG_SHIFTKEY : 0) |
-                        (event->xbutton.state & ControlMask ? CV_EVENT_FLAG_CTRLKEY : 0) |
-                        (event->xbutton.state & (Mod1Mask|Mod2Mask) ? CV_EVENT_FLAG_ALTKEY : 0);
-            int x = event->xbutton.x;
-            int y = event->xbutton.y;
-            int width = 0, height = 0;
-            
-            XtVaGetValues( window->area, XmNwidth, &width, XmNheight, &height, 0 );
-            
-            x = cvRound(((double)x)*window->image->width/MAX(width,1));
-            y = cvRound(((double)y)*window->image->height/MAX(height,1));
-            
-            if( x >= window->image->width )
-                x = window->image->width - 1;
-            
-            if( y >= window->image->height )
-                y = window->image->height - 1;
-            
-            if( window->on_mouse )
-                window->on_mouse( event_type, x, y, flags );
-        }
-        if( event->xany.type == KeyPress )
-        {
-            KeySym key;
-            XLookupString( &event->xkey, 0, 0, &key, 0 );
-            if( !IsModifierKey(key) )
-            {
-                last_key = key;
-                if( timer )
-                {
-                    XtRemoveTimeOut( timer );
-                    timer = 0;
-                }
-            }
-        }
-    }
-    
-    if( (cbs->reason == XmCR_EXPOSE || cbs->reason == XmCR_RESIZE) && window->image )
+    CvWindow* window = (CvWindow*)user_data;
+    if( window->signature == CV_WINDOW_MAGIC_VAL &&
+        window->area == widget && window->image != 0 )
     {
         icvPutImage( window );
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+
+static gboolean icvOnKeyPress( GtkWidget * /*widget*/,
+                GdkEventKey* event, gpointer /*user_data*/ )
+{
+    int code = 0;
+    
+    switch( event->keyval )
+    {
+    case GDK_Escape:
+        code = 27;
+        break;
+    case GDK_Return:
+    case GDK_Linefeed:
+        code = '\n';
+        break;
+    case GDK_Tab:
+        code = '\t';
+    default:
+        code = event->keyval;
+    }
+
+    code |= event->state << 16;
+    last_key = code;
+    return FALSE;
+}
+
+
+static void icvOnTrackbar( GtkWidget* widget, gpointer user_data )
+{
+    int pos = cvRound( gtk_range_get_value(GTK_RANGE(widget)));
+    CvTrackbar* trackbar = (CvTrackbar*)user_data;
+
+    if( trackbar && trackbar->signature == CV_TRACKBAR_MAGIC_VAL &&
+        trackbar->widget == widget )
+    {
+        trackbar->pos = pos;
+        if( trackbar->data )
+            *trackbar->data = pos;
+        if( trackbar->notify )
+            trackbar->notify(pos);
+    }
+}
+
+static gboolean icvOnClose( GtkWidget* widget, GdkEvent* /*event*/, gpointer user_data )
+{
+    CvWindow* window = (CvWindow*)user_data;
+    if( window->signature == CV_WINDOW_MAGIC_VAL &&
+        window->frame == widget )
+        icvDeleteWindow(window);
+    return TRUE;
+}
+
+
+static gboolean icvOnMouse( GtkWidget *widget, GdkEvent *event, gpointer user_data )
+{
+    CvWindow* window = (CvWindow*)user_data;
+    CvPoint pt = {-1,-1};
+    int cv_event = -1, state = 0;
+
+    if( window->signature != CV_WINDOW_MAGIC_VAL ||
+        window->area != widget || !window->image || !window->on_mouse )
+        return FALSE;
+
+    if( event->type == GDK_MOTION_NOTIFY )
+    {
+        GdkEventMotion* event_motion = (GdkEventMotion*)event;
+        
+        cv_event = CV_EVENT_MOUSEMOVE;
+        pt.x = cvRound(event_motion->x);
+        pt.y = cvRound(event_motion->y);
+        state = event_motion->state;
+    }
+    else if( event->type == GDK_BUTTON_PRESS ||
+             event->type == GDK_BUTTON_RELEASE ||
+             event->type == GDK_2BUTTON_PRESS )
+    {
+        GdkEventButton* event_button = (GdkEventButton*)event;
+        
+        pt.x = cvRound(event_button->x);
+        pt.y = cvRound(event_button->y);
+
+        if( event_button->type == GDK_BUTTON_PRESS )
+        {
+            cv_event = event_button->button == 1 ? CV_EVENT_LBUTTONDOWN :
+                       event_button->button == 2 ? CV_EVENT_MBUTTONDOWN :
+                       event_button->button == 3 ? CV_EVENT_RBUTTONDOWN : 0;
+        }
+        else if( event_button->type == GDK_BUTTON_RELEASE )
+        {
+            cv_event = event_button->button == 1 ? CV_EVENT_LBUTTONUP :
+                       event_button->button == 2 ? CV_EVENT_MBUTTONUP :
+                       event_button->button == 3 ? CV_EVENT_RBUTTONUP : 0;
+        }
+        else if( event_button->type == GDK_2BUTTON_PRESS )
+        {
+            cv_event = event_button->button == 1 ? CV_EVENT_LBUTTONDBLCLK :
+                       event_button->button == 2 ? CV_EVENT_MBUTTONDBLCLK :
+                       event_button->button == 3 ? CV_EVENT_RBUTTONDBLCLK : 0;
+        }
+        state = event_button->state;
+    }
+
+    if( cv_event >= 0 &&
+        (unsigned)pt.x < (unsigned)(window->image->width) &&
+        (unsigned)pt.y < (unsigned)(window->image->height) )
+    {
+        int flags = (state & GDK_SHIFT_MASK ? CV_EVENT_FLAG_SHIFTKEY : 0) |
+                    (state & GDK_CONTROL_MASK ? CV_EVENT_FLAG_CTRLKEY : 0) |
+                    (state & (GDK_MOD1_MASK|GDK_MOD2_MASK) ? CV_EVENT_FLAG_ALTKEY : 0) |
+                    (state & GDK_BUTTON1_MASK ? CV_EVENT_FLAG_LBUTTON : 0) |
+                    (state & GDK_BUTTON2_MASK ? CV_EVENT_FLAG_MBUTTON : 0) |
+                    (state & GDK_BUTTON3_MASK ? CV_EVENT_FLAG_RBUTTON : 0);
+        window->on_mouse( cv_event, pt.x, pt.y, flags );
     }
     
-    XmProcessTraversal( window->area, XmTRAVERSE_CURRENT );
+    return FALSE;    
+}
+
+static gboolean icvOnMouseMotion( GtkWidget *widget, GdkEventMotion *event, gpointer user_data )
+{
+    CvWindow* window = (CvWindow*)user_data;
+    if( window->signature == CV_WINDOW_MAGIC_VAL &&
+        window->area == widget && window->image && window->on_mouse )
+    {
+        CvPoint pt;
+        pt.x = cvRound(event->x);
+        pt.y = cvRound(event->y);
+        
+        int flags = (event->state & GDK_SHIFT_MASK ? CV_EVENT_FLAG_SHIFTKEY : 0) |
+                    (event->state & GDK_CONTROL_MASK ? CV_EVENT_FLAG_CTRLKEY : 0) |
+                    (event->state & (GDK_MOD1_MASK|GDK_MOD2_MASK) ? CV_EVENT_FLAG_ALTKEY : 0) |
+                    (event->state & GDK_BUTTON1_MASK ? CV_EVENT_FLAG_LBUTTON : 0) |
+                    (event->state & GDK_BUTTON2_MASK ? CV_EVENT_FLAG_MBUTTON : 0) |
+                    (event->state & GDK_BUTTON3_MASK ? CV_EVENT_FLAG_RBUTTON : 0);
+        //gtk_widget_translate_coordinates( window->area, window->frame,
+        //                                  pt.x, pt.y, &pt.x, &pt.y );
+        window->on_mouse( CV_EVENT_MOUSEMOVE, pt.x, pt.y, flags );
+    }
+
+    return FALSE;    
 }
 
 
-
-static void icvCloseWindow( Widget w, XEvent* event, String* params, Cardinal* num_params )
+static gboolean icvAlarm( gpointer user_data )
 {
-    CvWindow* window = icvWindowByWidget( w );
-    if( window )
-        icvDeleteWindow( window );
+    *(int*)user_data = 1;
+    return FALSE;
 }
 
 
-static void icvAlarm( XtPointer, XtIntervalId* )
+CV_IMPL int cvWaitKey( int delay )
 {
-    timer = 0;
-}
-
-
-static void icvTrackbarJumpProc( Widget w, XtPointer client_data, XtPointer call_data )
-{
-    XmScaleCallbackStruct *cbs = (XmScaleCallbackStruct *)call_data;
-    
-    Assert( client_data != 0 );
-    Assert( call_data != 0 );
-
-    CvTrackbar* trackbar = (CvTrackbar*)client_data;
-    int value = cbs->value;
-    
-    if( trackbar->data )
-        *trackbar->data = value;
-
-    if( trackbar->notify )
-        trackbar->notify( value );
-    
-    XmProcessTraversal( trackbar->parent->area, XmTRAVERSE_CURRENT );
-}
-
-
-int cvWaitKey( int delay )
-{
-    int exit_flag = 0;
+    int expired = 0;
+    guint timer = 0;
     
     last_key = -1;
     if( delay > 0 )
-        timer = XtAppAddTimeOut( appContext, delay, icvAlarm, &timer );
+        timer = g_timeout_add( delay, icvAlarm, &expired );
     
-    do
-    {
-        XtAppProcessEvent( appContext, XtIMAll );
-    }
-    while( last_key < 0 && (delay <= 0 || timer != 0)
-           && (exit_flag = XtAppGetExitFlag( appContext )) == 0
-           && hg_windows != 0 );
+    while( gtk_main_iteration_do(TRUE) && last_key < 0 && !expired && hg_windows != 0 )
+        ;
     
-    if( timer )
-        XtRemoveTimeOut( timer );
+    if( delay > 0 && !expired )
+        g_source_remove(timer);
     
     return last_key;
 }
 
-#endif /* WIN32 */
+#else
+
+#define CV_NO_GTK_ERROR(funcname) \
+    cvError( CV_StsError, funcname, \
+    "The function is not implemented. " \
+    "Rebuild the library with GTK+ 2.x support", \
+    __FILE__, __LINE__ )
+
+CV_IMPL int cvNamedWindow( const char*, int )
+{
+    CV_NO_GTK_ERROR("cvNamedWindow");
+    return -1;
+}    
+
+CV_IMPL void cvDestroyWindow( const char* )
+{
+    CV_NO_GTK_ERROR( "cvDestroyWindow" );
+}
+
+CV_IMPL void
+cvDestroyAllWindows( void )
+{
+    CV_NO_GTK_ERROR( "cvDestroyAllWindows" );
+}
+
+CV_IMPL void
+cvShowImage( const char*, const CvArr* )
+{
+    CV_NO_GTK_ERROR( "cvShowImage" );
+}
+
+CV_IMPL void cvResizeWindow( const char*, int, int )
+{
+    CV_NO_GTK_ERROR( "cvResizeWindow" );
+}
+
+CV_IMPL void cvMoveWindow( const char*, int, int )
+{
+    CV_NO_GTK_ERROR( "cvMoveWindow" );
+}
+
+CV_IMPL int
+cvCreateTrackbar( const char*, const char*,
+                  int*, int, CvTrackbarCallback )
+{
+    CV_NO_GTK_ERROR( "cvCreateTrackbar" );
+    return -1;
+}
+
+CV_IMPL void
+cvSetMouseCallback( const char*, CvMouseCallback )
+{
+    CV_NO_GTK_ERROR( "cvSetMouseCallback" );
+}
+
+CV_IMPL int cvGetTrackbarPos( const char*, const char* )
+{
+    CV_NO_GTK_ERROR( "cvGetTrackbarPos" );
+    return -1;
+}
+
+CV_IMPL void cvSetTrackbarPos( const char*, const char*, int )
+{
+    CV_NO_GTK_ERROR( "cvSetTrackbarPos" );
+}
+
+CV_IMPL void* cvGetWindowHandle( const char* )
+{
+    CV_NO_GTK_ERROR( "cvGetWindowHandle" );
+    return 0;
+}
+    
+CV_IMPL const char* cvGetWindowName( void* )
+{
+    CV_NO_GTK_ERROR( "cvGetWindowName" );
+    return 0;
+}
+
+CV_IMPL int cvWaitKey( int )
+{
+    CV_NO_GTK_ERROR( "cvWaitKey" );
+    return -1;
+}
+
+#endif
+#endif
+
+/* End of file. */

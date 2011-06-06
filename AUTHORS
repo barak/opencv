@@ -24,7 +24,7 @@ Khudyakov, Vasily       Novosibirsk University     Face feature detection
 Kuranov, Alexander      Intel Corp.                Matlab wrappers, Face detection code 
 Kuriakin, Valery        Intel Corp.                Started OpenCV project in Nizhny Novrogod Lab
 Lantz, Philip           Intel Corp.                3d Tracker
-Lienhart, Rainer        Intel Corp.                Haar feature-based face detection algorithm
+Lienhart, Rainer        Intel Corp.                Haar feature-based face detection algorithm and the original code
 Molinov, Sergey         Intel Corp.                HMM face recognition code, POSIT, snakes, optical flow, stereo and more ...
 Mosyagin, Valery        Intel Corp.                View morphing, camera calibration code (C),
                                                    fundamental matrices estimation

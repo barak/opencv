@@ -1,3 +1,5 @@
+(if you noticed that some names are missing, please mail to vadim.pisarevsky@intel.com)
+
 Original OpenCV committee (vision, functionality proposals etc.):
 -----------------------------------------------------------------
 Dr. Gary Bradski
@@ -9,9 +11,7 @@ Prof. Stan Sclaroff
 Prof. Carlo Tomasi
 
 People who helped to make OpenCV the real thing
-(if you noticed that some names are missing, please mail to vadim.pisarevsky@intel.com)
 ---------------------------------------------------------------------------------------
-
 Name                  Company (by the moment       Remarks
                     of contribution/cooperation)
 
@@ -33,7 +33,27 @@ Veretennikov, Eugene    Intel Corp.                Testing, comp. geometry funct
 Wayne W. Cheng          SoftIntegration            Ch C/C++ intepreter, OpenCV Ch toolbox (proposal + SDK)
 
 
+OpenCV includes modified versions of the following software:
+------------------------------------------------------------
+
++ FFT by H.V. Sorensen (see cxcore/src/cxdxt.cpp)
+
++ Gaussian Random Number Generator by George Marsaglia et al. (see cxcore/src/cxrand.cpp)
+
++ SVD from SLATEC (see cxcore/src/cxsvd.cpp)
+
++ Small inline math functions by Agner Fog,
+    Bruce Holloway et al., Ken Turkowski (see cxcore/include/cxtypes.h)
+
++ Quicksort implementation from University of California, Berkeley
+  (see cxcore/include/cxmisc.h and cxcore/src/cxdatastructs.cpp)
+
++ Earth Mover Distance and RGB->Lab conversion by Yossi Rubner
+  (see cv/src/cvemd.cpp and cv/src/cvcolor.cpp)
+
+
 Active OpenCV forum participants:
+---------------------------------
 (!TODO: more info needed)
 
 Barbaresi, Abramo
@@ -53,9 +73,10 @@ Zayed, Mohamed
 Rocha, Jairo 
 Stewart, James Andr.
 
-------------
+
 
 BUG reports:
+------------
 
 Small, Daniel;
 Carlos Andres Rocha;
@@ -64,7 +85,6 @@ Zivkovic, Zoran
 and other people from OpenCV forum at www.yahoogroups.com
 
 ------------
-
 ...
 
 

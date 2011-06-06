@@ -214,7 +214,7 @@ static int line_smp_test( void* arg )
             {
                 uchar* buf = src_buf;
 
-                cvLine( img, pt1, pt2, color );
+                cvLine( img, pt1, pt2, cvScalar(color&255,(color>>8)&255,(color>>16)&255,0) );
 
                 for( j = 0; j < count; j++ )
                 {
@@ -271,7 +271,7 @@ static int line_smp_test( void* arg )
                 count *= channels;
                 for( j = 0; j < count; j++ )
                 {
-                    double t = fabs(src_buf[j] - dst_buf[j]);
+                    double t = abs(src_buf[j] - dst_buf[j]);
                     err = MAX( err, t );
                 }
             }
@@ -477,10 +477,6 @@ static int rect_smp_test( void* arg )
     case IPL_DEPTH_8U:
         atsRandSetBounds( &rng_state, 0, img8u_range );
         success_error_level *= img8u_range;
-        break;
-    case IPL_DEPTH_8S:
-        atsRandSetBounds( &rng_state, -img8s_range, img8s_range );
-        success_error_level *=img8s_range;
         break;
     case IPL_DEPTH_32F:
         atsRandSetBounds( &rng_state, -img32f_range, img32f_range );

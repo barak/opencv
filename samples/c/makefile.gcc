@@ -1,0 +1,9 @@
+CXX=g++
+INC=-I
+LIB=-L
+CXXFLAGS=
+LINK1=-L"..\..\lib"
+LINK2=-lcxcore -lcv -lhighgui
+OUT=-o 
+
+include makefile.gen

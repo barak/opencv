@@ -78,6 +78,8 @@ int main( int argc, char* argv[] )
     int boosttype = 3;
     const char* stumperrors[] = { "misclass", "gini", "entropy" };
     int stumperror = 0;
+    int maxtreesplits = -1;
+    int minpos = 500;
 
     if( argc == 1 )
     {
@@ -98,9 +100,12 @@ int main( int argc, char* argv[] )
                 "  [-w <sample_width = %d>]\n"
                 "  [-h <sample_height = %d>]\n"
                 "  [-bt <DAB | RAB | LB | GAB (default)>]\n"
-                "  [-err <misclass (default) | gini | entropy>]\n",
+                "  [-err <misclass (default) | gini | entropy>]\n"
+                "  [-maxtreesplits <max_number_of_splits_in_tree_cascade = %d>]\n"
+                "  [-minpos <min_number_of_positive_samples_per_cluster = %d>]\n",
                 argv[0], npos, nneg, nstages, nsplits, mem,
-                minhitrate, maxfalsealarm, weightfraction, width, height );
+                minhitrate, maxfalsealarm, weightfraction, width, height,
+                maxtreesplits, minpos );
         
         return 0;
     }
@@ -224,6 +229,14 @@ int main( int argc, char* argv[] )
                 stumperror = 2;
             }
         }
+        else if( !strcmp( argv[i], "-maxtreesplits" ) )
+        {
+            maxtreesplits = atoi( argv[++i] );
+        }
+        else if( !strcmp( argv[i], "-minpos" ) )
+        {
+            minpos = atoi( argv[++i] );
+        }
     }
 
     numprecalculated = (int) ( ((size_t) mem) * ((size_t) 1048576) /
@@ -246,18 +259,22 @@ int main( int argc, char* argv[] )
     printf( "Mode: %s\n", ( (mode == 0) ? "BASIC" : ( (mode == 1) ? "CORE" : "ALL") ) );
     printf( "Width: %d\n", width );
     printf( "Height: %d\n", height );
-    printf( "Num of precalculated features: %d\n", numprecalculated );
+    printf( "Max num of precalculated features: %d\n", numprecalculated );
     printf( "Applied boosting algorithm: %s\n", boosttypes[boosttype] );
     printf( "Error (valid only for Discrete and Real AdaBoost): %s\n",
             stumperrors[stumperror] );
 
-    cvCreateCascadeClassifier( dirname, vecname, bgname,
+    printf( "Max number of splits in tree cascade: %d\n", maxtreesplits );
+    printf( "Min number of positive samples per cluster: %d\n", minpos );
+
+    cvCreateTreeCascadeClassifier( dirname, vecname, bgname,
                                npos, nneg, nstages, numprecalculated,
                                nsplits,
                                minhitrate, maxfalsealarm, weightfraction,
                                mode, symmetric,
                                equalweights, width, height,
-                               boosttype, stumperror );
+                               boosttype, stumperror,
+                               maxtreesplits, minpos );
 
     return 0;
 }

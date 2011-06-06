@@ -4,38 +4,27 @@
 # AUTOMAKE_OPTIONS = 1.4
 
 ## Any directories that you want built and installed should go here.
-SUBDIRS = cv cvaux otherlibs tests @ADDONS@
+SUBDIRS = cxcore cv cvaux otherlibs apps tests samples data docs
 
 ## Any directories you want a part of the distribution should be listed
 ## here, as well as have a Makefile generated at the end of configure.in
 ##
 ## This only works for subdirectories one level deep.
-DIST_SUBDIRS = $(SUBDIRS) apps tests utils docs samples _dsw
-
-# OpenCV runtime configuration script
-bin_SCRIPTS = opencv-config
+DIST_SUBDIRS = $(SUBDIRS)
 
 # All the rest of the distributed files
-EXTRA_DIST = Makefile.gcc Makefile.bcc Makefile.icl Makefile.vc THANKS COPYING INSTALL README OpenCV.spec OpenCV.spec.in autogen.sh
+EXTRA_DIST = THANKS COPYING INSTALL README NEWS ChangeLog opencv.spec opencv.spec.in opencv.pc.in opencv.pc autogen.sh _make utils
+
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = opencv.pc
 
 # Rule to build tar-gzipped distribution package
 $(PACKAGE)-$(VERSION).tar.gz: dist
 
 dist-hook:
 	rm -rf `find $(distdir) -name CVS`
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/_dsw/OpenCVlight.dsw
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/cv/make/cv.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/cvaux/make/cvaux.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/otherlibs/highgui/highgui.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/otherlibs/cvcam/make_win/cvcam.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/tests/trs/make/trs.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/tests/cv/src/cvtest.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/apps/cvlkdemo/cvlkdemo.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/apps/cvcsdemo/cvcsdemo.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/apps/vmdemotk/VMDemoTk.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/apps/HaarFaceDetect/HaarFaceDetect.dsp
-	$(srcdir)/utils/unix2dos.pl  $(distdir)/utils/cvinfo/cvinfo.dsp
-	
+	find $(distdir) -name *.dsw -exec $(srcdir)/utils/unix2dos.py {} \;
+	find $(distdir) -name *.dsp -exec $(srcdir)/utils/unix2dos.py {} \;
 
 # Rule to build RPM distribution package
 rpm: $(PACKAGE)-$(VERSION).tar.gz

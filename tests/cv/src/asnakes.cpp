@@ -167,7 +167,7 @@ static int fmaSnakes( void* arg )
         fscanf(file, "%d", &num_pos );
 
         /* get number iterations between two positions */
-        fscanf(file, "%d", &criteria.maxIter ); 
+        fscanf(file, "%d", &criteria.max_iter ); 
 
         /* read initial snake position */
         for ( j = 0; j < length; j++ )

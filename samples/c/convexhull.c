@@ -60,7 +60,7 @@ int main( int argc, char** argv )
 #else
             pt0 = points[i];
 #endif
-            cvCircle( img, pt0, 2, CV_RGB( 255, 0, 0 ), CV_FILLED );
+            cvCircle( img, pt0, 2, CV_RGB( 255, 0, 0 ), CV_FILLED, CV_AA, 0 );
         }
 
 #if !ARRAY            
@@ -76,7 +76,7 @@ int main( int argc, char** argv )
 #else
             CvPoint pt = points[hull[i]];
 #endif
-            cvLine( img, pt0, pt, CV_RGB( 0, 255, 0 ), 1, 0 );
+            cvLine( img, pt0, pt, CV_RGB( 0, 255, 0 ), 1, CV_AA, 0 );
             pt0 = pt;
         }
 

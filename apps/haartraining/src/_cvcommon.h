@@ -42,19 +42,17 @@
 #ifndef __CVCOMMON_H_
 #define __CVCOMMON_H_
 
-#include <_cv.h>
-
-
-#define CV_IMPLEMENT_QSORT( func_name, T, less_than )  \
-    CV_IMPLEMENT2_QSORT( func_name, T, less_than, int )
-
+#include <cv.h>
+#include <cxmisc.h>
 
 #define CV_DECLARE_QSORT( func_name, T, less_than )                     \
-void func_name( T* array, int length, int aux );
+void func_name( T* array, size_t length, int aux );
 
 #define less_than( a, b ) ((a) < (b))
 
 CV_DECLARE_QSORT( icvSort_32f, float, less_than )
+
+CV_DECLARE_QSORT( icvSort_32s, int, less_than )
 
 #ifndef PATH_MAX
 #define PATH_MAX 512

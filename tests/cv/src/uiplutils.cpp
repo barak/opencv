@@ -1435,7 +1435,7 @@ void  atsGenerateBlobImage( IplImage* img, int min_blob_size, int max_blob_size,
         axes.height = (atsRandPlain32s( rng_state ) %
                       (max_blob_size - min_blob_size) + min_blob_size + 1)/2;
         
-        cvEllipse( img, center, axes, angle, 0, 360, brightness, CV_FILLED ); 
+        cvEllipse( img, center, axes, angle, 0, 360, cvScalar(brightness), CV_FILLED ); 
     }
 }
 

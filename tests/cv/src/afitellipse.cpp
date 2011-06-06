@@ -79,7 +79,7 @@ int fmaFitEllipse(void)
         axis.height = (int)atsInitRandom( 5, 50 );
         axis.width  = (int)atsInitRandom( 5, 50 );   
 
-        cvEllipse( img, center, axis, angle, 0, 360, 255, -1 );
+        cvEllipse( img, center, axis, angle, 0, 360, cvScalar(255), -1 );
     
         cvFindContours( img, storage, (CvSeq**)&contour, sizeof(CvContour) );
 

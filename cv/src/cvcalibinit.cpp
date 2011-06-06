@@ -39,10 +39,6 @@
 //
 //M*/
 #include "_cv.h"
-#include "_cvgeom.h"
-#include "string.h"
-
-#include <limits.h>
 
 typedef struct CvContourEx
 {
@@ -117,12 +113,12 @@ cvFindChessBoardCornerGuesses( const void* arr, void* thresharr,
 
     if( CV_MAT_TYPE( img->type ) != CV_8UC1 ||
         CV_MAT_TYPE( thresh->type ) != CV_8UC1 )
-        CV_ERROR( CV_BadDepth, icvUnsupportedFormat );
+        CV_ERROR( CV_BadDepth, cvUnsupportedFormat );
 
     if( !CV_ARE_SIZES_EQ( img, thresh ))
         CV_ERROR( CV_StsUnmatchedSizes, "" );
 
-    size = icvGetMatSize( img );
+    size = cvGetMatSize( img );
 
     // 
     //   Create temporary storages.
@@ -135,7 +131,7 @@ cvFindChessBoardCornerGuesses( const void* arr, void* thresharr,
     min_size = cvRound( size.width*size.height * .03 * 0.03 );
 
     // empiric threshold level 
-    mean = cvMean( img );
+    mean = cvAvg( img ).val[0];
     thresh_level = cvRound( mean - 10 );
     thresh_level = MAX( thresh_level, 10 );
 
@@ -316,11 +312,11 @@ cvFindChessBoardCornerGuesses( const void* arr, void* thresharr,
         int dx, dy, denom;
         int i, j;
 
-        indices = (int *) icvAlloc( etalon_points * sizeof( int ));
+        indices = (int *)cvAlloc( etalon_points * sizeof( int ));
 
-        iPoints = (CvPoint *) icvAlloc( etalon_points * sizeof( CvPoint ));
-        ordered = (CvPoint *) icvAlloc( etalon_points * sizeof( CvPoint ));
-        hullpoints = (CvPoint *) icvAlloc( etalon_points * sizeof( CvPoint ));
+        iPoints = (CvPoint *)cvAlloc( etalon_points * sizeof( CvPoint ));
+        ordered = (CvPoint *)cvAlloc( etalon_points * sizeof( CvPoint ));
+        hullpoints = (CvPoint *)cvAlloc( etalon_points * sizeof( CvPoint ));
 
         for( i = 0; i < etalon_points; i++ )
         {
@@ -589,13 +585,12 @@ cvFindChessBoardCornerGuesses( const void* arr, void* thresharr,
     //////////////////////////////////////////////
     //////////////////////////////////////////////
     //////////////////////////////////////////////
-    __CLEANUP__;
     __END__;
 
-    icvFree( &iPoints );
-    icvFree( &indices );
-    icvFree( &ordered );
-    icvFree( &hullpoints );
+    cvFree( (void**)&iPoints );
+    cvFree( (void**)&indices );
+    cvFree( (void**)&ordered );
+    cvFree( (void**)&hullpoints );
 
     // release storages 
     cvReleaseMemStorage( &storage1 );

@@ -105,6 +105,7 @@ int icvMkDir( const char* filename )
     return 1;
 }
 
+#if 0
 /* debug functions */
 void icvSave( const CvArr* ptr, const char* filename, int line )
 {
@@ -123,4 +124,6 @@ void icvSave( const CvArr* ptr, const char* filename, int line )
     cvWrite( fs, "debug", ptr );
     cvReleaseFileStorage( &fs );
 }
+#endif // #if 0
 
+/* End of file. */

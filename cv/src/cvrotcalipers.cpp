@@ -39,7 +39,6 @@
 //
 //M*/
 #include "_cv.h"
-#include "_cvdatastructs.h"
 
 typedef struct
 {
@@ -97,8 +96,8 @@ icvRotatingCalipers( CvPoint2D32f* points, int n, int mode, float* out )
     float max_dist = 0;
     char buffer[32];
     int i, k;
-    CvPoint2D32f* vect = (CvPoint2D32f*)icvAlloc( n * sizeof(vect[0]) );
-    float* inv_vect_length = (float*)icvAlloc( n * sizeof(inv_vect_length[0]) );
+    CvPoint2D32f* vect = (CvPoint2D32f*)cvAlloc( n * sizeof(vect[0]) );
+    float* inv_vect_length = (float*)cvAlloc( n * sizeof(inv_vect_length[0]) );
     int left = 0, bottom = 0, right = 0, top = 0;
     int seq[4] = { -1, -1, -1, -1 };
 
@@ -118,6 +117,8 @@ icvRotatingCalipers( CvPoint2D32f* points, int n, int mode, float* out )
     
     for( i = 0; i < n; i++ )
     {
+        double dx, dy;
+        
         if( pt0.x < left_x )
             left_x = pt0.x, left = i;
 
@@ -131,15 +132,18 @@ icvRotatingCalipers( CvPoint2D32f* points, int n, int mode, float* out )
             bottom_y = pt0.y, bottom = i;
 
         CvPoint2D32f pt = points[(i+1) & (i+1 < n ? -1 : 0)];
+        
+        dx = pt.x - pt0.x;
+        dy = pt.y - pt0.y;
 
-        vect[i].x = (float)(pt.x - pt0.x);
-        vect[i].y = (float)(pt.y - pt0.y);
-        inv_vect_length[i] = vect[i].x*vect[i].x + vect[i].y*vect[i].y;
+        vect[i].x = (float)dx;
+        vect[i].y = (float)dy;
+        inv_vect_length[i] = (float)(1./sqrt(dx*dx + dy*dy));
 
         pt0 = pt;
     }
 
-    icvbInvSqrt_32f( inv_vect_length, inv_vect_length, n );
+    //cvbInvSqrt( inv_vect_length, inv_vect_length, n );
 
     /* find convex hull orientation */
     {
@@ -178,7 +182,7 @@ icvRotatingCalipers( CvPoint2D32f* points, int n, int mode, float* out )
     for( k = 0; k < n; k++ )
     {
         /* sinus of minimal angle */
-        float sinus;
+        /*float sinus;*/
 
         /* compute cosine of angle between calipers side and polygon edge */
         /* dp - dot product */
@@ -201,21 +205,38 @@ icvRotatingCalipers( CvPoint2D32f* points, int n, int mode, float* out )
         cosalpha = dp3 * inv_vect_length[seq[3]];
         maxcos = (cosalpha > maxcos) ? (main_element = 3, cosalpha) : maxcos;
 
-        sinus = orientation * cvSqrt( 1 - maxcos * maxcos );
-
-        /* rotate calipers */
+        /*rotate calipers*/
         {
-            float x = base_a;
-            float y = base_b;
-
-            base_a = maxcos * x - sinus * y;
-            base_b = sinus * x + maxcos * y;
-        }
-
+            //get next base
+            int pindex = seq[main_element];
+            float lead_x = vect[pindex].x*inv_vect_length[pindex];
+            float lead_y = vect[pindex].y*inv_vect_length[pindex];
+            switch( main_element )
+            {
+            case 0:
+                base_a = lead_x;
+                base_b = lead_y;
+                break;
+            case 1:
+                base_a = lead_y; 
+                base_b = -lead_x;
+                break;
+            case 2:
+                base_a = -lead_x;
+                base_b = -lead_y;
+                break;
+            case 3:
+                base_a = -lead_y;
+                base_b = lead_x;
+                break;
+            default: assert(0);
+            }
+        }                        
         /* change base point of main edge */
         seq[main_element] += 1;
         seq[main_element] = (seq[main_element] == n) ? 0 : seq[main_element];
 
+        
         switch (mode)
         {
         case CV_CALIPERS_MAXHEIGHT:
@@ -318,8 +339,8 @@ icvRotatingCalipers( CvPoint2D32f* points, int n, int mode, float* out )
         break;
     }
 
-    icvFree( (void**)&vect );
-    icvFree( (void**)&inv_vect_length );
+    cvFree( (void**)&vect );
+    cvFree( (void**)&inv_vect_length );
 }
 
 
@@ -421,17 +442,17 @@ cvMinAreaRect2( const CvArr* array, CvMemStorage* storage )
         icvRotatingCalipers( points, n, CV_CALIPERS_MINAREARECT, (float*)out );
         box.center.x = out[0].x + (out[1].x + out[2].x)*0.5f;
         box.center.y = out[0].y + (out[1].y + out[2].y)*0.5f;
-        box.size.height = cvSqrt(out[1].x*out[1].x + out[1].y*out[1].y);
-        box.size.width = cvSqrt(out[2].x*out[2].x + out[2].y*out[2].y);
-        box.angle = (float)atan2( -out[1].y, out[1].x );
+        box.size.height = (float)sqrt((double)out[1].x*out[1].x + (double)out[1].y*out[1].y);
+        box.size.width = (float)sqrt((double)out[2].x*out[2].x + (double)out[2].y*out[2].y);
+        box.angle = (float)atan2( -(double)out[1].y, (double)out[1].x );
     }
     else if( n == 2 )
     {
         box.center.x = (points[0].x + points[1].x)*0.5f;
         box.center.y = (points[0].y + points[1].y)*0.5f;
-        float dx = points[1].x - points[0].x;
-        float dy = points[1].y - points[0].y;
-        box.size.height = cvSqrt(dx*dx + dy*dy);
+        double dx = points[1].x - points[0].x;
+        double dy = points[1].y - points[0].y;
+        box.size.height = (float)sqrt(dx*dx + dy*dy);
         box.size.width = 0;
         box.angle = (float)atan2( -dy, dx );
     }

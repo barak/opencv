@@ -49,10 +49,10 @@
 #include <time.h>
 
 #define PROC_PX     0
-#define PROC_M5     ((1<<23)|5) /* mmx */
-#define PROC_M6     ((1<<15)|(1<<23)|6) /* cmov + mmx */
-#define PROC_A6     ((1<<25)|PROC_M6)   /* --||-- + xmm */
-#define PROC_W7     ((1<<26)|PROC_A6|(1<<3)|1)   /* --||-- + emm */
+#define PROC_M5     (1<<23) /* mmx */
+#define PROC_M6     ((1<<15)|(1<<23)) /* cmov + mmx */
+#define PROC_A6     ((1<<25)|PROC_M6) /* --||-- + xmm */
+#define PROC_W7     ((1<<26)|PROC_A6) /* --||-- + emm */
 
 /*
    determine processor type
@@ -115,9 +115,9 @@ get_processor_type( void )
     #endif
 
         family = (version >> 8) & 15;
-        if( family >= 5 && (features & (PROC_M6 & ~6)) != 0 ) /* Pentium II or higher */
+        if( family >= 5 && (features & PROC_M6) != 0 ) /* Pentium II or higher */
         {
-            proc_type = (features & PROC_W7 & -256) | family;
+            proc_type = features & PROC_W7;
         }
     }
 
@@ -168,14 +168,16 @@ tryLoadOpenCV( const char* name )
 
     if( dll )
     {
+        if( GetProcAddress( dll, "cvWarpAffine" ) != 0 )
+            return "beta 4 (a.k.a 0.9.6) or later";
         if( GetProcAddress( dll, "cvAccMask" ) != 0 ) // alpha 3 had cvAccMask function
             return "alpha 3.x";
         if( GetProcAddress( dll, "cvAdd" ) == 0 ) // beta 1 did not have cvAdd function 
             return "beta 1.5 (a.k.a. 0.0.7)";
         if( GetProcAddress( dll, "cvOpenFileStorage" ) == 0 )
-            return "beta 2.x (a.k.a. 0.9.3)";
+            return "beta 2.x (a.k.a. 0.9.3)"; // beta 2 did not have cvOpenFileStorage
 
-        return "beta 3 (a.k.a 0.9.4) or later";
+        return "beta 3 (a.k.a 0.9.4) or beta 3.1 (a.k.a 0.9.5)";
     }
 
     return 0;
@@ -367,6 +369,22 @@ void scan_folder( char* folder, int length )
     if( version != 0 )
     {
         printf("%s:\n\t OpenCV (Debug) version %s\n", folder, version );
+    }
+
+    strcpy( folder + length, "cv096.dll" );
+    version = tryLoadOpenCV( folder );
+    
+    if( version != 0 )
+    {
+        printf("%s:\n\t New-style OpenCV version %s\n", folder, version );
+    }
+
+    strcpy( folder + length, "cv096d.dll" );
+    version = tryLoadOpenCV( folder );
+    
+    if( version != 0 )
+    {
+        printf("%s:\n\t New-style OpenCV (Debug) version %s\n", folder, version );
     }
 
     // find IPL

@@ -25,7 +25,7 @@ CFG=cvhaartraining - Win32 Debug
 # PROP AllowPerConfigDependencies 0
 # PROP Scc_ProjName ""
 # PROP Scc_LocalPath ""
-CPP=cl.exe
+CPP=xicl6.exe
 RSC=rc.exe
 
 !IF  "$(CFG)" == "cvhaartraining - Win32 Release"
@@ -40,16 +40,16 @@ RSC=rc.exe
 # PROP Output_Dir "../../../_temp/cvhaartraining_rls"
 # PROP Intermediate_Dir "../../../_temp/cvhaartraining_rls"
 # PROP Target_Dir ""
-MTL=midl.exe
 LINK32=link.exe
+MTL=midl.exe
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /MD /W3 /GX /O2 /I "..\src" /I "..\include" /I "../../../cv/include" /I "../../../cv/src" /I "../../../otherlibs/highgui" /I "../../../otherlibs/_Ipl/include" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD -Qopenmp /c
+# ADD CPP /nologo /MD /W3 /GX /O2 /I "..\src" /I "..\include" /I "../../../cv/include" /I "../../../cv/src" /I "../../../cxcore/include" /I "../../../otherlibs/highgui" /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD -Qopenmp /c
 # ADD BASE RSC /l 0x419 /d "NDEBUG"
 # ADD RSC /l 0x419 /d "NDEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"../../../lib/cvhaartraining.lib"
 
@@ -65,16 +65,16 @@ LIB32=link.exe -lib
 # PROP Output_Dir "../../../_temp/cvhaartraining_dbg"
 # PROP Intermediate_Dir "../../../_temp/cvhaartraining_dbg"
 # PROP Target_Dir ""
-MTL=midl.exe
 LINK32=link.exe
+MTL=midl.exe
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\src" /I "..\include" /I "../../../cv/include" /I "../../../cv/src" /I "../../../otherlibs/highgui" /I "../../../otherlibs/_Ipl/include" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ -Qopenmp -Qopenmp_report2 /c
+# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\src" /I "..\include" /I "../../../cv/include" /I "../../../cv/src" /I "../../../cxcore/include" /I "../../../otherlibs/highgui" /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ -Qopenmp -Qopenmp_report2 /c
 # ADD BASE RSC /l 0x419 /d "_DEBUG"
 # ADD RSC /l 0x419 /d "_DEBUG"
 BSC32=bscmake.exe
 # ADD BASE BSC32 /nologo
 # ADD BSC32 /nologo
-LIB32=link.exe -lib
+LIB32=xilink6.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo /out:"../../../lib/cvhaartrainingd.lib"
 
@@ -102,6 +102,10 @@ SOURCE=..\src\cvhaarclassifier.cpp
 # Begin Source File
 
 SOURCE=..\src\cvhaartraining.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\cvsamples.cpp
 # End Source File
 # End Group
 # Begin Group "Header Files"

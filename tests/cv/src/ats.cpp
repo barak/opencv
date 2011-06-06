@@ -672,7 +672,7 @@ float*  atsReadMatrix( const char* filename, int* _m, int* _n )
 {
     FILE* f = fopen( filename, "rt" );
     float* data = 0;
-    double NaN = sqrt(-1);
+    double NaN = sqrt(-1.);
 
     if( _m ) *_m = 0;
     if( _n ) *_n = 0;
@@ -771,57 +771,9 @@ char* atsGetTestDataPath( char* buffer, char* folder, char* filename, char* exte
 
 #define ARG_STR "-lib"
 
-int atsLoadPrimitives( int argc, char** argv )
+void atsLoadPrimitives( int flag )
 {
-    char  param[1000] = "";
-    char  value[100];
-    char* sub;
-    int   i;
-    int   loaded;
-
-    for( i = 1; i < argc; i++ )
-        strcat( param, argv[i] );
-
-    sub = strstr( param, "-lib" );
-    if( !sub )
-        return 0;
-
-    sscanf( sub, ARG_STR " %s", value );
-    printf( "loading library %s\n", value );
-
-    /* removing arguments ARG_STR " ..." from arg list */
-    for( i = 1; i < argc; i++ )
-    {
-        sub = strstr( argv[i], ARG_STR );
-        if( sub )
-        {
-            memset( sub, ' ', strlen( ARG_STR ) );
-            break;
-        }
-    }
-    for( ; i < argc; i++ )
-    {
-        sub = strstr( argv[i], value );
-        if( sub )
-        {
-            memset( sub, ' ', strlen( value ) );
-            break;
-        }
-    }
-
-    loaded = cvLoadPrimitives( value );
-
-    if( !(loaded & 1) )
-        printf( "ippcv hadn't been loaded\n" );
-    if( !(loaded & 2) )
-        printf( "optcv hadn't been loaded\n" );
-
-    if( !loaded )
-    {
-        printf( "can't load primitives. optimization disabled\n" );
-        return -1;
-    }
-    return loaded;
+    cvUseOptimized( flag );
 }
 
 

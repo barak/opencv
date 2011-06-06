@@ -117,12 +117,18 @@ int cvCreateTrainingSamplesFromInfo( const char* infoname, const char* vecfilena
 /*
  * cvShowVecSamples
  *
- * Show samples stored in .vec file
- * filename  - .vec file name
- * winwidth  - sample width
- * winheight - sample height
+ * Shows samples stored in .vec file
+ *
+ * filename
+ *   .vec file name
+ * winwidth
+ *   sample width
+ * winheight
+ *   sample height
+ * scale
+ *   the scale each sample is adjusted to
  */
-void cvShowVecSamples( const char* filename, int winwidth, int winheight );
+void cvShowVecSamples( const char* filename, int winwidth, int winheight, double scale );
 
 
 /*
@@ -172,6 +178,21 @@ void cvCreateCascadeClassifier( const char* dirname,
                                 int equalweights = 1,
                                 int winwidth = 24, int winheight = 24,
                                 int boosttype = 3, int stumperror = 0 );
+
+void cvCreateTreeCascadeClassifier( const char* dirname,
+                                    const char* vecfilename,
+                                    const char* bgfilename, 
+                                    int npos, int nneg, int nstages,
+                                    int numprecalculated,
+                                    int numsplits,
+                                    float minhitrate, float maxfalsealarm,
+                                    float weightfraction,
+                                    int mode, int symmetric,
+                                    int equalweights,
+                                    int winwidth, int winheight,
+                                    int boosttype, int stumperror,
+                                    int maxtreesplits, int minpos );
+
 
 #ifdef __cplusplus
 }
