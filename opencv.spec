@@ -1,5 +1,5 @@
 %define name opencv
-%define version 0.9.6
+%define version 0.9.7
 %define release 1
 %define sourcepkg %{name}-%{version}.tar.gz
 
@@ -10,7 +10,7 @@ Release: %{release}
 Source0: %{sourcepkg}
 URL: http://prdownloads.sourceforge.net/opencvlibrary/%{sourcepkg}
 Copyright: BSD
-Packager: Serguei Boldyrev <sergueiX.a.boldyrev@intel.com>, Vadim Pisarevsky <vadim.pisarevsky@intel.com>
+Packager: Serguei Boldyrev, Vadim Pisarevsky
 Group: Development/Libraries
 # Group: System Environment/Libraries
 BuildRoot: /var/tmp/%{name}-buildroot

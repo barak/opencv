@@ -131,7 +131,7 @@ icvGEMMSingleMul_##flavor( const arrtype* a_data, size_t a_step,            \
                          CvSize a_size, CvSize d_size,                      \
                          double alpha, double beta, int flags )             \
 {                                                                           \
-    int i, j, k, n = a_size.width, m = d_size.width;                        \
+    int i, j, k, n = a_size.width, m = d_size.width, drows = d_size.height; \
     const arrtype *_a_data = a_data, *_b_data = b_data, *_c_data = c_data;  \
     arrtype* a_buf = 0;                                                     \
     size_t a_step0, a_step1, c_step0, c_step1, t_step;                      \
@@ -164,8 +164,8 @@ icvGEMMSingleMul_##flavor( const arrtype* a_data, size_t a_step,            \
                                                                             \
         if( a_step > 1 )                                                    \
         {                                                                   \
-            a_buf = (arrtype*)cvStackAlloc(d_size.height*sizeof(a_data[0]));\
-            for( k = 0; k < d_size.height; k++ )                            \
+            a_buf = (arrtype*)cvStackAlloc(drows*sizeof(a_data[0]));        \
+            for( k = 0; k < drows; k++ )                                    \
                 a_buf[k] = a_data[a_step*k];                                \
             a_data = a_buf;                                                 \
         }                                                                   \
@@ -178,8 +178,8 @@ icvGEMMSingleMul_##flavor( const arrtype* a_data, size_t a_step,            \
             b_data = b_buf;                                                 \
         }                                                                   \
                                                                             \
-        for( i = 0; i < d_size.height; i++, _c_data += c_step0,             \
-                                            d_data += d_step )              \
+        for( i = 0; i < drows; i++, _c_data += c_step0,                     \
+                                    d_data += d_step )                      \
         {                                                                   \
             worktype al = worktype(a_data[i])*alpha;                        \
             c_data = _c_data;                                               \
@@ -211,9 +211,9 @@ icvGEMMSingleMul_##flavor( const arrtype* a_data, size_t a_step,            \
     }                                                                       \
     else if( flags & CV_GEMM_B_T ) /* A * Bt */                             \
     {                                                                       \
-        for( i = 0; i < d_size.height; i++, _a_data += a_step0,             \
-                                            _c_data += c_step0,             \
-                                            d_data += d_step )              \
+        for( i = 0; i < drows; i++, _a_data += a_step0,                     \
+                                    _c_data += c_step0,                     \
+                                    d_data += d_step )                      \
         {                                                                   \
             a_data = _a_data;                                               \
             b_data = _b_data;                                               \
@@ -252,9 +252,9 @@ icvGEMMSingleMul_##flavor( const arrtype* a_data, size_t a_step,            \
     }                                                                       \
     else if( d_size.width*sizeof(d_data[0]) <= 1600 )                       \
     {                                                                       \
-        for( i = 0; i < d_size.height; i++, _a_data += a_step0,             \
-                                            _c_data += c_step0,             \
-                                            d_data += d_step )              \
+        for( i = 0; i < drows; i++, _a_data += a_step0,                     \
+                                    _c_data += c_step0,                     \
+                                    d_data += d_step )                      \
         {                                                                   \
             a_data = _a_data, c_data = _c_data;                             \
                                                                             \
@@ -313,10 +313,9 @@ icvGEMMSingleMul_##flavor( const arrtype* a_data, size_t a_step,            \
     }                                                                       \
     else                                                                    \
     {                                                                       \
-        int m = d_size.width;                                               \
         worktype* d_buf = (worktype*)cvStackAlloc(m*sizeof(d_buf[0]));      \
                                                                             \
-        for( i = 0; i < d_size.height; i++, _a_data += a_step0,             \
+        for( i = 0; i < drows; i++, _a_data += a_step0,                     \
                                             _c_data += c_step0,             \
                                             d_data += d_step )              \
         {                                                                   \
@@ -1102,7 +1101,7 @@ cvGEMM( const CvArr* Aarr, const CvArr* Barr, double alpha,
             uchar* d_buf = 0;
             int i, j, k, di = 0, dj = 0, dk = 0;
             int dm0, dn0, dk0;
-            int a_step0, a_step1, b_step = B->step, b_step0, b_step1, c_step0, c_step1;
+            int a_step0, a_step1, b_step0, b_step1, c_step0, c_step1;
             int work_elem_size = elem_size << (CV_MAT_DEPTH(type) == CV_32F ? 1 : 0);
             CvGEMMBlockMulFunc block_mul_func = (CvGEMMBlockMulFunc)block_mul_tab.fn_2d[type];
             CvGEMMStoreFunc store_func = (CvGEMMStoreFunc)store_tab.fn_2d[type];
@@ -1186,23 +1185,23 @@ cvGEMM( const CvArr* Aarr, const CvArr* Barr, double alpha,
                         int _a_step = A->step;
                         const uchar* _b = B->data.ptr + k*b_step0 + j*b_step1;
                         int _b_step = b_step;
-                        CvSize a_size;
+                        CvSize a_bl_size;
 
                         dk = dk0;
                         if( k + dk >= len || 8*(k + dk) + dk > 8*len )
                             dk = len - k;
 
                         if( !is_a_t )
-                            a_size.width = dk, a_size.height = di;
+                            a_bl_size.width = dk, a_bl_size.height = di;
                         else
-                            a_size.width = di, a_size.height = dk;
+                            a_bl_size.width = di, a_bl_size.height = dk;
 
                         if( a_buf && is_a_t )
                         {
                             int t;
                             _a_step = dk*elem_size;
-                            icvGEMM_TransposeBlock( _a, A->step, a_buf, _a_step, a_size, elem_size );
-                            CV_SWAP( a_size.width, a_size.height, t );
+                            icvGEMM_TransposeBlock( _a, A->step, a_buf, _a_step, a_bl_size, elem_size );
+                            CV_SWAP( a_bl_size.width, a_bl_size.height, t );
                             _a = a_buf;
                         }
                 
@@ -1221,10 +1220,10 @@ cvGEMM( const CvArr* Aarr, const CvArr* Barr, double alpha,
 
                         if( dk0 < len )
                             block_mul_func( _a, _a_step, _b, _b_step, _d, _d_step,
-                                            a_size, cvSize(dj,di), flags );
+                                            a_bl_size, cvSize(dj,di), flags );
                         else
                             single_mul_func( _a, _a_step, _b, _b_step, _c, C->step, _d, _d_step,
-                                             a_size, cvSize(dj,di), alpha, beta, flags );
+                                             a_bl_size, cvSize(dj,di), alpha, beta, flags );
                         flags |= 16;
                     }
 
@@ -1252,78 +1251,185 @@ cvGEMM( const CvArr* Aarr, const CvArr* Barr, double alpha,
 *                                        cvTransform                                     *
 \****************************************************************************************/
 
-#define  ICV_DEF_TRANSFORM_CASE_C1( arrtype, temptype,              \
-                                  _cast_macro1_, _cast_macro2_ )    \
-for( i = 0; i < size.width; i++, src++, dst += dst_cn )             \
+#define  ICV_DEF_TRANSFORM_CASE_C1( arrtype, temptype, _ld_,        \
+                                   _cast_macro1_, _cast_macro2_ )   \
 {                                                                   \
-    const double* _mat = mat;                                       \
-    for( k = 0; k < dst_cn; k++, _mat += 2 )                        \
-    {                                                               \
-        temptype t0 = _cast_macro1_(_mat[0]*src[0] + _mat[1]);      \
-        dst[k] = _cast_macro2_(t0);                                 \
-    }                                                               \
-}
-
-
-#define  ICV_DEF_TRANSFORM_CASE_C2( arrtype, temptype,              \
-                                  _cast_macro1_, _cast_macro2_ )    \
-for( i = 0; i < size.width; i++, src += 2, dst += dst_cn )          \
-{                                                                   \
-    const double* _mat = mat;                                       \
-    for( k = 0; k < dst_cn; k++, _mat += 3 )                        \
-    {                                                               \
-        temptype t0 = _cast_macro1_(_mat[0]*src[0] +                \
-                                    _mat[1]*src[1] + _mat[2]);      \
-        dst[k] = _cast_macro2_(t0);                                 \
-    }                                                               \
-}
-
-
-#define  ICV_DEF_TRANSFORM_CASE_C3( arrtype, temptype,              \
-                                  _cast_macro1_, _cast_macro2_ )    \
-if( dst_cn == 3 )                                                   \
-    for( i = 0; i < size.width; i++, src += 3, dst += 3 )           \
-    {                                                               \
-        temptype t0, t1, t2;                                        \
-        t0 = _cast_macro1_(mat[0]*src[0] + mat[1]*src[1] +          \
-                           mat[2]*src[2] + mat[3]);                 \
-        t1 = _cast_macro1_(mat[4]*src[0] + mat[5]*src[1] +          \
-                           mat[6]*src[2] + mat[7]);                 \
-        t2 = _cast_macro1_(mat[8]*src[0] + mat[9]*src[1] +          \
-                           mat[10]*src[2] + mat[11]);               \
-        dst[0] = _cast_macro2_(t0);                                 \
-        dst[1] = _cast_macro2_(t1);                                 \
-        dst[2] = _cast_macro2_(t2);                                 \
-    }                                                               \
-else                                                                \
-    for( i = 0; i < size.width; i++, src += 3, dst += dst_cn )      \
+    for( i = 0; i < size.width; i++, dst += dst_cn )                \
     {                                                               \
         const double* _mat = mat;                                   \
-        for( k = 0; k < dst_cn; k++, _mat += 4 )                    \
+        double v0 = _ld_(src[i]);                                   \
+        for( k = 0; k < dst_cn; k++, _mat += 2 )                    \
         {                                                           \
-            temptype t0 = _cast_macro1_(_mat[0]*src[0] +            \
-                _mat[1]*src[1] + _mat[2]*src[2] + _mat[3]);         \
+            temptype t0 = _cast_macro1_(_mat[0]*v0 + _mat[1]);      \
+            dst[k] = _cast_macro2_(t0);                             \
+        }                                                           \
+    }                                                               \
+    src += size.width;                                              \
+}
+
+
+#define  ICV_DEF_DIAG_TRANSFORM_CASE_C1( arrtype, temptype, _ld_,   \
+                                  _cast_macro1_, _cast_macro2_ )    \
+    for( i = 0; i < size.width; i++ )                               \
+    {                                                               \
+        double ft0;                                                 \
+        temptype t0;                                                \
+        ft0 = mat[0]*_ld_(src[i]) + mat[1];                         \
+        t0 = _cast_macro1_(ft0);                                    \
+        dst[i] = _cast_macro2_(t0);                                 \
+    }
+
+
+#define  ICV_DEF_TRANSFORM_CASE_C2( arrtype, temptype, _ld_,        \
+                                  _cast_macro1_, _cast_macro2_ )    \
+if( dst_cn == 2 )                                                   \
+{                                                                   \
+    for( i = 0; i < size.width*2; i += 2 )                          \
+    {                                                               \
+        double ft0, ft1;                                            \
+        temptype t0, t1;                                            \
+        ft0 = mat[0]*_ld_(src[i]) + mat[1]*_ld_(src[i+1]) + mat[2]; \
+        ft1 = mat[3]*_ld_(src[i]) + mat[4]*_ld_(src[i+1]) + mat[5]; \
+        t0 = _cast_macro1_(ft0);                                    \
+        t1 = _cast_macro1_(ft1);                                    \
+        dst[i] = _cast_macro2_(t0);                                 \
+        dst[i+1] = _cast_macro2_(t1);                               \
+    }                                                               \
+    src += size.width*2; dst += size.width*2;                       \
+}                                                                   \
+else                                                                \
+    for( i = 0; i < size.width; i++, src += 2, dst += dst_cn )      \
+    {                                                               \
+        const double* _mat = mat;                                   \
+        double v0 = _ld_(src[0]), v1 = src[1];                      \
+        for( k = 0; k < dst_cn; k++, _mat += 3 )                    \
+        {                                                           \
+            temptype t0 =                                           \
+                _cast_macro1_(_mat[0]*v0 + _mat[1]*v1 + _mat[2]);   \
             dst[k] = _cast_macro2_(t0);                             \
         }                                                           \
     }
 
 
+#define  ICV_DEF_DIAG_TRANSFORM_CASE_C2( arrtype, temptype, _ld_,   \
+                                  _cast_macro1_, _cast_macro2_ )    \
+    for( i = 0; i < size.width*2; i += 2 )                          \
+    {                                                               \
+        double ft0, ft1;                                            \
+        temptype t0, t1;                                            \
+        ft0 = mat[0]*_ld_(src[i]) + mat[2];                         \
+        ft1 = mat[4]*_ld_(src[i+1]) + mat[5];                       \
+        t0 = _cast_macro1_(ft0);                                    \
+        t1 = _cast_macro1_(ft1);                                    \
+        dst[i] = _cast_macro2_(t0);                                 \
+        dst[i+1] = _cast_macro2_(t1);                               \
+    }
 
-#define  ICV_DEF_TRANSFORM_CASE_C4( arrtype, temptype,              \
+
+#define  ICV_DEF_TRANSFORM_CASE_C3( arrtype, temptype, _ld_,        \
+                                  _cast_macro1_, _cast_macro2_ )    \
+if( dst_cn == 3 )                                                   \
+{                                                                   \
+    for( i = 0; i < size.width*3; i += 3 )                          \
+    {                                                               \
+        double ft0, ft1, ft2;                                       \
+        temptype t0, t1, t2;                                        \
+        ft0 = mat[0]*_ld_(src[i]) + mat[1]*_ld_(src[i+1]) +         \
+              mat[2]*_ld_(src[i+2]) + mat[3];                       \
+        ft1 = mat[4]*_ld_(src[i]) + mat[5]*_ld_(src[i+1]) +         \
+              mat[6]*_ld_(src[i+2]) + mat[7];                       \
+        ft2 = mat[8]*_ld_(src[i]) + mat[9]*_ld_(src[i+1]) +         \
+              mat[10]*_ld_(src[i+2]) + mat[11];                     \
+        t0 = _cast_macro1_(ft0);                                    \
+        t1 = _cast_macro1_(ft1);                                    \
+        t2 = _cast_macro1_(ft2);                                    \
+        dst[i] = _cast_macro2_(t0);                                 \
+        dst[i+1] = _cast_macro2_(t1);                               \
+        dst[i+2] = _cast_macro2_(t2);                               \
+    }                                                               \
+    src += size.width*3; dst += size.width*3;                       \
+}                                                                   \
+else if( dst_cn == 1 )                                              \
+{                                                                   \
+    for( i = 0; i < size.width; i++, src += 3 )                     \
+    {                                                               \
+        temptype t0 = _cast_macro1_(mat[0]*_ld_(src[0]) +           \
+            mat[1]*_ld_(src[1]) + mat[2]*_ld_(src[2]) + mat[3]);    \
+        dst[i] = _cast_macro2_(t0);                                 \
+    }                                                               \
+    dst += size.width;                                              \
+}                                                                   \
+else                                                                \
+    for( i = 0; i < size.width; i++, src += 3, dst += dst_cn )      \
+    {                                                               \
+        const double* _mat = mat;                                   \
+        double v0=_ld_(src[0]), v1=_ld_(src[1]), v2=_ld_(src[2]);   \
+        for( k = 0; k < dst_cn; k++, _mat += 4 )                    \
+        {                                                           \
+            temptype t0 = _cast_macro1_(_mat[0]*v0 +                \
+                    _mat[1]*v1 + _mat[2]*v2 + _mat[3]);             \
+            dst[k] = _cast_macro2_(t0);                             \
+        }                                                           \
+    }
+
+
+#define  ICV_DEF_DIAG_TRANSFORM_CASE_C3( arrtype, temptype, _ld_,   \
+                                  _cast_macro1_, _cast_macro2_ )    \
+    for( i = 0; i < size.width*3; i += 3 )                          \
+    {                                                               \
+        double ft0, ft1, ft2;                                       \
+        temptype t0, t1, t2;                                        \
+        ft0 = mat[0]*_ld_(src[i]) + mat[3];                         \
+        ft1 = mat[5]*_ld_(src[i+1]) + mat[7];                       \
+        ft2 = mat[10]*_ld_(src[i+2]) + mat[11];                     \
+        t0 = _cast_macro1_(ft0);                                    \
+        t1 = _cast_macro1_(ft1);                                    \
+        t2 = _cast_macro1_(ft2);                                    \
+        dst[i] = _cast_macro2_(t0);                                 \
+        dst[i+1] = _cast_macro2_(t1);                               \
+        dst[i+2] = _cast_macro2_(t2);                               \
+    }
+
+
+#define  ICV_DEF_TRANSFORM_CASE_C4( arrtype, temptype, _ld_,        \
                                   _cast_macro1_, _cast_macro2_ )    \
 for( i = 0; i < size.width; i++, src += 4, dst += dst_cn )          \
 {                                                                   \
     const double* _mat = mat;                                       \
+    double v0 = _ld_(src[0]), v1 = _ld_(src[1]),                    \
+           v2 = _ld_(src[2]), v3 = _ld_(src[3]);                    \
     for( k = 0; k < dst_cn; k++, _mat += 5 )                        \
     {                                                               \
-        temptype t0 =_cast_macro1_(_mat[0]*src[0] + _mat[1]*src[1] +\
-                        _mat[2]*src[2] + _mat[3]*src[3] + _mat[4] );\
+        temptype t0 =_cast_macro1_(_mat[0]*v0+_mat[1]*v1+           \
+                                   _mat[2]*v2+_mat[3]*v3+_mat[4]);  \
         dst[k] = _cast_macro2_(t0);                                 \
     }                                                               \
 }
 
 
-#define  ICV_DEF_TRANSFORM_FUNC( flavor, arrtype, temptype,         \
+#define  ICV_DEF_DIAG_TRANSFORM_CASE_C4( arrtype, temptype, _ld_,   \
+                                  _cast_macro1_, _cast_macro2_ )    \
+    for( i = 0; i < size.width*4; i += 4 )                          \
+    {                                                               \
+        double ft0, ft1;                                            \
+        temptype t0, t1;                                            \
+        ft0 = mat[0]*_ld_(src[i]) + mat[4];                         \
+        ft1 = mat[6]*_ld_(src[i+1]) + mat[9];                       \
+        t0 = _cast_macro1_(ft0);                                    \
+        t1 = _cast_macro1_(ft1);                                    \
+        dst[i] = _cast_macro2_(t0);                                 \
+        dst[i+1] = _cast_macro2_(t1);                               \
+        ft0 = mat[12]*_ld_(src[i+2]) + mat[14];                     \
+        ft1 = mat[18]*_ld_(src[i+3]) + mat[19];                     \
+        t0 = _cast_macro1_(ft0);                                    \
+        t1 = _cast_macro1_(ft1);                                    \
+        dst[i+2] = _cast_macro2_(t0);                               \
+        dst[i+3] = _cast_macro2_(t1);                               \
+    }
+
+
+
+#define  ICV_DEF_TRANSFORM_FUNC( flavor, arrtype, temptype, _ld_,   \
                                  _cast_macro1_, _cast_macro2_, cn  )\
 static CvStatus CV_STDCALL                                          \
 icvTransform_##flavor( const arrtype* src, int srcstep,             \
@@ -1335,7 +1441,7 @@ icvTransform_##flavor( const arrtype* src, int srcstep,             \
     for( ; size.height--; src += srcstep, dst += dststep )          \
     {                                                               \
         int i, k;                                                   \
-        ICV_DEF_TRANSFORM_CASE_C##cn( arrtype, temptype,            \
+        ICV_DEF_TRANSFORM_CASE_C##cn( arrtype, temptype, _ld_,      \
                                      _cast_macro1_, _cast_macro2_ ) \
     }                                                               \
                                                                     \
@@ -1343,54 +1449,144 @@ icvTransform_##flavor( const arrtype* src, int srcstep,             \
 }
 
 
-ICV_DEF_TRANSFORM_FUNC( 8u_C1R, uchar, int, cvRound, CV_CAST_8U, 1 )
-ICV_DEF_TRANSFORM_FUNC( 8u_C2R, uchar, int, cvRound, CV_CAST_8U, 2 )
-ICV_DEF_TRANSFORM_FUNC( 8u_C3R, uchar, int, cvRound, CV_CAST_8U, 3 )
-ICV_DEF_TRANSFORM_FUNC( 8u_C4R, uchar, int, cvRound, CV_CAST_8U, 4 )
+#define  ICV_DEF_DIAG_TRANSFORM_FUNC( flavor, arrtype, temptype, _ld_, \
+                                 _cast_macro1_, _cast_macro2_, cn  )\
+static CvStatus CV_STDCALL                                          \
+icvDiagTransform_##flavor( const arrtype* src, int srcstep,         \
+                       arrtype* dst, int dststep, CvSize size,      \
+                       const double* mat )                          \
+{                                                                   \
+    srcstep /= sizeof(src[0]);                                      \
+    dststep /= sizeof(dst[0]);                                      \
+    for( ; size.height--; src += srcstep, dst += dststep )          \
+    {                                                               \
+        int i;                                                      \
+        ICV_DEF_DIAG_TRANSFORM_CASE_C##cn( arrtype, temptype, _ld_, \
+                                     _cast_macro1_, _cast_macro2_ ) \
+    }                                                               \
+                                                                    \
+    return CV_OK;                                                   \
+}
 
-ICV_DEF_TRANSFORM_FUNC( 16u_C1R, ushort, int, cvRound, CV_CAST_16U, 1 )
-ICV_DEF_TRANSFORM_FUNC( 16u_C2R, ushort, int, cvRound, CV_CAST_16U, 2 )
-ICV_DEF_TRANSFORM_FUNC( 16u_C3R, ushort, int, cvRound, CV_CAST_16U, 3 )
-ICV_DEF_TRANSFORM_FUNC( 16u_C4R, ushort, int, cvRound, CV_CAST_16U, 4 )
 
-ICV_DEF_TRANSFORM_FUNC( 16s_C1R, short, int, cvRound, CV_CAST_16S, 1 )
-ICV_DEF_TRANSFORM_FUNC( 16s_C2R, short, int, cvRound, CV_CAST_16S, 2 )
-ICV_DEF_TRANSFORM_FUNC( 16s_C3R, short, int, cvRound, CV_CAST_16S, 3 )
-ICV_DEF_TRANSFORM_FUNC( 16s_C4R, short, int, cvRound, CV_CAST_16S, 4 )
+ICV_DEF_TRANSFORM_FUNC( 8u_C1R, uchar, int, CV_8TO32F, cvRound, CV_CAST_8U, 1 )
+ICV_DEF_TRANSFORM_FUNC( 8u_C2R, uchar, int, CV_8TO32F, cvRound, CV_CAST_8U, 2 )
+ICV_DEF_TRANSFORM_FUNC( 8u_C3R, uchar, int, CV_8TO32F, cvRound, CV_CAST_8U, 3 )
+ICV_DEF_TRANSFORM_FUNC( 8u_C4R, uchar, int, CV_8TO32F, cvRound, CV_CAST_8U, 4 )
 
-ICV_DEF_TRANSFORM_FUNC( 32s_C1R, int, int, cvRound, CV_NOP, 1 )
-ICV_DEF_TRANSFORM_FUNC( 32s_C2R, int, int, cvRound, CV_NOP, 2 )
-ICV_DEF_TRANSFORM_FUNC( 32s_C3R, int, int, cvRound, CV_NOP, 3 )
-ICV_DEF_TRANSFORM_FUNC( 32s_C4R, int, int, cvRound, CV_NOP, 4 )
+ICV_DEF_TRANSFORM_FUNC( 16u_C1R, ushort, int, CV_NOP, cvRound, CV_CAST_16U, 1 )
+ICV_DEF_TRANSFORM_FUNC( 16u_C2R, ushort, int, CV_NOP, cvRound, CV_CAST_16U, 2 )
+ICV_DEF_TRANSFORM_FUNC( 16u_C3R, ushort, int, CV_NOP, cvRound, CV_CAST_16U, 3 )
+ICV_DEF_TRANSFORM_FUNC( 16u_C4R, ushort, int, CV_NOP, cvRound, CV_CAST_16U, 4 )
 
-ICV_DEF_TRANSFORM_FUNC( 32f_C1R, float, double, CV_NOP, CV_CAST_32F, 1 )
-ICV_DEF_TRANSFORM_FUNC( 32f_C2R, float, double, CV_NOP, CV_CAST_32F, 2 )
-ICV_DEF_TRANSFORM_FUNC( 32f_C3R, float, double, CV_NOP, CV_CAST_32F, 3 )
-ICV_DEF_TRANSFORM_FUNC( 32f_C4R, float, double, CV_NOP, CV_CAST_32F, 4 )
+ICV_DEF_TRANSFORM_FUNC( 16s_C1R, short, int, CV_NOP, cvRound, CV_CAST_16S, 1 )
+ICV_DEF_TRANSFORM_FUNC( 16s_C2R, short, int, CV_NOP, cvRound, CV_CAST_16S, 2 )
+ICV_DEF_TRANSFORM_FUNC( 16s_C3R, short, int, CV_NOP, cvRound, CV_CAST_16S, 3 )
+ICV_DEF_TRANSFORM_FUNC( 16s_C4R, short, int, CV_NOP, cvRound, CV_CAST_16S, 4 )
 
-ICV_DEF_TRANSFORM_FUNC( 64f_C1R, double, double, CV_NOP, CV_CAST_64F, 1 )
-ICV_DEF_TRANSFORM_FUNC( 64f_C2R, double, double, CV_NOP, CV_CAST_64F, 2 )
-ICV_DEF_TRANSFORM_FUNC( 64f_C3R, double, double, CV_NOP, CV_CAST_64F, 3 )
-ICV_DEF_TRANSFORM_FUNC( 64f_C4R, double, double, CV_NOP, CV_CAST_64F, 4 )
+ICV_DEF_TRANSFORM_FUNC( 32s_C1R, int, int, CV_NOP, cvRound, CV_NOP, 1 )
+ICV_DEF_TRANSFORM_FUNC( 32s_C2R, int, int, CV_NOP, cvRound, CV_NOP, 2 )
+ICV_DEF_TRANSFORM_FUNC( 32s_C3R, int, int, CV_NOP, cvRound, CV_NOP, 3 )
+ICV_DEF_TRANSFORM_FUNC( 32s_C4R, int, int, CV_NOP, cvRound, CV_NOP, 4 )
+
+ICV_DEF_TRANSFORM_FUNC( 32f_C1R, float, double, CV_NOP, CV_NOP, CV_CAST_32F, 1 )
+ICV_DEF_TRANSFORM_FUNC( 32f_C2R, float, double, CV_NOP, CV_NOP, CV_CAST_32F, 2 )
+ICV_DEF_TRANSFORM_FUNC( 32f_C3R, float, double, CV_NOP, CV_NOP, CV_CAST_32F, 3 )
+ICV_DEF_TRANSFORM_FUNC( 32f_C4R, float, double, CV_NOP, CV_NOP, CV_CAST_32F, 4 )
+
+ICV_DEF_TRANSFORM_FUNC( 64f_C1R, double, double, CV_NOP, CV_NOP, CV_CAST_64F, 1 )
+ICV_DEF_TRANSFORM_FUNC( 64f_C2R, double, double, CV_NOP, CV_NOP, CV_CAST_64F, 2 )
+ICV_DEF_TRANSFORM_FUNC( 64f_C3R, double, double, CV_NOP, CV_NOP, CV_CAST_64F, 3 )
+ICV_DEF_TRANSFORM_FUNC( 64f_C4R, double, double, CV_NOP, CV_NOP, CV_CAST_64F, 4 )
+
+ICV_DEF_DIAG_TRANSFORM_FUNC( 16u_C1R, ushort, int, CV_NOP, cvRound, CV_CAST_16U, 1 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 16u_C2R, ushort, int, CV_NOP, cvRound, CV_CAST_16U, 2 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 16u_C3R, ushort, int, CV_NOP, cvRound, CV_CAST_16U, 3 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 16u_C4R, ushort, int, CV_NOP, cvRound, CV_CAST_16U, 4 )
+
+ICV_DEF_DIAG_TRANSFORM_FUNC( 16s_C1R, short, int, CV_NOP, cvRound, CV_CAST_16S, 1 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 16s_C2R, short, int, CV_NOP, cvRound, CV_CAST_16S, 2 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 16s_C3R, short, int, CV_NOP, cvRound, CV_CAST_16S, 3 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 16s_C4R, short, int, CV_NOP, cvRound, CV_CAST_16S, 4 )
+
+ICV_DEF_DIAG_TRANSFORM_FUNC( 32s_C1R, int, int, CV_NOP, cvRound, CV_NOP, 1 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 32s_C2R, int, int, CV_NOP, cvRound, CV_NOP, 2 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 32s_C3R, int, int, CV_NOP, cvRound, CV_NOP, 3 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 32s_C4R, int, int, CV_NOP, cvRound, CV_NOP, 4 )
+
+ICV_DEF_DIAG_TRANSFORM_FUNC( 32f_C1R, float, double, CV_NOP, CV_NOP, CV_CAST_32F, 1 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 32f_C2R, float, double, CV_NOP, CV_NOP, CV_CAST_32F, 2 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 32f_C3R, float, double, CV_NOP, CV_NOP, CV_CAST_32F, 3 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 32f_C4R, float, double, CV_NOP, CV_NOP, CV_CAST_32F, 4 )
+
+ICV_DEF_DIAG_TRANSFORM_FUNC( 64f_C1R, double, double, CV_NOP, CV_NOP, CV_CAST_64F, 1 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 64f_C2R, double, double, CV_NOP, CV_NOP, CV_CAST_64F, 2 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 64f_C3R, double, double, CV_NOP, CV_NOP, CV_CAST_64F, 3 )
+ICV_DEF_DIAG_TRANSFORM_FUNC( 64f_C4R, double, double, CV_NOP, CV_NOP, CV_CAST_64F, 4 )
 
 #define icvTransform_8s_C1R 0
 #define icvTransform_8s_C2R 0
 #define icvTransform_8s_C3R 0
 #define icvTransform_8s_C4R 0
 
+#define icvDiagTransform_8s_C1R 0
+#define icvDiagTransform_8s_C2R 0
+#define icvDiagTransform_8s_C3R 0
+#define icvDiagTransform_8s_C4R 0
+
+#define icvDiagTransform_8u_C1R 0
+#define icvDiagTransform_8u_C2R 0
+#define icvDiagTransform_8u_C3R 0
+#define icvDiagTransform_8u_C4R 0
+
 CV_DEF_INIT_BIG_FUNC_TAB_2D( Transform, R )
+CV_DEF_INIT_BIG_FUNC_TAB_2D( DiagTransform, R )
 
 typedef CvStatus (CV_STDCALL * CvTransformFunc)(
                        const void* src, int srcstep,
                        void* dst, int dststep, CvSize size,
                        const void* mat, int dst_cn );
 
+typedef CvStatus (CV_STDCALL * CvDiagTransformFunc)(
+                       const void* src, int srcstep,
+                       void* dst, int dststep, CvSize size,
+                       const void* mat );
+
+typedef CvStatus (CV_STDCALL * CvDiagTransformFunc)(
+                       const void* src, int srcstep,
+                       void* dst, int dststep, CvSize size,
+                       const void* mat );
+
+///////////////////// IPP transform functions //////////////////
+
+icvColorTwist_8u_C3R_t icvColorTwist_8u_C3R_p = 0;
+icvColorTwist_16u_C3R_t icvColorTwist_16u_C3R_p = 0;
+icvColorTwist_16s_C3R_t icvColorTwist_16s_C3R_p = 0;
+icvColorTwist_32f_C3R_t icvColorTwist_32f_C3R_p = 0;
+icvColorTwist_32f_C4R_t icvColorTwist_32f_C4R_p = 0;
+
+icvColorToGray_8u_C3C1R_t icvColorToGray_8u_C3C1R_p = 0;
+icvColorToGray_16u_C3C1R_t icvColorToGray_16u_C3C1R_p = 0;
+icvColorToGray_16s_C3C1R_t icvColorToGray_16s_C3C1R_p = 0;
+icvColorToGray_32f_C3C1R_t icvColorToGray_32f_C3C1R_p = 0;
+
+icvColorToGray_8u_AC4C1R_t icvColorToGray_8u_AC4C1R_p = 0;
+icvColorToGray_16u_AC4C1R_t icvColorToGray_16u_AC4C1R_p = 0;
+icvColorToGray_16s_AC4C1R_t icvColorToGray_16s_AC4C1R_p = 0;
+icvColorToGray_32f_AC4C1R_t icvColorToGray_32f_AC4C1R_p = 0;
+
+typedef CvStatus (CV_STDCALL * CvColorTwistIPPFunc)( const void* src, int srcstep,
+                        void* dst, int dststep, CvSize size, const float* coeffs );
+
+////////////////////////////////////////////////////////////////
+
 CV_IMPL void
 cvTransform( const CvArr* srcarr, CvArr* dstarr,
              const CvMat* transmat, const CvMat* shiftvec )
 {
-    static CvBigFuncTable transform_tab;
+    static CvBigFuncTable transform_tab, diag_transform_tab;
     static int inittab = 0;
+    CvMat* lut = 0;
     
     CV_FUNCNAME( "cvTransform" );
 
@@ -1410,6 +1606,7 @@ cvTransform( const CvArr* srcarr, CvArr* dstarr,
     if( !inittab )
     {
         icvInitTransformRTable( &transform_tab );
+        icvInitDiagTransformRTable( &diag_transform_tab );
         inittab = 1;
     }
 
@@ -1442,8 +1639,8 @@ cvTransform( const CvArr* srcarr, CvArr* dstarr,
         if( !src_seq )
         {
             if( CV_IS_MAT_CONT(src->type) || src->rows != 1 && src->cols != 1 )
-                CV_ERROR( CV_StsBadSize, "if destination is a sequence, "
-                "source must be a sequence or 1d continous vector" );
+                CV_ERROR( CV_StsBadSize, "if eigher the source or destination is a sequence, "
+                "the other array must be also a sequence of continous 1d vector" );
             src_seq = cvMakeSeqHeaderForArray( CV_MAT_TYPE(src->type), sizeof(hdr),
                                        CV_ELEM_SIZE(src->type), src->data.ptr,
                                        src->rows + src->cols + 1, &hdr, &block_hdr );
@@ -1452,8 +1649,8 @@ cvTransform( const CvArr* srcarr, CvArr* dstarr,
         if( !dst_seq )
         {
             if( CV_IS_MAT_CONT(dst->type) || dst->rows != 1 && dst->cols != 1 )
-                CV_ERROR( CV_StsBadSize, "if destination is a sequence, "
-                "source must be a sequence or 1d continous vector" );
+                CV_ERROR( CV_StsBadSize, "if eigher the source or destination is a sequence, "
+                "the other array must be also a sequence of continous 1d vector" );
             if( dst->rows + dst->cols - 1 != src_seq->total )
                 CV_ERROR( CV_StsUnmatchedFormats,
                 "source sequence and destination vector have different sizes" );
@@ -1547,21 +1744,124 @@ cvTransform( const CvArr* srcarr, CvArr* dstarr,
 
     {
         CvTransformFunc func = (CvTransformFunc)(transform_tab.fn_2d[type]);
+        CvDiagTransformFunc diag_func = 0;
+        CvLUT_TransformFunc lut_func = 0;
+        int diag_transform = 0;
+        CvColorTwistIPPFunc ipp_func = 0;
         CvSize size;
+        float* ipp_coeffs = (float*)cvStackAlloc( 16*sizeof(ipp_coeffs[0]) );
 
         if( !func )
             CV_ERROR( CV_StsUnsupportedFormat, "" );
 
+        if( cn == dst_cn )
+            ipp_func = type == CV_8UC3 ? icvColorTwist_8u_C3R_p :
+                       type == CV_16UC3 ? icvColorTwist_16u_C3R_p :
+                       type == CV_16SC3 ? icvColorTwist_16s_C3R_p :
+                       type == CV_32FC3 ? icvColorTwist_32f_C3R_p :
+                       type == CV_32FC4 && fabs(buffer[4]) < DBL_EPSILON &&
+                       fabs(buffer[9]) < DBL_EPSILON && fabs(buffer[14]) < DBL_EPSILON &&
+                       fabs(buffer[19]) < DBL_EPSILON ? icvColorTwist_32f_C4R_p : 0;
+        else if( dst_cn == 1 && (cn == 3 || cn == 4) &&
+                 buffer[0] >= 0 && buffer[1] >= 0 && buffer[2] >= 0 &&
+                 buffer[0] + buffer[1] + buffer[2] <= 1.01 &&
+                 fabs(buffer[3]) < DBL_EPSILON && (cn == 3 || fabs(buffer[4]) < DBL_EPSILON) )
+        {
+            if( cn == 3 )
+                ipp_func = type == CV_8UC3 ? icvColorToGray_8u_C3C1R_p :
+                           type == CV_16UC3 ? icvColorToGray_16u_C3C1R_p :
+                           type == CV_16SC3 ? icvColorToGray_16s_C3C1R_p :
+                           type == CV_32FC3 ? icvColorToGray_32f_C3C1R_p : 0;
+            else
+                ipp_func = type == CV_8UC4 ? icvColorToGray_8u_AC4C1R_p :
+                           type == CV_16UC4 ? icvColorToGray_16u_AC4C1R_p :
+                           type == CV_16SC4 ? icvColorToGray_16s_AC4C1R_p :
+                           type == CV_32FC4 ? icvColorToGray_32f_AC4C1R_p : 0;
+        }
+
+        if( dst_cn == cn )
+        {
+            diag_transform = 1;
+            for( i = 0; i < dst_cn; i++ )
+                for( j = 0; j < cn; j++ )
+                {
+                    if( i != j && fabs(buffer[i*(cn+1) + j]) > DBL_EPSILON )
+                    {
+                        diag_transform = 0;
+                        break;
+                    }
+                }
+            
+            if( diag_transform )
+            {
+                if( CV_MAT_DEPTH(type) == CV_8U )
+                {
+                    CV_CALL( lut = cvCreateMat( 1, 256, type ));
+                    for( i = 0; i < cn; i++ )
+                    {
+                        double a = buffer[i*(cn+1) + i], b = buffer[i*(cn+1) + cn];
+                        uchar* ltab = lut->data.ptr;
+                        for( j = 0; j < 256; j++ )
+                        {
+                            int t = cvRound(a*j + b);
+                            ltab[j*cn + i] = CV_CAST_8U(t);
+                        }
+                    }
+                    lut_func = cn == 1 ? icvLUT_Transform8u_8u_C1R :
+                               cn == 2 ? icvLUT_Transform8u_8u_C2R :
+                               cn == 3 ? icvLUT_Transform8u_8u_C3R :
+                               icvLUT_Transform8u_8u_C4R;
+                }
+                else
+                    diag_func = (CvDiagTransformFunc)(diag_transform_tab.fn_2d[type]);
+            }
+        }
+
+        if( ipp_func )
+        {
+            const double* ptr = buffer;
+
+            // fill cn x 4 ipp_coeffs array
+            for( i = 0; i < cn*4; i += 4, ptr += cn+1 )
+            {
+                float t0 = (float)ptr[0];
+                float t1 = (float)ptr[1];
+                ipp_coeffs[i] = t0;
+                ipp_coeffs[i+1] = t1;
+                t0 = (float)ptr[2];
+                t1 = (float)ptr[3];
+                ipp_coeffs[i+2] = t0;
+                ipp_coeffs[i+3] = t1;
+            }
+        }
+
         if( !src_seq )
         {
+            int srcstep = src->step;
+            int dststep = dst->step;
             size = cvGetMatSize( src );
+            
             if( CV_IS_MAT_CONT( src->type & dst->type ))
             {
                 size.width *= size.height;
                 size.height = 1;
+                srcstep = dststep = CV_STUB_STEP;
             }
-            IPPI_CALL( func( src->data.ptr, src->step, dst->data.ptr,
-                             dst->step, size, buffer, dst_cn ));
+            
+            if( lut_func )
+                lut_func( src->data.ptr, src->step, dst->data.ptr,
+                          dst->step, size, lut->data.ptr );
+            else if( ipp_func )
+            {
+                IPPI_CALL( ipp_func( src->data.ptr, srcstep, dst->data.ptr,
+                                     dststep, size, ipp_coeffs ));
+            }
+            else if( diag_transform )
+                diag_func( src->data.ptr, src->step, dst->data.ptr,
+                           dst->step, size, buffer );
+            else
+                func( src->data.ptr, src->step, dst->data.ptr,
+                      dst->step, size, buffer, dst_cn );
         }
         else
         {
@@ -1575,11 +1875,25 @@ cvTransform( const CvArr* srcarr, CvArr* dstarr,
             {
                 int src_len = src_block->count - src_idx;
                 int dst_len = dst_block->count - dst_idx;
-
+                const void* srcptr = src_block->data + src_idx*src_elem_size;
+                void* dstptr = dst_block->data + dst_idx*dst_elem_size;
                 src_len = MIN(src_len, dst_len);
-                IPPI_CALL( func( src_block->data + src_idx*src_elem_size, CV_STUB_STEP,
-                                 dst_block->data + dst_idx*dst_elem_size, CV_STUB_STEP,
-                                 cvSize( src_len, 1 ), buffer, dst_cn ));
+
+                if( lut_func )
+                    lut_func( srcptr, CV_STUB_STEP, dstptr, CV_STUB_STEP,
+                              cvSize( src_len, 1 ), lut->data.ptr );
+                else if( ipp_func )
+                {
+                    IPPI_CALL( ipp_func( srcptr, CV_STUB_STEP, dstptr, CV_STUB_STEP,
+                                         cvSize( src_len, 1 ), ipp_coeffs ));
+                }
+                else if( diag_transform )
+                    diag_func( srcptr, CV_STUB_STEP, dstptr, CV_STUB_STEP,
+                               cvSize( src_len, 1 ), buffer );
+                else
+                    func( srcptr, CV_STUB_STEP, dstptr, CV_STUB_STEP,
+                          cvSize( src_len, 1 ), buffer, dst_cn );
+
                 if( (src_idx += src_len) == src_block->count )
                     src_block = src_block->next, src_idx = 0;
                 if( (dst_idx += src_len) == dst_block->count )
@@ -1590,6 +1904,8 @@ cvTransform( const CvArr* srcarr, CvArr* dstarr,
     }
 
     __END__;
+
+    cvReleaseMat( &lut );
 }
 
 
@@ -2179,7 +2495,7 @@ cvCalcCovarMatrix( const CvArr** vecarr, int count,
     }
     else if( count != cov->rows )
         CV_ERROR( CV_StsUnmatchedSizes,
-        "The number of vectors does not Passed vector count and covariance matrix size do not match" );
+        "The vector count and covariance matrix size do not match" );
 
     CV_CALL( vecdata = (vec_data*)cvAlloc( count*sizeof(vecdata[0])));
 
@@ -2781,11 +3097,10 @@ cvMulTransposed( const CvArr* srcarr, CvArr* dstarr,
 \****************************************************************************************/
 
 #define ICV_DEF_DOT_PROD_FUNC_2D( flavor, arrtype, temptype, sumtype )  \
-IPCVAPI_IMPL( CvStatus,                                                 \
-icvDotProduct_##flavor##_C1R, ( const arrtype* src1, int step1,         \
-                                const arrtype* src2, int step2,         \
-                                CvSize size, sumtype* _sum ),           \
-                                (src1, step1, src2, step2, size, _sum) )\
+static CvStatus CV_STDCALL                                              \
+icvDotProduct_##flavor##_C1R( const arrtype* src1, int step1,           \
+                              const arrtype* src2, int step2,           \
+                              CvSize size, sumtype* _sum )              \
 {                                                                       \
     sumtype sum = 0;                                                    \
                                                                         \

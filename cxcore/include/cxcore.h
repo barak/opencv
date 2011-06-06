@@ -47,28 +47,24 @@
 #define HAVE_IPL
 #endif
 
-#if defined(_CH_)
-#pragma package <opencv>
-#include <chdl.h>
-LOAD_CHDL_CODE(cv,Cv)
-#endif
-
-#if defined HAVE_IPL && !defined __IPL_H__
-#ifndef _INC_WINDOWS
-    #define CV_PRETEND_WINDOWS
-    #define _INC_WINDOWS
-    typedef struct tagBITMAPINFOHEADER BITMAPINFOHEADER;
-    typedef int BOOL;
-#endif
-#if defined WIN32 || defined WIN64
-#include "ipl.h"
-#else
-#include "ipl/ipl.h"
-#endif
-#ifdef CV_PRETEND_WINDOWS
-    #undef _INC_WINDOWS
-#endif
-#endif
+#ifndef SKIP_INCLUDES
+  #if defined HAVE_IPL && !defined __IPL_H__
+    #ifndef _INC_WINDOWS
+        #define CV_PRETEND_WINDOWS
+        #define _INC_WINDOWS
+        typedef struct tagBITMAPINFOHEADER BITMAPINFOHEADER;
+        typedef int BOOL;
+    #endif
+    #if defined WIN32 || defined WIN64
+      #include "ipl.h"
+    #else
+      #include "ipl/ipl.h"
+    #endif
+    #ifdef CV_PRETEND_WINDOWS
+        #undef _INC_WINDOWS
+    #endif
+  #endif
+#endif // SKIP_INCLUDES
 
 #include "cxtypes.h"
 #include "cxerror.h"
@@ -150,7 +146,6 @@ CVAPI(void)  cvReleaseMat( CvMat** mat );
 
 /* Decrements CvMat data reference counter and deallocates the data if
    it reaches 0 */
-CV_INLINE  void  cvDecRefData( CvArr* arr );
 CV_INLINE  void  cvDecRefData( CvArr* arr )
 {
     if( CV_IS_MAT( arr ) || CV_IS_MATND( arr ))
@@ -164,7 +159,6 @@ CV_INLINE  void  cvDecRefData( CvArr* arr )
 }
 
 /* Increments CvMat data reference counter */
-CV_INLINE  int  cvIncRefData( CvArr* arr );
 CV_INLINE  int  cvIncRefData( CvArr* arr )
 {
     int refcount = 0;
@@ -193,7 +187,6 @@ CVAPI(CvMat*) cvGetRows( const CvArr* arr, CvMat* submat,
                         int start_row, int end_row,
                         int delta_row CV_DEFAULT(1));
 
-CV_INLINE  CvMat*  cvGetRow( const CvArr* arr, CvMat* submat, int row );
 CV_INLINE  CvMat*  cvGetRow( const CvArr* arr, CvMat* submat, int row )
 {
     return cvGetRows( arr, submat, row, row + 1, 1 );
@@ -205,7 +198,6 @@ CV_INLINE  CvMat*  cvGetRow( const CvArr* arr, CvMat* submat, int row )
 CVAPI(CvMat*) cvGetCols( const CvArr* arr, CvMat* submat,
                         int start_col, int end_col );
 
-CV_INLINE  CvMat*  cvGetCol( const CvArr* arr, CvMat* submat, int col );
 CV_INLINE  CvMat*  cvGetCol( const CvArr* arr, CvMat* submat, int col )
 {
     return cvGetCols( arr, submat, col, col + 1 );
@@ -235,7 +227,6 @@ CVAPI(CvMatND*)  cvInitMatNDHeader( CvMatND* mat, int dims, const int* sizes,
                                     int type, void* data CV_DEFAULT(NULL) );
 
 /* Releases CvMatND */
-CV_INLINE  void  cvReleaseMatND( CvMatND** mat );
 CV_INLINE  void  cvReleaseMatND( CvMatND** mat )
 {
     cvReleaseMat( (CvMat**)mat );
@@ -259,7 +250,6 @@ CVAPI(CvSparseNode*) cvInitSparseMatIterator( const CvSparseMat* mat,
                                               CvSparseMatIterator* mat_iterator );
 
 // returns next sparse array node (or NULL if there is no more nodes)
-CV_INLINE CvSparseNode* cvGetNextSparseNode( CvSparseMatIterator* mat_iterator );
 CV_INLINE CvSparseNode* cvGetNextSparseNode( CvSparseMatIterator* mat_iterator )
 {
     if( mat_iterator->node->next )
@@ -505,9 +495,7 @@ CVAPI(void)  cvSub( const CvArr* src1, const CvArr* src2, CvArr* dst,
 
 /* dst(mask) = src(mask) - value = src(mask) + (-value) */
 CV_INLINE  void  cvSubS( const CvArr* src, CvScalar value, CvArr* dst,
-                         const CvArr* mask CV_DEFAULT(NULL));
-CV_INLINE  void  cvSubS( const CvArr* src, CvScalar value, CvArr* dst,
-                         const CvArr* mask )
+                         const CvArr* mask CV_DEFAULT(NULL))
 {
     cvAddS( src, cvScalar( -value.val[0], -value.val[1], -value.val[2], -value.val[3]),
             dst, mask );
@@ -663,6 +651,9 @@ CVAPI(int)  cvCheckArr( const CvArr* arr, int flags CV_DEFAULT(0),
 CVAPI(void) cvRandArr( CvRNG* rng, CvArr* arr, int dist_type,
                       CvScalar param1, CvScalar param2 );
 
+/* Finds real roots of a cubic equation */
+CVAPI(int) cvSolveCubic( const CvMat* coeffs, CvMat* roots );
+
 /****************************************************************************************\
 *                                Matrix operations                                       *
 \****************************************************************************************/
@@ -817,7 +808,7 @@ CVAPI(double)  cvNorm( const CvArr* arr1, const CvArr* arr2 CV_DEFAULT(NULL),
                        const CvArr* mask CV_DEFAULT(NULL) );
 
 /****************************************************************************************\
-*                                 Discrete Linear Transforms                             *
+*                      Discrete Linear Transforms and Related Functions                  *
 \****************************************************************************************/
 
 #define CV_DXT_FORWARD  0
@@ -832,12 +823,16 @@ CVAPI(double)  cvNorm( const CvArr* arr1, const CvArr* arr2 CV_DEFAULT(NULL),
     complex->complex,
     real->ccs (forward),
     ccs->real (inverse) */
-CVAPI(void)  cvDFT( const CvArr* src, CvArr* dst, int flags );
+CVAPI(void)  cvDFT( const CvArr* src, CvArr* dst, int flags,
+                    int nonzero_rows CV_DEFAULT(0) );
 #define cvFFT cvDFT
 
 /* Multiply results of DFTs: DFT(X)*DFT(Y) or DFT(X)*conj(DFT(Y)) */
 CVAPI(void)  cvMulSpectrums( const CvArr* src1, const CvArr* src2,
                              CvArr* dst, int flags );
+
+/* Finds optimal DFT vector size >= size0 */
+CVAPI(int)  cvGetOptimalDFTSize( int size0 );
 
 /* Discrete Cosine Transform */
 CVAPI(void)  cvDCT( const CvArr* src, CvArr* dst, int flags );
@@ -996,8 +991,7 @@ CVAPI(CvSeq*) cvSeqSlice( const CvSeq* seq, CvSlice slice,
                          CvMemStorage* storage CV_DEFAULT(NULL),
                          int copy_data CV_DEFAULT(0));
 
-CV_INLINE CvSeq* cvCloneSeq( const CvSeq* seq, CvMemStorage* storage CV_DEFAULT(NULL));
-CV_INLINE CvSeq* cvCloneSeq( const CvSeq* seq, CvMemStorage* storage )
+CV_INLINE CvSeq* cvCloneSeq( const CvSeq* seq, CvMemStorage* storage CV_DEFAULT(NULL))
 {
     return cvSeqSlice( seq, CV_WHOLE_SEQ, storage, 1 );
 }
@@ -1040,7 +1034,6 @@ CVAPI(int)  cvSetAdd( CvSet* set_header, CvSetElem* elem CV_DEFAULT(NULL),
                       CvSetElem** inserted_elem CV_DEFAULT(NULL) );
 
 /* Fast variant of cvSetAdd */
-CV_INLINE  CvSetElem* cvSetNew( CvSet* set_header );
 CV_INLINE  CvSetElem* cvSetNew( CvSet* set_header )
 {
     CvSetElem* elem = set_header->free_elems;
@@ -1056,7 +1049,6 @@ CV_INLINE  CvSetElem* cvSetNew( CvSet* set_header )
 }
 
 /* Removes set element given its pointer */
-CV_INLINE  void cvSetRemoveByPtr( CvSet* set_header, void* elem );
 CV_INLINE  void cvSetRemoveByPtr( CvSet* set_header, void* elem )
 {
     CvSetElem* _elem = (CvSetElem*)elem;
@@ -1072,7 +1064,6 @@ CVAPI(void)   cvSetRemove( CvSet* set_header, int index );
 
 /* Returns a set element by index. If the element doesn't belong to the set,
    NULL is returned */
-CV_INLINE CvSetElem* cvGetSetElem( const CvSet* set_header, int index );
 CV_INLINE CvSetElem* cvGetSetElem( const CvSet* set_header, int index )
 {
     CvSetElem* elem = (CvSetElem*)cvGetSeqElem( (CvSeq*)set_header, index );
@@ -1204,7 +1195,7 @@ CVAPI(CvGraph*) cvCloneGraph( const CvGraph* graph, CvMemStorage* storage );
 *       All the functions include parameter color that means rgb value (that may be      *
 *       constructed with CV_RGB macro) for color images and brightness                   *
 *       for grayscale images.                                                            *
-*       If a drawn figure is partially or completely outside the image, it is clipped.   *
+*       If a drawn figure is partially or completely outside of the image, it is clipped.*
 \****************************************************************************************/
 
 #define CV_RGB( r, g, b )  cvScalar( (b), (g), (r), 0 )
@@ -1240,9 +1231,7 @@ CVAPI(void)  cvEllipse( CvArr* img, CvPoint center, CvSize axes,
 
 CV_INLINE  void  cvEllipseBox( CvArr* img, CvBox2D box, CvScalar color,
                                int thickness CV_DEFAULT(1),
-                               int line_type CV_DEFAULT(8), int shift CV_DEFAULT(0) );
-CV_INLINE  void  cvEllipseBox( CvArr* img, CvBox2D box, CvScalar color,
-                               int thickness, int line_type, int shift )
+                               int line_type CV_DEFAULT(8), int shift CV_DEFAULT(0) )
 {
     CvSize axes;
     axes.width = cvRound(box.size.height*0.5);
@@ -1264,6 +1253,30 @@ CVAPI(void)  cvFillPoly( CvArr* img, CvPoint** pts, int* npts, int contours, CvS
 CVAPI(void)  cvPolyLine( CvArr* img, CvPoint** pts, int* npts, int contours,
                          int is_closed, CvScalar color, int thickness CV_DEFAULT(1),
                          int line_type CV_DEFAULT(8), int shift CV_DEFAULT(0) );
+
+/* Clips the line segment connecting *pt1 and *pt2
+   by the rectangular window
+   (0<=x<img_size.width, 0<=y<img_size.height). */
+CVAPI(int) cvClipLine( CvSize img_size, CvPoint* pt1, CvPoint* pt2 );
+
+/* Initializes line iterator. Initially, line_iterator->ptr will point
+   to pt1 (or pt2, see left_to_right description) location in the image.
+   Returns the number of pixels on the line between the ending points. */
+CVAPI(int)  cvInitLineIterator( const CvArr* image, CvPoint pt1, CvPoint pt2,
+                                CvLineIterator* line_iterator,
+                                int connectivity CV_DEFAULT(8),
+                                int left_to_right CV_DEFAULT(0));
+
+/* Moves iterator to the next line point */
+#define CV_NEXT_LINE_POINT( line_iterator )                     \
+{                                                               \
+    int _line_iterator_mask = (line_iterator).err < 0 ? -1 : 0; \
+    (line_iterator).err += (line_iterator).minus_delta +        \
+        ((line_iterator).plus_delta & _line_iterator_mask);     \
+    (line_iterator).ptr += (line_iterator).minus_step +         \
+        ((line_iterator).plus_step & _line_iterator_mask);      \
+}
+
 
 /* basic font types */
 #define CV_FONT_HERSHEY_SIMPLEX         0
@@ -1316,11 +1329,21 @@ CVAPI(void)  cvGetTextSize( const char* text_string, const CvFont* font,
    of destination scalar are set to the same value = <color> */
 CVAPI(CvScalar)  cvColorToScalar( double packed_color, int arrtype );
 
+/* Returns the polygon points which make up the given ellipse.  The ellipse is define by
+   the box of size 'axes' rotated 'angle' around the 'center'.  A partial sweep
+   of the ellipse arc can be done by spcifying arc_start and arc_end to be something
+   other than 0 and 360, respectively.  The input array 'pts' must be large enough to
+   hold the result.  The total number of points stored into 'pts' is returned by this
+   function. */
+CVAPI(int) cvEllipse2Poly( CvPoint center, CvSize axes,
+                 int angle, int arc_start, int arc_end, CvPoint * pts, int delta );
+
 /* Draws contour outlines or filled interiors on the image */
 CVAPI(void)  cvDrawContours( CvArr *img, CvSeq* contour,
                             CvScalar external_color, CvScalar hole_color,
                             int max_level, int thickness CV_DEFAULT(1),
-                            int line_type CV_DEFAULT(8));
+                            int line_type CV_DEFAULT(8),
+                            CvPoint offset CV_DEFAULT(cvPoint(0,0)));
 
 /* Does look-up transformation. Elements of the source array
    (that should be 8uC1 or 8sC1) are used as indexes in lutarr 256-element table */
@@ -1531,8 +1554,7 @@ CVAPI(CvFileNode*) cvGetFileNodeByName( const CvFileStorage* fs,
                                        const CvFileNode* map,
                                        const char* name );
 
-CV_INLINE int cvReadInt( const CvFileNode* node, int default_value CV_DEFAULT(0) );
-CV_INLINE int cvReadInt( const CvFileNode* node, int default_value )
+CV_INLINE int cvReadInt( const CvFileNode* node, int default_value CV_DEFAULT(0) )
 {
     return !node ? default_value :
         CV_NODE_IS_INT(node->tag) ? node->data.i :
@@ -1541,16 +1563,13 @@ CV_INLINE int cvReadInt( const CvFileNode* node, int default_value )
 
 
 CV_INLINE int cvReadIntByName( const CvFileStorage* fs, const CvFileNode* map,
-                         const char* name, int default_value CV_DEFAULT(0) );
-CV_INLINE int cvReadIntByName( const CvFileStorage* fs, const CvFileNode* map,
-                         const char* name, int default_value )
+                         const char* name, int default_value CV_DEFAULT(0) )
 {
     return cvReadInt( cvGetFileNodeByName( fs, map, name ), default_value );
 }
 
 
-CV_INLINE double cvReadReal( const CvFileNode* node, double default_value CV_DEFAULT(0.) );
-CV_INLINE double cvReadReal( const CvFileNode* node, double default_value )
+CV_INLINE double cvReadReal( const CvFileNode* node, double default_value CV_DEFAULT(0.) )
 {
     return !node ? default_value :
         CV_NODE_IS_INT(node->tag) ? (double)node->data.i :
@@ -1559,27 +1578,21 @@ CV_INLINE double cvReadReal( const CvFileNode* node, double default_value )
 
 
 CV_INLINE double cvReadRealByName( const CvFileStorage* fs, const CvFileNode* map,
-                        const char* name, double default_value CV_DEFAULT(0.) );
-CV_INLINE double cvReadRealByName( const CvFileStorage* fs, const CvFileNode* map,
-                        const char* name, double default_value )
+                        const char* name, double default_value CV_DEFAULT(0.) )
 {
     return cvReadReal( cvGetFileNodeByName( fs, map, name ), default_value );
 }
 
 
 CV_INLINE const char* cvReadString( const CvFileNode* node,
-                        const char* default_value CV_DEFAULT(NULL) );
-CV_INLINE const char* cvReadString( const CvFileNode* node,
-                        const char* default_value )
+                        const char* default_value CV_DEFAULT(NULL) )
 {
     return !node ? default_value : CV_NODE_IS_STRING(node->tag) ? node->data.str.ptr : 0;
 }
 
 
 CV_INLINE const char* cvReadStringByName( const CvFileStorage* fs, const CvFileNode* map,
-                        const char* name, const char* default_value CV_DEFAULT(NULL) );
-CV_INLINE const char* cvReadStringByName( const CvFileStorage* fs, const CvFileNode* map,
-                        const char* name, const char* default_value )
+                        const char* name, const char* default_value CV_DEFAULT(NULL) )
 {
     return cvReadString( cvGetFileNodeByName( fs, map, name ), default_value );
 }
@@ -1591,9 +1604,7 @@ CVAPI(void*) cvRead( CvFileStorage* fs, CvFileNode* node,
 
 /* decodes standard or user-defined object and returns it */
 CV_INLINE void* cvReadByName( CvFileStorage* fs, const CvFileNode* map,
-                              const char* name, CvAttrList* attributes CV_DEFAULT(NULL) );
-CV_INLINE void* cvReadByName( CvFileStorage* fs, const CvFileNode* map,
-                              const char* name, CvAttrList* attributes )
+                              const char* name, CvAttrList* attributes CV_DEFAULT(NULL) )
 {
     return cvRead( fs, cvGetFileNodeByName( fs, map, name ), attributes );
 }

@@ -119,7 +119,7 @@ icvApproximateChainTC89( CvChain*               chain,
        that have zero 1-curvature */
     for( i = 0; i < count; i++ )
     {
-        int s, prev_code = *reader.prev_elem;
+        int prev_code = *reader.prev_elem;
 
         reader.prev_elem = reader.ptr;
         CV_READ_CHAIN_POINT( pt, reader );
@@ -162,7 +162,7 @@ icvApproximateChainTC89( CvChain*               chain,
         CvPoint pt0;
         int k, l = 0, d_num = 0;
 
-        i = current - array;
+        i = (int)(current - array);
         pt0 = array[i].pt;
 
         /* determine support region */
@@ -208,9 +208,8 @@ icvApproximateChainTC89( CvChain*               chain,
             for( j = k, s = 0; j > 0; j-- )
             {
                 double temp_num;
-                float temp;
-                int sk;
-                int dx1, dy1, dx2, dy2;
+                float t;
+                int sk, dx1, dy1, dx2, dy2;
 
                 i1 = i - j;
                 i1 += i1 < 0 ? len : 0;
@@ -230,10 +229,10 @@ icvApproximateChainTC89( CvChain*               chain,
                     (float) (temp_num /
                              sqrt( ((double)dx1 * dx1 + (double)dy1 * dy1) *
                                    ((double)dx2 * dx2 + (double)dy2 * dy2) ));
-                temp = (float) (temp_num + 1.1);
-                sk = *((int *) &temp);
+                t = (float) (temp_num + 1.1);
+                sk = *((int*)&t);
 
-                assert( 0 <= temp && temp <= 2.2 );
+                assert( 0 <= t && t <= 2.2 );
                 if( j < k && sk <= s )
                     break;
 
@@ -255,7 +254,7 @@ icvApproximateChainTC89( CvChain*               chain,
         int k2 = current->k >> 1;
 
         s = current->s;
-        i = current - array;
+        i = (int)(current - array);
 
         for( j = 1; j <= k2; j++ )
         {
@@ -294,7 +293,7 @@ icvApproximateChainTC89( CvChain*               chain,
         if( current->k == 1 )
         {
             s = current->s;
-            i = current - array;
+            i = (int)(current - array);
 
             i1 = i - 1;
             i1 += i1 < 0 ? len : 0;
@@ -342,7 +341,7 @@ icvApproximateChainTC89( CvChain*               chain,
 
         if( i1 == 0 && i2 == len - 1 )  /* only two points */
         {
-            i1 = array[0].next - array;
+            i1 = (int)(array[0].next - array);
             array[len] = array[0];      /* move to the end */
             array[len].next = 0;
             array[len - 1].next = array + len;
@@ -394,9 +393,7 @@ icvApproximateChainTC89( CvChain*               chain,
 
     do
     {
-        CvPoint pt = current->pt;
-
-        CV_WRITE_SEQ_ELEM( pt, writer );
+        CV_WRITE_SEQ_ELEM( current->pt, writer );
         current = current->next;
     }
     while( current != 0 );
@@ -524,14 +521,13 @@ icvApproxPolyDP( CvSeq* src_contour, int header_size,
                  CvMemStorage* storage,
                  CvSeq** dst_contour, float eps )
 {
-    int             init_iters = 2;
+    int             init_iters = 3;
     CvSlice         slice = {0, 0}, right_slice = {0, 0};
-    CvSeqReader     reader;
+    CvSeqReader     reader, reader2;
     CvSeqWriter     writer;
     CvPoint         start_pt = {INT_MIN, INT_MIN}, end_pt = { 0, 0 }, pt;
-    int             count;
-    int             i = 0;
-    int             is_closed;
+    int             i = 0, j, count = src_contour->total, new_count;
+    int             is_closed = CV_IS_SEQ_CLOSED( src_contour );
     int             le_eps = 0;
     CvMemStorage*   temp_storage = 0;
     CvSeq*          stack = 0;
@@ -551,10 +547,7 @@ icvApproxPolyDP( CvSeq* src_contour, int header_size,
     assert( src_contour->first != 0 );
     stack = cvCreateSeq( 0, sizeof( CvSeq ), sizeof( CvSlice ), temp_storage );
     eps *= eps;
-    
     cvStartReadSeq( src_contour, &reader, 0 );
-    count = src_contour->total;
-    is_closed = CV_IS_SEQ_CLOSED( src_contour );
 
     if( !is_closed )
     {
@@ -582,8 +575,6 @@ icvApproxPolyDP( CvSeq* src_contour, int header_size,
 
         for( i = 0; i < init_iters; i++ )
         {
-            int j;
-
             cvSetSeqReaderPos( &reader, right_slice.start_index, 1 );
             CV_READ_SEQ_ELEM( start_pt, reader );   /* read the first point */
 
@@ -711,7 +702,6 @@ icvApproxPolyDP( CvSeq* src_contour, int header_size,
                 {
                     float dist;
                     CvPoint2D32f ptfl;
-
                     CV_READ_SEQ_ELEM( ptfl, reader );
 
                     dist = (float)fabs((ptfl.y - sy)*dx - (ptfl.x - sx)*dy);
@@ -747,12 +737,59 @@ icvApproxPolyDP( CvSeq* src_contour, int header_size,
         }
     }
 
-    if( !CV_IS_SEQ_CLOSED( src_contour ) )
-    {
+    is_closed = CV_IS_SEQ_CLOSED( src_contour );
+    if( !is_closed )
         CV_WRITE_SEQ_ELEM( end_pt, writer );
-    }
 
     *dst_contour = cvEndWriteSeq( &writer );
+    
+    cvStartReadSeq( *dst_contour, &reader, is_closed );
+    CV_READ_SEQ_ELEM( start_pt, reader );
+    reader2 = reader;
+    CV_READ_SEQ_ELEM( pt, reader );
+
+    new_count = count = (*dst_contour)->total;
+    for( i = !is_closed; i < count - !is_closed && new_count > 2; i++ )
+    {
+        CV_READ_SEQ_ELEM( end_pt, reader );
+
+        if( !is_float )
+        {
+            int dx, dy, dist;
+            dx = end_pt.x - start_pt.x;
+            dy = end_pt.y - start_pt.y;
+            dist = abs((pt.x - start_pt.x)*dy - (pt.y - start_pt.y)*dx);
+            le_eps = (double)dist * dist <= 0.5*eps*((double)dx*dx + (double)dy*dy);
+        }
+        else
+        {
+            double dx, dy, dist;
+            dx = (float&)end_pt.x - (float&)start_pt.x;
+            dy = (float&)end_pt.y - (float&)start_pt.y;
+            dist = fabs(((float&)pt.x - (float&)start_pt.x)*dy - ((float&)pt.y - (float&)start_pt.y)*dx);
+            le_eps = (double)dist * dist <= 0.5*eps*((double)dx*dx + (double)dy*dy);
+        }
+
+        if( le_eps )
+        {
+            new_count--;
+            *((CvPoint*)reader2.ptr) = start_pt = end_pt;
+            CV_NEXT_SEQ_ELEM( sizeof(CvPoint), reader2 );
+            CV_READ_SEQ_ELEM( pt, reader );
+            i++;
+            continue;
+        }
+        *((CvPoint*)reader2.ptr) = start_pt = pt;
+        CV_NEXT_SEQ_ELEM( sizeof(CvPoint), reader2 );
+        pt = end_pt;
+    }
+
+    if( !is_closed )
+        *((CvPoint*)reader2.ptr) = pt;
+
+    if( new_count < count )
+        cvSeqPopMulti( *dst_contour, 0, count - new_count );
+
     cvReleaseMemStorage( &temp_storage );
 
     return CV_OK;
@@ -788,7 +825,7 @@ cvApproxPoly( const void*  array, int  header_size,
     }
     else
     {
-        CV_CALL( src_seq = icvPointSeqFromMat(
+        CV_CALL( src_seq = cvPointSeqFromMat(
             CV_SEQ_KIND_CURVE | (parameter2 ? CV_SEQ_FLAG_CLOSED : 0),
             array, &contour_header, &block ));
     }

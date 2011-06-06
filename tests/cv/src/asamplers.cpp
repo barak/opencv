@@ -41,6 +41,8 @@
 
 #include "cvtest.h"
 
+#if 0
+
 #include <stdlib.h>
 #include <assert.h>
 #include <limits.h>
@@ -155,8 +157,8 @@ static int line_smp_test( void* arg )
     img_roi.width = img_size;
     img_roi.height = img_size;
 
-    src_buf = (uchar*)icvAlloc( img_size * ((depth & 255)>>3) * channels );
-    dst_buf = (uchar*)icvAlloc( img_size * ((depth & 255)>>3) * channels );
+    src_buf = (uchar*)cvAlloc( img_size * ((depth & 255)>>3) * channels );
+    dst_buf = (uchar*)cvAlloc( img_size * ((depth & 255)>>3) * channels );
     assert( src_buf != 0 && dst_buf != 0 );
 
     atsRandInit( &rng_state, 0, 1, seed );
@@ -574,5 +576,6 @@ void InitASamplers( void )
 
 } /* InitASamplers */
 
+#endif
 
 /* End of file. */

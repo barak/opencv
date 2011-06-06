@@ -75,8 +75,6 @@ icvInitPyramidalAlgorithm( const uchar * imgA, const uchar * imgB,
                            int **step, CvSize** size,
                            double **scale, uchar ** buffer )
 {
-    uchar *pyr_down_temp_buffer = 0;
-    CvStatus result = CV_OK;
     int pyrBytes, bufferBytes = 0;
     int level1 = level + 1;
 
@@ -137,9 +135,9 @@ icvInitPyramidalAlgorithm( const uchar * imgA, const uchar * imgB,
     assert( pyrBytes <= imgSize.width * imgSize.height * (int) sizeof( imgA[0] ) * 4 / 3 );
 
     /* buffer_size = <size for patches> + <size for pyramids> */
-    bufferBytes = (level1 >= 0) * ((pyrA == 0) + (pyrB == 0)) * pyrBytes +
+    bufferBytes = (int)((level1 >= 0) * ((pyrA == 0) + (pyrB == 0)) * pyrBytes +
         (sizeof( imgI[0][0] ) * 2 + sizeof( step[0][0] ) +
-         sizeof(size[0][0]) + sizeof( scale[0][0] )) * level1;
+         sizeof(size[0][0]) + sizeof( scale[0][0] )) * level1);
 
     *buffer = (uchar *)cvAlloc( bufferBytes );
     if( !buffer[0] )
@@ -162,7 +160,6 @@ icvInitPyramidalAlgorithm( const uchar * imgA, const uchar * imgB,
         uchar *bufPtr = (uchar *) (*size + level1);
         uchar *ptrA = pyrA;
         uchar *ptrB = pyrB;
-        int pyr_down_buffer_size = 0;
 
         if( !ptrA )
         {
@@ -173,16 +170,13 @@ icvInitPyramidalAlgorithm( const uchar * imgA, const uchar * imgB,
         if( !ptrB )
             ptrB = bufPtr;
 
-        icvPyrDownGetBufSize_Gauss5x5( imgSize.width, cv8u, 1, &pyr_down_buffer_size );
-        pyr_down_temp_buffer = (uchar *) cvAlloc( pyr_down_buffer_size );
-        
         levelSize = imgSize;
 
         /* build pyramids for both frames */
         for( i = 1; i <= level; i++ )
         {
             int levelBytes;
-            CvSize srcSize = levelSize;
+            CvMat prev_level, next_level;
 
             levelSize.width = (levelSize.width + 1) >> 1;
             levelSize.height = (levelSize.height + 1) >> 1;
@@ -195,18 +189,25 @@ icvInitPyramidalAlgorithm( const uchar * imgA, const uchar * imgB,
             imgI[0][i] = (uchar *) ptrA;
             ptrA += levelBytes;
 
-            srcSize.width &= -2;
-            srcSize.height &= -2;
+            //srcSize.width &= -2;
+            //srcSize.height &= -2;
 
             if( !(flags & CV_LKFLOW_PYR_A_READY) )
             {
-                result = icvPyrDown_Gauss5x5_8u_C1R( imgI[0][i - 1], step[0][i - 1],
+                prev_level = cvMat( size[0][i-1].height, size[0][i-1].width, CV_8UC1 );
+                next_level = cvMat( size[0][i].height, size[0][i].width, CV_8UC1 );
+                cvSetData( &prev_level, imgI[0][i-1], step[0][i-1] );
+                cvSetData( &next_level, imgI[0][i], step[0][i] );
+                cvPyrDown( &prev_level, &next_level );
+
+                /*result = icvPyrDown_Gauss5x5_8u_C1R( imgI[0][i - 1], step[0][i - 1],
                                                      imgI[0][i], step[0][i],
                                                      srcSize, pyr_down_temp_buffer );
                 if( result < 0 )
                     goto func_exit;
                 icvPyrDownBorder_8u_CnR( imgI[0][i - 1], step[0][i - 1], size[0][i-1],
-                                         imgI[0][i], step[0][i], size[0][i], 1 );
+                                         imgI[0][i], step[0][i], size[0][i], 1 );*/
+                
             }
 
             imgJ[0][i] = (uchar *) ptrB;
@@ -214,111 +215,53 @@ icvInitPyramidalAlgorithm( const uchar * imgA, const uchar * imgB,
 
             if( !(flags & CV_LKFLOW_PYR_B_READY) )
             {
-                result = icvPyrDown_Gauss5x5_8u_C1R( imgJ[0][i - 1], step[0][i - 1],
+                prev_level = cvMat( size[0][i-1].height, size[0][i-1].width, CV_8UC1 );
+                next_level = cvMat( size[0][i].height, size[0][i].width, CV_8UC1 );
+                cvSetData( &prev_level, imgJ[0][i-1], step[0][i-1] );
+                cvSetData( &next_level, imgJ[0][i], step[0][i] );
+                cvPyrDown( &prev_level, &next_level );
+            
+                /*result = icvPyrDown_Gauss5x5_8u_C1R( imgJ[0][i - 1], step[0][i - 1],
                                                      imgJ[0][i], step[0][i],
                                                      srcSize, pyr_down_temp_buffer );
                 if( result < 0 )
                     goto func_exit;
                 icvPyrDownBorder_8u_CnR( imgJ[0][i - 1], step[0][i - 1], size[0][i-1],
-                                         imgJ[0][i], step[0][i], size[0][i], 1 );
+                                         imgJ[0][i], step[0][i], size[0][i], 1 );*/
             }
         }
     }
-
-  func_exit:
-    cvFree( (void**)&pyr_down_temp_buffer );
 
     return CV_OK;
 }
 
 
-/*F///////////////////////////////////////////////////////////////////////////////////////
-//    Name: icvCalcOpticalFlowPyrLK_8uC1R ( Lucas & Kanade method,
-//                                           modification that uses pyramids )
-//    Purpose:
-//      Calculates optical flow between two images for certain set of points.
-//    Context:
-//    Parameters:
-//            imgA     - pointer to first frame (time t)
-//            imgB     - pointer to second frame (time t+1)
-//            imgStep  - full width of the source images in bytes
-//            imgSize  - size of the source images
-//            pyrA     - buffer for pyramid for the first frame.
-//                       if the pointer is not NULL, the buffer must have size enough to
-//                       store pyramid (from level 1 to level #<level> (see below))
-//                       (imgSize.width*imgSize.height/3 will be enough)).
-//            pyrB     - similar to pyrA, but for the second frame.
-//                       
-//                       for both parameters above the following rules work:
-//                           If pointer is 0, the function allocates the buffer internally,
-//                           calculates pyramid and releases the buffer after processing.
-//                           Else (it should be large enough then) the function calculates
-//                           pyramid and stores it in the buffer unless the
-//                           CV_LKFLOW_PYR_A[B]_READY flag is set. In both cases
-//                           (flag is set or not) the subsequent calls may reuse the calculated
-//                           pyramid by setting CV_LKFLOW_PYR_A[B]_READY.
-//
-//            featuresA - array of points, for which the flow needs to be found
-//            count    - number of feature points 
-//            winSize  - size of search window on each pyramid level
-//            level    - maximal pyramid level number
-//                         (if 0, pyramids are not used (single level),
-//                          if 1, two levels are used etc.)
-//
-//            next parameters are arrays of <count> elements.
-//            ------------------------------------------------------
-//            featuresB - array of 2D points, containing calculated
-//                       new positions of input features (in the second image).
-//            status   - array, every element of which will be set to 1 if the flow for the
-//                       corresponding feature has been found, 0 else.
-//            error    - array of double numbers, containing difference between
-//                       patches around the original and moved points
-//                       (it is optional parameter, can be NULL).
-//            ------------------------------------------------------
-//            criteria   - specifies when to stop the iteration process of finding flow
-//                         for each point on each pyramid level
-//
-//            flags      - miscellaneous flags:
-//                            CV_LKFLOW_PYR_A_READY - pyramid for the first frame
-//                                                      is precalculated before call
-//                            CV_LKFLOW_PYR_B_READY - pyramid for the second frame
-//                                                      is precalculated before call
-//                            CV_LKFLOW_INITIAL_GUESSES - featuresB array holds initial
-//                                                       guesses about new features'
-//                                                       locations before function call.
-//    Returns: CV_OK       - all ok
-//             CV_OUTOFMEM_ERR - insufficient memory for function work
-//             CV_NULLPTR_ERR  - if one of input pointers is NULL
-//             CV_BADSIZE_ERR  - wrong input sizes interrelation
-//
-//    Notes:  For calculating spatial derivatives 3x3 Sobel operator is used.
-//            The values of pixels beyond the image are determined using replication mode.
-//F*/
-static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( const uchar * imgA,
-                                                 const uchar * imgB,
-                                                 int imgStep,
-                                                 CvSize imgSize,
-                                                 uchar * pyrA,
-                                                 uchar * pyrB,
-                                                 const CvPoint2D32f * featuresA,
-                                                 CvPoint2D32f * featuresB,
-                                                 int count,
-                                                 CvSize winSize,
-                                                 int level,
-                                                 char *status,
-                                                 float *error,
-                                                 CvTermCriteria criteria, int flags )
+icvOpticalFlowPyrLKInitAlloc_8u_C1R_t icvOpticalFlowPyrLKInitAlloc_8u_C1R_p = 0;
+icvOpticalFlowPyrLKFree_8u_C1R_t icvOpticalFlowPyrLKFree_8u_C1R_p = 0;
+icvOpticalFlowPyrLK_8u_C1R_t icvOpticalFlowPyrLK_8u_C1R_p = 0;
+
+
+static  CvStatus
+icvCalcOpticalFlowPyrLK_8uC1R( const uchar* imgA, const uchar* imgB,
+                               int imgStep, CvSize imgSize,
+                               uchar* pyrA, uchar* pyrB,
+                               const CvPoint2D32f* featuresA,
+                               CvPoint2D32f* featuresB,
+                               int count, CvSize winSize,
+                               int level, char* status,
+                               float *error, CvTermCriteria criteria, int flags )
 {
 #define MAX_LEVEL 10
 #define MAX_ITERS 100
 
-    static const float kerX[] = { -1, 0, 1 }, kerY[] =
-    {
-    0.09375, 0.3125, 0.09375};  /* 3/32, 10/32, 3/32 */
+    static const float kerX[] = { -1, 0, 1 };
+    static const float kerY[] = { 0.09375, 0.3125, 0.09375 };  /* 3/32, 10/32, 3/32 */
 
     uchar *pyr_buffer = 0;
     uchar *buffer = 0;
     int bufferBytes = 0;
+    float* _error = 0;
+    char* _status = 0;
 
     uchar **imgI = 0;
     uchar **imgJ = 0;
@@ -343,6 +286,7 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( const uchar * imgA,
     int srcPatchStep = srcPatchSize.width * sizeof( patchI[0] );
 
     CvStatus result = CV_OK;
+    void* ipp_optflow_state = 0;
 
     /* check input arguments */
     if( !featuresA || !featuresB )
@@ -361,6 +305,63 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( const uchar * imgA,
 
     if( result < 0 )
         goto func_exit;
+
+    if( icvOpticalFlowPyrLKInitAlloc_8u_C1R_p &&
+        icvOpticalFlowPyrLKFree_8u_C1R_p &&
+        icvOpticalFlowPyrLK_8u_C1R_p &&
+        winSize.width == winSize.height &&
+        icvOpticalFlowPyrLKInitAlloc_8u_C1R_p( &ipp_optflow_state, imgSize,
+                                               winSize.width, cvAlgHintAccurate ) >= 0 )
+    {
+        CvPyramid ipp_pyrA, ipp_pyrB;
+        static const double rate[] = { 1, 0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125,
+                                       0.00390625, 0.001953125, 0.0009765625, 0.00048828125, 0.000244140625,
+                                       0.0001220703125 };
+        // initialize pyramid structures
+        assert( level < 14 );
+        ipp_pyrA.ptr = imgI;
+        ipp_pyrB.ptr = imgJ;
+        ipp_pyrA.sz = ipp_pyrB.sz = size;
+        ipp_pyrA.rate = ipp_pyrB.rate = (double*)rate;
+        ipp_pyrA.step = ipp_pyrB.step = step;
+        ipp_pyrA.state = ipp_pyrB.state = 0;
+        ipp_pyrA.level = ipp_pyrB.level = level;
+
+        if( !error )
+        {
+            _error = (float*)cvAlloc( count*sizeof(_error[0]) );
+            if( !_error )
+            {
+                result = CV_OUTOFMEM_ERR;
+                goto func_exit;
+            }
+            error = _error;
+        }
+
+        if( !status )
+        {
+            _status = (char*)cvAlloc( count*sizeof(_status[0]) );
+            if( !_status )
+            {
+                result = CV_OUTOFMEM_ERR;
+                goto func_exit;
+            }
+            status = _status;
+        }
+
+        for( i = 0; i < count; i++ )
+            featuresB[i] = featuresA[i];
+
+        if( icvOpticalFlowPyrLK_8u_C1R_p( &ipp_pyrA, &ipp_pyrB,
+            (const float*)featuresA, (float*)featuresB, status, error, count,
+            winSize.width*2 + 1, level, criteria.max_iter,
+            (float)criteria.epsilon, ipp_optflow_state ) >= 0 )
+        {
+            for( i = 0; i < count; i++ )
+                status[i] = status[i] == 0;
+            goto func_exit;
+        }
+    }
 
     /* buffer_size = <size for patches> + <size for pyramids> */
     bufferBytes = (srcPatchLen + patchLen * 3) * sizeof( patchI[0] );
@@ -554,10 +555,15 @@ static  CvStatus  icvCalcOpticalFlowPyrLK_8uC1R( const uchar * imgA,
             status[i] = (char) pt_status;
     }
 
-  func_exit:
+func_exit:
+
+    if( ipp_optflow_state )
+        icvOpticalFlowPyrLKFree_8u_C1R_p( ipp_optflow_state );
 
     cvFree( (void**)&pyr_buffer );
     cvFree( (void**)&buffer );
+    cvFree( (void**)&_error );
+    cvFree( (void**)&_status );
 
     return result;
 #undef MAX_LEVEL

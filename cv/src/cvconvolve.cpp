@@ -42,6 +42,292 @@
 #include "_cv.h"
 #include <limits.h>
 
+/////////////////////// common functions for working with IPP filters ////////////////////
+
+CvMat* icvIPPFilterInit( const CvMat* src, int stripe_size, CvSize ksize )
+{
+    CvSize temp_size;
+    int pix_size = CV_ELEM_SIZE(src->type);
+    temp_size.width = cvAlign(src->cols + ksize.width - 1,8/CV_ELEM_SIZE(src->type & CV_MAT_DEPTH_MASK));
+    //temp_size.width = src->cols + ksize.width - 1;
+    temp_size.height = (stripe_size*2 + temp_size.width*pix_size) / (temp_size.width*pix_size*2);
+    temp_size.height = MAX( temp_size.height, ksize.height );
+    temp_size.height = MIN( temp_size.height, src->rows + ksize.height - 1 );
+    
+    return cvCreateMat( temp_size.height, temp_size.width, src->type );
+}
+
+
+int icvIPPFilterNextStripe( const CvMat* src, CvMat* temp, int y,
+                            CvSize ksize, CvPoint anchor )
+{
+    int pix_size = CV_ELEM_SIZE(src->type);
+    int src_step = src->step ? src->step : CV_STUB_STEP;
+    int temp_step = temp->step ? temp->step : CV_STUB_STEP;
+    int i, dy, src_y1 = 0, src_y2;
+    int temp_rows;
+    uchar* temp_ptr = temp->data.ptr;
+    CvSize stripe_size, temp_size;
+    CvCopyNonConstBorderFunc copy_border_func =
+        icvGetCopyNonConstBorderFunc( pix_size, IPL_BORDER_REPLICATE );
+
+    dy = MIN( temp->rows - ksize.height + 1, src->rows - y );
+    if( y > 0 )
+    {
+        int temp_ready = ksize.height - 1;
+        
+        for( i = 0; i < temp_ready; i++ )
+            memcpy( temp_ptr + temp_step*i, temp_ptr +
+                    temp_step*(temp->rows - temp_ready + i), temp_step );
+
+        temp_ptr += temp_ready*temp_step;
+        temp_rows = dy;
+        src_y1 = y + temp_ready - anchor.y;
+        src_y2 = src_y1 + dy;
+        if( src_y1 >= src->rows )
+        {
+            src_y1 = src->rows - 1;
+            src_y2 = src->rows;
+        }
+    }
+    else
+    {
+        temp_rows = dy + ksize.height - 1;
+        src_y2 = temp_rows - anchor.y;
+    }
+
+    src_y2 = MIN( src_y2, src->rows );
+
+    stripe_size = cvSize(src->cols, src_y2 - src_y1);
+    temp_size = cvSize(temp->cols, temp_rows);
+    copy_border_func( src->data.ptr + src_y1*src_step, src_step,
+                      stripe_size, temp_ptr, temp_step, temp_size,
+                      (y == 0 ? anchor.y : 0), anchor.x );
+    return dy;
+}
+
+
+/////////////////////////////// IPP separable filter functions ///////////////////////////
+
+icvFilterRow_8u_C1R_t icvFilterRow_8u_C1R_p = 0;
+icvFilterRow_8u_C3R_t icvFilterRow_8u_C3R_p = 0;
+icvFilterRow_8u_C4R_t icvFilterRow_8u_C4R_p = 0;
+icvFilterRow_16s_C1R_t icvFilterRow_16s_C1R_p = 0;
+icvFilterRow_16s_C3R_t icvFilterRow_16s_C3R_p = 0;
+icvFilterRow_16s_C4R_t icvFilterRow_16s_C4R_p = 0;
+icvFilterRow_32f_C1R_t icvFilterRow_32f_C1R_p = 0;
+icvFilterRow_32f_C3R_t icvFilterRow_32f_C3R_p = 0;
+icvFilterRow_32f_C4R_t icvFilterRow_32f_C4R_p = 0;
+
+icvFilterColumn_8u_C1R_t icvFilterColumn_8u_C1R_p = 0;
+icvFilterColumn_8u_C3R_t icvFilterColumn_8u_C3R_p = 0;
+icvFilterColumn_8u_C4R_t icvFilterColumn_8u_C4R_p = 0;
+icvFilterColumn_16s_C1R_t icvFilterColumn_16s_C1R_p = 0;
+icvFilterColumn_16s_C3R_t icvFilterColumn_16s_C3R_p = 0;
+icvFilterColumn_16s_C4R_t icvFilterColumn_16s_C4R_p = 0;
+icvFilterColumn_32f_C1R_t icvFilterColumn_32f_C1R_p = 0;
+icvFilterColumn_32f_C3R_t icvFilterColumn_32f_C3R_p = 0;
+icvFilterColumn_32f_C4R_t icvFilterColumn_32f_C4R_p = 0;
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+typedef CvStatus (CV_STDCALL * CvIPPSepFilterFunc)
+    ( const void* src, int srcstep, void* dst, int dststep,
+      CvSize size, const float* kernel, int ksize, int anchor );
+
+int icvIPPSepFilter( const CvMat* src, CvMat* dst, const CvMat* kernelX,
+                     const CvMat* kernelY, CvPoint anchor )
+{
+    int result = 0;
+    
+    CvMat* top_bottom = 0;
+    CvMat* vout_hin = 0;
+    CvMat* dst_buf = 0;
+    
+    CV_FUNCNAME( "icvIPPSepFilter" );
+
+    __BEGIN__;
+
+    CvSize ksize;
+    CvPoint el_anchor;
+    CvSize size;
+    int type, depth, pix_size;
+    int i, x, y, dy = 0, prev_dy = 0, max_dy;
+    CvMat vout;
+    CvCopyNonConstBorderFunc copy_border_func;
+    CvIPPSepFilterFunc x_func = 0, y_func = 0;
+    int src_step, top_bottom_step;
+    float *kx, *ky;
+    int align, stripe_size;
+
+    if( !icvFilterRow_8u_C1R_p )
+        EXIT;
+
+    if( !CV_ARE_TYPES_EQ( src, dst ) || !CV_ARE_SIZES_EQ( src, dst ) ||
+        !CV_IS_MAT_CONT(kernelX->type & kernelY->type) ||
+        CV_MAT_TYPE(kernelX->type) != CV_32FC1 ||
+        CV_MAT_TYPE(kernelY->type) != CV_32FC1 ||
+        kernelX->cols != 1 && kernelX->rows != 1 ||
+        kernelY->cols != 1 && kernelY->rows != 1 ||
+        (unsigned)anchor.x >= (unsigned)(kernelX->cols + kernelX->rows - 1) ||
+        (unsigned)anchor.y >= (unsigned)(kernelY->cols + kernelY->rows - 1) )
+        CV_ERROR( CV_StsError, "Internal Error: incorrect parameters" );
+
+    ksize.width = kernelX->cols + kernelX->rows - 1;
+    ksize.height = kernelY->cols + kernelY->rows - 1;
+
+    /*if( ksize.width <= 5 && ksize.height <= 5 )
+    {
+        float* ker = (float*)cvStackAlloc( ksize.width*ksize.height*sizeof(ker[0]));
+        CvMat kernel = cvMat( ksize.height, ksize.width, CV_32F, ker );
+        for( y = 0, i = 0; y < ksize.height; y++ )
+            for( x = 0; x < ksize.width; x++, i++ )
+                ker[i] = kernelY->data.fl[y]*kernelX->data.fl[x];
+
+        CV_CALL( cvFilter2D( src, dst, &kernel, anchor ));
+        EXIT;
+    }*/
+
+    type = CV_MAT_TYPE(src->type);
+    depth = CV_MAT_DEPTH(type);
+    pix_size = CV_ELEM_SIZE(type);
+
+    if( type == CV_8UC1 )
+        x_func = icvFilterRow_8u_C1R_p, y_func = icvFilterColumn_8u_C1R_p;
+    else if( type == CV_8UC3 )
+        x_func = icvFilterRow_8u_C3R_p, y_func = icvFilterColumn_8u_C3R_p;
+    else if( type == CV_8UC4 )
+        x_func = icvFilterRow_8u_C4R_p, y_func = icvFilterColumn_8u_C4R_p;
+    else if( type == CV_16SC1 )
+        x_func = icvFilterRow_16s_C1R_p, y_func = icvFilterColumn_16s_C1R_p;
+    else if( type == CV_16SC3 )
+        x_func = icvFilterRow_16s_C3R_p, y_func = icvFilterColumn_16s_C3R_p;
+    else if( type == CV_16SC4 )
+        x_func = icvFilterRow_16s_C4R_p, y_func = icvFilterColumn_16s_C4R_p;
+    else if( type == CV_32FC1 )
+        x_func = icvFilterRow_32f_C1R_p, y_func = icvFilterColumn_32f_C1R_p;
+    else if( type == CV_32FC3 )
+        x_func = icvFilterRow_32f_C3R_p, y_func = icvFilterColumn_32f_C3R_p;
+    else if( type == CV_32FC4 )
+        x_func = icvFilterRow_32f_C4R_p, y_func = icvFilterColumn_32f_C4R_p;
+    else
+        EXIT;
+
+    size = cvGetMatSize(src);
+    stripe_size = src->data.ptr == dst->data.ptr ? 1 << 15 : 1 << 16;
+    max_dy = MAX( ksize.height - 1, stripe_size/(size.width + ksize.width - 1));
+    max_dy = MIN( max_dy, size.height + ksize.height - 1 );
+    
+    align = 8/CV_ELEM_SIZE(depth);
+
+    CV_CALL( top_bottom = cvCreateMat( ksize.height*2, cvAlign(size.width,align), type ));
+
+    CV_CALL( vout_hin = cvCreateMat( max_dy + ksize.height,
+        cvAlign(size.width + ksize.width - 1, align), type ));
+    
+    if( src->data.ptr == dst->data.ptr && size.height )
+        CV_CALL( dst_buf = cvCreateMat( max_dy + ksize.height,
+            cvAlign(size.width, align), type ));
+
+    kx = (float*)cvStackAlloc( ksize.width*sizeof(kx[0]) );
+    ky = (float*)cvStackAlloc( ksize.height*sizeof(ky[0]) );
+
+    // mirror the kernels
+    for( i = 0; i < ksize.width; i++ )
+        kx[i] = kernelX->data.fl[ksize.width - i - 1];
+
+    for( i = 0; i < ksize.height; i++ )
+        ky[i] = kernelY->data.fl[ksize.height - i - 1];
+
+    el_anchor = cvPoint( ksize.width - anchor.x - 1, ksize.height - anchor.y - 1 );
+
+    cvGetCols( vout_hin, &vout, anchor.x, anchor.x + size.width );
+    copy_border_func = icvGetCopyNonConstBorderFunc( pix_size, IPL_BORDER_REPLICATE );
+
+    src_step = src->step ? src->step : CV_STUB_STEP;
+    top_bottom_step = top_bottom->step ? top_bottom->step : CV_STUB_STEP;
+    vout.step = vout.step ? vout.step : CV_STUB_STEP;
+
+    for( y = 0; y < size.height; y += dy )
+    {
+        const CvMat *vin = src, *hout = dst;
+        int src_y = y, dst_y = y;
+        dy = MIN( max_dy, size.height - (ksize.height - anchor.y - 1) - y );
+
+        if( y < anchor.y || dy < anchor.y )
+        {
+            int ay = anchor.y;
+            CvSize src_stripe_size = size;
+            
+            if( y < anchor.y )
+            {
+                src_y = 0;
+                dy = MIN( anchor.y, size.height );
+                src_stripe_size.height = MIN( dy + ksize.height - anchor.y - 1, size.height );
+            }
+            else
+            {
+                src_y = MAX( y - anchor.y, 0 );
+                dy = size.height - y;
+                src_stripe_size.height = MIN( dy + anchor.y, size.height );
+                ay = MAX( anchor.y - y, 0 );
+            }
+
+            copy_border_func( src->data.ptr + src_y*src_step, src_step, src_stripe_size,
+                              top_bottom->data.ptr, top_bottom_step,
+                              cvSize(size.width, dy + ksize.height - 1),
+                              ay, 0 );
+            vin = top_bottom;
+            src_y = anchor.y;            
+        }
+
+        // do vertical convolution
+        IPPI_CALL( y_func( vin->data.ptr + src_y*vin->step, vin->step ? vin->step : CV_STUB_STEP,
+                           vout.data.ptr, vout.step, cvSize(size.width, dy),
+                           ky, ksize.height, el_anchor.y ));
+
+        // now it's time to copy the previously processed stripe to the input/output image
+        if( src->data.ptr == dst->data.ptr )
+        {
+            for( i = 0; i < prev_dy; i++ )
+                memcpy( dst->data.ptr + (y - prev_dy + i)*dst->step,
+                        dst_buf->data.ptr + i*dst_buf->step, size.width*pix_size );
+            if( y + dy < size.height )
+            {
+                hout = dst_buf;
+                dst_y = 0;
+            }
+        }
+
+        // create a border for every line by replicating the left-most/right-most elements
+        for( i = 0; i < dy; i++ )
+        {
+            uchar* ptr = vout.data.ptr + i*vout.step;
+            for( x = -1; x >= -anchor.x*pix_size; x-- )
+                ptr[x] = ptr[x + pix_size];
+            for( x = size.width*pix_size; x < (size.width+ksize.width-anchor.x-1)*pix_size; x++ )
+                ptr[x] = ptr[x - pix_size];
+        }
+
+        // do horizontal convolution
+        IPPI_CALL( x_func( vout.data.ptr, vout.step, hout->data.ptr + dst_y*hout->step,
+                           hout->step ? hout->step : CV_STUB_STEP,
+                           cvSize(size.width, dy), kx, ksize.width, el_anchor.x ));
+        prev_dy = dy;
+    }
+
+    result = 1;
+
+    __END__;
+
+    cvReleaseMat( &vout_hin );
+    cvReleaseMat( &dst_buf );
+    cvReleaseMat( &top_bottom );
+
+    return result;
+}
+
+
 #define ICV_DEF_FILTER_FUNC( flavor, arrtype, worktype,                     \
                              load_macro, cast_macro1, cast_macro2 )         \
 static CvStatus CV_STDCALL                                                  \
@@ -77,6 +363,9 @@ icvFilter_##flavor##_CnR( arrtype* src, int srcstep,                        \
                 ker_width*ker_height*sizeof(ker_coeffs0[0]) );              \
     float* ker_coeffs = ker_coeffs0;                                        \
                                                                             \
+    srcstep /= sizeof(src[0]);                                              \
+    dststep /= sizeof(dst[0]);                                              \
+                                                                            \
     for( i = 0; i < ker_height; i++ )                                       \
         for( x = 0; x < ker_width; x++ )                                    \
         {                                                                   \
@@ -87,6 +376,8 @@ icvFilter_##flavor##_CnR( arrtype* src, int srcstep,                        \
                 ker_coeffs++;                                               \
             }                                                               \
         }                                                                   \
+    if( stage == CV_START + CV_END )                                        \
+        stage = CV_WHOLE;                                                   \
                                                                             \
     /* initialize cyclic buffer when starting */                            \
     if( stage == CV_WHOLE || stage == CV_START )                            \
@@ -173,14 +464,14 @@ icvFilter_##flavor##_CnR( arrtype* src, int srcstep,                        \
         {                                                                   \
             for( x = 0; x < width_n; x += 3 )                               \
             {                                                               \
-                float sum0 = 0, sum1 = 0, sum2 = 0;                         \
+                double sum0 = 0, sum1 = 0, sum2 = 0;                        \
                 worktype t0, t1, t2;                                        \
                 arrtype** kp = ker;                                         \
                 ker_coeffs = ker_coeffs0;                                   \
                 while( kp != ker_ptr )                                      \
                 {                                                           \
                     arrtype* tp = *kp++;                                    \
-                    float f = *ker_coeffs++;                                \
+                    double f = *ker_coeffs++;                               \
                     sum0 += load_macro(tp[x])*f;                            \
                     sum1 += load_macro(tp[x+1])*f;                          \
                     sum2 += load_macro(tp[x+2])*f;                          \
@@ -197,14 +488,14 @@ icvFilter_##flavor##_CnR( arrtype* src, int srcstep,                        \
         {                                                                   \
             for( x = 0; x < width_n; x += 4 )                               \
             {                                                               \
-                float sum0 = 0, sum1 = 0, sum2 = 0, sum3 = 0;               \
+                double sum0 = 0, sum1 = 0, sum2 = 0, sum3 = 0;              \
                 worktype t0, t1;                                            \
                 arrtype** kp = ker;                                         \
                 ker_coeffs = ker_coeffs0;                                   \
                 while( kp != ker_ptr )                                      \
                 {                                                           \
                     arrtype* tp = *kp++;                                    \
-                    float f = *ker_coeffs++;                                \
+                    double f = *ker_coeffs++;                               \
                     sum0 += load_macro(tp[x])*f;                            \
                     sum1 += load_macro(tp[x+1])*f;                          \
                     sum2 += load_macro(tp[x+2])*f;                          \
@@ -250,7 +541,7 @@ icvFilter_##flavor##_CnR( arrtype* src, int srcstep,                        \
 
 ICV_DEF_FILTER_FUNC( 8u, uchar, int, CV_8TO32F, cvRound, CV_CAST_8U )
 ICV_DEF_FILTER_FUNC( 16u, ushort, int, CV_NOP, cvRound, CV_CAST_16U )
-ICV_DEF_FILTER_FUNC( 32f, float, float, CV_NOP, CV_NOP, CV_NOP )
+ICV_DEF_FILTER_FUNC( 32f, float, double, CV_NOP, CV_NOP, CV_CAST_32F )
 
 
 static void icvInitFilterTab( CvFuncTable* tab )
@@ -261,14 +552,36 @@ static void icvInitFilterTab( CvFuncTable* tab )
 }
 
 
+//////////////////////////////// IPP generic filter functions ////////////////////////////
+
+icvFilter_8u_C1R_t icvFilter_8u_C1R_p = 0;
+icvFilter_8u_C3R_t icvFilter_8u_C3R_p = 0;
+icvFilter_8u_C4R_t icvFilter_8u_C4R_p = 0;
+icvFilter_16s_C1R_t icvFilter_16s_C1R_p = 0;
+icvFilter_16s_C3R_t icvFilter_16s_C3R_p = 0;
+icvFilter_16s_C4R_t icvFilter_16s_C4R_p = 0;
+icvFilter_32f_C1R_t icvFilter_32f_C1R_p = 0;
+icvFilter_32f_C3R_t icvFilter_32f_C3R_p = 0;
+icvFilter_32f_C4R_t icvFilter_32f_C4R_p = 0;
+
+//////////////////////////////////////////////////////////////////////////////////////////
+
+typedef CvStatus (CV_STDCALL * CvFilterIPPFunc)
+( const void* src, int srcstep, void* dst, int dststep, CvSize size,
+  const float* kernel, CvSize ksize, CvPoint anchor );
+
 CV_IMPL void
 cvFilter2D( const CvArr* _src, CvArr* _dst, const CvMat* _kernel, CvPoint anchor )
 {
+    // below that approximate size OpenCV is faster
+    const int ipp_lower_limit = 20;
+    
     static CvFuncTable filter_tab;
     static int inittab = 0;
     CvFilterState *state = 0;
     float* kernel_data = 0;
     int local_alloc = 1;
+    CvMat* temp = 0;
 
     CV_FUNCNAME( "cvFilter2D" );
 
@@ -316,7 +629,7 @@ cvFilter2D( const CvArr* _src, CvArr* _dst, const CvMat* _kernel, CvPoint anchor
         (unsigned)anchor.y >= (unsigned)kernel->rows )
         CV_ERROR( CV_StsOutOfRange, "anchor point is out of kernel" );
 
-    if( CV_MAT_TYPE(kernel->type) != CV_32F )
+    if( CV_MAT_TYPE(kernel->type) != CV_32FC1 || !CV_IS_MAT_CONT(kernel->type) || icvFilter_8u_C1R_p )
     {
         int sz = kernel->rows*kernel->cols*sizeof(kernel_data[0]);
         if( sz < CV_MAX_LOCAL_SIZE )
@@ -327,16 +640,78 @@ cvFilter2D( const CvArr* _src, CvArr* _dst, const CvMat* _kernel, CvPoint anchor
             local_alloc = 0;
         }
         kernel_hdr = cvMat( kernel->rows, kernel->cols, CV_32F, kernel_data );
-        cvConvertScale( kernel, &kernel_hdr, 1, 0 );
+        if( CV_MAT_TYPE(kernel->type) == CV_32FC1 )
+            cvCopy( kernel, &kernel_hdr );
+        else
+            cvConvertScale( kernel, &kernel_hdr, 1, 0 );
         kernel = &kernel_hdr;
     }
 
     size = cvGetMatSize( src );
-    
     depth = CV_MAT_DEPTH(type);
-    IPPI_CALL( icvFilterInitAlloc( src->cols, cv32f, CV_MAT_CN(type),
+    src_step = src->step;
+    dst_step = dst->step ? dst->step : CV_STUB_STEP;
+
+    if( icvFilter_8u_C1R_p && (src->rows >= ipp_lower_limit || src->cols >= ipp_lower_limit) )
+    {
+        CvFilterIPPFunc ipp_func = 
+                type == CV_8UC1 ? (CvFilterIPPFunc)icvFilter_8u_C1R_p :
+                type == CV_8UC3 ? (CvFilterIPPFunc)icvFilter_8u_C3R_p :
+                type == CV_8UC4 ? (CvFilterIPPFunc)icvFilter_8u_C4R_p :
+                type == CV_16SC1 ? (CvFilterIPPFunc)icvFilter_16s_C1R_p :
+                type == CV_16SC3 ? (CvFilterIPPFunc)icvFilter_16s_C3R_p :
+                type == CV_16SC4 ? (CvFilterIPPFunc)icvFilter_16s_C4R_p :
+                type == CV_32FC1 ? (CvFilterIPPFunc)icvFilter_32f_C1R_p :
+                type == CV_32FC3 ? (CvFilterIPPFunc)icvFilter_32f_C3R_p :
+                type == CV_32FC4 ? (CvFilterIPPFunc)icvFilter_32f_C4R_p : 0;
+        
+        if( ipp_func )
+        {
+            CvSize el_size = { kernel->cols, kernel->rows };
+            CvPoint el_anchor = { el_size.width - anchor.x - 1, el_size.height - anchor.y - 1 };
+            int stripe_size = 1 << 16; // the optimal value may depend on CPU cache,
+                                       // overhead of current IPP code etc.
+            const uchar* shifted_ptr;
+            int i, j, y, dy = 0;
+            int temp_step;
+
+            // mirror the kernel around the center
+            for( i = 0; i < (el_size.height+1)/2; i++ )
+            {
+                float* top_row = kernel->data.fl + el_size.width*i;
+                float* bottom_row = kernel->data.fl + el_size.width*(el_size.height - i - 1);
+
+                for( j = 0; j < (el_size.width+1)/2; j++ )
+                {
+                    float a = top_row[j], b = top_row[el_size.width - j - 1];
+                    float c = bottom_row[j], d = bottom_row[el_size.width - j - 1];
+                    top_row[j] = d;
+                    top_row[el_size.width - j - 1] = c;
+                    bottom_row[j] = b;
+                    bottom_row[el_size.width - j - 1] = a;
+                }
+            }
+
+            CV_CALL( temp = icvIPPFilterInit( src, stripe_size, el_size ));
+            
+            shifted_ptr = temp->data.ptr +
+                anchor.y*temp->step + anchor.x*CV_ELEM_SIZE(type);
+            temp_step = temp->step ? temp->step : CV_STUB_STEP;
+
+            for( y = 0; y < src->rows; y += dy )
+            {
+                dy = icvIPPFilterNextStripe( src, temp, y, el_size, anchor );
+                IPPI_CALL( ipp_func( shifted_ptr, temp_step,
+                    dst->data.ptr + y*dst_step, dst_step, cvSize(src->cols, dy),
+                    kernel->data.fl, el_size, el_anchor ));
+            }
+            EXIT;
+        }
+    }
+
+    CV_CALL( state = icvFilterInitAlloc( src->cols, cv32f, CV_MAT_CN(type),
                                    cvSize(kernel->cols, kernel->rows), anchor,
-                                   kernel->data.ptr, ICV_GENERIC_KERNEL, &state ));
+                                   kernel->data.ptr, ICV_GENERIC_KERNEL ));
 
     if( CV_MAT_CN(type) == 2 )
         CV_ERROR( CV_BadNumChannels, "Unsupported number of channels" );
@@ -346,17 +721,15 @@ cvFilter2D( const CvArr* _src, CvArr* _dst, const CvMat* _kernel, CvPoint anchor
     if( !func )
         CV_ERROR( CV_StsUnsupportedFormat, "" );
 
-    src_step = src->step;
-    dst_step = dst->step;
-
     if( size.height == 1 )
-        src_step = dst_step = CV_AUTOSTEP;
+        src_step = dst_step = CV_STUB_STEP;
 
     IPPI_CALL( func( src->data.ptr, src_step, dst->data.ptr,
                      dst_step, &size, state, 0 ));
 
     __END__;
 
+    cvReleaseMat( &temp );
     icvFilterFree( &state );
     if( !local_alloc )
         cvFree( (void**)&kernel_data );

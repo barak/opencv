@@ -142,7 +142,7 @@ typedef struct CvEHMM
 }
 CvEHMM;
 
-CVAPI(int)  icvCreate1DHMM( CvEHMM** this_hmm,
+/*CVAPI(int)  icvCreate1DHMM( CvEHMM** this_hmm,
                                    int state_number, int* num_mix, int obs_size );
 
 CVAPI(int)  icvRelease1DHMM( CvEHMM** phmm );
@@ -161,7 +161,7 @@ CVAPI(int)  icvEstimate1DTransProb( Cv1DObsInfo** obs_info_array,
 
 CVAPI(float)  icvViterbi( Cv1DObsInfo* obs_info, CvEHMM* hmm);
 
-CVAPI(int)  icv1DMixSegmL2( CvImgObsInfo** obs_info_array, int num_img, CvEHMM* hmm );
+CVAPI(int)  icv1DMixSegmL2( CvImgObsInfo** obs_info_array, int num_img, CvEHMM* hmm );*/
 
 /*********************************** Embedded HMMs *************************************/
 
@@ -305,16 +305,7 @@ typedef enum CvGraphWeightType
 /*****************************************************************************************/
 
 
-///////////////////////////////////////////////////////////
-// Triangulation
-CVAPI(void) cvDecompPoly( CvContour* cont, CvSubdiv2D** subdiv, CvMemStorage* storage );
-///////////////////////////////////////////////////////////
-
 /*******************************Stereo correspondence*************************************/
-CVAPI(void) icvDrawFilledSegments( CvSeq* seq, IplImage* img, int part );
-
-CVAPI(CvSeq*) cvExtractSingleEdges( IplImage* image, //bw image
-                      CvMemStorage* storage );
 
 typedef struct CvCliqueFinder
 {   
@@ -348,13 +339,12 @@ typedef struct CvCliqueFinder
 #define CLIQUE_FOUND 1
 #define CLIQUE_END   0
 
-CVAPI(void) cvStartFindCliques( CvGraph* graph, CvCliqueFinder* finder, int reverse, 
+/*CVAPI(void) cvStartFindCliques( CvGraph* graph, CvCliqueFinder* finder, int reverse, 
                                    int weighted CV_DEFAULT(0),  int weighted_edges CV_DEFAULT(0));
 CVAPI(int) cvFindNextMaximalClique( CvCliqueFinder* finder, int* clock_rest CV_DEFAULT(0) ); 
 CVAPI(void) cvEndFindCliques( CvCliqueFinder* finder );
 
-CVAPI(void) cvBronKerbosch( CvGraph* graph );                 
-
+CVAPI(void) cvBronKerbosch( CvGraph* graph );*/
 
 
 /*F///////////////////////////////////////////////////////////////////////////////////////
@@ -388,10 +378,10 @@ CVAPI(void) cvBronKerbosch( CvGraph* graph );
 //      weight of subgraph.
 //    Notes:
 //F*/
-CVAPI(float) cvSubgraphWeight( CvGraph *graph, CvSeq *subgraph,
+/*CVAPI(float) cvSubgraphWeight( CvGraph *graph, CvSeq *subgraph,
                                   CvGraphWeightType weight_type CV_DEFAULT(CV_NOT_WEIGHTED),
                                   CvVect32f weight_vtx CV_DEFAULT(0),
-                                  CvMatr32f weight_edge CV_DEFAULT(0) );
+                                  CvMatr32f weight_edge CV_DEFAULT(0) );*/
 
 
 /*F///////////////////////////////////////////////////////////////////////////////////////
@@ -439,7 +429,7 @@ CVAPI(float) cvSubgraphWeight( CvGraph *graph, CvSeq *subgraph,
 //      in cases of CV_WEIGHTED_EDGE and CV_WEIGHTED_ALL weights should be nonnegative.
 //      start_clique has a priority over subgraph_of_ban.
 //F*/
-CVAPI(CvSeq*) cvFindCliqueEx( CvGraph *graph, CvMemStorage *storage,
+/*CVAPI(CvSeq*) cvFindCliqueEx( CvGraph *graph, CvMemStorage *storage,
                                  int is_complementary CV_DEFAULT(0),
                                  CvGraphWeightType weight_type CV_DEFAULT(CV_NOT_WEIGHTED),
                                  CvVect32f weight_vtx CV_DEFAULT(0),
@@ -448,7 +438,7 @@ CVAPI(CvSeq*) cvFindCliqueEx( CvGraph *graph, CvMemStorage *storage,
                                  CvSeq *subgraph_of_ban CV_DEFAULT(0),
                                  float *clique_weight_ptr CV_DEFAULT(0),
                                  int num_generations CV_DEFAULT(3),
-                                 int quality CV_DEFAULT(2) );
+                                 int quality CV_DEFAULT(2) );*/
 
 
 #define CV_UNDEF_SC_PARAM         12345 //default value of parameters
@@ -635,7 +625,7 @@ CVAPI(int) icvComputeStereoLineCoeffs(   CvPoint3D64d pointA,
                                     double gamma,
                                     CvStereoLineCoeff*    coeffs);
 
-CVAPI(int) icvComputeFundMatrEpipoles ( CvMatr64d camMatr1, 
+/*CVAPI(int) icvComputeFundMatrEpipoles ( CvMatr64d camMatr1, 
                                     CvMatr64d     rotMatr1, 
                                     CvVect64d     transVect1,
                                     CvMatr64d     camMatr2,
@@ -643,10 +633,7 @@ CVAPI(int) icvComputeFundMatrEpipoles ( CvMatr64d camMatr1,
                                     CvVect64d     transVect2,
                                     CvPoint2D64d* epipole1,
                                     CvPoint2D64d* epipole2,
-                                    CvMatr64d     fundMatr);
-
-CVAPI(void)
-icvSolveCubic(CvMat* coeffs,CvMat* result);
+                                    CvMatr64d     fundMatr);*/
 
 CVAPI(int) icvGetAngleLine( CvPoint2D64d startPoint, CvSize imageSize,CvPoint2D64d *point1,CvPoint2D64d *point2);
 
@@ -654,12 +641,12 @@ CVAPI(void) icvGetCoefForPiece(   CvPoint2D64d p_start,CvPoint2D64d p_end,
                         double *a,double *b,double *c,
                         int* result);
 
-CVAPI(void) icvGetCommonArea( CvSize imageSize,
+/*CVAPI(void) icvGetCommonArea( CvSize imageSize,
                     CvPoint2D64d epipole1,CvPoint2D64d epipole2,
                     CvMatr64d fundMatr,
                     CvVect64d coeff11,CvVect64d coeff12,
                     CvVect64d coeff21,CvVect64d coeff22,
-                    int* result);
+                    int* result);*/
 
 CVAPI(void) icvComputeeInfiniteProject1(CvMatr64d    rotMatr,
                                      CvMatr64d    camMatr1,
@@ -740,7 +727,7 @@ CVAPI(IplImage*) icvCreateIsometricImage( IplImage* src, IplImage* dst,
 
 CVAPI(void) cvDeInterlace( const CvArr* frame, CvArr* fieldEven, CvArr* fieldOdd );
 
-CVAPI(int) icvSelectBestRt(           int           numImages,
+/*CVAPI(int) icvSelectBestRt(           int           numImages,
                                     int*          numPoints,
                                     CvSize        imageSize,
                                     CvPoint2D32f* imagePoints1,
@@ -759,7 +746,7 @@ CVAPI(int) icvSelectBestRt(           int           numImages,
 
                                     CvMatr32f     bestRotMatr,
                                     CvVect32f     bestTransVect
-                                    );
+                                    );*/
 
 /****************************************************************************************\
 *                                   Contour Morphing                                     *
@@ -867,11 +854,10 @@ typedef unsigned char CvBool;
 typedef struct
 {
     int id;
-    CvPoint p;
+    CvPoint2D32f p; // pgruebele: So we do not loose precision, this needs to be float
 } Cv3dTracker2dTrackedObject;
 
-CV_INLINE Cv3dTracker2dTrackedObject cv3dTracker2dTrackedObject(int id, CvPoint p);
-CV_INLINE Cv3dTracker2dTrackedObject cv3dTracker2dTrackedObject(int id, CvPoint p)
+CV_INLINE Cv3dTracker2dTrackedObject cv3dTracker2dTrackedObject(int id, CvPoint2D32f p)
 {
     Cv3dTracker2dTrackedObject r;
     r.id = id;
@@ -885,7 +871,6 @@ typedef struct
     CvPoint3D32f p;             // location of the tracked object
 } Cv3dTrackerTrackedObject;
 
-CV_INLINE Cv3dTracker2dTrackedObject cv3dTracker2dTrackedObject(int id, CvPoint p);
 CV_INLINE Cv3dTrackerTrackedObject cv3dTrackerTrackedObject(int id, CvPoint3D32f p)
 {
     Cv3dTrackerTrackedObject r;
@@ -1047,9 +1032,9 @@ CVAPI(int) cvReleaseLinearContorModelStorage(CvGraph** Graph);
 CVAPI(void) cvInitPerspectiveTransform( CvSize size, const CvPoint2D32f vertex[4], double matrix[3][3],
                                               CvArr* rectMap );
 
-CVAPI(void) cvInitStereoRectification( CvStereoCamera* params,
+/*CVAPI(void) cvInitStereoRectification( CvStereoCamera* params,
                                              CvArr* rectMap1, CvArr* rectMap2,
-                                             int do_undistortion );
+                                             int do_undistortion );*/
 
 /*************************** View Morphing Functions ************************/
 
@@ -1126,6 +1111,204 @@ CVAPI(void)  cvPostWarpImage( int       line_count,
 
 /* Deletes Moire (missed pixels that appear due to discretization) */
 CVAPI(void)  cvDeleteMoire( IplImage*  img );
+
+
+/****************************************************************************************\
+*                           Background/foreground segmentation                           *
+\****************************************************************************************/
+
+#define CV_BG_MODEL_FGD     0
+#define CV_BG_MODEL_MOG     1
+#define CV_BG_MODEL_FGD_SIMPLE   2
+
+struct CvBGStatModel;
+
+typedef void (CV_CDECL * CvReleaseBGStatModel)( struct CvBGStatModel** bg_model );
+typedef int (CV_CDECL * CvUpdateBGStatModel)( IplImage* curr_frame, struct CvBGStatModel* bg_model );
+
+#define CV_BG_STAT_MODEL_FIELDS()                                                   \
+    int             type; /*type of BG model*/                                      \
+    CvReleaseBGStatModel release;                                                   \
+    CvUpdateBGStatModel update;                                                     \
+    IplImage*       background;   /*8UC3 reference background image*/               \
+    IplImage*       foreground;   /*8UC1 foreground image*/                         \
+    IplImage**      layers;       /*8UC3 reference background image, can be null */ \
+    int             layer_count;  /* can be zero */                                 \
+    CvMemStorage*   storage;      /*storage for “foreground_regions”*/              \
+    CvSeq*          foreground_regions /*foreground object contours*/
+
+typedef struct CvBGStatModel
+{
+    CV_BG_STAT_MODEL_FIELDS();
+}
+CvBGStatModel;
+
+// 
+
+// Releases memory used by BGStatModel
+CV_INLINE void cvReleaseBGStatModel( CvBGStatModel** bg_model )
+{
+    if( bg_model && *bg_model && (*bg_model)->release )
+        (*bg_model)->release( bg_model );
+}
+
+// Updates statistical model and returns number of found foreground regions
+CV_INLINE int cvUpdateBGStatModel( IplImage* current_frame, CvBGStatModel*  bg_model )
+{
+    return bg_model && bg_model->update ? bg_model->update( current_frame, bg_model ) : 0;
+}
+
+// Performs FG post-processing using segmentation
+// (all pixels of a region will be classified as foreground if majority of pixels of the region are FG).
+// parameters:
+//      segments - pointer to result of segmentation (for example MeanShiftSegmentation)
+//      bg_model - pointer to CvBGStatModel structure
+CVAPI(void) cvRefineForegroundMaskBySegm( CvSeq* segments, CvBGStatModel*  bg_model );
+
+/* Common use change detection function */
+CVAPI(int)  cvChangeDetection( IplImage*  prev_frame,
+                               IplImage*  curr_frame,
+                               IplImage*  change_mask );
+
+/*
+  Interface of ACM MM2003 algorithm
+  (Liyuan Li, Weimin Huang, Irene Y.H. Gu, and Qi Tian. 
+  "Foreground Object Detection from Videos Containing Complex Background. ACM MM2003")
+*/
+
+/* default paremeters of foreground detection algorithm */
+#define  CV_BGFG_FGD_LC              128
+#define  CV_BGFG_FGD_N1C             15
+#define  CV_BGFG_FGD_N2C             25
+
+#define  CV_BGFG_FGD_LCC             64
+#define  CV_BGFG_FGD_N1CC            25
+#define  CV_BGFG_FGD_N2CC            40
+
+/* BG reference image update parameter */
+#define  CV_BGFG_FGD_ALPHA_1         0.1f
+
+/* stat model update parameter
+   0.002f ~ 1K frame(~45sec), 0.005 ~ 18sec (if 25fps and absolutely static BG) */
+#define  CV_BGFG_FGD_ALPHA_2         0.005f
+
+/* start value for alpha parameter (to fast initiate statistic model) */
+#define  CV_BGFG_FGD_ALPHA_3         0.1f
+
+#define  CV_BGFG_FGD_DELTA           2
+
+#define  CV_BGFG_FGD_T               0.9f
+
+#define  CV_BGFG_FGD_MINAREA         15.f
+
+#define  CV_BGFG_FGD_BG_UPDATE_TRESH 0.5f
+
+typedef struct CvFGDStatModelParams
+{
+    int           Lc, N1c, N2c, Lcc, N1cc, N2cc, is_obj_without_holes, perform_morphing;
+    float         alpha1, alpha2, alpha3, delta, T, minArea;
+}
+CvFGDStatModelParams;
+
+typedef struct CvBGPixelCStatTable
+{
+    float          Pv, Pvb;
+    uchar          v[3];
+}
+CvBGPixelCStatTable;
+
+typedef struct CvBGPixelCCStatTable
+{
+    float          Pv, Pvb;
+    uchar          v[6];
+}
+CvBGPixelCCStatTable;
+
+typedef struct CvBGPixelStat
+{
+    float                 Pbc;
+    float                 Pbcc;
+    CvBGPixelCStatTable*  ctable;
+    CvBGPixelCCStatTable* cctable;
+    uchar                 is_trained_st_model;
+    uchar                 is_trained_dyn_model;
+}
+CvBGPixelStat;
+
+
+typedef struct CvFGDStatModel
+{
+    CV_BG_STAT_MODEL_FIELDS();
+    CvBGPixelStat*         pixel_stat;
+    IplImage*              Ftd;
+    IplImage*              Fbd;
+    IplImage*              prev_frame;
+    CvFGDStatModelParams   params;
+}
+CvFGDStatModel;
+
+/* Creates FGD model */
+CVAPI(CvBGStatModel*) cvCreateFGDStatModel( IplImage* first_frame,
+                    CvFGDStatModelParams* parameters CV_DEFAULT(NULL));
+
+/* 
+   Interface of Gaussian mixture algorithm
+   (P. KadewTraKuPong and R. Bowden,
+   "An improved adaptive background mixture model for real-time tracking with shadow detection"
+   in Proc. 2nd European Workshp on Advanced Video-Based Surveillance Systems, 2001.")
+*/
+
+#define CV_BGFG_MOG_MAX_NGAUSSIANS 500
+
+/* default parameters of gaussian background detection algorithm */
+#define CV_BGFG_MOG_BACKGROUND_THRESHOLD     0.7     /* threshold sum of weights for background test */
+#define CV_BGFG_MOG_STD_THRESHOLD            2.5     /* lambda=2.5 is 99% */
+#define CV_BGFG_MOG_WINDOW_SIZE              200     /* Learning rate; alpha = 1/CV_GBG_WINDOW_SIZE */
+#define CV_BGFG_MOG_NGAUSSIANS               5       /* = K = number of Gaussians in mixture */
+#define CV_BGFG_MOG_WEIGHT_INIT              0.05
+#define CV_BGFG_MOG_SIGMA_INIT               30
+#define CV_BGFG_MOG_MINAREA                  15.f
+
+
+#define CV_BGFG_MOG_NCOLORS                  3
+
+typedef struct CvGaussBGStatModelParams
+{    
+    int     win_size;               /* = 1/alpha */
+    int     n_gauss;
+    double  bg_threshold, std_threshold, minArea;
+    double  weight_init, variance_init;
+}CvGaussBGStatModelParams;
+
+typedef struct CvGaussBGValues
+{
+    int         match_sum;
+    double      weight;
+    double      variance[CV_BGFG_MOG_NCOLORS];
+    double      mean[CV_BGFG_MOG_NCOLORS];
+}
+CvGaussBGValues;
+
+typedef struct CvGaussBGPoint
+{
+    CvGaussBGValues* g_values;
+}
+CvGaussBGPoint;
+
+
+typedef struct CvGaussBGModel
+{
+    CV_BG_STAT_MODEL_FIELDS();
+    CvGaussBGStatModelParams   params;    
+    CvGaussBGPoint*            g_point;    
+    int                        countFrames;
+}
+CvGaussBGModel;
+
+
+/* Creates Gaussian mixture background model */
+CVAPI(CvBGStatModel*) cvCreateGaussianBGModel( IplImage* first_frame,
+                CvGaussBGStatModelParams* parameters CV_DEFAULT(NULL));
 
 #ifdef __cplusplus
 }

@@ -100,7 +100,7 @@ static const uchar icvSaturate8u[] =
     255
 };
 
-#define CV_FAST_CAST_8U(t)   (assert(-256 <= (t) || (t) <= 512), icvSaturate8u[t+256])
+#define CV_FAST_CAST_8U(t)   (assert(-256 <= (t) && (t) <= 512), icvSaturate8u[(t)+256])
 
 /****************************************************************************************\
 *                      Arithmetic operations (+, -) without mask                         *
@@ -247,10 +247,9 @@ IPCVAPI_IMPL( CvStatus, name,                                               \
 
 
 #define ICV_DEF_UN_ARI_OP_2D( __op__, name, type, worktype, cast_macro )    \
-IPCVAPI_IMPL( CvStatus, name,                                               \
+static CvStatus CV_STDCALL name                                             \
     ( const type* src, int step1, type* dst, int step,                      \
-      CvSize size, const worktype* scalar ),                                \
-     (src, step1, dst, step, size, scalar) )                                \
+      CvSize size, const worktype* scalar )                                 \
 {                                                                           \
     if( size.width == 1 )                                                   \
     {                                                                       \
@@ -363,7 +362,6 @@ cvSub( const void* srcarr1, const void* srcarr2,
             CvArr* arrs[] = { src1, src2, dst };
             CvMatND stubs[3];
             CvNArrayIterator iterator;
-            CvFunc2D_3A func;
 
             if( maskarr )
                 CV_ERROR( CV_StsBadMask,
@@ -658,7 +656,7 @@ cvSubRS( const void* srcarr, CvScalar scalar, void* dstarr, const void* maskarr 
         if( !func )
             CV_ERROR( CV_StsUnsupportedFormat, "" );
        
-        CV_CALL( cvScalarToRawData( &scalar, buf, sctype, 0 ));
+        CV_CALL( cvScalarToRawData( &scalar, buf, sctype, 1 ));
 
         do
         {
@@ -838,7 +836,6 @@ cvAdd( const void* srcarr1, const void* srcarr2,
             CvArr* arrs[] = { src1, src2, dst };
             CvMatND stubs[3];
             CvNArrayIterator iterator;
-            CvFunc2D_3A func;
 
             if( maskarr )
                 CV_ERROR( CV_StsBadMask,
@@ -1133,7 +1130,7 @@ cvAddS( const void* srcarr, CvScalar scalar, void* dstarr, const void* maskarr )
         if( !func )
             CV_ERROR( CV_StsUnsupportedFormat, "" );
        
-        CV_CALL( cvScalarToRawData( &scalar, buf, sctype, 0 ));
+        CV_CALL( cvScalarToRawData( &scalar, buf, sctype, 1 ));
 
         do
         {
@@ -1283,14 +1280,13 @@ cvAddS( const void* srcarr, CvScalar scalar, void* dstarr, const void* maskarr )
 
 #define ICV_DEF_MUL_OP_CASE( flavor, arrtype, worktype, _cast_macro1_,                  \
                              _cast_macro2_, _cvt_macro_ )                               \
-                                                                                        \
-IPCVAPI_IMPL( CvStatus, icvMul_##flavor##_C1R,( const arrtype* src1, int step1,         \
-                                          const arrtype* src2, int step2,               \
-                                          arrtype* dst, int step,                       \
-                                          CvSize size, double scale ),                  \
-                                          (src1, step1, src2, step2, dst, step, size, scale) )\
+static CvStatus CV_STDCALL                                                              \
+    icvMul_##flavor##_C1R( const arrtype* src1, int step1,                              \
+                           const arrtype* src2, int step2,                              \
+                           arrtype* dst, int step,                                      \
+                           CvSize size, double scale )                                  \
 {                                                                                       \
-    if( scale == 1 )                                                                    \
+    if( fabs(scale - 1.) < DBL_EPSILON )                                                \
     {                                                                                   \
         for( ; size.height--; (char*&)src1+=step1,                                      \
                               (char*&)src2+=step2,                                      \
@@ -1328,15 +1324,18 @@ IPCVAPI_IMPL( CvStatus, icvMul_##flavor##_C1R,( const arrtype* src1, int step1, 
             int i;                                                                      \
             for( i = 0; i <= size.width - 4; i += 4 )                                   \
             {                                                                           \
-                worktype t0, t1;                                                        \
-                t0 = _cast_macro1_(scale*_cvt_macro_(src1[i])*_cvt_macro_(src2[i]));    \
-                t1 = _cast_macro1_(scale*_cvt_macro_(src1[i+1])*_cvt_macro_(src2[i+1]));\
+                double ft0 = scale*_cvt_macro_(src1[i])*_cvt_macro_(src2[i]);           \
+                double ft1 = scale*_cvt_macro_(src1[i+1])*_cvt_macro_(src2[i+1]);       \
+                worktype t0 = _cast_macro1_(ft0);                                       \
+                worktype t1 = _cast_macro1_(ft1);                                       \
                                                                                         \
                 dst[i] = _cast_macro2_(t0);                                             \
                 dst[i+1] = _cast_macro2_(t1);                                           \
                                                                                         \
-                t0 = _cast_macro1_(scale*_cvt_macro_(src1[i+2])*_cvt_macro_(src2[i+2]));\
-                t1 = _cast_macro1_(scale*_cvt_macro_(src1[i+3])*_cvt_macro_(src2[i+3]));\
+                ft0 = scale*_cvt_macro_(src1[i+2])*_cvt_macro_(src2[i+2]);              \
+                ft1 = scale*_cvt_macro_(src1[i+3])*_cvt_macro_(src2[i+3]);              \
+                t0 = _cast_macro1_(ft0);                                                \
+                t1 = _cast_macro1_(ft1);                                                \
                                                                                         \
                 dst[i+2] = _cast_macro2_(t0);                                           \
                 dst[i+3] = _cast_macro2_(t1);                                           \
@@ -1437,7 +1436,6 @@ cvMul( const void* srcarr1, const void* srcarr2, void* dstarr, double scale )
         CvArr* arrs[] = { src1, src2, dst };
         CvMatND stubs[3];
         CvNArrayIterator iterator;
-        CvScaledElWiseFunc func;
 
         CV_CALL( cvInitNArrayIterator( 3, arrs, 0, stubs, &iterator ));
 
@@ -1551,8 +1549,8 @@ icvDiv_##flavor##_C1R( const arrtype* src1, int step1,                          
             if( _check_macro_(src2[i]) && _check_macro_(src2[i+1]) &&                   \
                 _check_macro_(src2[i+2]) && _check_macro_(src2[i+3]))                   \
             {                                                                           \
-                double a = _cvt_macro_(src2[i]) * _cvt_macro_(src2[i+1]);               \
-                double b = _cvt_macro_(src2[i+2]) * _cvt_macro_(src2[i+3]);             \
+                double a = (double)_cvt_macro_(src2[i]) * _cvt_macro_(src2[i+1]);       \
+                double b = (double)_cvt_macro_(src2[i+2]) * _cvt_macro_(src2[i+3]);     \
                 double d = scale/(a * b);                                               \
                                                                                         \
                 b *= d;                                                                 \
@@ -1615,8 +1613,8 @@ icvRecip_##flavor##_C1R( const arrtype* src, int step1,                         
             if( _check_macro_(src[i]) && _check_macro_(src[i+1]) &&             \
                 _check_macro_(src[i+2]) && _check_macro_(src[i+3]))             \
             {                                                                   \
-                double a = _cvt_macro_(src[i]) * _cvt_macro_(src[i+1]);         \
-                double b = _cvt_macro_(src[i+2]) * _cvt_macro_(src[i+3]);       \
+                double a = (double)_cvt_macro_(src[i]) * _cvt_macro_(src[i+1]); \
+                double b = (double)_cvt_macro_(src[i+2]) * _cvt_macro_(src[i+3]);\
                 double d = scale/(a * b);                                       \
                                                                                 \
                 b *= d;                                                         \
@@ -1662,11 +1660,20 @@ icvRecip_##flavor##_C1R( const arrtype* src, int step1,                         
     return CV_OK;                                                               \
 }
 
-
 #define div_check_zero_flt(x)  (((int&)(x) & 0x7fffffff) != 0)
 #define div_check_zero_dbl(x)  (((int64&)(x) & CV_BIG_INT(0x7fffffffffffffff)) != 0)
 
+#if defined WIN64 && defined EM64T && defined _MSC_VER && !defined CV_ICC
+#pragma optimize("",off)
+#endif
+
 ICV_DEF_DIV_OP_CASE( 8u, uchar, int, cvRound, CV_CAST_8U, CV_8TO32F, CV_NONZERO )
+
+#if defined WIN64 && defined EM64T && defined _MSC_VER && !defined CV_ICC
+#pragma optimize("",on)
+#endif
+
+
 ICV_DEF_DIV_OP_CASE( 16u, ushort, int, cvRound, CV_CAST_16U, CV_CAST_64F, CV_NONZERO )
 ICV_DEF_DIV_OP_CASE( 16s, short, int, cvRound, CV_CAST_16S, CV_NOP, CV_NONZERO )
 ICV_DEF_DIV_OP_CASE( 32s, int, int, cvRound, CV_CAST_32S, CV_CAST_64F, CV_NONZERO )
@@ -1910,7 +1917,7 @@ icvAddWeighted_8u_fast_C1R( const uchar* src1, int step1, double alpha,
     int j, t0, t1, t2, t3;
 
     alpha *= 1 << shift;
-    gamma *= 1 << shift;
+    gamma = gamma*(1 << shift) + (1 << (shift - 1));
     beta *= 1 << shift;
 
     for( j = 0; j < 256; j++ )
@@ -1921,10 +1928,10 @@ icvAddWeighted_8u_fast_C1R( const uchar* src1, int step1, double alpha,
         gamma += beta;
     }
 
-    t0 = CV_DESCALE( tab1[0] + tab2[0], shift );
-    t1 = CV_DESCALE( tab1[0] + tab2[255], shift );
-    t2 = CV_DESCALE( tab1[255] + tab2[0], shift );
-    t3 = CV_DESCALE( tab1[255] + tab2[255], shift );
+    t0 = (tab1[0] + tab2[0]) >> shift;
+    t1 = (tab1[0] + tab2[255]) >> shift;
+    t2 = (tab1[255] + tab2[0]) >> shift;
+    t3 = (tab1[255] + tab2[255]) >> shift;
 
     if( (unsigned)(t0+256) < 768 && (unsigned)(t1+256) < 768 &&
         (unsigned)(t2+256) < 768 && (unsigned)(t3+256) < 768 )
@@ -1936,23 +1943,23 @@ icvAddWeighted_8u_fast_C1R( const uchar* src1, int step1, double alpha,
 
             for( i = 0; i <= size.width - 4; i += 4 )
             {
-                int t0 = CV_DESCALE( tab1[src1[i]] + tab2[src2[i]], shift );
-                int t1 = CV_DESCALE( tab1[src1[i+1]] + tab2[src2[i+1]], shift );
+                t0 = CV_FAST_CAST_8U((tab1[src1[i]] + tab2[src2[i]]) >> shift);
+                t1 = CV_FAST_CAST_8U((tab1[src1[i+1]] + tab2[src2[i+1]]) >> shift);
 
-                (dst)[i] = CV_FAST_CAST_8U( t0 );
-                (dst)[i+1] = CV_FAST_CAST_8U( t1 );
+                dst[i] = (uchar)t0;
+                dst[i+1] = (uchar)t1;
 
-                t0 = CV_DESCALE( tab1[src1[i+2]] + tab2[src2[i+2]], shift );
-                t1 = CV_DESCALE( tab1[src1[i+3]] + tab2[src2[i+3]], shift );
+                t0 = CV_FAST_CAST_8U((tab1[src1[i+2]] + tab2[src2[i+2]]) >> shift);
+                t1 = CV_FAST_CAST_8U((tab1[src1[i+3]] + tab2[src2[i+3]]) >> shift);
 
-                (dst)[i+2] = CV_FAST_CAST_8U( t0 );
-                (dst)[i+3] = CV_FAST_CAST_8U( t1 );
+                dst[i+2] = (uchar)t0;
+                dst[i+3] = (uchar)t1;
             }
 
             for( ; i < size.width; i++ )
             {
-                int t0 = CV_DESCALE( tab1[src1[i]] + tab2[src2[i]], shift );
-                (dst)[i] = CV_FAST_CAST_8U( t0 );
+                t0 = CV_FAST_CAST_8U((tab1[src1[i]] + tab2[src2[i]]) >> shift);
+                dst[i] = (uchar)t0;
             }
         }
     }
@@ -1965,23 +1972,23 @@ icvAddWeighted_8u_fast_C1R( const uchar* src1, int step1, double alpha,
             
             for( i = 0; i <= size.width - 4; i += 4 )
             {
-                int t0 = CV_DESCALE( tab1[src1[i]] + tab2[src2[i]], shift );
-                int t1 = CV_DESCALE( tab1[src1[i+1]] + tab2[src2[i+1]], shift );
+                t0 = (tab1[src1[i]] + tab2[src2[i]]) >> shift;
+                t1 = (tab1[src1[i+1]] + tab2[src2[i+1]]) >> shift;
 
-                (dst)[i] = CV_CAST_8U( t0 );
-                (dst)[i+1] = CV_CAST_8U( t1 );
+                dst[i] = CV_CAST_8U( t0 );
+                dst[i+1] = CV_CAST_8U( t1 );
 
-                t0 = CV_DESCALE( tab1[src1[i+2]] + tab2[src2[i+2]], shift );
-                t1 = CV_DESCALE( tab1[src1[i+3]] + tab2[src2[i+3]], shift );
+                t0 = (tab1[src1[i+2]] + tab2[src2[i+2]]) >> shift;
+                t1 = (tab1[src1[i+3]] + tab2[src2[i+3]]) >> shift;
 
-                (dst)[i+2] = CV_CAST_8U( t0 );
-                (dst)[i+3] = CV_CAST_8U( t1 );
+                dst[i+2] = CV_CAST_8U( t0 );
+                dst[i+3] = CV_CAST_8U( t1 );
             }
 
             for( ; i < size.width; i++ )
             {
-                int t0 = CV_DESCALE( tab1[src1[i]] + tab2[src2[i]], shift );
-                (dst)[i] = CV_CAST_8U( t0 );
+                t0 = (tab1[src1[i]] + tab2[src2[i]]) >> shift;
+                dst[i] = CV_CAST_8U( t0 );
             }
         }
     }
@@ -2063,7 +2070,7 @@ cvAddWeighted( const CvArr* srcAarr, double alpha,
         srcA_step = srcB_step = dst_step = CV_AUTOSTEP;
     }
 
-    if( type == CV_8UC1 && size.width * size.height > 1024 &&
+    if( type == CV_8UC1 && size.width * size.height >= 1024 &&
         fabs(alpha) < 256 && fabs(beta) < 256 && fabs(gamma) < 256*256 )
     {
         func = (CvAddWeightedFunc)icvAddWeighted_8u_fast_C1R;

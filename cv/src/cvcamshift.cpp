@@ -84,7 +84,8 @@ cvMeanShift( const void* imgProb, CvRect windowIn,
     if( windowIn.height <= 0 || windowIn.width <= 0 )
         CV_ERROR( CV_StsBadArg, "Input window has non-positive sizes" );
 
-    if( !icvIsRectInRect( windowIn, cvRect( 0, 0, mat->width, mat->height )))
+    if( windowIn.x < 0 || windowIn.x + windowIn.width > mat->cols ||
+        windowIn.y < 0 || windowIn.y + windowIn.height > mat->rows )
         CV_ERROR( CV_StsBadArg, "Initial window is not inside the image ROI" );
 
     CV_CALL( criteria = cvCheckTermCriteria( criteria, 1., 100 ));
@@ -93,32 +94,37 @@ cvMeanShift( const void* imgProb, CvRect windowIn,
 
     for( i = 0; i < criteria.max_iter; i++ )
     {
-        int dx, dy;
+        int dx, dy, nx, ny;
         double inv_m00;
 
         CV_CALL( cvGetSubRect( mat, &cur_win, cur_rect )); 
         CV_CALL( cvMoments( &cur_win, &moments ));
 
         /* Calculating center of mass */
-        if( moments.m00 == 0 )
+        if( fabs(moments.m00) < DBL_EPSILON )
             break;
 
         inv_m00 = moments.inv_sqrt_m00*moments.inv_sqrt_m00;
         dx = cvRound( moments.m10 * inv_m00 - windowIn.width*0.5 );
         dy = cvRound( moments.m01 * inv_m00 - windowIn.height*0.5 );
 
-        cur_rect.x += dx;
-        cur_rect.y += dy; 
+        nx = cur_rect.x + dx;
+        ny = cur_rect.y + dy;
 
-        if( cur_rect.x < 0 )
-            cur_rect.x = 0;
-        else if( cur_rect.x + cur_rect.width > mat->width )
-            cur_rect.x = mat->width - cur_rect.width;
+        if( nx < 0 )
+            nx = 0;
+        else if( nx + cur_rect.width > mat->cols )
+            nx = mat->cols - cur_rect.width;
 
-        if( cur_rect.y < 0 )
-            cur_rect.y = 0;
-        else if( cur_rect.y + cur_rect.height > mat->height )
-            cur_rect.y = mat->height - cur_rect.height;
+        if( ny < 0 )
+            ny = 0;
+        else if( ny + cur_rect.height > mat->rows )
+            ny = mat->rows - cur_rect.height;
+
+        dx = nx - cur_rect.x;
+        dy = ny - cur_rect.y;
+        cur_rect.x = nx;
+        cur_rect.y = ny;
 
         /* Check for coverage centers mass & window */
         if( dx*dx + dy*dy < eps )
@@ -212,7 +218,7 @@ cvCamShift( const void* imgProb, CvRect windowIn,
     mu20 = moments.mu20;
     mu02 = moments.mu02;
 
-    if( m00 == 0 )
+    if( fabs(m00) < DBL_EPSILON )
         EXIT;
 
     inv_m00 = 1. / m00;

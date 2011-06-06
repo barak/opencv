@@ -54,8 +54,8 @@
 Note:<br>
 The chapter describes functions for image processing and analysis.
 Most of the functions work with 2d arrays of pixels. We refer the arrays
-as "images" however they do not neccesserily have to be IplImage's, they may
-be CvMat's or CvMatND's as well.
+as "images" however they do not neccesserily have to be IplImage&#146;s, they may
+be CvMat&#146;s or CvMatND&#146;s as well.
 </p>
 
 <hr><h2><a name="cv_imgproc_features">Gradients, Edges and Corners</a></h2>
@@ -81,7 +81,7 @@ give more accurate results than 3x3 Sobel. Scharr aperture is:
 </pre>
 for x-derivative or transposed for y-derivative.
 </dl><p>
-The function <a href="#decl_cvSobel">cvSobel</a> calculates the image derivative by convolving the image
+The function <code>cvSobel</code> calculates the image derivative by convolving the image
 with the appropriate kernel:</p>
 <pre>
 dst(x,y) = d<sup>xorder+yoder</sup>src/dx<sup>xorder</sup>&bull;dy<sup>yorder</sup> |<sub>(x,y)</sub>
@@ -124,7 +124,7 @@ void cvLaplace( const CvArr* src, CvArr* dst, int aperture_size=3 );
 <dt>dst<dd>Destination image.
 <dt>aperture_size<dd>Aperture size (it has the same meaning as in <a href="#decl_cvSobel">cvSobel</a>).
 </dl><p>
-The function <a href="#decl_cvLaplace">cvLaplace</a> calculates Laplacian of the source image by summing
+The function <code>cvLaplace</code> calculates Laplacian of the source image by summing
 second x- and y- derivatives calculated using Sobel operator:</p>
 <pre>
 dst(x,y) = d<sup>2</sup>src/dx<sup>2</sup> + d<sup>2</sup>src/dy<sup>2</sup>
@@ -154,7 +154,7 @@ void cvCanny( const CvArr* image, CvArr* edges, double threshold1,
 <dt>threshold2<dd>The second threshold.
 <dt>aperture_size<dd>Aperture parameter for Sobel operator (see <a href="#decl_cvSobel">cvSobel</a>).
 </dl><p>
-The function <a href="#decl_cvCanny">cvCanny</a> finds the edges on the input image <code>image</code> and marks them in the
+The function <code>cvCanny</code> finds the edges on the input image <code>image</code> and marks them in the
 output image <code>edges</code> using the Canny algorithm. The smallest of <code>threshold1</code> and
 <code>threshold2</code> is used for edge linking, the largest - to find initial segments of strong edges.</p>
 
@@ -168,12 +168,12 @@ void cvPreCornerDetect( const CvArr* image, CvArr* corners, int aperture_size=3 
 <dt>corners<dd>Image to store the corner candidates.
 <dt>aperture_size<dd>Aperture parameter for Sobel operator (see <a href="#decl_cvSobel">cvSobel</a>).
 </dl><p>
-The function <a href="#decl_cvPreCornerDetect">cvPreCornerDetect</a> calculates the function
+The function <code>cvPreCornerDetect</code> calculates the function
 D<sub>x</sub><sup>2</sup>D<sub>yy</sub>+D<sub>y</sub><sup>2</sup>D<sub>xx</sub> - 2D<sub>x</sub>D<sub>y</sub>D<sub>xy</sub>
 where D<sub>?</sub> denotes one of the first image derivatives and D<sub>??</sub> denotes a second image
 derivative. The corners can be found as local maximums of the function:</p>
 <pre>
-// assuming that the image is floating-point
+// assume that the image is floating-point
 IplImage* corners = cvCloneImage(image);
 IplImage* dilated_corners = cvCloneImage(image);
 IplImage* corner_mask = cvCreateImage( cvGetSize(image), 8, 1 );
@@ -196,7 +196,7 @@ void cvCornerEigenValsAndVecs( const CvArr* image, CvArr* eigenvv,
 <dt>block_size<dd>Neighborhood size (see discussion).
 <dt>aperture_size<dd>Aperture parameter for Sobel operator (see <a href="#decl_cvSobel">cvSobel</a>).
 </dl><p>
-For every pixel the function <a href="#decl_cvCornerEigenValsAndVecs">cvCornerEigenValsAndVecs</a> considers
+For every pixel The function <code>cvCornerEigenValsAndVecs</code> considers
 <code>block_size</code> &times; <code>block_size</code> neigborhood S(p). It calcualtes
 covariation matrix of derivatives over the neigborhood as:</p>
 <pre>
@@ -226,9 +226,34 @@ void cvCornerMinEigenVal( const CvArr* image, CvArr* eigenval, int block_size, i
 format. In the case of floating-point input format this parameter is the number
 of the fixed float filter used for differencing.
 </dl><p>
-The function <a href="#decl_cvCornerMinEigenVal">cvCornerMinEigenVal</a> is similar to <a href="#decl_cvCornerEigenValsAndVecs">cvCornerEigenValsAndVecs</a> but
+The function <code>cvCornerMinEigenVal</code> is similar to <a href="#decl_cvCornerEigenValsAndVecs">cvCornerEigenValsAndVecs</a> but
 it calculates and stores only the minimal eigen value of derivative covariation matrix for every pixel,
 i.e. min(&lambda;<sub>1</sub>, &lambda;<sub>2</sub>) in terms of the previous function.
+</p>
+
+
+<hr><h3><a name="decl_cvCornerHarris">CornerHarris</a></h3>
+<p class="Blurb">Harris edge detector</p>
+<pre>
+void cvCornerHarris( const CvArr* image, CvArr* harris_responce,
+                     int block_size, int aperture_size=3, double k=0.04 );
+</pre><p><dl>
+<dt>image<dd>Input image.
+<dt>harris_responce<dd>Image to store the Harris detector responces. Should have the same size as <code>image</code>
+<dt>block_size<dd>Neighborhood size (see discussion of <a href="#decl_cvCornerEigenValsAndVecs">cvCornerEigenValsAndVecs</a>).
+<dt>aperture_size<dd>Aperture parameter for Sobel operator (see <a href="#decl_cvSobel">cvSobel</a>).
+format. In the case of floating-point input format this parameter is the number
+of the fixed float filter used for differencing.
+<dt>k<dd>Harris detector free parameter. See the formula below.
+</dl><p>
+The function <code>cvCornerHarris</code> runs the Harris edge detector on image. Similarly to
+<a href="#decl_cvCornerMinEigenVal">cvCornerMinEigenVal</a> and
+<a href="#decl_cvCornerEigenValsAndVecs">cvCornerEigenValsAndVecs</a>, for each pixel it calculates 2x2 gradient
+covariation matrix <code>M</code> over <code>block_size&times;block_size</code> neighborhood.
+Then, it stores</p>
+<pre>det(M) - k*trace(M)<sup>2</sup>
+</pre>
+to the destination image. Corners in the image can be found as local maxima of the destination image.
 </p>
 
 
@@ -253,7 +278,7 @@ That is, the process of corner position refinement stops either after certain nu
 when a required accuracy is achieved. The <code>criteria</code> may specify either of or both the maximum
 number of iteration and the required accuracy.
 </dl><p>
-The function <a href="#decl_cvFindCornerSubPix">cvFindCornerSubPix</a> iterates to find the sub-pixel accurate location
+The function <code>cvFindCornerSubPix</code> iterates to find the sub-pixel accurate location
 of corners, or radial saddle points, as shown in on the picture below.</p>
 <p>
 <image align="center" src="pics/cornersubpix.png">
@@ -290,7 +315,8 @@ and then iterates until the center keeps within a set threshold.
 void cvGoodFeaturesToTrack( const CvArr* image, CvArr* eig_image, CvArr* temp_image,
                             CvPoint2D32f* corners, int* corner_count,
                             double quality_level, double min_distance,
-                            const CvArr* mask=NULL );
+                            const CvArr* mask=NULL, int block_size=3,
+                            int use_harris=0, double k=0.04 );
 </pre><p><dl>
 <dt>image<dd>The source 8-bit or floating-point 32-bit, single-channel image.
 <dt>eig_image<dd>Temporary floating-point 32-bit image of the same size as <code>image</code>.
@@ -303,14 +329,20 @@ quality of image corners.
 corners; Euclidian distance is used.
 <dt>mask<dd>Region of interest. The function selects points either in the specified region
 or in the whole image if the mask is NULL.
+<dt>block_size<dd>Size of the averaging block, passed to underlying
+           <a href="#decl_cvCornerMinEigenVal">cvCornerMinEigenVal</a> or
+           <a href="#decl_cvCornerHarris">cvCornerHarris</a> used by the function.
+<dt>use_harris<dd>If nonzero, Harris operator (<a href="#decl_cvCornerHarris">cvCornerHarris</a>)
+                  is used instead of default <a href="#decl_cvCornerMinEigenVal">cvCornerMinEigenVal</a>.
+<dt>k<dd>Free parameter of Harris detector; used only if <code>use_harris&ne;0</code>
 </dl><p>
-The function <a href="#decl_cvGoodFeaturesToTrack">cvGoodFeaturesToTrack</a> finds corners with big eigenvalues in the
+The function <code>cvGoodFeaturesToTrack</code> finds corners with big eigenvalues in the
 image. The function first calculates the minimal eigenvalue for every source image pixel
 using <a href="#decl_cvCornerMinEigenVal">cvCornerMinEigenVal</a> function and stores them in <code>eig_image</code>.
 Then it performs non-maxima suppression (only local maxima in 3x3 neighborhood remain).
 The next step is rejecting the corners with the
 minimal eigenvalue less than <code>quality_level</code>&bull;max(<code>eig_image</code>(x,y)). Finally,
-the function ensures that all the corners found are distanced enough from one
+the function ensures that all the corners found are distanced enough one from
 another by considering the corners (the most strongest corners are considered first)
 and checking that the distance between the newly considered feature and the features considered earlier
 is larger than <code>min_distance</code>. So, the function removes the features than are too close
@@ -318,53 +350,6 @@ to the stronger features.</p>
 
 
 <hr><h2><a name="cv_imgproc_resampling">Sampling, Interpolation and Geometrical Transforms</a></h2>
-
-<hr><h3><a name="decl_cvInitLineIterator">InitLineIterator</a></h3>
-<p class="Blurb">Initializes line iterator</p>
-<pre>
-int cvInitLineIterator( const CvArr* image, CvPoint pt1, CvPoint pt2,
-                        CvLineIterator* line_iterator, int connectivity=8 );
-</pre><p><dl>
-<dt>image<dd>Image to sample the line from.
-<dt>pt1<dd>Starting the line point.
-<dt>pt2<dd>Ending the line point.
-<dt>line_iterator<dd>Pointer to the line iterator state structure.
-<dt>connectivity<dd>The scanned line connectivity, 4 or 8.
-</dl><p>
-The function <a href="#decl_cvInitLineIterator">cvInitLineIterator</a> initializes the line iterator and returns the
-number of pixels between two end points. Both points must be inside the image.
-After the iterator has been initialized, all the points on the raster line that
-connects the two ending points may be retrieved by successive calls of
-<code>CV_NEXT_LINE_POINT</code> point. The points on the line are calculated one by one using
-4-connected or 8-connected Bresenham algorithm.</p>
-<h4>Example. Using line iterator to calculate sum of pixel values along the color line</h4>
-<pre>
-    CvScalar sum_line_pixels( IplImage* image, CvPoint pt1, CvPoint pt2 )
-    {
-        CvLineIterator iterator;
-        int blue_sum = 0, green_sum = 0, red_sum = 0;
-        int count = cvInitLineIterator( image, pt1, pt2, &iterator, 8 );
-
-        for( int i = 0; i &lt; count; i++ ){
-            blue_sum += iterator.ptr[0];
-            green_sum += iterator.ptr[1];
-            red_sum += iterator.ptr[2];
-            CV_NEXT_LINE_POINT(iterator);
-
-            /* print the pixel coordinates: demonstrates how to calculate the coordinates */
-            {
-            int offset, x, y;
-            /* assume that ROI is not set, otherwise need to take it into account. */
-            offset = iterator.ptr - (uchar*)(image->imageData);
-            y = offset/image->widthStep;
-            x = (offset - y*image->widthStep)/(3*sizeof(uchar) /* size of pixel */);
-            printf("(%d,%d)\n", x, y );
-            }
-        }
-        return cvScalar( blue_sum, green_sum, red_sum );
-    }
-</pre>
-
 
 <hr><h3><a name="decl_cvSampleLine">SampleLine</a></h3>
 <p class="Blurb">Reads raster line to buffer</p>
@@ -381,7 +366,7 @@ of 8-connected line and |<code>pt2.x</code>-<code>pt1.x</code>|+|<code>pt2.y</co
 of 4-connected line.
 <dt>connectivity<dd>The line connectivity, 4 or 8.
 </dl><p>
-The function <a href="#decl_cvSampleLine">cvSampleLine</a> implements a particular case of application of line
+The function <code>cvSampleLine</code> implements a particular case of application of line
 iterators. The function reads all the image points lying on the line between <code>pt1</code>
 and <code>pt2</code>, including the ending points, and stores them into the buffer.</p>
 
@@ -396,7 +381,7 @@ void cvGetRectSubPix( const CvArr* src, CvArr* dst, CvPoint2D32f center );
 <dt>center<dd>Floating point coordinates of the extracted rectangle center within the source image.
 The center must be inside the image.
 </dl><p>
-The function <a href="#decl_cvGetRectSubPix">cvGetRectSubPix</a> extracts pixels from <code>src</code>:</p>
+The function <code>cvGetRectSubPix</code> extracts pixels from <code>src</code>:</p>
 <pre>
 dst(x, y) = src(x + center.x - (width(dst)-1)*0.5, y + center.y - (height(dst)-1)*0.5)
 </pre>
@@ -412,78 +397,29 @@ In this case, the replication border mode is used to get pixel values beyond the
 <hr><h3><a name="decl_cvGetQuadrangleSubPix">GetQuadrangleSubPix</a></h3>
 <p class="Blurb">Retrieves pixel quadrangle from image with sub-pixel accuracy</p>
 <pre>
-void cvGetQuadrangleSubPix( const CvArr* src, CvArr* dst, const CvMat* map_matrix,
-                            int fill_outliers=0, CvScalar fill_value=cvScalarAll(0) );
+void cvGetQuadrangleSubPix( const CvArr* src, CvArr* dst, const CvMat* map_matrix );
 </pre><p><dl>
 <dt>src<dd>Source image.
 <dt>dst<dd>Extracted quadrangle.
-<dt>map_matrix<dd>The transformation 3 &times; 2 matrix [<code>A</code>|<code>b</code>] (see the discussion).
-<dt>fill_outliers<dd>The flag indicating whether to interpolate values of pixel taken from outside of the
-source image using replication mode (<code>fill_outliers</code>=0) or set them a fixed value (<code>fill_outliers</code>=1).
-<dt>fill_value<dd>The fixed value to set the outlier pixels to if <code>fill_outliers</code>=1.
+<dt>map_matrix<dd>The transformation 2 &times; 3 matrix [<code>A</code>|<code>b</code>] (see the discussion).
 </dl><p>
-The function <a href="#decl_cvGetQuadrangleSubPix">cvGetQuadrangleSubPix</a> extracts pixels from <code>src</code> at sub-pixel accuracy
+The function <code>cvGetQuadrangleSubPix</code> extracts pixels from <code>src</code> at sub-pixel accuracy
 and stores them to <code>dst</code> as follows:</p>
 <pre>
-dst(x+width(dst)/2, y+height(dst)/2)= src( A<sub>11</sub>x+A<sub>12</sub>y+b<sub>1</sub>, A<sub>21</sub>x+A<sub>22</sub>y+b<sub>2</sub>),
+dst(x, y)= src( A<sub>11</sub>x'+A<sub>12</sub>y'+b<sub>1</sub>, A<sub>21</sub>x'+A<sub>22</sub>y'+b<sub>2</sub>),
 
 where <code>A</code> and <code>b</code> are taken from <code>map_matrix</code>
              | A<sub>11</sub> A<sub>12</sub>  b<sub>1</sub> |
 map_matrix = |            |
-             | A<sub>21</sub> A<sub>22</sub>  b<sub>2</sub> |
+             | A<sub>21</sub> A<sub>22</sub>  b<sub>2</sub> |,
+
+x'=x-(width(dst)-1)*0.5, y'=y-(height(dst)-1)*0.5
 </pre>
 <p>
 where the values of pixels at non-integer coordinates A&bull;(x,y)<sup>T</sup>+b are
-retrieved using bilinear interpolation. Every channel of multiple-channel images is processed
+retrieved using bilinear interpolation. When the function needs pixels outside of the image, it uses replication
+border mode to reconstruct the values. Every channel of multiple-channel images is processed
 independently.</p>
-<h4>Example. Using cvGetQuadrangleSubPix for image rotation.</h4>
-<pre>
-#include "cv.h"
-#include "highgui.h"
-#include "math.h"
-
-int main( int argc, char** argv )
-{
-    IplImage* src;
-    /* the first command line parameter must be image file name */
-    if( argc==2 && (src = cvLoadImage(argv[1], -1))!=0)
-    {
-        IplImage* dst = cvCloneImage( src );
-        int delta = 1;
-        int angle = 0;
-
-        cvNamedWindow( "src", 1 );
-        cvShowImage( "src", src );
-
-        for(;;)
-        {
-            float m[6];
-            double factor = (cos(angle*CV_PI/180.) + 1.1)*3;
-            CvMat M = cvMat( 2, 3, CV_32F, m );
-            int w = src->width;
-            int h = src->height;
-
-            m[0] = (float)(factor*cos(-angle*2*CV_PI/180.));
-            m[1] = (float)(factor*sin(-angle*2*CV_PI/180.));
-            m[2] = w*0.5f;
-            m[3] = -m[1];
-            m[4] = m[0];
-            m[5] = h*0.5f;
-
-            cvGetQuadrangleSubPix( src, dst, &M, 1, cvScalarAll(0));
-
-            cvNamedWindow( "dst", 1 );
-            cvShowImage( "dst", dst );
-
-            if( cvWaitKey(5) == 27 )
-                break;
-
-            angle = (angle + delta) % 360;
-        }
-    }
-    return 0;
-}
-</pre>
 
 
 <hr><h3><a name="decl_cvResize">Resize</a></h3>
@@ -502,7 +438,7 @@ void cvResize( const CvArr* src, CvArr* dst, int interpolation=CV_INTER_LINEAR )
     <li>CV_INTER_CUBIC - bicubic interpolation.
     </ul>
 </dl><p>
-The function <a href="#decl_cvResize">cvResize</a> resizes image <code>src</code> so that it fits exactly to <code>dst</code>.
+The function <code>cvResize</code> resizes image <code>src</code> so that it fits exactly to <code>dst</code>.
 If ROI is set, the function consideres the ROI as supported as usual.</p>
 
 <hr><h3><a name="decl_cvWarpAffine">WarpAffine</a></h3>
@@ -516,7 +452,7 @@ void cvWarpAffine( const CvArr* src, CvArr* dst, const CvMat* map_matrix,
 <dt>dst<dd>Destination image.
 <dt>map_matrix<dd>2&times;3 transformation matrix.
 <dt>flags<dd>A combination of interpolation method and the following optional flags:<ul>
-    <li>CV_WARP_FILL_OUTLIERS - fill all the destimation image pixels. If some of them correspond to
+    <li>CV_WARP_FILL_OUTLIERS - fill all the destination image pixels. If some of them correspond to
             outliers in the source image, they are set to <code>fillval</code>.
     <li>CV_WARP_INVERSE_MAP - indicates that <code>matrix</code> is inverse transform from destination image
                             to source and, thus, can be used directly for pixel interpolation. Otherwise,
@@ -524,12 +460,12 @@ void cvWarpAffine( const CvArr* src, CvArr* dst, const CvMat* map_matrix,
     </ul>
 <dt>fillval<dd>A value used to fill outliers.
 </dl><p>
-The function <a href="#decl_cvWarpAffine">cvWarpAffine</a> transforms source image using the specified
+The function <code>cvWarpAffine</code> transforms source image using the specified
 matrix:</p>
 <pre>
-dst(x&apos;,y&apos;)&lt;-src(x,y)
-(x&apos;,y&apos;)<sup>T</sup>=map_matrix&bull;(x,y,1)<sup>T</sup>+b if CV_WARP_INVERSE_MAP is not set,
-(x, y)<sup>T</sup>=map_matrix&bull;(x&apos;,y&apos,1)<sup>T</sup>+b otherwise
+dst(x&#146;,y&#146;)&lt;-src(x,y)
+(x&#146;,y&#146;)<sup>T</sup>=map_matrix&bull;(x,y,1)<sup>T</sup>+b if CV_WARP_INVERSE_MAP is not set,
+(x, y)<sup>T</sup>=map_matrix&bull;(x&#146;,y&apos,1)<sup>T</sup>+b otherwise
 </pre>
 <p>
 The function is similar to <a href="#decl_cvGetQuadrangleSubPix">cvGetQuadrangleSubPix</a> but they are
@@ -556,7 +492,7 @@ CvMat* cv2DRotationMatrix( CvPoint2D32f center, double angle,
 <dt>scale<dd>Isotropic scale factor.
 <dt>map_matrix<dd>Pointer to the destination 2&times;3 matrix.
 </dl><p>
-The function <a href="#decl_cv2DRotationMatrix">cv2DRotationMatrix</a> calculates matrix:</p>
+The function <code>cv2DRotationMatrix</code> calculates matrix:</p>
 <pre>
 [  &alpha;  &beta;  |  (1-&alpha;)*center.x - &beta;*center.y ]
 [ -&beta;  &alpha;  |  &beta;*center.x + (1-&alpha;)*center.y ]
@@ -578,7 +514,7 @@ void cvWarpPerspective( const CvArr* src, CvArr* dst, const CvMat* map_matrix,
 <dt>dst<dd>Destination image.
 <dt>map_matrix<dd>3&times;3 transformation matrix.
 <dt>flags<dd>A combination of interpolation method and the following optional flags:<ul>
-    <li>CV_WARP_FILL_OUTLIERS - fill all the destimation image pixels. If some of them correspond to
+    <li>CV_WARP_FILL_OUTLIERS - fill all the destination image pixels. If some of them correspond to
                                 outliers in the source image, they are set to <code>fillval</code>.
     <li>CV_WARP_INVERSE_MAP - indicates that <code>matrix</code> is inverse transform from destination image
                             to source and, thus, can be used directly for pixel interpolation. Otherwise,
@@ -586,12 +522,12 @@ void cvWarpPerspective( const CvArr* src, CvArr* dst, const CvMat* map_matrix,
     </ul>
 <dt>fillval<dd>A value used to fill outliers.
 </dl><p>
-The function <a href="#decl_cvWarpPerspective">cvWarpPerspective</a> transforms source image using
+The function <code>cvWarpPerspective</code> transforms source image using
 the specified matrix:</p>
 <pre>
-dst(x&apos;,y&apos;)&lt;-src(x,y)
-(tx&apos;,ty&apos;,t)<sup>T</sup>=map_matrix&bull;(x,y,1)<sup>T</sup>+b if CV_WARP_INVERSE_MAP is not set,
-(tx, ty, t)<sup>T</sup>=map_matrix&bull;(x&apos;,y&apos,1)<sup>T</sup>+b otherwise
+dst(x&#146;,y&#146;)&lt;-src(x,y)
+(t&bull;x&#146;,t&bull;y&#146;,t)<sup>T</sup>=map_matrix&bull;(x,y,1)<sup>T</sup>+b if CV_WARP_INVERSE_MAP is not set,
+(t&bull;x, t&bull;y, t)<sup>T</sup>=map_matrix&bull;(x&#146;,y&apos,1)<sup>T</sup>+b otherwise
 </pre>
 <p>
 For a sparse set of points
@@ -609,12 +545,107 @@ CvMat* cvWarpPerspectiveQMatrix( const CvPoint2D32f* src,
 <dt>dst<dd>Coordinates of the 4 corresponding quadrangle vertices in the destination image.
 <dt>map_matrix<dd>Pointer to the destination 3&times;3 matrix.
 </dl><p>
-The function <a href="#decl_cvWarpPerspectiveQMatrix">cvWarpPerspectiveQMatrix</a> calculates
+The function <code>cvWarpPerspectiveQMatrix</code> calculates
 matrix of perspective transform such that:</p>
 <pre>
-(t<sub>i</sub>x'<sub>i</sub>,t<sub>i</sub>y'<sub>i</sub>,t<sub>i</sub>)<sup>T</sup>=matrix&bull;(x<sub>i</sub>,y<sub>i</sub>,1)<sup>T</sup>
+(t<sub>i</sub>&bull;x'<sub>i</sub>,t<sub>i</sub>&bull;y'<sub>i</sub>,t<sub>i</sub>)<sup>T</sup>=map_matrix&bull;(x<sub>i</sub>,y<sub>i</sub>,1)<sup>T</sup>
 </pre>
 <p>where <code>dst(i)=(x'<sub>i</sub>,y'<sub>i</sub>), src(i)=(x<sub>i</sub>,y<sub>i</sub>), i=0..3</code>.</p>
+
+
+<hr><h3><a name="decl_cvRemap">Remap</a></h3>
+<p class="Blurb">Applies generic geometrical transformation to the image</p>
+<pre>
+void cvRemap( const CvArr* src, CvArr* dst,
+              const CvArr* mapx, const CvArr* mapy,
+              int flags=CV_INTER_LINEAR+CV_WARP_FILL_OUTLIERS,
+              CvScalar fillval=cvScalarAll(0) );
+</pre><p><dl>
+<dt>src<dd>Source image.
+<dt>dst<dd>Destination image.
+<dt>mapx<dd>The map of x-coordinates (32fC1 image).
+<dt>mapy<dd>The map of y-coordinates (32fC1 image).
+<dt>flags<dd>A combination of interpolation method and the following optional flag(s):<ul>
+    <li>CV_WARP_FILL_OUTLIERS - fill all the destination image pixels. If some of them correspond to
+                                outliers in the source image, they are set to <code>fillval</code>.
+    </ul>
+<dt>fillval<dd>A value used to fill outliers.
+</dl><p>
+The function <code>cvRemap</code> transforms source image using
+the specified map:</p>
+<pre>
+dst(x,y)&lt;-src(mapx(x,y),mapy(x,y))
+</pre>
+<p>Similar to other geometrical transformations, some interpolation method (specified by user)
+is used to extract pixels with non-integer coordinates.
+</p>
+
+
+<hr><h3><a name="decl_cvLogPolar">LogPolar</a></h3>
+<p class="Blurb">Remaps image to log-polar space</p>
+<pre>
+void cvLogPolar( const CvArr* src, CvArr* dst,
+                 CvPoint2D32f center, double M,
+                 int flags=CV_INTER_LINEAR+CV_WARP_FILL_OUTLIERS );
+</pre><p><dl>
+<dt>src<dd>Source image.
+<dt>dst<dd>Destination image.
+<dt>center<dd>The transformation center, where the output precision is maximal.
+<dt>M<dd>Magnitude scale parameter. See below.
+<dt>flags<dd>A combination of interpolation method and the following optional flags:<ul>
+    <li>CV_WARP_FILL_OUTLIERS - fill all the destination image pixels. If some of them correspond to
+                                outliers in the source image, they are set to zeros.
+    <li>CV_WARP_INVERSE_MAP - indicates that <code>matrix</code> is inverse transform from destination image
+                            to source and, thus, can be used directly for pixel interpolation. Otherwise,
+                            the function finds the inverse transform from <code>map_matrix</code>.
+    </ul>
+<dt>fillval<dd>A value used to fill outliers.
+</dl><p>
+The function <code>cvLogPolar</code> transforms source image using
+the following transformation:</p>
+<pre>
+Forward transformation (<code>CV_WARP_INVERSE_MAP</code> is not set):
+dst(phi,rho)&lt;-src(x,y)
+
+Inverse transformation (<code>CV_WARP_INVERSE_MAP</code> is set):
+dst(x,y)&lt;-src(phi,rho),
+
+where rho=M*log(sqrt(x<sup>2</sup>+y<sup>2</sup>))
+      phi=atan(y/x)
+</pre>
+<p>The function emulates the human "foveal" vision and can be used for fast scale and rotation-invariant
+template matching, for object tracking etc.</p>
+
+<h4>Example. Log-polar transformation.</h4>
+<pre>
+#include &lt;cv.h&gt;
+#include &lt;highgui.h&gt;
+
+int main(int argc, char** argv)
+{
+    IplImage* src;
+
+    if( argc == 2 && (src=cvLoadImage(argv[1],1) != 0 )
+    {
+        IplImage* dst = cvCreateImage( cvSize(256,256), 8, 3 );
+        IplImage* src2 = cvCreateImage( cvGetSize(src), 8, 3 );
+        cvLogPolar( src, dst, cvPoint2D32f(src->width/2,src->height/2), 40, CV_INTER_LINEAR+CV_WARP_FILL_OUTLIERS );
+        cvLogPolar( dst, src2, cvPoint2D32f(src->width/2,src->height/2), 40, CV_INTER_LINEAR+CV_WARP_FILL_OUTLIERS+CV_WARP_INVERSE_MAP );
+        cvNamedWindow( "log-polar", 1 );
+        cvShowImage( "log-polar", dst );
+        cvNamedWindow( "inverse log-polar", 1 );
+        cvShowImage( "inverse log-polar", src2 );
+        cvWaitKey();
+    }
+    return 0;
+}
+</pre>
+
+<p>And this is what the program displays when opencv/samples/c/fruits.jpg is passed to it</p>
+<p>
+<img align="center" src="pics/logpolar.jpg" width=256 height=256>
+<img align="center" src="pics/inv_logpolar.jpg" width=256 height=256>
+</p>
 
 
 <hr><h2><a name="cv_imgproc_morphology">Morphological Operations</a></h2>
@@ -655,7 +686,7 @@ void cvReleaseStructuringElement( IplConvKernel** element );
 </pre><p><dl>
 <dt>element<dd>Pointer to the deleted structuring element.
 </dl><p>
-The function <a href="#decl_cvReleaseStructuringElement">cvReleaseStructuringElement</a> releases the structure <code>IplConvKernel</code>
+The function <code>cvReleaseStructuringElement</code> releases the structure <code>IplConvKernel</code>
 that is no longer needed. If <code>*element</code> is <code>NULL</code>, the function has no effect.</p>
 
 
@@ -670,7 +701,7 @@ void cvErode( const CvArr* src, CvArr* dst, IplConvKernel* element=NULL, int ite
 structuring element is used.
 <dt>iterations<dd>Number of times erosion is applied.
 </dl><p>
-The function <a href="#decl_cvErode">cvErode</a> erodes the source image using the specified structuring element
+The function <code>cvErode</code> erodes the source image using the specified structuring element
 that determines the shape of a pixel neighborhood over which the minimum is taken:</p>
 <pre>
 dst=erode(src,element):  dst(x,y)=min<sub>((x',y') in element)</sub>)</sub>src(x+x',y+y')
@@ -690,7 +721,7 @@ void cvDilate( const CvArr* src, CvArr* dst, IplConvKernel* element=NULL, int it
 structuring element is used.
 <dt>iterations<dd>Number of times erosion is applied.
 </dl><p>
-The function <a href="#decl_cvDilate">cvDilate</a> dilates the source image using the specified structuring element
+The function <code>cvDilate</code> dilates the source image using the specified structuring element
 that determines the shape of a pixel neighborhood over which the maximum is taken:</p>
 <pre>
 dst=dilate(src,element):  dst(x,y)=max<sub>((x',y') in element)</sub>)</sub>src(x+x',y+y')
@@ -717,7 +748,7 @@ void cvMorphologyEx( const CvArr* src, CvArr* dst, CvArr* temp,
                <code>CV_MOP_BLACKHAT</code> - "black hat"<br>
 <dt>iterations<dd>Number of times erosion and dilation are applied.
 </dl><p>
-The function <a href="#decl_cvMorphologyEx">cvMorphologyEx</a> can perform advanced morphological
+The function <code>cvMorphologyEx</code> can perform advanced morphological
 transformations using erosion and dilation as basic operations.</p>
 <pre>
 Opening:
@@ -779,7 +810,7 @@ void cvSmooth( const CvArr* src, CvArr* dst,
               If <code>param3</code> is not zero, while <code>param1</code> and <code>param2</code>
               are zeros, the kernel size is calculated from the sigma (to provide accurate enough operation).
 </dl><p>
-The function <a href="#decl_cvSmooth">cvSmooth</a> smooths image using one of several methods. Every of the methods
+The function <code>cvSmooth</code> smooths image using one of several methods. Every of the methods
 has some features and restrictions listed below</p>
 <p>Blur with no scaling works with single-channel images only and supports accumulation of
 8-bit to 16-bit format (similar to <a href="#decl_cvSobel">cvSobel</a> and <a href="#decl_cvLaplace">cvLaplace</a>) and 32-bit floating point
@@ -791,12 +822,11 @@ in-place.</p>
 
 
 <hr><h3><a name="decl_cvFilter2D">Filter2D</a></h3>
-<p class="Blurb">Convolves the image with the kernel</p>
+<p class="Blurb">Convolves image with the kernel</p>
 <pre>
 void cvFilter2D( const CvArr* src, CvArr* dst,
                  const CvMat* kernel,
                  CvPoint anchor=cvPoint(-1,-1));
-#define cvConvolve2D cvFilter2D
 </pre><p><dl>
 <dt>src<dd>The source image.
 <dt>dst<dd>The destination image.
@@ -808,10 +838,39 @@ void cvFilter2D( const CvArr* src, CvArr* dst,
 within the kernel. The anchor shoud lie within the kernel. The special default value (-1,-1) means
 that it is at the kernel center.
 </ul>
-</dl><p>
-The function <a href="#decl_cvFilter2D">cvFilter2D</a> applies arbitrary linear filter to the image.
+</dl></p><p>
+The function <code>cvFilter2D</code> applies arbitrary linear filter to the image.
 In-place operation is supported. When the aperture is partially outside the image, the function
 interpolates outlier pixel values from the nearest pixels that is inside the image.
+</p>
+
+
+<hr><h3><a name="decl_cvCopyMakeBorder">CopyMakeBorder</a></h3>
+<p class="Blurb">Copies image and makes border around it</p>
+<pre>
+void cvCopyMakeBorder( const CvArr* src, CvArr* dst, CvPoint offset,
+                       int bordertype, CvScalar value=cvScalarAll(0) );
+</pre><p><dl>
+<dt>src<dd>The source image.
+<dt>dst<dd>The destination image.
+<dt>offset<dd>Coordinates of the top-left corner (or bottom-left in case of images with bottom-left origin)
+              of the destination image rectangle where the source image (or its ROI) is copied.
+              Size of the rectanlge matches the source image size/ROI size.
+<dt>bordertype<dd>Type of the border to create around the copied source image rectangle:<br>
+              <code>IPL_BORDER_CONSTANT</code> -
+                  border is filled with the fixed value, passed as last parameter of the function.<br>
+              <code>IPL_BORDER_REPLICATE</code> -
+                  the pixels from the top and bottom rows, the left-most and right-most columns are replicated
+                  to fill the border.<br>
+              (The other two border types from IPL, <code>IPL_BORDER_REFLECT</code> and <code>IPL_BORDER_WRAP</code>,
+              are currently unsupported).
+<dt>value<dd>Value of the border pixels if <code>bordertype=IPL_BORDER_CONSTANT</code>.
+</dl></p><p>
+The function <code>cvCopyMakeBorder</code> copies the source 2D array into interior of destination array
+and makes a border of the specified type around the copied area.
+The function is useful when one needs to emulate border type that is different from the one embedded into a specific
+algorithm implementation. For example, morphological functions, as well as most of other filtering functions in OpenCV,
+internally use replication border type, while the user may need zero border or a border, filled with 1's or 255's.
 </p>
 
 
@@ -820,12 +879,12 @@ interpolates outlier pixel values from the nearest pixels that is inside the ima
 <pre>
 void cvIntegral( const CvArr* image, CvArr* sum, CvArr* sqsum=NULL, CvArr* tilted_sum=NULL );
 </pre><p><dl>
-<dt>image<dd>The source image, <code>W</code>&times;<code>H</code>, single-channel, 8-bit, or floating-point (32f or 64f).
-<dt>sum<dd>The integral image, <code>W+1</code>&times;<code>H+1</code>, single-channel, 32-bit integer or double precision floating-point (64f).
-<dt>sqsum<dd>The integral image for squared pixel values, <code>W+1</code>&times;<code>H+1</code>, single-channel, double precision floating-point (64f).
-<dt>tilted_sum<dd>The integral for the image rotated by 45 degrees, <code>W+1</code>&times;<code>H+1</code>, single-channel, the same data type as <code>sum</code>.
+<dt>image<dd>The source image, <code>W</code>&times;<code>H</code>, 8-bit or floating-point (32f or 64f) image.
+<dt>sum<dd>The integral image, <code>W+1</code>&times;<code>H+1</code>, 32-bit integer or double precision floating-point (64f).
+<dt>sqsum<dd>The integral image for squared pixel values, <code>W+1</code>&times;<code>H+1</code>, double precision floating-point (64f).
+<dt>tilted_sum<dd>The integral for the image rotated by 45 degrees, <code>W+1</code>&times;<code>H+1</code>, the same data type as <code>sum</code>.
 </dl><p>
-The function <a href="#decl_cvIntegral">cvIntegral</a> calculates one or more integral images for the source image as following:</p>
+The function <code>cvIntegral</code> calculates one or more integral images for the source image as following:</p>
 <pre>
 sum(X,Y)=sum<sub>x&lt;X,y&lt;Y</sub>image(x,y)
 
@@ -834,11 +893,12 @@ sqsum(X,Y)=sum<sub>x&lt;X,y&lt;Y</sub>image(x,y)<sup>2</sup>
 tilted_sum(X,Y)=sum<sub>y&lt;Y,abs(x-X)&lt;y</sub>image(x,y)
 </pre>
 <p>Using these integral images, one may calculate sum, mean, standard deviation over
-arbitrary pixel up-right or rotated rectangle in O(1), for example:</p>
+arbitrary up-right or rotated rectangular region of the image in a constant time, for example:</p>
 <pre>
 sum<sub>x1&lt;=x&lt;x2,y1&lt;=y&lt;y2</sub>image(x,y)=sum(x2,y2)-sum(x1,y2)-sum(x2,y1)+sum(x1,x1)
 </pre>
 <p>It makes possible to do a fast blurring or fast block correlation with variable window size etc.
+In case of multi-channel images sums for each channel are accumulated independently.
 </p>
 
 <hr><h3><a name="decl_cvCvtColor">CvtColor</a></h3>
@@ -846,83 +906,185 @@ sum<sub>x1&lt;=x&lt;x2,y1&lt;=y&lt;y2</sub>image(x,y)=sum(x2,y2)-sum(x1,y2)-sum(
 <pre>
 void cvCvtColor( const CvArr* src, CvArr* dst, int code );
 </pre><p><dl>
-<dt>src<dd>The source 8-bit or floating-point image.
-<dt>dst<dd>The destination 8-bit or floating-point image.
+<dt>src<dd>The source 8-bit (8u), 16-bit (16u) or single-precision floating-point (32f) image.
+<dt>dst<dd>The destination image of the same data type as the source one.
+           The number of channels may be different.
 <dt>code<dd>Color conversion operation that can be specifed using
 CV_&lt;src_color_space&gt;2&lt;dst_color_space&gt; constants (see below).
 </dl><p>
-The function <a href="#decl_cvCvtColor">cvCvtColor</a> converts input image from one color space to another.
+The function <code>cvCvtColor</code> converts input image from one color space to another.
 The function ignores <code>colorModel</code> and <code>channelSeq</code> fields of <code>IplImage</code> header,
 so the source image color space should be specified correctly (including order of the channels in case
 of RGB space, e.g. BGR means 24-bit format with B<sub>0</sub> G<sub>0</sub> R<sub>0</sub> B<sub>1</sub> G<sub>1</sub> R<sub>1</sub> ... layout,
 whereas RGB means 24-format with R<sub>0</sub> G<sub>0</sub> B<sub>0</sub> R<sub>1</sub> G<sub>1</sub> B<sub>1</sub> ... layout).
+</p><p>
+The conventional range for R,G,B channel values is:
+<ul>
+<li>0..255 for 8-bit images
+<li>0..65535 for 16-bit images and
+<li>0..1 for floating-point images.
+</ul>
+Of course, in case of linear transformations the range can be arbitrary,
+but in order to get correct results in case of non-linear transformations,
+the input image should be scaled if necessary.
+</p><p>
 The function can do the following transformations:<ul>
 <li>Transformations within RGB space like adding/removing alpha channel, reversing the channel order,
-conversion to/from 16-bit RGB color (Rx5:Gx6:Rx5) color, 15-bit RGB color as well as conversion to/from grayscale using:
+conversion to/from 16-bit RGB color (R5:G6:B5 or R5:G5:B5) color, as well as conversion to/from grayscale using:
 <pre>
-RGB[A]->Gray: Y=0.212671*R + 0.715160*G + 0.072169*B + 0*A
-Gray->RGB[A]: R=Y G=Y B=Y A=0
+RGB[A]->Gray: Y&lt;-0.299*R + 0.587*G + 0.114*B
+Gray->RGB[A]: R&lt;-Y G&lt;-Y B&lt;-Y A&lt;-0
 </pre>
-All the possible combinations of input and output format are allowed here.
-<p></p>
-<li>RGB&lt;=&gt;XYZ (CV_BGR2XYZ, CV_RGB2XYZ, CV_XYZ2BGR, CV_XYZ2RGB):
+<li>RGB&lt;=&gt;CIE XYZ.Rec 709 with D65 white point (<code>CV_BGR2XYZ, CV_RGB2XYZ, CV_XYZ2BGR, CV_XYZ2RGB</code>):
 <pre>
-|X|   |0.412411  0.357585  0.180454| |R|
-|Y| = |0.212649  0.715169  0.072182|*|G|
-|Z|   |0.019332  0.119195  0.950390| |B|
+|X|    |0.412453  0.357580  0.180423| |R|
+|Y| &lt;- |0.212671  0.715160  0.072169|*|G|
+|Z|    |0.019334  0.119193  0.950227| |B|
 
-|R|   | 3.240479  -1.53715  -0.498535| |X|
-|G| = |-0.969256   1.875991  0.041556|*|Y|
-|B|   | 0.055648  -0.204043  1.057311| |Z|
-</pre>
-<p></p>
-<li>RGB&lt;=&gt;YCrCb (CV_BGR2YCrCb, CV_RGB2YCrCb, CV_YCrCb2BGR, CV_YCrCb2RGB)
-<pre>
-Y=0.299*R + 0.587*G + 0.114*B
-Cr=(R-Y)*0.713 + 128
-Cb=(B-Y)*0.564 + 128
+|R|    | 3.240479  -1.53715  -0.498535| |X|
+|G| &lt;- |-0.969256   1.875991  0.041556|*|Y|
+|B|    | 0.055648  -0.204043  1.057311| |Z|
 
-R=Y + 1.403*(Cr - 128)
-G=Y - 0.344*(Cr - 128) - 0.714*(Cb - 128)
-B=Y + 1.773*(Cb - 128)
+X, Y and Z cover the whole value range (in case of floating-point images Z may exceed 1).
 </pre>
 <p></p>
-<li>RGB=>HSV (CV_BGR2HSV,CV_RGB2HSV)
+<li>RGB&lt;=&gt;YCrCb JPEG (a.k.a. YCC) (<code>CV_BGR2YCrCb, CV_RGB2YCrCb, CV_YCrCb2BGR, CV_YCrCb2RGB</code>)
 <pre>
-V=max(R,G,B)
-S=(V-min(R,G,B))*255/V   if V!=0, 0 otherwise
+Y &lt;- 0.299*R + 0.587*G + 0.114*B
+Cr &lt;- (R-Y)*0.713 + delta
+Cb &lt;- (B-Y)*0.564 + delta
 
-       (G - B)*60/S,  if V=R
-H= 180+(B - R)*60/S,  if V=G
-   240+(R - G)*60/S,  if V=B
+R &lt;- Y + 1.403*(Cr - delta)
+G &lt;- Y - 0.344*(Cr - delta) - 0.714*(Cb - delta)
+B &lt;- Y + 1.773*(Cb - delta),
 
-if H&lt;0 then H=H+360
+              { 128 for 8-bit images,
+where delta = { 32768 for 16-bit images
+              { 0.5 for floating-point images
+
+Y, Cr and Cb cover the whole value range.
 </pre>
-<p>
-The hue values calcualted using the above formulae vary from 0&deg; to 360&deg; so they are divided by 2 to
-fit into 8 bits.
-</p><p></p>
-<li>RGB=>Lab (CV_BGR2Lab, CV_RGB2Lab)
+<p></p>
+<li>RGB&lt;=&gt;HSV (<code>CV_BGR2HSV, CV_RGB2HSV, CV_HSV2BGR, CV_HSV2RGB</code>)
 <pre>
-|X|   |0.433910  0.376220  0.189860| |R/255|
-|Y| = |0.212649  0.715169  0.072182|*|G/255|
-|Z|   |0.017756  0.109478  0.872915| |B/255|
+// In case of 8-bit and 16-bit images
+// R, G and B are converted to floating-point format and scaled to fit 0..1 range
 
-L = 116*Y<sup>1/3</sup>      for Y>0.008856
-L = 903.3*Y      for Y&lt;=0.008856
+V &lt;- max(R,G,B)
+S &lt;- (V-min(R,G,B))/V   if V&ne;0, 0 otherwise
 
-a = 500*(f(X)-f(Y))
-b = 200*(f(Y)-f(Z))
+         (G - B)*60/S,  if V=R
+H &lt;- 180+(B - R)*60/S,  if V=G
+     240+(R - G)*60/S,  if V=B
+
+if H&lt;0 then H&lt;-H+360
+
+On output 0&le;V&le;1, 0&le;S&le;1, 0&le;H&le;360.
+The values are then converted to the destination data type:
+    8-bit images:
+        V &lt;- V*255, S &lt;- S*255, H &lt;- H/2 (to fit to 0..255)
+    16-bit images (currently not supported):
+        V &lt;- V*65535, S &lt;- S*65535, H &lt;- H
+    32-bit images:
+        H, S, V are left as is
+</pre>
+<li>RGB&lt;=&gt;HLS (<code>CV_BGR2HLS, CV_RGB2HLS, CV_HLS2BGR, CV_HLS2RGB</code>)
+<pre>
+// In case of 8-bit and 16-bit images
+// R, G and B are converted to floating-point format and scaled to fit 0..1 range
+
+V<sub>max</sub> &lt;- max(R,G,B)
+V<sub>min</sub> &lt;- min(R,G,B)
+
+L &lt;- (V<sub>max</sub> + V<sub>min</sub>)/2
+
+S &lt;- (V<sub>max</sub> - V<sub>min</sub>)/(V<sub>max</sub> + V<sub>min</sub>)  if L &lt; 0.5
+     (V<sub>max</sub> - V<sub>min</sub>)/(2 - (V<sub>max</sub> + V<sub>min</sub>))  if L &ge; 0.5
+
+         (G - B)*60/S,  if V<sub>max</sub>=R
+H &lt;- 180+(B - R)*60/S,  if V<sub>max</sub>=G
+     240+(R - G)*60/S,  if V<sub>max</sub>=B
+
+if H&lt;0 then H&lt;-H+360
+
+On output 0&le;L&le;1, 0&le;S&le;1, 0&le;H&le;360.
+The values are then converted to the destination data type:
+    8-bit images:
+        L &lt;- L*255, S &lt;- S*255, H &lt;- H/2
+    16-bit images (currently not supported):
+        L &lt;- L*65535, S &lt;- S*65535, H &lt;- H
+    32-bit images:
+        H, L, S are left as is
+</pre>
+<li>RGB&lt;=&gt;CIE L*a*b* (<code>CV_BGR2Lab, CV_RGB2Lab, CV_Lab2BGR, CV_Lab2RGB</code>)
+<pre>
+// In case of 8-bit and 16-bit images
+// R, G and B are converted to floating-point format and scaled to fit 0..1 range
+
+// convert R,G,B to CIE XYZ
+|X|    |0.412453  0.357580  0.180423| |R|
+|Y| &lt;- |0.212671  0.715160  0.072169|*|G|
+|Z|    |0.019334  0.119193  0.950227| |B|
+
+X &lt;- X/Xn, where Xn = 0.950456
+Z &lt;- Z/Zn, where Zn = 1.088754
+
+L &lt;- 116*Y<sup>1/3</sup>      for Y>0.008856
+L &lt;- 903.3*Y      for Y&lt;=0.008856
+
+a &lt;- 500*(f(X)-f(Y)) + delta
+b &lt;- 200*(f(Y)-f(Z)) + delta
 where f(t)=t<sup>1/3</sup>              for t>0.008856
       f(t)=7.787*t+16/116   for t&lt;=0.008856
+
+
+where delta = 128 for 8-bit images,
+              0 for floating-point images
+
+On output 0&le;L&le;100, -127&le;a&le;127, -127&le;b&le;127
+The values are then converted to the destination data type:
+    8-bit images:
+        L &lt;- L*255/100, a &lt;- a + 128, b &lt;- b + 128
+    16-bit images are currently not supported
+    32-bit images:
+        L, a, b are left as is
 </pre>
-The above formulae have been taken from
-<a href="http://www.cica.indiana.edu/cica/faq/color_spaces/color.spaces.html">
-http://www.cica.indiana.edu/cica/faq/color_spaces/color.spaces.html</a>
+
+<li>RGB&lt;=&gt;CIE L*u*v* (<code>CV_BGR2Luv, CV_RGB2Luv, CV_Luv2BGR, CV_Luv2RGB</code>)
+<pre>
+// In case of 8-bit and 16-bit images
+// R, G and B are converted to floating-point format and scaled to fit 0..1 range
+
+// convert R,G,B to CIE XYZ
+|X|    |0.412453  0.357580  0.180423| |R|
+|Y| &lt;- |0.212671  0.715160  0.072169|*|G|
+|Z|    |0.019334  0.119193  0.950227| |B|
+
+L &lt;- 116*Y<sup>1/3</sup>      for Y>0.008856
+L &lt;- 903.3*Y      for Y&lt;=0.008856
+
+u' &lt;- 4*X/(X + 15*Y + 3*Z)
+v' &lt;- 9*Y/(X + 15*Y + 3*Z)
+
+u &lt;- 13*L*(u' - u<sub>n</sub>), where u<sub>n</sub>=0.19793943
+v &lt;- 13*L*(v' - v<sub>n</sub>), where v<sub>n</sub>=0.46831096
+
+On output 0&le;L&le;100, -134&le;u&le;220, -140&le;v&le;122
+The values are then converted to the destination data type:
+    8-bit images:
+        L &lt;- L*255/100, u &lt;- (u + 134)*255/354, v &lt;- (v + 140)*255/256
+    16-bit images are currently not supported
+    32-bit images:
+        L, u, v are left as is
+</pre>
+
+The above formulae for converting RGB to/from various color spaces have been taken
+from multiple sources on Web, primarily from <a href="#paper_ford98">Color Space Conversions (<b>[Ford98]</b>)</a>
+document at Charles Poynton site.
+
 <p></p>
-<li>Bayer=>RGB (CV_BayerBG2BGR, CV_BayerGB2BGR, CV_BayerRG2BGR, CV_BayerGR2BGR,<br>
-                CV_BayerBG2RGB, CV_BayerRG2BGR, CV_BayerGB2RGB, CV_BayerGR2BGR,<br>
-                CV_BayerRG2RGB, CV_BayerBG2BGR, CV_BayerGR2RGB, CV_BayerGB2BGR)
+<li>Bayer=>RGB (<code>CV_BayerBG2BGR, CV_BayerGB2BGR, CV_BayerRG2BGR, CV_BayerGR2BGR,<br>
+                CV_BayerBG2RGB, CV_BayerGB2RGB, CV_BayerRG2RGB, CV_BayerGR2RGB</code>)
 <p>Bayer pattern is widely used in CCD and CMOS cameras. It allows to get color picture
 out of a single plane where R,G and B pixels (sensors of a particular component) are interleaved like
 this:</p>
@@ -991,7 +1153,7 @@ void cvThreshold( const CvArr* src, CvArr* dst, double threshold,
                  <code>CV_THRESH_BINARY_INV</code> thresholding types.
 <dt>threshold_type<dd>Thresholding type (see the discussion)
 </dl><p>
-The function <a href="#decl_cvThreshold">cvThreshold</a> applies fixed-level thresholding to single-channel array.
+The function <code>cvThreshold</code> applies fixed-level thresholding to single-channel array.
 The function is typically used to get bi-level (binary) image out of grayscale image
 (<a href="opencvref_cxcore.htm#decl_cvCmpS">cvCmpS</a>
 could be also used for this purpose) or for removing a noise, i.e. filtering out pixels with too small or too large values.
@@ -1010,7 +1172,7 @@ dst(x,y) = threshold, if src(x,y)&gt;threshold
            src(x,y), otherwise
 
 threshold_type=CV_THRESH_TOZERO:
-dst(x,y) = src(x,y), if (x,y)&gt;threshold
+dst(x,y) = src(x,y), if src(x,y)&gt;threshold
            0, otherwise
 
 threshold_type=CV_THRESH_TOZERO_INV:
@@ -1047,7 +1209,7 @@ or <code>CV_ADAPTIVE_THRESH_GAUSSIAN_C</code> (see the discussion).
 For the methods <code>CV_ADAPTIVE_THRESH_MEAN_C</code> and <code>CV_ADAPTIVE_THRESH_GAUSSIAN_C</code>
 it is a constant subtracted from mean or weighted mean (see the discussion), though it may be negative.
 </dl><p>
-The function <a href="#decl_cvAdaptiveThreshold">cvAdaptiveThreshold</a> transforms grayscale image to binary image according to
+The function <code>cvAdaptiveThreshold</code> transforms grayscale image to binary image according to
 the formulae:</p>
 <pre>
 threshold_type=<code>CV_THRESH_BINARY</code>:
@@ -1078,7 +1240,7 @@ void cvPyrDown( const CvArr* src, CvArr* dst, int filter=CV_GAUSSIAN_5x5 );
 <dt>filter<dd>Type of the filter used for convolution; only <code>CV_GAUSSIAN_5x5</code> is
 currently supported.
 </dl><p>
-The function <a href="#decl_cvPyrDown">cvPyrDown</a> performs downsampling step of Gaussian pyramid
+The function <code>cvPyrDown</code> performs downsampling step of Gaussian pyramid
 decomposition. First it convolves source image with the specified filter and
 then downsamples the image by rejecting even rows and columns.</p>
 
@@ -1093,7 +1255,7 @@ void cvPyrUp( const CvArr* src, CvArr* dst, int filter=CV_GAUSSIAN_5x5 );
 <dt>filter<dd>Type of the filter used for convolution; only <code>CV_GAUSSIAN_5x5</code> is
 currently supported.
 </dl><p>
-The function <a href="#decl_cvPyrUp">cvPyrUp</a> performs up-sampling step of Gaussian pyramid decomposition.
+The function <code>cvPyrUp</code> performs up-sampling step of Gaussian pyramid decomposition.
 First it upsamples the source image by injecting even zero rows and columns and
 then convolves result with the specified filter multiplied by 4 for
 interpolation. So the destination image is four times larger than the source
@@ -1114,7 +1276,7 @@ void cvPyrSegmentation( IplImage* src, IplImage* dst,
 <dt>threshold1<dd>Error threshold for establishing the links.
 <dt>threshold2<dd>Error threshold for the segments clustering.
 </dl><p>
-The function <a href="#decl_cvPyrSegmentation">cvPyrSegmentation</a> implements image segmentation by pyramids. The
+The function <code>cvPyrSegmentation</code> implements image segmentation by pyramids. The
 pyramid builds up to the level <code>level</code>. The links between any pixel <code>a</code> on level <code>i</code>
 and its candidate father pixel <code>b</code> on the adjacent level are established if
 <div> <code>p(c(a),c(b))&lt;threshold1</code>.
@@ -1182,7 +1344,7 @@ to make sure the filled area do not overlap. <em>Note</em>: because mask is larg
 pixel in <code>mask</code> that corresponds to <code>(x,y)</code> pixel in <code>image</code>
 will have coordinates <code>(x+1,y+1)</code>.
 </dl><p>
-The function <a href="#decl_cvFloodFill">cvFloodFill</a> fills a connected component starting from the seed point
+The function <code>cvFloodFill</code> fills a connected component starting from the seed point
 with the specified color. The connectivity is determined by the closeness of pixel values.
 The pixel at <code>(x, y)</code> is considered to belong to the repainted domain if:</p>
 <pre>
@@ -1198,7 +1360,7 @@ src(seed.x,seed.y)<sub>g</sub>-lo_diff<sub>g</sub>&lt;=src(x,y)<sub>g</sub>&lt;=
 src(seed.x,seed.y)<sub>b</sub>-lo_diff<sub>b</sub>&lt;=src(x,y)<sub>b</sub>&lt;=src(seed.x,seed.y)<sub>b</sub>+up_diff<sub>b</sub>, color image, fixed range
 </pre>
 where <code>src(x',y')</code> is value of one of pixel neighbors.
-That is, to be added to the connected component, a pixel's color/brightness should be close enough to:
+That is, to be added to the connected component, a pixel&#146;s color/brightness should be close enough to:
 <ul>
 <li>color/brightness of one of its neighbors that are already referred to the connected
 component in case of floating range
@@ -1215,13 +1377,13 @@ int cvFindContours( CvArr* image, CvMemStorage* storage, CvSeq** first_contour,
                     int method=CV_CHAIN_APPROX_SIMPLE, CvPoint offset=cvPoint(0,0) );
 </pre><p><dl>
 <dt>image<dd>The source 8-bit single channel image. Non-zero pixels are treated as
-1's, zero pixels remain 0's - that is image treated as <code>binary</code>. To get such a binary image
+1&#146;s, zero pixels remain 0&#146;s - that is image treated as <code>binary</code>. To get such a binary image
 from grayscale, one may use <a href="#decl_cvThreshold">cvThreshold</a>, <a href="#decl_cvAdaptiveThreshold">cvAdaptiveThreshold</a> or <a href="#decl_cvCanny">cvCanny</a>.
 The function modifies the source image content.
 <dt>storage<dd>Container of the retrieved contours.
 <dt>first_contour<dd>Output parameter, will contain the pointer to the first outer contour.
-<dt>header_size<dd>Size of the sequence header, >=sizeof(<a href="#decl_CvChain">CvChain</a>) if <code>method</code>=CV_CHAIN_CODE,
-                  and >=sizeof(CvContour) otherwise.
+<dt>header_size<dd>Size of the sequence header, &gt;=sizeof(<a href="#decl_CvChain">CvChain</a>) if <code>method</code>=CV_CHAIN_CODE,
+                  and &gt;=sizeof(CvContour) otherwise.
 <dt>mode<dd>Retrieval mode.
 <ul>
 <li><code>CV_RETR_EXTERNAL</code> - retrive only the extreme outer contours
@@ -1244,13 +1406,13 @@ built-in approximation).
 <li><code>CV_CHAIN_APPROX_TC89_L1,<div>CV_CHAIN_APPROX_TC89_KCOS</code> - apply one of the flavors of
   Teh-Chin chain approximation algorithm.
 <li><code>CV_LINK_RUNS</code> - use completely different contour retrieval algorithm via
-linking of horizontal segments of 1's. Only <code>CV_RETR_LIST</code> retrieval mode can be used
+linking of horizontal segments of 1&#146;s. Only <code>CV_RETR_LIST</code> retrieval mode can be used
 with this method.
 </ul>
 <dt>offset<dd>Offset, by which every contour point is shifted. This is useful if the contours are extracted from
 the image ROI and then they should be analyzed in the whole image context.
 </dl><p>
-The function <a href="#decl_cvFindContours">cvFindContours</a> retrieves contours from the binary image and returns
+The function <code>cvFindContours</code> retrieves contours from the binary image and returns
 the number of retrieved contours. The pointer <code>first_contour</code> is filled by the function.
 It will contain pointer to the first most outer contour or NULL if no contours is detected (if the image is completely black).
 Other contours may be reached from <code>first_contour</code> using <code>h_next</code> and <code>v_next</code> links.
@@ -1270,15 +1432,15 @@ CvContourScanner cvStartFindContours( CvArr* image, CvMemStorage* storage,
 </pre><p><dl>
 <dt>image<dd>The source 8-bit single channel binary image.
 <dt>storage<dd>Container of the retrieved contours.
-<dt>header_size<dd>Size of the sequence header, >=sizeof(<a href="#decl_CvChain">CvChain</a>) if <code>method</code>=CV_CHAIN_CODE,
-                  and >=sizeof(CvContour) otherwise.
+<dt>header_size<dd>Size of the sequence header, &gt;=sizeof(<a href="#decl_CvChain">CvChain</a>) if <code>method</code>=CV_CHAIN_CODE,
+                  and &gt;=sizeof(CvContour) otherwise.
 <dt>mode<dd>Retrieval mode; see <a href="#decl_cvFindContours">cvFindContours</a>.
 <dt>method<dd>Approximation method. It has the same meaning as in <a href="#decl_cvFindContours">cvFindContours</a>,
 but CV_LINK_RUNS can not be used here.
 <dt>offset<dd>ROI offset; see <a href="#decl_cvFindContours">cvFindContours</a>.
 </ul>
 </dl><p>
-The function <a href="#decl_cvStartFindContours">cvStartFindContours</a> initializes and returns pointer to the contour
+The function <code>cvStartFindContours</code> initializes and returns pointer to the contour
 scanner. The scanner is used further in <a href="#decl_cvFindNextContour">cvFindNextContour</a> to retrieve the rest of contours.
 </p>
 
@@ -1288,9 +1450,9 @@ scanner. The scanner is used further in <a href="#decl_cvFindNextContour">cvFind
 <pre>
 CvSeq* cvFindNextContour( CvContourScanner scanner );
 </pre><p><dl>
-<dt>scanner<dd>Contour scanner initialized by the function <a href="#decl_cvStartFindContours">cvStartFindContours</a> .
+<dt>scanner<dd>Contour scanner initialized by The function <code>cvStartFindContours</code> .
 </dl><p>
-The function <a href="#decl_cvFindNextContour">cvFindNextContour</a> locates and retrieves the next contour in the image and
+The function <code>cvFindNextContour</code> locates and retrieves the next contour in the image and
 returns pointer to it. The function returns NULL, if there is no more contours.</p>
 
 
@@ -1302,8 +1464,8 @@ void cvSubstituteContour( CvContourScanner scanner, CvSeq* new_contour );
 <dt>scanner<dd>Contour scanner initialized by the function cvStartFindContours .
 <dt>new_contour<dd>Substituting contour.
 </dl><p>
-The function <a href="#decl_cvSubstituteContour">cvSubstituteContour</a> replaces the retrieved contour, that was returned
-from the preceding call of the function <a href="#decl_cvFindNextContour">cvFindNextContour</a> and stored inside
+The function <code>cvSubstituteContour</code> replaces the retrieved contour, that was returned
+from the preceding call of The function <code>cvFindNextContour</code> and stored inside
 the contour scanner state, with the user-specified contour. The contour is
 inserted into the resulting structure, list, two-level hierarchy, or tree,
 depending on the retrieval mode. If the parameter <code>new_contour</code>=NULL, the retrieved
@@ -1319,7 +1481,7 @@ CvSeq* cvEndFindContours( CvContourScanner* scanner );
 </pre><p><dl>
 <dt>scanner<dd>Pointer to the contour scanner.
 </dl><p>
-The function <a href="#decl_cvEndFindContours">cvEndFindContours</a> finishes the scanning process and returns the
+The function <code>cvEndFindContours</code> finishes the scanning process and returns the
 pointer to the first contour on the highest level.</p>
 
 
@@ -1334,9 +1496,9 @@ void cvMoments( const CvArr* arr, CvMoments* moments, int binary=0 );
            or polygon (CvSeq of points or a vector of points).
 <dt>moments<dd>Pointer to returned moment state structure.
 <dt>binary<dd>(For images only) If the flag is non-zero, all the zero pixel values are treated as
-zeroes, all the others are treated as 1&apos;s.
+zeroes, all the others are treated as 1&#146;s.
 </dl><p>
-The function <a href="#decl_cvMoments">cvMoments</a> calculates spatial and central moments up to the third order and
+The function <code>cvMoments</code> calculates spatial and central moments up to the third order and
 writes them to <code>moments</code>. The moments may be used then to calculate gravity center of the shape,
 its area, main axises and various shape characeteristics including 7 Hu invariants.</p>
 
@@ -1351,7 +1513,7 @@ double cvGetSpatialMoment( CvMoments* moments, int x_order, int y_order );
 <dt>y_order<dd>y order of the retrieved moment,
                  <code>y_order</code> &gt;= 0 and <code>x_order</code> + <code>y_order</code> &lt;= 3.
 </dl><p>
-The function <a href="#decl_cvGetSpatialMoment">cvGetSpatialMoment</a> retrieves the spatial moment, which in case of
+The function <code>cvGetSpatialMoment</code> retrieves the spatial moment, which in case of
 image moments is defined as:</p>
 <pre>
 M<sub>x_order,y_order</sub>=sum<sub>x,y</sub>(I(x,y)&bull;x<sup>x_order</sup>&bull;y<sup>y_order</sup>)
@@ -1369,7 +1531,7 @@ double cvGetCentralMoment( CvMoments* moments, int x_order, int y_order );
 <dt>y_order<dd>y order of the retrieved moment,
                  <code>y_order</code> &gt;= 0 and <code>x_order</code> + <code>y_order</code> &lt;= 3.
 </dl><p>
-The function <a href="#decl_cvGetCentralMoment">cvGetCentralMoment</a> retrieves the central moment, which in case of
+The function <code>cvGetCentralMoment</code> retrieves the central moment, which in case of
 image moments is defined as:</p>
 <pre>
 &mu;<sub>x_order,y_order</sub>=sum<sub>x,y</sub>(I(x,y)&bull;(x-x<sub>c</sub>)<sup>x_order</sup>&bull;(y-y<sub>c</sub>)<sup>y_order</sup>),
@@ -1388,7 +1550,7 @@ double cvGetNormalizedCentralMoment( CvMoments* moments, int x_order, int y_orde
 <dt>y_order<dd>y order of the retrieved moment,
                  <code>y_order</code> &gt;= 0 and <code>x_order</code> + <code>y_order</code> &lt;= 3.
 </dl><p>
-The function <a href="#decl_cvGetNormalizedCentralMoment">cvGetNormalizedCentralMoment</a>
+The function <code>cvGetNormalizedCentralMoment</code>
 retrieves the normalized central moment:</p>
 <pre>
 &eta;<sub>x_order,y_order</sub>= &mu;<sub>x_order,y_order</sub>/M<sub>00</sub><sup>((y_order+x_order)/2+1)</sup>
@@ -1403,7 +1565,7 @@ void cvGetHuMoments( CvMoments* moments, CvHuMoments* hu_moments );
 <dt>moments<dd>Pointer to the moment state structure.
 <dt>hu_moments<dd>Pointer to Hu moments structure.
 </dl><p>
-The function <a href="#decl_cvGetHuMoments">cvGetHuMoments</a> calculates seven Hu invariants that are defined as:
+The function <code>cvGetHuMoments</code> calculates seven Hu invariants that are defined as:
 <pre>
  h<sub>1</sub>=&eta;<sub>20</sub>+&eta;<sub>02</sub>
 
@@ -1427,21 +1589,22 @@ reflection except the seventh one, whose sign is changed by reflection.
 
 <hr><h2><a name="cv_imgproc_special">Special Image Transforms</a></h2>
 
-<hr><h3><a name="decl_cvHoughLines">HoughLines</a></h3>
+<hr><h3><a name="decl_cvHoughLines2">HoughLines2</a></h3>
 <p class="Blurb">Finds lines in binary image using Hough transform</p>
 <pre>
 CvSeq* cvHoughLines2( CvArr* image, void* line_storage, int method,
                       double rho, double theta, int threshold,
                       double param1=0, double param2=0 );
 </pre><p><dl>
-<dt>image<dd>Source 8-bit single-channel (binary) image. It may be modified by the function.
+<dt>image<dd>The input 8-bit single-channel binary image. In case of probabilistic method the image is
+             modified by the function.
 <dt>line_storage<dd>The storage for the lines detected. It can be a memory storage (in this case
 a sequence of lines is created in the storage and returned by the function) or single row/single column
 matrix (CvMat*) of a particular type (see below) to which the lines' parameters are written.
-The matrix header is modified by the function so its <code>cols</code>/<code>rows</code> will contain
+The matrix header is modified by the function so its <code>cols</code> or <code>rows</code> will contain
 a number of lines detected. If <code>line_storage</code> is a matrix and the actual number of lines
 exceeds the matrix size, the maximum possible number of lines is returned
-(the lines are not sorted by length, confidence or any other criteria).
+(in case of standard hough transform the lines are sorted by the accumulator value).
 <dt>method<dd>The Hough transform variant, one of:<ul>
     <li><code>CV_HOUGH_STANDARD</code> - classical or standard Hough transform. Every line is represented by two floating-point numbers
          (&rho;, &theta;), where &rho; is a distance between (0,0) point and the line, and &theta; is the angle
@@ -1472,7 +1635,7 @@ accumulator value is greater than <code>threshold</code>.
               (The coarse angle resolution will be <code>theta</code> and the accurate resolution will be (<code>theta</code> / <code>param2</code>)).
               </ul>
 </dl><p>
-The function <a href="#decl_cvHoughLines2">cvHoughLines2</a> implements a few variants of Hough transform for line detection.</p>
+The function <code>cvHoughLines2</code> implements a few variants of Hough transform for line detection.</p>
 <h4>Example. Detecting lines with Hough transform.</h4>
 <pre>
 /* This is a standalone program. Pass an image name as a first parameter of the program.
@@ -1494,34 +1657,20 @@ int main(int argc, char** argv)
         cvCanny( src, dst, 50, 200, 3 );
         cvCvtColor( dst, color_dst, CV_GRAY2BGR );
 #if 1
-        lines = cvHoughLines2( dst, storage, CV_HOUGH_STANDARD, 1, CV_PI/180, 150, 0, 0 );
+        lines = cvHoughLines2( dst, storage, CV_HOUGH_STANDARD, 1, CV_PI/180, 100, 0, 0 );
 
-        for( i = 0; i &lt; lines->total; i++ )
+        for( i = 0; i &lt; MIN(lines-&gt;total,100); i++ )
         {
             float* line = (float*)cvGetSeqElem(lines,i);
             float rho = line[0];
             float theta = line[1];
             CvPoint pt1, pt2;
             double a = cos(theta), b = sin(theta);
-            if( fabs(a) &lt; 0.001 )
-            {
-                pt1.x = pt2.x = cvRound(rho);
-                pt1.y = 0;
-                pt2.y = color_dst->height;
-            }
-            else if( fabs(b) &lt; 0.001 )
-            {
-                pt1.y = pt2.y = cvRound(rho);
-                pt1.x = 0;
-                pt2.x = color_dst->width;
-            }
-            else
-            {
-                pt1.x = 0;
-                pt1.y = cvRound(rho/b);
-                pt2.x = cvRound(rho/a);
-                pt2.y = 0;
-            }
+            double x0 = a*rho, y0 = b*rho;
+            pt1.x = cvRound(x0 + 1000*(-b));
+            pt1.y = cvRound(y0 + 1000*(a));
+            pt2.x = cvRound(x0 - 1000*(-b));
+            pt2.y = cvRound(y0 - 1000*(a));
             cvLine( color_dst, pt1, pt2, CV_RGB(255,0,0), 3, 8 );
         }
 #else
@@ -1544,22 +1693,82 @@ int main(int argc, char** argv)
 </pre>
 <p>This is the sample picture the function parameters have been tuned for:</p>
 <p>
-<image src="pics/building.jpg" width=320 height=240></a>
+<img src="pics/building.jpg" width=320 height=240></a>
 </p>
 <p>
 And this is the output of the above program in case of probabilistic Hough transform ("#if 0" case):
 </p>
 <p>
-<image src="pics/houghp.png" width=320 height=240></a>
+<img src="pics/houghp.png" width=320 height=240></a>
 </p>
 
+
+<hr><h3><a name="decl_cvHoughCircles">HoughCircles</a></h3>
+<p class="Blurb">Finds circles in grayscale image using Hough transform</p>
+<pre>
+CvSeq* cvHoughCircles( CvArr* image, void* circle_storage,
+                       int method, double dp, double min_dist,
+                       double param1=100, double param2=100 );
+</pre><p><dl>
+<dt>image<dd>The input 8-bit single-channel grayscale image.
+<dt>circle_storage<dd>The storage for the circles detected. It can be a memory storage (in this case
+a sequence of circles is created in the storage and returned by the function) or single row/single column
+matrix (CvMat*) of type CV_32FC3, to which the circles' parameters are written.
+The matrix header is modified by the function so its <code>cols</code> or <code>rows</code> will contain
+a number of lines detected. If <code>circle_storage</code> is a matrix and the actual number of lines
+exceeds the matrix size, the maximum possible number of circles is returned.
+Every circle is encoded as 3 floating-point numbers: center coordinates (x,y) and the radius.
+<dt>method<dd>Currently, the only implemented method is <code>CV_HOUGH_GRADIENT</code>, which is basically 21HT, described in
+<a href="#paper_yuen03"><b>[Yuen03]</b></a>.
+<dt>dp<dd>Resolution of the accumulator used to detect centers of the circles. For example, if it is 1,
+the accumulator will have the same resolution as the input image, if it is 2 - accumulator will have twice
+smaller width and height, etc.
+<dt>min_dist<dd>Minimum distance between centers of the detected circles. If the parameter is too small, multiple
+neighbor circles may be falsely detected in addition to a true one. If it is too large, some circles may be missed.
+<dt>param1<dd>The first method-specific parameter.
+ In case of <code>CV_HOUGH_GRADIENT</code> it is the higher threshold of the two passed to Canny edge detector
+ (the lower one will be twice smaller).
+<dt>param2<dd>The second method-specific parameter.
+ In case of <code>CV_HOUGH_GRADIENT</code> it is accumulator threshold at the center detection stage.
+ The smaller it is, the more false circles may be detected. Still, circles, corresponding to the larger accumulator
+ values, will be returned first.
+</dl><p>
+The function <code>cvHoughCircles</code> finds circles in grayscale image using some modification of Hough transform.</p>
+<h4>Example. Detecting circles with Hough transform.</h4>
+<pre>
+#include &lt;cv.h&gt;
+#include &lt;highgui.h&gt;
+#include &lt;math.h&gt;
+
+int main(int argc, char** argv)
+{
+    IplImage* img;
+    if( argc == 2 && (img=cvLoadImage(argv[1], 1))!= 0)
+    {
+        IplImage* gray = cvCreateImage( cvGetSize(img), 8, 1 );
+        CvMemStorage* storage = cvCreateMemStorage(0);
+        cvCvtColor( img, gray, CV_BGR2GRAY );
+        cvSmooth( gray, gray, CV_GAUSSIAN, 9, 9 ); // smooth it, otherwise a lot of false circles may be detected
+        CvSeq* circles = cvHoughCircles( gray, storage, CV_HOUGH_GRADIENT, 2, gray->height/4, 200, 100 );
+        int i;
+        for( i = 0; i < c->total; i++ )
+        {
+             float* p = (float*)cvGetSeqElem( c, i );
+             cvCircle( img, cvPoint(cvRound(p[0]),cvRound(p[1])), cvRound(p[2]), CV_RGB(255,0,0), 3, 8, 0 );
+        }
+        cvNamedWindow( "cicles", 1 );
+        cvShowImage( "circles", img );
+    }
+    return 0;
+}
+</pre>
 
 <hr><h3><a name="decl_cvDistTransform">DistTransform</a></h3>
 <p class="Blurb">Calculates distance to closest zero pixel for all non-zero pixels of source
 image</p>
 <pre>
 void cvDistTransform( const CvArr* src, CvArr* dst, int distance_type=CV_DIST_L2,
-                      int mask_size=3, const float* mask=NULL );
+                      int mask_size=3, const float* mask=NULL, CvArr* labels=NULL );
 </pre><p><dl>
 <dt>src<dd>Source 8-bit single-channel (binary) image.
 <dt>dst<dd>Output image with calculated distances (32-bit floating-point, single-channel).
@@ -1570,16 +1779,18 @@ void cvDistTransform( const CvArr* src, CvArr* dst, int distance_type=CV_DIST_L2
 as 5&times;5 yet it is faster.
 <dt>mask<dd>User-defined mask in case of user-defined distance, it consists of 2 numbers
 (horizontal/vertical shift cost, diagonal shift cost) in case of 3&times;3 mask and
-3 numbers (horizontal/vertical shift cost, diagonal shift cost, knight's move cost)
+3 numbers (horizontal/vertical shift cost, diagonal shift cost, knight&#146;s move cost)
 in case of 5&times;5 mask.
+<dt>labels<dd>The optional output 2d array of labels of integer type
+              and the same size as <code>src</code> and <code>dst</code>.
 </dl><p>
-The function <a href="#decl_cvDistTransform">cvDistTransform</a> calculates the approximated distance from every binary image pixel
+The function <code>cvDistTransform</code> calculates the approximated distance from every binary image pixel
 to the nearest zero pixel. For zero pixels the function sets the zero distance, for others it finds
-the shortest path consisting of basic shifts: horizontal, vertical, diagonal or knight's move (the
+the shortest path consisting of basic shifts: horizontal, vertical, diagonal or knight&#146;s move (the
 latest is available for 5&times;5 mask). The overal distance is calculated as a sum of these basic distances.
 Because the distance function should be symmetric, all the horizontal and vertical shifts must have
 the same cost (that is denoted as <code>a</code>), all the diagonal shifts must have the same cost
-(denoted <code>b</code>), and all knight's moves' must have the same cost (denoted <code>c</code>).
+(denoted <code>b</code>), and all knight&#146;s moves must have the same cost (denoted <code>c</code>).
 For <code>CV_DIST_C</code> and <code>CV_DIST_L1</code> types the distance is calculated precisely,
 whereas for <code>CV_DIST_L2</code> (Euclidian distance) the distance can be calculated only with
 some relative error (5&times;5 mask gives more accurate results), OpenCV uses the values suggested in
@@ -1629,26 +1840,28 @@ in case of user-defined distance:
 <p>Typically, for fast coarse distance estimation CV_DIST_L2, 3&times;3 mask is used,
 and for more accurate distance estimation CV_DIST_L2, 5&times;5 mask is used.</p>
 
+<p>When the output parameter <code>labels</code> is not <code>NULL</code>, for every non-zero pixel
+the function also finds the nearest connected component consisting of zero pixels. The connected components
+themselves are found as contours in the beginning of the function.</p>
+<p>
+In this mode the processing time is still O(N), where N is the number of pixels.
+Thus, the function provides a very fast way to compute approximate Voronoi diagram for the binary image.</p>
+
+
 <hr><h2><a name="cv_imgproc_histograms">Histograms</a></h2>
 
-<hr><h3><a name="decl_CvHistogram ">CvHistogram</a></h3>
+<hr><h3><a name="decl_CvHistogram">CvHistogram</a></h3>
 <p class="Blurb">Muti-dimensional histogram</p>
 <pre>
-    typedef struct CvHistogram
-    {
-        int header_size; /* header's size */
-        CvHistType type; /* type of histogram */
-        int flags; /* histogram's flags */
-        int c_dims; /* histogram's dimension */
-        int dims[CV_HIST_MAX_DIM]; /* every dimension size */
-        int mdims[CV_HIST_MAX_DIM]; /* coefficients for fast access to element */
-        /* &m[a,b,c] = m + a*mdims[0] + b*mdims[1] + c*mdims[2] */
-        float* thresh[CV_HIST_MAX_DIM]; /* bin boundaries arrays for every dimension */
-        float* array; /* all the histogram data, expanded into the single row */
-    struct CvNode* root; /* root of balanced tree storing histogram bins */
-        CvSet* set; /* pointer to memory storage (for the balanced tree) */
-        int* chdims[CV_HIST_MAX_DIM]; /* cache data for fast calculating */
-    } CvHistogram;
+typedef struct CvHistogram
+{
+    int     type;
+    CvArr*  bins;
+    float   thresh[CV_MAX_DIM][2]; /* for uniform histograms */
+    float** thresh2; /* for non-uniform histograms */
+    CvMatND mat; /* embedded matrix header for array histograms */
+}
+CvHistogram;
 </pre>
 
 <hr><h3><a name="decl_cvCreateHist">CreateHist</a></h3>
@@ -1661,7 +1874,7 @@ CvHistogram* cvCreateHist( int dims, int* sizes, int type,
 <dt>sizes<dd>Array of histogram dimension sizes.
 <dt>type<dd>Histogram representation format: <code>CV_HIST_ARRAY</code> means that histogram data is
 represented as an multi-dimensional dense array <a href="#decl_CvMatND">CvMatND</a>;
-<code>CV_HIST_TREE</code> means that histogram data is represented
+<code>CV_HIST_SPARSE</code> means that histogram data is represented
 as a multi-dimensional sparse array <a href="#decl_CvSparseMat">CvSparseMat</a>.
 <dt>ranges<dd>Array of ranges for histogram bins. Its meaning depends on the <code>uniform</code> parameter value.
 The ranges are used for when histogram is calculated or backprojected to determine, which histogram bin
@@ -1677,9 +1890,9 @@ boundaries of <code>i-th</code> input tuple value for <code>j-th</code> bin, res
 In either case, the input values that are beyond the specified range for a histogram bin, are not
 counted by <a href="#decl_cvCalcHist">cvCalcHist</a> and filled with 0 by <a href="#decl_cvCalcBackProject">cvCalcBackProject</a>.
 </dl><p>
-The function <a href="#decl_cvCreateHist">cvCreateHist</a> creates a histogram of the specified size and returns
+The function <code>cvCreateHist</code> creates a histogram of the specified size and returns
 the pointer to the created histogram. If the array <code>ranges</code> is 0, the histogram
-bin ranges must be specified later via the function <a href="#decl_cvSetHistBinRanges">cvSetHistBinRanges</a>, though
+bin ranges must be specified later via The function <code>cvSetHistBinRanges</code>, though
 <a href="#decl_cvCalcHist">cvCalcHist</a> and <a href="#decl_cvCalcBackProject">cvCalcBackProject</a> may process 8-bit images without setting
 bin ranges, they assume equally spaced in 0..255 bins.</p>
 
@@ -1693,7 +1906,7 @@ void cvSetHistBinRanges( CvHistogram* hist, float** ranges, int uniform=1 );
 <dt>ranges<dd>Array of bin ranges arrays, see <a href="#decl_cvCreateHist">cvCreateHist</a>.
 <dt>uniform<dd>Uniformity flag, see <a href="#decl_cvCreateHist">cvCreateHist</a>.
 </dl><p>
-The function <a href="#decl_cvSetHistBinRanges">cvSetHistBinRanges</a> is a stand-alone function for setting bin ranges
+The function <code>cvSetHistBinRanges</code> is a stand-alone function for setting bin ranges
 in the histogram. For more detailed description of the parameters <code>ranges</code> and
 <code>uniform</code> see <a href="#decl_cvCalcHist">cvCalcHist</a> function,
 that can initialize the ranges as well.
@@ -1709,7 +1922,7 @@ void cvReleaseHist( CvHistogram** hist );
 </pre><p><dl>
 <dt>hist<dd>Double pointer to the released histogram.
 </dl><p>
-The function <a href="#decl_cvReleaseHist">cvReleaseHist</a> releases the histogram (header and the data).
+The function <code>cvReleaseHist</code> releases the histogram (header and the data).
 The pointer to histogram is cleared by the function. If <code>*hist</code> pointer is already
 <code>NULL</code>, the function does nothing.</p>
 
@@ -1721,7 +1934,7 @@ void cvClearHist( CvHistogram* hist );
 </pre><p><dl>
 <dt>hist<dd>Histogram.
 </dl><p>
-The function <a href="#decl_cvClearHist">cvClearHist</a> sets all histogram bins to 0 in case of dense histogram and
+The function <code>cvClearHist</code> sets all histogram bins to 0 in case of dense histogram and
 removes all histogram bins in case of sparse array.</p>
 
 
@@ -1738,13 +1951,13 @@ CvHistogram*  cvMakeHistHeaderForArray( int dims, int* sizes, CvHistogram* hist,
 <dt>ranges<dd>Histogram bin ranges, see <a href="#decl_cvCreateHist">cvCreateHist</a>.
 <dt>uniform<dd>Uniformity flag, see <a href="#decl_cvCreateHist">cvCreateHist</a>.
 </dl><p>
-The function <a href="#decl_cvMakeHistHeaderForArray">cvMakeHistHeaderForArray</a> initializes the histogram, which header and
+The function <code>cvMakeHistHeaderForArray</code> initializes the histogram, which header and
 bins are allocated by user. No <a href="#decl_cvReleaseHist">cvReleaseHist</a> need to be called afterwards.
 Only dense histograms can be initialized this way. The function returns <code>hist</code>.
 </p>
 
 
-<hr><h3><a name="decl_cvQueryHistValue_1D">QueryHistValue_1D</a></h3>
+<hr><h3><a name="decl_cvQueryHistValue_*D">QueryHistValue_*D</a></h3>
 <p class="Blurb">Queries value of histogram bin</p>
 <pre>
 #define cvQueryHistValue_1D( hist, idx0 ) \
@@ -1766,7 +1979,7 @@ histogram, and no new bin is created.
 </p>
 
 
-<hr><h3><a name="decl_cvGetHistValue_1D">GetHistValue_1D</a></h3>
+<hr><h3><a name="decl_cvGetHistValue_*D">GetHistValue_*D</a></h3>
 <p class="Blurb">Returns pointer to histogram bin</p>
 <pre>
 #define cvGetHistValue_1D( hist, idx0 ) \
@@ -1801,7 +2014,7 @@ void cvGetMinMaxHistValue( const CvHistogram* hist,
 <dt>min_idx<dd>Pointer to the array of coordinates for minimum
 <dt>max_idx<dd>Pointer to the array of coordinates for maximum
 </dl><p>
-The function <a href="#decl_cvGetMinMaxHistValue">cvGetMinMaxHistValue</a> finds the minimum and maximum histogram bins and
+The function <code>cvGetMinMaxHistValue</code> finds the minimum and maximum histogram bins and
 their positions. Any of output arguments is optional.
 Among several extremums with the same value the ones with minimum index (in lexicographical order)
 In case of several maximums or minimums the earliest in lexicographical order
@@ -1816,7 +2029,7 @@ void cvNormalizeHist( CvHistogram* hist, double factor );
 <dt>hist<dd>Pointer to the histogram.
 <dt>factor<dd>Normalization factor.
 </dl><p>
-The function <a href="#decl_cvNormalizeHist">cvNormalizeHist</a> normalizes the histogram bins by scaling them,
+The function <code>cvNormalizeHist</code> normalizes the histogram bins by scaling them,
 such that the sum of the bins becomes equal to <code>factor</code>.</p>
 
 
@@ -1828,7 +2041,7 @@ void cvThreshHist( CvHistogram* hist, double threshold );
 <dt>hist<dd>Pointer to the histogram.
 <dt>threshold<dd>Threshold level.
 </dl><p>
-The function <a href="#decl_cvThreshHist">cvThreshHist</a> clears histogram bins
+The function <code>cvThreshHist</code> clears histogram bins
 that are below the specified threshold.</p>
 
 
@@ -1844,9 +2057,10 @@ double cvCompareHist( const CvHistogram* hist1, const CvHistogram* hist2, int me
 <li>CV_COMP_CORREL
 <li>CV_COMP_CHISQR
 <li>CV_COMP_INTERSECT
+<li>CV_COMP_BHATTACHARYYA
 </ul>
 </dl><p>
-The function <a href="#decl_cvCompareHist">cvCompareHist</a> compares two dense histograms using
+The function <code>cvCompareHist</code> compares two dense histograms using
 the specified method as following
 (<code>H<sub>1</sub></code> denotes the first histogram, <code>H<sub>2</sub></code> - the second):</p>
 <pre>
@@ -1860,10 +2074,14 @@ d(H<sub>1</sub>,H<sub>2</sub>)=sum<sub>I</sub>[(H<sub>1</sub>(I)-H<sub>2</sub>(I
 
 Intersection (method=CV_COMP_INTERSECT):
 d(H<sub>1</sub>,H<sub>2</sub>)=sum<sub>I</sub>max(H<sub>1</sub>(I),H<sub>2</sub>(I))
+
+Bhattacharyya distance (method=CV_COMP_BHATTACHARYYA):
+d(H<sub>1</sub>,H<sub>2</sub>)=sqrt(1-sum<sub>I</sub>(sqrt(H<sub>1</sub>(I)&bull;H<sub>2</sub>(I))))
 </pre>
 <p>The function returns <code>d(H<sub>1</sub>,H<sub>2</sub>)</code> value.</p>
+<p>Note: the method <code>CV_COMP_BHATTACHARYYA</code> only works with normalized histograms.
 <p>To compare sparse histogram or more general sparse configurations of weighted points,
-consider using <a href="#decl_cvCalcEMD">cvCalcEMD</a> function.</p>
+consider using <a href="#decl_cvCalcEMD2">cvCalcEMD2</a> function.</p>
 
 
 <hr><h3><a name="decl_cvCopyHist">CopyHist</a></h3>
@@ -1874,11 +2092,11 @@ void cvCopyHist( const CvHistogram* src, CvHistogram** dst );
 <dt>src<dd>Source histogram.
 <dt>dst<dd>Pointer to destination histogram.
 </dl><p>
-The function <a href="#decl_cvCopyHist">cvCopyHist</a> makes a copy of the histogram. If the second histogram
+The function <code>cvCopyHist</code> makes a copy of the histogram. If the second histogram
 pointer <code>*dst</code> is NULL, a new histogram of the same size as <code>src</code> is created.
 Otherwise, both histograms must have equal types and sizes.
 Then the function copies the source histogram bins values to destination histogram and
-sets the same as <code>src</code>'s value ranges.</p>
+sets the same bin values ranges as in <code>src</code>.</p>
 
 
 <hr><h3><a name="decl_cvCalcHist">CalcHist</a></h3>
@@ -1893,7 +2111,7 @@ void cvCalcHist( IplImage** image, CvHistogram* hist,
 This feature allows user to compute a single histogram from several images, or to update the histogram online.
 <dt>mask<dd>The operation mask, determines what pixels of the source images are counted.
 </dl><p>
-The function <a href="#decl_cvCalcHist">cvCalcHist</a> calculates the histogram of one or more single-channel images.
+The function <code>cvCalcHist</code> calculates the histogram of one or more single-channel images.
 The elements of a tuple that is used to increment a histogram bin are taken at the same
 location from the corresponding input images.</p>
 <h4>Sample. Calculating and displaying 2D Hue-Saturation histogram of a color image</h4>
@@ -1965,7 +2183,7 @@ void cvCalcBackProject( IplImage** image, CvArr* back_project, const CvHistogram
 <dt>back_project<dd>Destination back projection image of the same type as the source images.
 <dt>hist<dd>Histogram.
 </dl><p>
-The function <a href="#decl_cvCalcBackProject">cvCalcBackProject</a> calculates the back project of the histogram. For
+The function <code>cvCalcBackProject</code> calculates the back project of the histogram. For
 each tuple of pixels at the same position of all input single-channel
 images the function puts the value of the histogram bin, corresponding to the tuple,
 to the destination image. In terms of statistics, the value of each output image pixel
@@ -2001,7 +2219,7 @@ void cvCalcBackProjectPatch( IplImage** image, CvArr* dst,
 <dt>factor<dd>Normalization factor for histograms,
                will affect normalization scale of destination image, pass 1. if unsure.
 </dl><p>
-The function <a href="#decl_cvCalcBackProjectPatch">cvCalcBackProjectPatch</a> calculates back projection by comparing
+The function <code>cvCalcBackProjectPatch</code> calculates back projection by comparing
 histograms of the source image patches with the given histogram. Taking
 measurement results from some image at each location over ROI creates an array
 <code>image</code>. These results might be one or more of hue, <code>x</code> derivative, <code>y</code> derivative,
@@ -2016,7 +2234,7 @@ chosen ROI. Histograms are taken from this <code>image</code> image in an area c
 "patch" with anchor at center as shown in the picture below.
 The histogram is normalized using the parameter <code>norm_factor</code> so that it
 may be compared with <code>hist</code>. The calculated histogram is compared to the model
-histogram; <code>hist</code> uses the function <a href="#decl_cvCompareHist">cvCompareHist</a> with the comparison method=<code>method</code>).
+histogram; <code>hist</code> uses The function <code>cvCompareHist</code> with the comparison method=<code>method</code>).
 The resulting output is placed at the location corresponding to the patch anchor in
 the probability image <code>dst</code>. This process is repeated as the patch is slid over
 the ROI. Iterative histogram update by subtracting trailing pixels covered by the patch and adding newly
@@ -2039,7 +2257,7 @@ void  cvCalcProbDensity( const CvHistogram* hist1, const CvHistogram* hist2,
 <dt>dst_hist<dd>destination histogram.
 <dt>scale<dd>scale factor for the destination histogram.
 </dl></p><p>
-The function <a href="#decl_cvCalcProbDensity">cvCalcProbDensity</a> calculates the object probability density from
+The function <code>cvCalcProbDensity</code> calculates the object probability density from
 the two histograms as:</p>
 <pre>
 dist_hist(I)=0      if hist1(I)==0
@@ -2051,6 +2269,26 @@ So the destination histogram bins are within less than scale.
 </p>
 
 
+<hr><h3><a name="decl_cvEqualizeHist">EqualizeHist</a></h3>
+<p class="Blurb">Equalizes histogram of grayscale image</p>
+<pre>
+void  cvEqualizeHist( const CvArr* src, CvArr* dst );
+</pre><p><dl>
+<dt>src<dd>The input 8-bit single-channel image.
+<dt>dst<dd>The output image of the same size and the same data type as <code>src</code>.
+</dl></p><p>
+The function <code>cvEqualizeHist</code> equalizes histogram of the input image
+using the following algorithm:</p>
+<pre>
+1. calculate histogram H for src.
+2. normalize histogram, so that the sum of histogram bins is 255.
+3. compute integral of the histogram:
+   H&#146;(i) = sum<sub>0&le;j&le;i</sub>H(j)
+4. transform the image using H&#146; as a look-up table: dst(x,y)=H&#146;(src(x,y))
+</pre>
+<p>The algorithm normalizes brightness and increases contrast of the image.</p>
+
+
 <hr><h2><a name="cv_imgproc_matching">Matching</a></h2>
 
 <hr><h3><a name="decl_cvMatchTemplate">MatchTemplate</a></h3>
@@ -2060,14 +2298,14 @@ void cvMatchTemplate( const CvArr* image, const CvArr* templ,
                       CvArr* result, int method );
 </pre><p><dl>
 <dt>image<dd>Image where the search is running.
-           It should be single-chanel, 8-bit or 32-bit floating-point.
+           It should be 8-bit or 32-bit floating-point.
 <dt>templ<dd>Searched template; must be not greater than the source image and the same data type as the image.
 <dt>result<dd>A map of comparison results; single-channel 32-bit floating-point. If <code>image</code> is
 <code>W</code>&times;<code>H</code> and <code>templ</code> is <code>w</code>&times;<code>h</code> then <code>result</code> must
 be <code>W-w+1</code>&times;<code>H-h+1</code>.
 <dt>method<dd>Specifies the way the template must be compared with image regions (see below).
 </dl><p>
-The function <a href="#decl_cvMatchTemplate">cvMatchTemplate</a> is similiar to <a href="#decl_cvCalcBackProjectPatch">cvCalcBackProjectPatch</a>.
+The function <code>cvMatchTemplate</code> is similiar to <a href="#decl_cvCalcBackProjectPatch">cvCalcBackProjectPatch</a>.
 It slids through <code>image</code>, compares overlapped patches of size <code>w</code>&times;<code>h</code>
 against <code>templ</code> using the specified method and stores the comparison results
 to <code>result</code>. Here are the formulae for the different comparison methods one may use
@@ -2089,8 +2327,8 @@ R(x,y)=sum<sub>x',y'</sub>[T(x',y')&bull;I(x+x',y+y')]/sqrt[sum<sub>x',y'</sub>T
 method=CV_TM_CCOEFF:
 R(x,y)=sum<sub>x',y'</sub>[T'(x',y')&bull;I'(x+x',y+y')],
 
-where T'(x',y')=T(x',y') - 1/(w&bull;h)&bull;sum<sub>x",y"</sub>T(x",y") (mean template brightness=>0)
-      I'(x+x',y+y')=I(x+x',y+y') - 1/(w&bull;h)&bull;sum<sub>x",y"</sub>I(x+x",y+y") (mean patch brightness=>0)
+where T'(x',y')=T(x',y') - 1/(w&bull;h)&bull;sum<sub>x",y"</sub>T(x",y")
+      I'(x+x',y+y')=I(x+x',y+y') - 1/(w&bull;h)&bull;sum<sub>x",y"</sub>I(x+x",y+y")
 
 method=CV_TM_CCOEFF_NORMED:
 R(x,y)=sum<sub>x',y'</sub>[T'(x',y')&bull;I'(x+x',y+y')]/sqrt[sum<sub>x',y'</sub>T'(x',y')<sup>2</sup>&bull;sum<sub>x',y'</sub>I'(x+x',y+y')<sup>2</sup>]
@@ -2098,6 +2336,8 @@ R(x,y)=sum<sub>x',y'</sub>[T'(x',y')&bull;I'(x+x',y+y')]/sqrt[sum<sub>x',y'</sub
 </pre>
 After the function finishes comparison, the best matches can be found as global minimums (CV_TM_SQDIFF*)
 or maximums (CV_TM_CCORR* and CV_TM_CCOEFF*) using <a href="opencvref_cxcore.htm#decl_cvMinMaxLoc">cvMinMaxLoc</a> function.
+In case of color image and template summation in both numerator and each sum in denominator is done
+over all the channels (and separate mean values are used for each channel).
 </p>
 
 
@@ -2112,7 +2352,7 @@ double cvMatchShapes( const void* object1, const void* object2,
 <dt>method<dd>Comparison method, one of CV_CONTOUR_MATCH_I1, CV_CONTOURS_MATCH_I2 or CV_CONTOURS_MATCH_I3.
 <dt>parameter<dd>Method-specific parameter (is not used now).
 </dl><p>
-The function <a href="#decl_cvMatchShapes">cvMatchShapes</a> compares two shapes. The 3 implemented methods all
+The function <code>cvMatchShapes</code> compares two shapes. The 3 implemented methods all
 use Hu moments (see <a href="#decl_cvGetHuMoments">cvGetHuMoments</a>)
 (<code>A</code> ~ <code>object1</code>, <code>B</code> - <code>object2</code>):</p>
 <pre>
@@ -2170,7 +2410,7 @@ pre-calculated <code>cost_matrix</code> is used.
                   <code>*lower_bound</code> should be set to 0.
 <dt>userdata<dd>Pointer to optional data that is passed into the user-defined distance function.
 </dl><p>
-The function <a href="#decl_cvCalcEMD2">cvCalcEMD2</a> computes earth mover distance and/or a lower boundary of
+The function <code>cvCalcEMD2</code> computes earth mover distance and/or a lower boundary of
 the distance between the two weighted point configurations.
 One of the application desctibed in <a href="#paper_rubnersept98">[RubnerSept98]</a> is multi-dimensional
 histogram comparison for image retrieval.
@@ -2203,7 +2443,7 @@ than <code>minimal_perimeter</code>. Other chains are removed from the resulting
 obtained to from <code>src_seq</code> by <code>h_next</code> or <code>v_next links</code>. If 0, the single chain is
 approximated.
 </dl><p>
-This is a stand-alone approximation routine. The function <a href="#decl_cvApproxChains">cvApproxChains</a> works
+This is a stand-alone approximation routine. The function <code>cvApproxChains</code> works
 exactly in the same way as <a href="#decl_cvFindContours">cvFindContours</a> with the corresponding approximation flag.
 The function returns pointer to the first resultant contour.
 Other approximated contours, if any, can be accessed via <code>v_next</code> or
@@ -2219,7 +2459,7 @@ void cvStartReadChainPoints( CvChain* chain, CvChainPtReader* reader );
 chain Pointer to chain.
 reader Chain reader state.
 </dl><p>
-The function <a href="#decl_cvStartReadChainPoints">cvStartReadChainPoints</a> initializes a special reader
+The function <code>cvStartReadChainPoints</code> initializes a special reader
 (see <a href="opencvref_cxcore.htm#cxcore_ds">Dynamic Data Structures</a>
 for more information on sets and sequences).
 </p>
@@ -2232,7 +2472,7 @@ CvPoint cvReadChainPoint( CvChainPtReader* reader );
 </pre><p><dl>
 <dt>reader<dd>Chain reader state.
 </dl><p>
-The function <a href="#decl_cvReadChainPoint">cvReadChainPoint</a> returns the current chain point and updates the reader position.</p>
+The function <code>cvReadChainPoint</code> returns the current chain point and updates the reader position.</p>
 
 
 <hr><h3><a name="decl_cvApproxPoly">ApproxPoly</a></h3>
@@ -2253,7 +2493,7 @@ description of hierarchical contour structures). And if <code>src_seq</code> is 
 points, the parameter specifies whether the curve is closed (<code>parameter2</code>!=0) or
 not (<code>parameter2</code>=0).
 </dl><p>
-The function <a href="#decl_cvApproxPoly">cvApproxPoly</a> approximates one or more curves and returns the approximation
+The function <code>cvApproxPoly</code> approximates one or more curves and returns the approximation
 result[s]. In case of multiple curves approximation the resultant tree will have the same structure as
 the input one (1:1 correspondence).
 </p>
@@ -2272,7 +2512,7 @@ CvRect cvBoundingRect( CvArr* points, int update=0 );
 <li>update=0, contour ~ CvSeq* or CvMat*: the bounding rectangle is calculated and returned.
 <li>update=1, contour ~ CvSeq* or CvMat*: runtime error is raised.
 </ul></dl><p>
-The function <a href="#decl_cvBoundingRect">cvBoundingRect</a> returns the up-right bounding rectangle for 2d point set.
+The function <code>cvBoundingRect</code> returns the up-right bounding rectangle for 2d point set.
 </p>
 
 
@@ -2285,7 +2525,7 @@ double cvContourArea( const CvArr* contour, CvSlice slice=CV_WHOLE_SEQ );
 <dt>slice<dd>Starting and ending points of the contour section of interest, by default area of the whole
 contour is calculated.
 </dl><p>
-The function <a href="#decl_cvContourArea">cvContourArea</a> calculates area of the whole contour or contour section. In the latter
+The function <code>cvContourArea</code> calculates area of the whole contour or contour section. In the latter
 case the total area bounded by the contour arc and the chord connecting the 2 selected points is calculated as
 shown on the picture below:</p>
 <p>
@@ -2314,7 +2554,7 @@ calculated.
                      to be unclosed.
 </ul>
 </dl><p>
-The function <a href="#decl_cvArcLength">cvArcLength</a> calculates length or curve as sum of lengths of segments
+The function <code>cvArcLength</code> calculates length or curve as sum of lengths of segments
 between subsequent points</p>
 
 <hr><h3><a name="decl_cvCreateContourTree">CreateContourTree</a></h3>
@@ -2326,7 +2566,7 @@ CvContourTree* cvCreateContourTree( const CvSeq* contour, CvMemStorage* storage,
 <dt>storage<dd>Container for output tree.
 <dt>threshold<dd>Approximation accuracy.
 </dl><p>
-The function <a href="#decl_cvCreateContourTree">cvCreateContourTree</a> creates binary tree representation for the input
+The function <code>cvCreateContourTree</code> creates binary tree representation for the input
 <code>contour</code> and returns the pointer to its root. If the parameter <code>threshold</code>
 is less than or equal to 0, the function creates full binary tree
 representation. If the threshold is greater than 0, the function creates
@@ -2346,7 +2586,7 @@ CvSeq* cvContourFromContourTree( const CvContourTree* tree, CvMemStorage* storag
 <dt>storage<dd>Container for the reconstructed contour.
 <dt>criteria<dd>Criteria, where to stop reconstruction.
 </dl><p>
-The function <a href="#decl_cvContourFromContourTree">cvContourFromContourTree</a> restores the contour from its binary tree
+The function <code>cvContourFromContourTree</code> restores the contour from its binary tree
 representation. The parameter <code>criteria</code> determines the accuracy and/or the
 number of tree levels used for reconstruction, so it is possible to build approximated contour.
 The function returns reconstructed contour.
@@ -2364,7 +2604,7 @@ double cvMatchContourTrees( const CvContourTree* tree1, const CvContourTree* tre
 <dt>method<dd>Similarity measure, only <code>CV_CONTOUR_TREES_MATCH_I1</code> is supported.
 <dt>threshold<dd>Similarity threshold.
 </dl><p>
-The function <a href="#decl_cvMatchContourTrees">cvMatchContourTrees</a> calculates the value of the matching measure for
+The function <code>cvMatchContourTrees</code> calculates the value of the matching measure for
 two contour trees. The similarity measure is calculated level by level from the
 binary tree roots. If at the certain level difference between contours becomes less than <code>threshold</code>,
 the reconstruction process is interrupted and the current difference is returned.
@@ -2382,7 +2622,7 @@ CvRect cvMaxRect( const CvRect* rect1, const CvRect* rect2 );
 <dt>rect1<dd>First rectangle
 <dt>rect2<dd>Second rectangle
 </dl></p><p>
-The function <a href="#decl_cvMaxRect">cvMaxRect</a> finds minimum area rectangle that contains both input rectangles inside:</p>
+The function <code>cvMaxRect</code> finds minimum area rectangle that contains both input rectangles inside:</p>
 <p>
 <img align="center" src="pics/maxrect.png">
 </p>
@@ -2401,6 +2641,63 @@ typedef struct CvBox2D
 CvBox2D;
 </pre>
 
+
+<hr><h3><a name="decl_cvPointSeqFromMat">PointSeqFromMat</a></h3>
+<p class="Blurb">Initializes point sequence header from a point vector</p>
+<pre>
+CvSeq* cvPointSeqFromMat( int seq_kind, const CvArr* mat,
+                          CvContour* contour_header,
+                          CvSeqBlock* block );
+</pre><p><dl>
+<dt>seq_kind<dd>Type of the point sequence: point set (0), a curve (<code>CV_SEQ_KIND_CURVE</code>),
+                closed curve (<code>CV_SEQ_KIND_CURVE+CV_SEQ_FLAG_CLOSED</code>) etc.
+<dt>mat<dd>Input matrix. It should be continuous 1-dimensional vector of points, that is, it should have
+type <code>CV_32SC2</code> or <code>CV_32FC2</code>.
+<dt>contour_header<dd>Contour header, initialized by the function.
+<dt>block<dd>Sequence block header, initialized by the function.
+</dl></p><p>
+The function <code>cvPointSeqFromMat</code> initializes sequence header to create a "virtual" sequence which
+elements reside in the specified matrix. No data is copied. The initialized sequence header may be passed to
+any function that takes a point sequence on input. No extra elements could be added to the sequence,
+but some may be removed. The function is a specialized variant of
+<a href="opencvref_cxcore.htm#decl_cvMakeSeqHeaderForArray">cvMakeSeqHeaderForArray</a> and uses the latter internally.
+It returns pointer to the initialized contour header. Note that the bounding rectangle (field <code>rect</code> of
+<code>CvContour</code> strucuture is not initialized by the function. If you need one, use
+<a href="#decl_cvBoundingRect">cvBoundingRect</a>.
+<p>Here is the simple usage example.</p>
+<pre>
+CvContour header;
+CvSeqBlock block;
+CvMat* vector = cvCreateMat( 1, 3, CV_32SC2 );
+
+CV_MAT_ELEM( *vector, CvPoint, 0, 0 ) = cvPoint(100,100);
+CV_MAT_ELEM( *vector, CvPoint, 0, 1 ) = cvPoint(100,200);
+CV_MAT_ELEM( *vector, CvPoint, 0, 2 ) = cvPoint(200,100);
+
+IplImage* img = cvCreateImage( cvSize(300,300), 8, 3 );
+cvZero(img);
+
+cvDrawContours( img, cvPointSeqFromMat(CV_SEQ_KIND_CURVE+CV_SEQ_FLAG_CLOSED,
+   vector, &amp;header, &amp;block), CV_RGB(255,0,0), CV_RGB(255,0,0), 0, 3, 8, cvPoint(0,0));
+</pre>
+
+
+<hr><h3><a name="decl_CvBox2D">CvBox2D</a></h3>
+<p class="Blurb">Rotated 2D box</p>
+<pre>
+typedef struct CvBox2D
+{
+    CvPoint2D32f center;  /* center of the box */
+    CvSize2D32f  size;    /* box width and length */
+    float angle;          /* angle between the horizontal axis
+                             and the first side (i.e. length) in radians */
+}
+CvBox2D;
+</pre>
+
+
+
+
 <hr><h3><a name="decl_cvBoxPoints">BoxPoints</a></h3>
 <p class="Blurb">Finds box vertices</p>
 <pre>
@@ -2409,7 +2706,7 @@ void cvBoxPoints( CvBox2D box, CvPoint2D32f pt[4] );
 <dt>box<dd>Box
 <dt>pt<dd>Array of vertices
 </dl></p><p>
-The function <a href="#decl_cvBoxPoints">cvBoxPoints</a> calculates vertices of the input 2d box.
+The function <code>cvBoxPoints</code> calculates vertices of the input 2d box.
 Here is the function code:</p>
 <pre>
 void cvBoxPoints( CvBox2D box, CvPoint2D32f pt[4] )
@@ -2436,7 +2733,7 @@ CvBox2D cvFitEllipse2( const CvArr* points );
 </pre><p><dl>
 <dt>points<dd>Sequence or array of points.
 </dl><p>
-The function <a href="#decl_cvFitEllipse">cvFitEllipse</a> calculates ellipse that fits best (in least-squares sense)
+The function <code>cvFitEllipse</code> calculates ellipse that fits best (in least-squares sense)
 to a set of 2D points. The meaning of the returned structure fields is similar to those
 in <a href="#decl_cvEllipse">cvEllipse</a> except that <code>size</code> stores the full lengths of the ellipse axises,
 not half-lengths</p>
@@ -2459,7 +2756,7 @@ where <code>(vx, vy)</code> is a normalized vector collinear to the line and <co
 In case of 3D fitting it is array of 6 floats <code>(vx, vy, vz, x0, y0, z0)</code>
 where <code>(vx, vy, vz)</code> is a normalized vector collinear to the line and <code>(x0, y0, z0)</code> is some point on the line.
 </dl><p>
-The function <a href="#decl_cvFitLine">cvFitLine</a> fits line to 2D or 3D point set by minimizing sum<sub>i</sub>&rho;(r<sub>i</sub>),
+The function <code>cvFitLine</code> fits line to 2D or 3D point set by minimizing sum<sub>i</sub>&rho;(r<sub>i</sub>),
 where r<sub>i</sub> is distance between i-th point and the line and &rho;(r) is a distance function, one of:</p>
 <pre>
 dist_type=CV_DIST_L2 (L<sub>2</sub>):
@@ -2497,7 +2794,7 @@ CvSeq* cvConvexHull2( const CvArr* input, void* hull_storage=NULL,
 <dt>return_points<dd>If non-zero, the points themselves will be stored
                     in the hull instead of indices if <code>hull_storage</code> is array, or pointers if <code>hull_storage</code> is memory storage.
 </dl><p>
-The function <a href="#decl_cvConvexHull2">cvConvexHull2</a> finds convex hull of 2D point set using Sklansky's algorithm.
+The function <code>cvConvexHull2</code> finds convex hull of 2D point set using Sklansky&#146;s algorithm.
 If <code>hull_storage</code> is memory storage, the function creates a sequence containing the hull points or
 pointers to them, depending on <code>return_points</code> value and returns the sequence on output.
 </p>
@@ -2602,7 +2899,7 @@ int cvCheckContourConvexity( const CvArr* contour );
 </pre><p><dl>
 <dt>contour<dd>Tested contour (sequence or array of points).
 </dl><p>
-The function <a href="#decl_cvCheckContourConvexity">cvCheckContourConvexity</a> tests whether the input contour is convex or not.
+The function <code>cvCheckContourConvexity</code> tests whether the input contour is convex or not.
 The contour must be simple, i.e. without self-intersections.
 </p>
 
@@ -2637,9 +2934,28 @@ should be 0.
 <dt>storage<dd>Container for output sequence of convexity defects. If it is NULL, contour or hull
 (in that order) storage is used.
 </dl><p>
-The function <a href="#decl_cvConvexityDefects">cvConvexityDefects</a> finds all convexity defects of the input contour
+The function <code>cvConvexityDefects</code> finds all convexity defects of the input contour
 and returns a sequence of the <a href="#decl_CvConvexityDefect">CvConvexityDefect</a> structures.
 </p>
+
+
+<hr><h3><a name="decl_cvPointPolygonTest">PointPolygonTest</a></h3>
+<p class="Blurb">Point in contour test</p>
+<pre>
+double cvPointPolygonTest( const CvArr* contour,
+                           CvPoint2D32f pt, int measure_dist );
+</pre><p><dl>
+<dt>contour<dd>Input contour.
+<dt>pt<dd>The point tested against the contour.
+<dt>measure_dist<dd>If it is non-zero, the function estimates distance from the point to the nearest contour edge.
+</dl><p>
+The function <code>cvPointPolygonTest</code> determines whether the point is inside contour, outside, or lies
+on an edge (or coinsides with a vertex). It returns positive, negative or zero value, correspondingly.
+When <code>measure_dist=0<code>, the return value is +1, -1 and 0, respectively.
+When <code>measure_dist&ne;0<code>, it is a signed distance between the point and the nearest contour edge.
+</p><p>Here is the sample output of the function, where each image pixel is tested against the contour.</p>
+
+<p><img src="pics/pointpolygon.png" width=200 height=200></p>
 
 
 <hr><h3><a name="decl_cvMinAreaRect2">MinAreaRect2</a></h3>
@@ -2650,7 +2966,7 @@ CvBox2D  cvMinAreaRect2( const CvArr* points, CvMemStorage* storage=NULL );
 <dt>points<dd>Sequence or array of points.
 <dt>storage<dd>Optional temporary memory storage.
 </dl><p>
-The function <a href="#decl_cvMinAreaRect2">cvMinAreaRect2</a> finds a circumscribed rectangle of the minimal area for 2D point set
+The function <code>cvMinAreaRect2</code> finds a circumscribed rectangle of the minimal area for 2D point set
 by building convex hull for the set and applying rotating calipers technique to the hull.</p>
 <h4>Picture. Minimal-area bounding rectangle for contour</h4>
 <p>
@@ -2667,7 +2983,7 @@ int cvMinEnclosingCircle( const CvArr* points, CvPoint2D32f* center, float* radi
 <dt>center<dd>Output parameter. The center of the enclosing circle.
 <dt>radius<dd>Output parameter. The radius of the enclosing circle.
 </dl><p>
-The function <a href="#decl_cvMinEnclosingCircle">cvMinEnclosingCircle</a> finds the minimal circumscribed circle for
+The function <code>cvMinEnclosingCircle</code> finds the minimal circumscribed circle for
 2D point set using iterative algorithm. It returns nonzero if the resultant circle contains all the
 input points and zero otherwise (i.e. algorithm failed).
 </p>
@@ -2681,7 +2997,7 @@ void cvCalcPGH( const CvSeq* contour, CvHistogram* hist );
 <dt>contour<dd>Input contour. Currently, only integer point coordinates are allowed.
 <dt>hist<dd>Calculated histogram; must be two-dimensional.
 </dl><p>
-The function <a href="#decl_cvCalcPGH">cvCalcPGH</a> calculates 2D pair-wise geometrical histogram (PGH), described in
+The function <code>cvCalcPGH</code> calculates 2D pair-wise geometrical histogram (PGH), described in
 <a href="#paper_iivarinen97">[Iivarinen97]</a>, for the contour.
 The algorithm considers every pair of the contour edges. The angle
 between the edges and the minimum/maximum distances are determined for every
@@ -2728,7 +3044,7 @@ and dual subdivision with dot lines</p>
 <p>
 <img src="pics/subdiv.png">
 </p><p>
-OpenCV subdivides plane into triangles using Delaunay's algorithm.
+OpenCV subdivides plane into triangles using Delaunay&#146;s algorithm.
 Subdivision is built iteratively starting from a dummy triangle that includes
 all the subdivision points for sure.
 In this case the dual subdivision is Voronoi diagram of input 2d point set.
@@ -2797,7 +3113,7 @@ CvSubdiv2DEdge  cvSubdiv2DGetEdge( CvSubdiv2DEdge edge, CvNextEdgeType type );
 <li>CV_PREV_AROUND_RIGHT - previous around the right facet (reversed <code>eDnext</code>)
 </ul>
 </dl><p>
-The function <a href="#decl_cvSubdiv2DGetEdge">cvSubdiv2DGetEdge</a> returns one the edges related to the input edge.
+The function <code>cvSubdiv2DGetEdge</code> returns one the edges related to the input edge.
 </p>
 
 
@@ -2814,7 +3130,7 @@ CvSubdiv2DEdge  cvSubdiv2DRotateEdge( CvSubdiv2DEdge edge, int rotate );
 <li>3 - the reversed rotated edge (reversed <code>eRot</code> (in green))
 </ul>
 </dl><p>
-The function <a href="#decl_cvSubdiv2DRotateEdge">cvSubdiv2DRotateEdge</a> returns one the edges of the same quad-edge as the input edge.
+The function <code>cvSubdiv2DRotateEdge</code> returns one the edges of the same quad-edge as the input edge.
 </p>
 
 
@@ -2825,7 +3141,7 @@ CvSubdiv2DPoint* cvSubdiv2DEdgeOrg( CvSubdiv2DEdge edge );
 </pre><p><dl>
 <dt>edge<dd>Subdivision edge (not a quad-edge)
 </dl><p>
-The function <a href="#decl_cvSubdiv2DEdgeOrg">cvSubdiv2DEdgeOrg</a> returns the edge origin. The returned pointer may be NULL if
+The function <code>cvSubdiv2DEdgeOrg</code> returns the edge origin. The returned pointer may be NULL if
 the edge is from dual subdivision and the virtual point coordinates are not calculated yet.
 The virtual points can be calculated using function <a href="#decl_cvCalcSubdivVoronoi2D">cvCalcSubdivVoronoi2D</a>.
 </p>
@@ -2837,7 +3153,7 @@ CvSubdiv2DPoint* cvSubdiv2DEdgeDst( CvSubdiv2DEdge edge );
 </pre><p><dl>
 <dt>edge<dd>Subdivision edge (not a quad-edge)
 </dl><p>
-The function <a href="#decl_cvSubdiv2DEdgeDst">cvSubdiv2DEdgeDst</a> returns the edge destination. The returned pointer may be NULL if
+The function <code>cvSubdiv2DEdgeDst</code> returns the edge destination. The returned pointer may be NULL if
 the edge is from dual subdivision and the virtual point coordinates are not calculated yet.
 The virtual points can be calculated using function <a href="#decl_cvCalcSubdivVoronoi2D">cvCalcSubdivVoronoi2D</a>.
 </p>
@@ -2851,7 +3167,7 @@ CvSubdiv2D* cvCreateSubdivDelaunay2D( CvRect rect, CvMemStorage* storage );
 <dt>rect<dd>Rectangle that includes all the 2d points that are to be added to subdivision.
 <dt>storage<dd>Container for subdivision.
 </dl><p>
-The function <a href="#decl_cvCreateSubdivDelaunay2D">cvCreateSubdivDelaunay2D</a> creates an empty Delaunay subdivision,
+The function <code>cvCreateSubdivDelaunay2D</code> creates an empty Delaunay subdivision,
 where 2d points can be added further using function <a href="#decl_cvSubdivDelaunay2DInsert">cvSubdivDelaunay2DInsert</a>.
 All the points to be added must be within the specified rectangle, otherwise a runtime error will be
 raised.
@@ -2866,7 +3182,7 @@ CvSubdiv2DPoint*  cvSubdivDelaunay2DInsert( CvSubdiv2D* subdiv, CvPoint2D32f pt)
 <dt>subdiv<dd>Delaunay subdivision created by function <a href="#decl_cvCreateSubdivDelaunay2D">cvCreateSubdivDelaunay2D</a>.
 <dt>pt<dd>Inserted point.
 </dl><p>
-The function <a href="#decl_cvSubdivDelaunay2DInsert">cvSubdivDelaunay2DInsert</a> inserts a single point to subdivision and
+The function <code>cvSubdivDelaunay2DInsert</code> inserts a single point to subdivision and
 modifies the subdivision topology appropriately.
 If a points with same coordinates exists already, no new points is added.
 The function returns pointer to the allocated point.
@@ -2886,7 +3202,7 @@ CvSubdiv2DPointLocation  cvSubdiv2DLocate( CvSubdiv2D* subdiv, CvPoint2D32f pt,
 <dt>edge<dd>The output edge the point falls onto or right to.
 <dt>vertex<dd>Optional output vertex double pointer the input point coinsides with.
 </dl><p>
-The function <a href="#decl_cvSubdiv2DLocate">cvSubdiv2DLocate</a> locates input point within subdivision.
+The function <code>cvSubdiv2DLocate</code> locates input point within subdivision.
 There are 5 cases:<ul>
 <li>point falls into some facet. The function returns CV_PTLOC_INSIDE and <code>*edge</code> will contain one of edges of the facet.
 <li>point falls onto the edge. The function returns CV_PTLOC_ON_EDGE and <code>*edge</code> will contain this edge.
@@ -2906,7 +3222,7 @@ CvSubdiv2DPoint* cvFindNearestPoint2D( CvSubdiv2D* subdiv, CvPoint2D32f pt );
 <dt>subdiv<dd>Delaunay or another subdivision.
 <dt>pt<dd>Input point.
 </dl><p>
-The function <a href="#decl_cvFindNearestPoint2D">cvFindNearestPoint2D</a> is another function that locates input point within subdivision.
+The function <code>cvFindNearestPoint2D</code> is another function that locates input point within subdivision.
 It finds subdivision vertex that is the closest to the input point. It is not necessarily one of
 vertices of the facet containing the input point, though the facet (located using <a href="#decl_cvSubdiv2DLocate">cvSubdiv2DLocate</a>)
 is used as a starting point. The function returns pointer to the found subdivision vertex</code>
@@ -2919,7 +3235,7 @@ void cvCalcSubdivVoronoi2D( CvSubdiv2D* subdiv );
 </pre><p><dl>
 <dt>subdiv<dd>Delaunay subdivision, where all the points are added already.
 </dl><p>
-The function <a href="#decl_cvCalcSubdivVoronoi2D">cvCalcSubdivVoronoi2D</a> calculates coordinates of virtual points.
+The function <code>cvCalcSubdivVoronoi2D</code> calculates coordinates of virtual points.
 All virtual points corresponding to some vertex of original subdivision form (when connected together)
 a boundary of Voronoi cell of that point.
 </p>
@@ -2932,7 +3248,7 @@ void cvClearSubdivVoronoi2D( CvSubdiv2D* subdiv );
 </pre><p><dl>
 <dt>subdiv<dd>Delaunay subdivision.
 </dl><p>
-The function <a href="#decl_cvClearSubdivVoronoi2D">cvClearSubdivVoronoi2D</a> removes all virtual points.
+The function <code>cvClearSubdivVoronoi2D</code> removes all virtual points.
 It is called internally in <a href="#decl_cvCalcSubdivVoronoi2D">cvCalcSubdivVoronoi2D</a> if the subdivision was modified
 after previous call to the function.
 </p>
@@ -2959,7 +3275,7 @@ void cvAcc( const CvArr* image, CvArr* sum, const CvArr* mask=NULL );
 <dt>sum<dd>Accumulator of the same number of channels as input image, 32-bit or 64-bit floating-point.
 <dt>mask<dd>Optional operation mask.
 </dl></p><p>
-The function <a href="#decl_cvAcc">cvAcc</a> adds the whole image <code>image</code> or its selected region to accumulator <code>sum</code>:</p>
+The function <code>cvAcc</code> adds the whole image <code>image</code> or its selected region to accumulator <code>sum</code>:</p>
 <pre>
 sum(x,y)=sum(x,y)+image(x,y) if mask(x,y)!=0
 </pre>
@@ -2975,7 +3291,7 @@ void cvSquareAcc( const CvArr* image, CvArr* sqsum, const CvArr* mask=NULL );
 <dt>sqsum<dd>Accumulator of the same number of channels as input image, 32-bit or 64-bit floating-point.
 <dt>mask<dd>Optional operation mask.
 </dl></p><p>
-The function <a href="#decl_cvSquareAcc">cvSquareAcc</a> adds the input image <code>image</code> or its selected region,
+The function <code>cvSquareAcc</code> adds the input image <code>image</code> or its selected region,
 raised to power 2, to the accumulator <code>sqsum</code>:</p>
 <pre>
 sqsum(x,y)=sqsum(x,y)+image(x,y)<sup>2</sup> if mask(x,y)!=0
@@ -2993,7 +3309,7 @@ void cvMultiplyAcc( const CvArr* image1, const CvArr* image2, CvArr* acc, const 
 <dt>acc<dd>Accumulator of the same number of channels as input images, 32-bit or 64-bit floating-point.
 <dt>mask<dd>Optional operation mask.
 </dl></p><p>
-The function <a href="#decl_cvMultiplyAcc">cvMultiplyAcc</a> adds product of 2 images
+The function <code>cvMultiplyAcc</code> adds product of 2 images
 or thier selected regions to accumulator <code>acc</code>:</p>
 <pre>
 acc(x,y)=acc(x,y) + image1(x,y)&bull;image2(x,y) if mask(x,y)!=0
@@ -3011,7 +3327,7 @@ void cvRunningAvg( const CvArr* image, CvArr* acc, double alpha, const CvArr* ma
 <dt>alpha<dd>Weight of input image.
 <dt>mask<dd>Optional operation mask.
 </dl></p><p>
-The function <a href="#decl_cvRunningAvg">cvRunningAvg</a> calculates weighted sum of input image <code>image</code> and
+The function <code>cvRunningAvg</code> calculates weighted sum of input image <code>image</code> and
 the accumulator <code>acc</code> so that <code>acc</code> becomes a running average of frame sequence:</p>
 <pre>
 acc(x,y)=(1-&alpha;)&bull;acc(x,y) + &alpha;&bull;image(x,y) if mask(x,y)!=0
@@ -3033,7 +3349,7 @@ void cvUpdateMotionHistory( const CvArr* silhouette, CvArr* mhi,
 <dt>timestamp<dd>Current time in milliseconds or other units.
 <dt>duration<dd>Maximal duration of motion track in the same units as <code>timestamp</code>.
 </dl></p><p>
-The function <a href="#decl_cvUpdateMotionHistory">cvUpdateMotionHistory</a> updates the motion history image as following:</p>
+The function <code>cvUpdateMotionHistory</code> updates the motion history image as following:</p>
 <pre>
 mhi(x,y)=timestamp  if silhouette(x,y)!=0
          0          if silhouette(x,y)=0 and mhi(x,y)&lt;timestamp-duration
@@ -3060,7 +3376,7 @@ each pixel (x,y) neihborhood and assumes the gradient is valid only if
 <dt>aperture_size<dd>Aperture size of derivative operators used by the function:
 CV_SCHARR, 1, 3, 5 or 7 (see <a href="#decl_cvSobel">cvSobel</a>).
 </dl></p><p>
-The function <a href="#decl_cvCalcMotionGradient">cvCalcMotionGradient</a> calculates the derivatives <code>Dx</code> and <code>Dy</code> of
+The function <code>cvCalcMotionGradient</code> calculates the derivatives <code>Dx</code> and <code>Dy</code> of
 <code>mhi</code> and then calculates gradient orientation as:</p>
 <pre>
 orientation(x,y)=arctan(Dy(x,y)/Dx(x,y))
@@ -3090,7 +3406,7 @@ calculated.
 and <a href="#decl_cvCalcMotionGradient">cvCalcMotionGradient</a> on large images may take some time.
 <dt>duration<dd>Maximal duration of motion track in milliseconds, the same as in <a href="#decl_cvUpdateMotionHistory">cvUpdateMotionHistory</a>.
 </dl></p><p>
-The function <a href="#decl_cvCalcGlobalOrientation">cvCalcGlobalOrientation</a>
+The function <code>cvCalcGlobalOrientation</code>
 calculates the general motion direction in
 the selected region and returns the angle between 0&deg; and 360&deg;.
 At first the function builds the orientation histogram and finds the basic
@@ -3113,7 +3429,7 @@ CvSeq* cvSegmentMotion( const CvArr* mhi, CvArr* seg_mask, CvMemStorage* storage
 <dt>seg_thresh<dd>Segmentation threshold; recommended to be equal to the interval
 between motion history "steps" or greater.
 </dl></p><p>
-The function <a href="#decl_cvSegmentMotion">cvSegmentMotion</a> finds all the motion segments and marks them in <code>seg_mask</code>
+The function <code>cvSegmentMotion</code> finds all the motion segments and marks them in <code>seg_mask</code>
 with individual values each (1,2,...). It also returns a sequence of <a href="#decl_CvConnectedComp">CvConnectedComp</a> structures,
 one per each motion components. After than the motion direction for every component can be calculated
 with <a href="#decl_cvCalcGlobalOrientation">cvCalcGlobalOrientation</a> using extracted mask of the particular component
@@ -3137,7 +3453,7 @@ finished.
 <dt>comp<dd>Resultant structure that contains converged search window coordinates
 (<code>comp->rect</code> field) and sum of all pixels inside the window (<code>comp->area</code> field).
 </dl></p><p>
-The function <a href="#decl_cvMeanShift">cvMeanShift</a> iterates to find the object center given its back projection and
+The function <code>cvMeanShift</code> iterates to find the object center given its back projection and
 initial position of search window. The iterations are made until the search window
 center moves by less than the given value and/or until the function has done the
 maximum number of iterations. The function returns the number of iterations
@@ -3160,7 +3476,7 @@ finished.
 <dt>box<dd>Circumscribed box for the object. If not <code>NULL</code>, contains object size and
 orientation.
 </dl></p><p>
-The function <a href="#decl_cvCamShift">cvCamShift</a> implements CAMSHIFT object tracking
+The function <code>cvCamShift</code> implements CAMSHIFT object tracking
 algrorithm (<a href="#paper_bradski98">[Bradski98]</a>).
 First, it finds an object center using <a href="#decl_cvMeanShift">cvMeanShift</a> and,
 after that, calculates the object size and orientation. The function returns
@@ -3199,7 +3515,7 @@ void cvSnakeImage( const IplImage* image, CvPoint* points, int length,
 <dt>calc_gradient<dd>Gradient flag. If not 0, the function calculates gradient magnitude for every image pixel and
 consideres it as the energy field, otherwise the input image itself is considered.
 </dl></p><p>
-The function <a href="#decl_cvSnakeImage">cvSnakeImage</a> updates snake in order to minimize its total energy that is a sum
+The function <code>cvSnakeImage</code> updates snake in order to minimize its total energy that is a sum
 of internal energy that depends on contour shape (the smoother contour is, the smaller internal energy is)
 and external energy that depends on the energy field and reaches minimum at the local energy extremums
 that correspond to the image edges in case of image gradient.</p><p>
@@ -3230,7 +3546,7 @@ void cvCalcOpticalFlowHS( const CvArr* prev, const CvArr* curr, int use_previous
 <dt>lambda<dd>Lagrangian multiplier.
 <dt>criteria<dd>Criteria of termination of velocity computing.
 </dl></p><p>
-The function <a href="#decl_cvCalcOpticalFlowHS">cvCalcOpticalFlowHS</a> computes flow for every pixel of the first input image using
+The function <code>cvCalcOpticalFlowHS</code> computes flow for every pixel of the first input image using
 Horn & Schunck algorithm <a href="#paper_horn81">[Horn81]</a>.
 </p>
 
@@ -3249,7 +3565,7 @@ void cvCalcOpticalFlowLK( const CvArr* prev, const CvArr* curr, CvSize win_size,
 <dt>vely<dd>Vertical component of the optical flow of the same size as input images,
             32-bit floating-point, single-channel.
 </dl></p><p>
-The function <a href="#decl_cvCalcOpticalFlowLK">cvCalcOpticalFlowLK</a> computes flow for every pixel of the first input image using
+The function <code>cvCalcOpticalFlowLK</code> computes flow for every pixel of the first input image using
 Lucas & Kanade algorithm <a href="#paper_lucas81">[Lucas81]</a>.
 </p>
 
@@ -3273,7 +3589,7 @@ void cvCalcOpticalFlowBM( const CvArr* prev, const CvArr* curr, CvSize block_siz
 <dt>vely<dd>Vertical component of the optical flow of the same size <code>velx</code>,
             32-bit floating-point, single-channel.
 </dl></p><p>
-The function <a href="#decl_cvCalcOpticalFlowBM">cvCalcOpticalFlowBM</a> calculates optical flow for
+The function <code>cvCalcOpticalFlowBM</code> calculates optical flow for
 overlapped blocks <code>block_size.width&times;block_size.height</code> pixels each,
 thus the velocity fields are smaller than the original images. For every block in <code>prev</code>
 the functions tries to find a similar block in <code>curr</code> in some neighborhood of the original
@@ -3321,7 +3637,7 @@ on each pyramid level should be stopped.
   before the function call.
 </ul>
 </dl></p><p>
-The function <a href="#decl_cvCalcOpticalFlowPyrLK">cvCalcOpticalFlowPyrLK</a> implements
+The function <code>cvCalcOpticalFlowPyrLK</code> implements
 sparse iterative version of Lucas-Kanade optical flow in pyramids (<a href="#paper_bouguet00">[Bouguet00]</a>).
 It calculates coordinates of the feature points on the current video frame given
 their coordinates on the previous frame. The function finds the coordinates with sub-pixel accuracy.
@@ -3392,7 +3708,7 @@ The structure <a href="#decl_CvKalman">CvKalman</a> is used to keep Kalman filte
 by <a href="#decl_cvCreateKalman">cvCreateKalman</a> function, updated by <a href="#decl_cvKalmanPredict">cvKalmanPredict</a> and
 <a href="#decl_cvKalmanCorrect">cvKalmanCorrect</a> functions and released by <a href="#decl_cvReleaseKalman">cvReleaseKalman</a> functions.
 Normally, the structure is used for standard Kalman filter (notation and the formulae below are borrowed
-from the excellent Kalman tutorial <a href="#paper_welch85">[Welch95]</a>):</p>
+from the excellent Kalman tutorial <a href="#paper_welch95">[Welch95]</a>):</p>
 <pre>
 x<sub>k</sub>=A&bull;x<sub>k-1</sub>+B&bull;u<sub>k</sub>+w<sub>k</sub>
 z<sub>k</sub>=H&bull;x<sub>k</sub>+v<sub>k</sub>,
@@ -3428,7 +3744,7 @@ CvKalman* cvCreateKalman( int dynam_params, int measure_params, int control_para
 <dt>measure_params<dd>dimensionality of the measurement vector
 <dt>control_params<dd>dimensionality of the control vector
 </dl></p><p>
-The function <a href="#decl_cvCreateKalman">cvCreateKalman</a> allocates <a href="#decl_CvKalman">CvKalman</a> and all its matrices
+The function <code>cvCreateKalman</code> allocates <a href="#decl_CvKalman">CvKalman</a> and all its matrices
 and initializes them somehow.
 </p>
 
@@ -3440,7 +3756,7 @@ void cvReleaseKalman( CvKalman** kalman );
 </pre><p><dl>
 <dt>kalman<dd>double pointer to the Kalman filter structure.
 </dl></p><p>
-The function <a href="#decl_cvReleaseKalman">cvReleaseKalman</a> releases the structure <a href="#decl_CvKalman">CvKalman</a>
+The function <code>cvReleaseKalman</code> releases the structure <a href="#decl_CvKalman">CvKalman</a>
 and all underlying matrices.
 </p>
 
@@ -3455,7 +3771,7 @@ const CvMat* cvKalmanPredict( CvKalman* kalman, const CvMat* control=NULL );
 <dt>control<dd>Control vector (u<sub>k</sub>),
                should be NULL iff there is no external control (<code>control_params</code>=0).
 </dl></p><p>
-The function <a href="#decl_cvKalmanPredict">cvKalmanPredict</a> estimates the subsequent stochastic model state
+The function <code>cvKalmanPredict</code> estimates the subsequent stochastic model state
 by its current state and stores it at <code>kalman->state_pre</code>:</p>
 <pre>
     x'<sub>k</sub>=A&bull;x<sub>k</sub>+B&bull;u<sub>k</sub>
@@ -3482,7 +3798,7 @@ const CvMat* cvKalmanCorrect( CvKalman* kalman, const CvMat* measurement );
 <dt>kalman<dd>Pointer to the structure to be updated.
 <dt>measurement<dd>Pointer to the structure CvMat containing the measurement vector.
 </dl></p><p>
-The function <a href="#decl_cvKalmanCorrect">cvKalmanCorrect</a> adjusts stochastic model state on the
+The function <code>cvKalmanCorrect</code> adjusts stochastic model state on the
 basis of the given measurement of the model state:</p>
 <pre>
 K<sub>k</sub>=P'<sub>k</sub>&bull;H<sup>T</sup>&bull;(H&bull;P'<sub>k</sub>&bull;H<sup>T</sup>+R)<sup>-1</sup>
@@ -3634,7 +3950,7 @@ CvConDensation* cvCreateConDensation( int dynam_params, int measure_params, int 
 <dt>measure_params<dd>Dimension of the measurement vector.
 <dt>sample_count<dd>Number of samples.
 </dl></p><p>
-The function <a href="#decl_cvCreateConDensation">cvCreateConDensation</a> creates <a href="#decl_CvConDensation">CvConDensation</a>
+The function <code>cvCreateConDensation</code> creates <a href="#decl_CvConDensation">CvConDensation</a>
 structure and returns pointer to the structure.
 </p>
 
@@ -3646,7 +3962,7 @@ void cvReleaseConDensation( CvConDensation** condens );
 </pre><p><dl>
 <dt>condens<dd>Pointer to the pointer to the structure to be released.
 </dl></p><p>
-The function <a href="#decl_cvReleaseConDensation">cvReleaseConDensation</a> releases the structure <a href="#decl_CvConDensation">CvConDensation</a> (see
+The function <code>cvReleaseConDensation</code> releases the structure <a href="#decl_CvConDensation">CvConDensation</a> (see
 <a href="#decl_CvConDensation">cvConDensation</a>) and frees all memory previously allocated for the structure.
 </p>
 
@@ -3660,7 +3976,7 @@ void cvConDensInitSampleSet( CvConDensation* condens, CvMat* lower_bound, CvMat*
 <dt>lower_bound<dd>Vector of the lower boundary for each dimension.
 <dt>upper_bound<dd>Vector of the upper boundary for each dimension.
 </dl></p><p>
-The function <a href="#decl_cvConDensInitSampleSet">cvConDensInitSampleSet</a> fills the samples arrays in the structure
+The function <code>cvConDensInitSampleSet</code> fills the samples arrays in the structure
 <a href="#decl_CvConDensation">CvConDensation</a> with values within specified ranges.
 </p>
 
@@ -3672,7 +3988,7 @@ void cvConDensUpdateByTime( CvConDensation* condens );
 </pre><p><dl>
 <dt>condens<dd>Pointer to the structure to be updated.
 </dl></p><p>
-The function <a href="#decl_cvConDensUpdateByTime">cvConDensUpdateByTime</a>
+The function <code>cvConDensUpdateByTime</code>
 estimates the subsequent stochastic model state from its current state.
 </p>
 
@@ -3859,7 +4175,7 @@ CvHaarClassifierCascade* cvLoadHaarClassifierCascade(
                    trained on. Note that it is not stored in the cascade and therefore must
                    be specified separately.
 </dl><p>
-The function <a href="#decl_cvLoadHaarClassifierCascade">cvLoadHaarClassifierCascade</a>
+The function <code>cvLoadHaarClassifierCascade</code>
 loads a trained cascade of haar classifiers from a file or the classifier
 database embedded in OpenCV. The base can be trained using <code>haartraining</code>
 application (see opencv/apps/haartraining for details).</p>
@@ -3880,7 +4196,7 @@ void cvReleaseHaarClassifierCascade( CvHaarClassifierCascade** cascade );
                The pointer is cleared by the function.
 </dl>
 <p>
-The function <a href="#decl_cvReleaseHaarClassifierCascade">cvReleaseHaarClassifierCascade</a>
+The function <code>cvReleaseHaarClassifierCascade</code>
 deallocates the cascade that has been created manually or loaded using
 <a href="#decl_cvLoadHaarClassifierCascade">cvLoadHaarClassifierCascade</a> or
 <a href="opencvref_cxcore.htm#decl_cvLoad">cvLoad</a>.
@@ -3924,7 +4240,7 @@ CvSeq* cvHaarDetectObjects( const CvArr* image, CvHaarClassifierCascade* cascade
 has been trained on (~20&times;20 for face detection).
 </dl>
 <p>
-The function <a href="#decl_cvHaarDetectObjects">cvHaarDetectObjects</a> finds
+The function <code>cvHaarDetectObjects</code> finds
 rectangular regions in the given image that are likely to contain objects
 the cascade has been trained for and returns those regions as
 a sequence of rectangles. The function scans the image several
@@ -4022,7 +4338,7 @@ cvCreateHidHaarClassifierCascade</a>.
 <dt>sum<dd>Integral (sum) single-channel image of 32-bit integer format. This image as well as the
                 two subsequent images are used for fast feature evaluation and
                 brightness/contrast normalization. They all can be retrieved from input 8-bit
-                or floating point single-channel image using the function <a href="#decl_cvIntegral">cvIntegral</a>.
+                or floating point single-channel image using The function <code>cvIntegral</code>.
 <dt>sqsum<dd>Square sum single-channel image of 64-bit floating-point format.
 <dt>tilted_sum<dd>Tilted sum single-channel image of 32-bit integer format.
 <dt>scale<dd>Window scale for the cascade. If <code>scale</code>=1, original window size is
@@ -4034,7 +4350,7 @@ cvCreateHidHaarClassifierCascade</a>.
              faces smaller than 48x48 cannot be detected.
 </dl>
 <p>
-The function <a href="#decl_cvSetImagesForHaarClassifierCascade">cvSetImagesForHaarClassifierCascade</a>
+The function <code>cvSetImagesForHaarClassifierCascade</code>
 assigns images and/or window scale to the hidden classifier cascade.
 If image pointers are NULL, the previously set images are used further
 (i.e. NULLs mean "do not change images"). Scale parameter has no such a "protection" value, but
@@ -4065,7 +4381,7 @@ int cvRunHaarClassifierCascade( CvHaarClassifierCascade* cascade,
                   This feature is used internally by <a href="#decl_cvHaarDetectObjects">
                   cvHaarDetectObjects</a> for better processor cache utilization.
 </dl><p>
-The function <a href="#decl_cvRunHaarHaarClassifierCascade">cvRunHaarHaarClassifierCascade</a>
+The function <code>cvRunHaarHaarClassifierCascade</code>
 runs Haar classifier cascade at a single image location. Before using this
 function the integral images and the appropriate scale (=&gt; window size)
 should be set using <a href="#decl_cvSetImagesForHaarClassifierCascade">cvSetImagesForHaarClassifierCascade</a>.
@@ -4076,216 +4392,390 @@ stages (it is a candidate) and zero or negative value otherwise.
 
 <hr><h1><a name="cv_3d">Camera Calibration and 3D Reconstruction</a></h1>
 
+<hr><h2><a name="cv_3d_model">Pinhole Camera Model, Distortion</a></h2>
+
+<p>
+The functions in this section use so-called pinhole camera model. That is,
+a scene view is formed by projecting 3D points into the image plane using perspective transformation.
+<pre>
+
+s*m' = A*[R|t]*M', or
+
+ [u]   [fx 0 cx] [r<sub>11</sub> r<sub>12</sub> r<sub>13</sub> t<sub>1</sub>] [X]
+s[v] = [0 fy cy]*[r<sub>21</sub> r<sub>22</sub> r<sub>23</sub> t<sub>2</sub>]*[Y]
+ [1]   [0  0  1] [r<sub>31</sub> r<sub>32</sub> r<sub>33</sub> t<sub>2</sub>] [Z]
+                                 [1]
+</pre>
+
+Where <code>(X, Y, Z)</code> are coordinates of a 3D point in the world coordinate space,
+<code>(u, v)</code> are coordinates of point projection in pixels.
+<code>A</code> is called a camera matrix, or matrix of intrinsic parameters.
+<code>(cx, cy)</code> is a principal point (that is usually at the image center),
+and <code>fx, fy</code> are focal lengths expressed in pixel-related units.
+Thus, if an image from camera is up-sampled/down-sampled by some factor,
+all these parameters (<code>fx, fy, cx</code> and <code>cy</code>) should be scaled
+(multiplied/divided, respectively) by the same factor.
+The matrix of intrinsic parameters does not depend on the scene viewed
+and, once estimated, can be re-used (as long as the focal length is fixed (in case of zoom lens)).
+
+The joint rotation-translation matrix <code>[R|t]</code> is called a matrix of extrinsic parameters.
+It is used to describe the camera motion around a static scene, or vice versa,
+rigid motion of an object in front of still camera. That is, <code>[R|t]</code> translates coordinates
+of a point <code>(X, Y, Z)</code> to some coordinate system, fixed with respect to the camera.
+
+The transformation above is equivalent to the following (when z&ne;0):
+
+<pre>
+[x]     [X]
+[y] = R*[Y] + t
+[z]     [Z]
+
+x' = x/z
+y' = y/z
+
+u = fx*x' + cx
+v = fy*y' + cy
+</pre>
+
+Real lens usually have some distortion, which major components are radial distorion
+and slight tangential distortion. So, the above model is extended as:
+
+<pre>
+[x]     [X]
+[y] = R*[Y] + t
+[z]     [Z]
+
+x' = x/z
+y' = y/z
+
+x" = x'*(1 + k<sub>1</sub>r<sup>2</sup> + k<sub>2</sub>r<sup>4</sup>) + 2*p<sub>1</sub>x'*y' + p<sub>2</sub>(r<sup>2</sup>+2*x'<sup>2</sup>)
+y" = y'*(1 + k<sub>1</sub>r<sup>2</sup> + k<sub>2</sub>r<sup>4</sup>) + p<sub>1</sub>(r<sup>2</sup>+2*y'<sup>2</sup>) + 2*p<sub>2</sub>*x'*y'
+where r<sup>2</sup> = x'<sup>2</sup>+y'<sup>2</sup>
+
+u = fx*x" + cx
+v = fy*y" + cy
+</pre>
+
+k<sub>1</sub>, k<sub>2</sub> are radial distortion coefficients,
+p<sub>1</sub>, p<sub>2</sub> are tangential distortion coefficients.
+Higher-order coefficients are not considered in OpenCV.
+The distortion coefficients also do not depend on the scene viewed,
+thus they are intrinsic camera parameters.
+And they remain the same regardless of the captured image resolution.
+</p><p>
+The functions below use the above model to
+<ul>
+<li>Project 3D points to the image plane given intrinsic and extrinsic parameters
+<li>Compute extrinsic parameters given intrinsic parameters, a few 3D points and their projections.
+<li>Estimate intrinsic and extrinsic camera parameters from several views of a known calibration pattern
+    (i.e. every view is described by several 3D-2D point correspodences).
+</ul>
+
 <hr><h2><a name="cv_3d_calibration">Camera Calibration</a></h2>
 
-<hr><h3><a name="decl_cvCalibrateCamera">CalibrateCamera</a></h3>
-<p class="Blurb">Calibrates camera with single precision</p>
+<hr><h3><a name="decl_cvProjectPoints2">ProjectPoints2</a></h3>
+<p class="Blurb">Projects 3D points to image plane</p>
 <pre>
-void cvCalibrateCamera( int image_count, int* point_counts, CvSize image_size,
-                        CvPoint2D32f* image_points, CvPoint3D32f* object_points,
-                        CvVect32f distortion_coeffs, CvMatr32f camera_matrix,
-                        CvVect32f translation_vectors, CvMatr32f rotation_matrixes,
-                        int use_intrinsic_guess );
+void cvProjectPoints2( const CvMat* object_points, const CvMat* rotation_vector,
+                       const CvMat* translation_vector, const CvMat* intrinsic_matrix,
+                       const CvMat* distortion_coeffs, CvMat* image_points,
+                       CvMat* dpdrot=NULL, CvMat* dpdt=NULL, CvMat* dpdf=NULL,
+                       CvMat* dpdc=NULL, CvMat* dpddist=NULL );
 </pre><p><dl>
-<dt>image_count<dd>Number of the images.
-<dt>point_counts<dd>Array of the number of points in each image.
-<dt>image_size<dd>Size of the image.
-<dt>image_points<dd>Pointer to the images.
-<dt>object_points<dd>Pointer to the pattern.
-<dt>distortion_coeffs<dd>Array of four distortion coefficients found.
-<dt>camera_matrix<dd>Camera matrix found.
-<dt>translation_vectors<dd>Array of translate vectors for each pattern position in the image.
-<dt>rotation_matrixes<dd>Array of the rotation matrix for each pattern position in the image.
-<dt>use_intrinsic_guess<dd>Intrinsic guess. If equal to 1, intrinsic guess is needed.
+<dt>object_points<dd>The array of object points, 3xN or Nx3,
+                     where N is the number of points in the view.
+<dt>rotation_vector<dd>The rotation vector, 1x3 or 3x1.
+<dt>translation_vector<dd>The translation vector, 1x3 or 3x1.
+<dt>intrinsic_matrix<dd>The camera matrix (A) [fx 0 cx; 0 fy cy; 0 0 1].
+<dt>distortion_coeffs<dd>The vector of distortion coefficients, 4x1 or 1x4
+                         [k<sub>1</sub>, k<sub>2</sub>, p<sub>1</sub>, p<sub>2</sub>].
+                         If it is NULL, all distortion coefficients are considered 0's.
+<dt>image_points<dd>The output array of image points, 2xN or Nx2,
+                    where N is the total number of points in the view.
+<dt>dpdrot<dd>Optional Nx3 matrix of derivatives of image points with respect to components of the rotation vector.
+<dt>dpdt<dd>Optional Nx3 matrix of derivatives of image points w.r.t. components of the translation vector.
+<dt>dpdf<dd>Optional Nx2 matrix of derivatives of image points w.r.t. fx and fy.
+<dt>dpdc<dd>Optional Nx2 matrix of derivatives of image points w.r.t. cx and cy.
+<dt>dpddist<dd>Optional Nx4 matrix of derivatives of image points w.r.t. distortion coefficients.
 </dl></p><p>
-The function <a href="#decl_cvCalibrateCamera">cvCalibrateCamera</a> calculates the camera parameters using information
-points on the pattern object and pattern object images.
-
-</p><hr><h3><a name="decl_cvCalibrateCamera_64d">CalibrateCamera_64d</a></h3>
-<p class="Blurb">Calibrates camera with double precision</p>
-<pre>
-void cvCalibrateCamera_64d( int image_count, int* point_counts, CvSize image_size,
-                            CvPoint2D64d* image_points, CvPoint3D64d* object_points,
-                            CvVect64d distortion_coeffs, CvMatr64d camera_matrix,
-                            CvVect64d translation_vectors, CvMatr64d rotation_matrixes,
-                            int use_intrinsic_guess );
-</pre><p><dl>
-<dt>image_count<dd>Number of the images.
-<dt>point_counts<dd>Array of the number of points in each image.
-<dt>image_size<dd>Size of the image.
-<dt>image_points<dd>Pointer to the images.
-<dt>object_points<dd>Pointer to the pattern.
-<dt>distortion_coeffs<dd>Distortion coefficients found.
-<dt>camera_matrix<dd>Camera matrix found.
-<dt>translation_vectors<dd>Array of the translate vectors for each pattern position on the
-image.
-<dt>rotation_matrixes<dd>Array of the rotation matrix for each pattern position on the image.
-<dt>use_intrinsic_guess<dd>Intrinsic guess. If equal to 1, intrinsic guess is needed.
-</dl></p><p>
-The function <a href="#decl_cvCalibrateCamera_64d">cvCalibrateCamera_64d</a> is basically the same as the function
-<a href="#decl_cvCalibrateCamera">cvCalibrateCamera</a>, but uses double precision.
+The function <code>cvProjectPoints2</code> computes projections of 3D points to the image plane given
+intrinsic and extrinsic camera parameters. Optionally, the function computes jacobians - matrices of
+partial derivatives of image points as functions of all the input parameters w.r.t. the particular parameters,
+intrinsic and/or extrinsic. The jacobians are used during the global optimization in
+<a href="#decl_cvCalibrateCamera2">cvCalibrateCamera2</a> and
+<a href="#decl_cvFindExtrinsicParams2">cvFindExtrinsicCameraParams2</a>.
+The function itself is also used to compute back-projection error for with current
+intrinsic and extrinsic parameters.
+</p><p>
+Note, that with intrinsic and/or extrinsic parameters set to special values,
+the function can be used to compute just extrinsic transformation or just intrinsic
+transformation (i.e. distortion of a sparse set of points).
 </p>
 
 
-<hr><h3><a name="decl_cvRodrigues">Rodrigues</a></h3>
-<p class="Blurb">Converts rotation matrix to rotation vector and vice versa with single
-precision</p>
+<hr><h3><a name="decl_cvFindHomography">FindHomography</a></h3>
+<p class="Blurb">Finds perspective transformation between two planes</p>
 <pre>
-void  cvRodrigues( CvMat* rotation_matrix, CvMat* rotation_vector,
-                   CvMat* jacobian, int conv_type);
+void cvFindHomography( const CvMat* src_points,
+                       const CvMat* dst_points,
+                       CvMat* homography );
 </pre><p><dl>
-<dt>rotation_matrix<dd>Rotation matrix (3x3),  32-bit or 64-bit floating point.
-<dt>rotation_vector<dd>Rotation vector (3x1 or 1x3) of the same type as <code>rotation_matrix</code>.
-<dt>jacobian<dd>Jacobian matrix 3 &times; 9.
-<dt>conv_type<dd>Type of conversion; must be <code>CV_RODRIGUES_M2V</code> for converting the matrix
-to the vector or <code>CV_RODRIGUES_V2M</code> for converting the vector to the matrix.
+<dt>src_points<dd>Point coordinates in the original plane, 2xN, Nx2, 3xN or Nx3 array
+                  (the latter two are for representation in homogenious coordinates),
+                  where N is the number of points.
+<dt>dst_points<dd>Point coordinates in the destination plane, 2xN, Nx2, 3xN or Nx3 array
+                  (the latter two are for representation in homogenious coordinates)
+<dt>homography<dd>Output 3x3 homography matrix.
 </dl></p><p>
-The function <a href="#decl_cvRodrigues">cvRodrigues</a> converts the rotation matrix to the rotation vector or
-vice versa.
+The function <code>cvFindHomography</code> finds perspective transformation <code>H=||hij||</code> between the source
+and the destination planes:
+
+<pre>
+  [x'<sub>i</sub>]   [x<sub>i</sub>]
+s<sub>i</sub>[y'<sub>i</sub>]~H*[y<sub>i</sub>]
+  [1  ]  [ 1]
+</pre>
+
+So that the back-projection error is minimized:
+
+<pre>
+sum_i((x'<sub>i</sub>-(h11*x<sub>i</sub> + h12*y<sub>i</sub> + h13)/(h31*x<sub>i</sub> + h32*y<sub>i</sub> + h33))<sup>2</sup>+
+      (y'<sub>i</sub>-(h21*x<sub>i</sub> + h22*y<sub>i</sub> + h23)/(h31*x<sub>i</sub> + h32*y<sub>i</sub> + h33))<sup>2</sup>) -> min
+</pre>
+
+The function is used to find initial intrinsic and extrinsic matrices.
+Homography matrix is determined up to a scale, thus it is normalized to make h33=1.</p>
+
+
+<hr><h3><a name="decl_cvCalibrateCamera2">CalibrateCamera2</a></h3>
+<p class="Blurb">Finds intrinsic and extrinsic camera parameters using calibration pattern</p>
+<pre>
+void cvCalibrateCamera2( const CvMat* object_points, const CvMat* image_points,
+                         const CvMat* point_counts, CvSize image_size,
+                         CvMat* intrinsic_matrix, CvMat* distortion_coeffs,
+                         CvMat* rotation_vectors=NULL, CvMat* translation_vectors=NULL,
+                         int flags=0 );
+</pre><p><dl>
+<dt>object_points<dd>The joint matrix of object points, 3xN or Nx3,
+                     where N is the total number of points in all views.
+<dt>image_points<dd>The joint matrix of corresponding image points, 2xN or Nx2,
+                    where N is the total number of points in all views.
+<dt>point_counts<dd>Vector containing numbers of points in each particular view,
+                    1xM or Mx1, where M is the number of a scene views.
+<dt>image_size<dd>Size of the image, used only to initialize intrinsic camera matrix.
+<dt>intrinsic_matrix<dd>The output camera matrix (A) [fx 0 cx; 0 fy cy; 0 0 1].
+                  If <code>CV_CALIB_USE_INTRINSIC_GUESS</code> and/or
+                  <code>CV_CALIB_FIX_ASPECT_RATION</code> are specified, some or all
+                  of <code>fx, fy, cx, cy</code> must be initialized.
+<dt>distortion_coeffs<dd>The output 4x1 or 1x4 vector of distortion coefficients
+                         [k<sub>1</sub>, k<sub>2</sub>, p<sub>1</sub>, p<sub>2</sub>].
+<dt>rotation_vectors<dd>The output 3xM or Mx3 array of rotation vectors
+                        (compact representation of rotation matrices,
+                        see <a href="#decl_cvRodrigues2">cvRodrigues2</a>).
+<dt>translation_vectors<dd>The output 3xM or Mx3 array of translation vectors.
+<dt>flags<dd>Different flags, may be 0 or combination of the following values:<br>
+             <code>CV_CALIB_USE_INTRINSIC_GUESS</code> - <code>intrinsic_matrix</code> contains
+             valid initial values of <code>fx, fy, cx, cy</code> that are optimized further.
+             Otherwise, <code>(cx, cy)</code> is initially set to the image center
+             (<code>image_size</code> is used here),
+             and focal distances are computed in some least-squares fashion.
+             Note, that if intrinsic parameters are known, there is no need to use this function.
+             Use <a href="#decl_cvFindExtrinsicCameraParams2">cvFindExtrinsicCameraParams2</a> instead.<br>
+             <code>CV_CALIB_FIX_PRINCIPAL_POINT</code> - The principal point is not changed during the global
+             optimization, it stays at the center and at the other location specified (when
+             <code>CV_CALIB_USE_INTRINSIC_GUESS</code> is set as well).<br>
+             <code>CV_CALIB_FIX_ASPECT_RATIO</code> - The optimization procedure consider only
+             one of <code>fx</code> and <code>fy</code> as independent variable and keeps the aspect ratio
+             <code>fx/fy</code> the same as it was set initially in <code>intrinsic_matrix</code>.
+             In this case the actual initial values of <code>(fx, fy)</code> are either taken from the matrix
+             (when <code>CV_CALIB_USE_INTRINSIC_GUESS</code> is set) or estimated somehow (in the latter case
+             <code>fx, fy</code> may be set to arbitrary values, only their ratio is used).<br>
+             <code>CV_CALIB_ZERO_TANGENT_DIST</code> - Tangential distortion coefficients are set to
+             zeros and do not change during the optimization.<br>
+</dl></p><p>
+The function <code>cvCalibrateCamera2</code> estimates intrinsic camera parameters and extrinsic parameters
+for each of the views.
+The coordinates of 3D object points and their correspondent 2D projections in each view
+must be specified. That may be achieved by using an object with known geometry and easily detectable
+feature points. Such an object is called calibration rig or calibration pattern, and OpenCV has built-in
+support for a chessboard as a calibration rig
+(see <a href="#decl_cvFindChessboardCornerGuesses">cvFindChessboardCornerGuesses</a>).
+Currently, initialization of inrtrinsic parameters (when <code>CV_CALIB_USE_INTRINSIC_GUESS</code>
+is not set) is only implemented for planar calibration rigs (z-coordinates of object points
+must be all 0's or all 1's). 3D rigs can still be used as long as initial <code>intrinsic_matrix</code>
+is provided. After the initial values of intrinsic and extrinsic parameters are computed, they are
+optimized to minimize the total back-projection error - the sum of squared differences between the
+actual coordinates of image points and the ones computed using
+<a href="#decl_cvProjectPoints2">cvProjectPoints2</a>.
 </p>
 
 
-<hr><h3><a name="decl_cvUnDistortOnce">UnDistortOnce</a></h3>
-<p class="Blurb">Corrects camera lens distortion</p>
+<hr><h3><a name="decl_cvFindExtrinsicCameraParams2">FindExtrinsicCameraParams2</a></h3>
+<p class="Blurb">Finds extrinsic camera parameters for particular view</p>
 <pre>
-void cvUnDistortOnce( const CvArr* src, CvArr* dst,
-                      const float* intrinsic_matrix,
-                      const float* distortion_coeffs,
-                      int interpolate=1 );
+void cvFindExtrinsicCameraParams2( const CvMat* object_points,
+                                   const CvMat* image_points,
+                                   const CvMat* intrinsic_matrix,
+                                   const CvMat* distortion_coeffs,
+                                   CvMat* rotation_vector,
+                                   CvMat* translation_vector );
 </pre><p><dl>
-<dt>src<dd>Source (distorted) image.
-<dt>dst<dd>Destination (corrected) image.
-<dt>intrinsic_matrix<dd>Matrix of the camera intrinsic parameters (3x3).
-<dt>distortion_coeffs<dd>Vector of the four distortion coefficients <code>k<sub>1</sub>, k<sub>2</sub>, p<sub>1</sub></code> and <code>p<sub>2</sub></code>.
-<dt>interpolate<dd>Bilinear interpolation flag.
+<dt>object_points<dd>The array of object points, 3xN or Nx3,
+                     where N is the number of points in the view.
+<dt>image_points<dd>The array of corresponding image points, 2xN or Nx2,
+                    where N is the number of points in the view.
+<dt>intrinsic_matrix<dd>The camera matrix (A) [fx 0 cx; 0 fy cy; 0 0 1].
+<dd><dt>distortion_coeffs<dd>The vector of distortion coefficients, 4x1 or 1x4
+                         [k<sub>1</sub>, k<sub>2</sub>, p<sub>1</sub>, p<sub>2</sub>].
+                         If it is NULL, all distortion coefficients are considered 0's.
+<dt>rotation_vector<dd>The output 3x1 or 1x3 rotation vector
+                       (compact representation of a rotation matrix,
+                       see <a href="#decl_cvRodrigues2">cvRodrigues2</a>).
+<dt>translation_vector<dd>The output 3x1 or 1x3 translation vector.
 </dl></p><p>
-The function <a href="#decl_cvUnDistortOnce">cvUnDistortOnce</a> corrects camera lens distortion in case of a single
-image. Matrix of the camera intrinsic parameters and distortion coefficients <code>k<sub>1</sub>,
-k<sub>2</sub> , p<sub>1</sub></code> , and <code>p<sub>2</sub></code> must be preliminarily calculated by the function
-<a href="#decl_cvCalibrateCamera">cvCalibrateCamera</a>.
+The function <code>cvFindExtrinsicCameraParams2</code> estimates extrinsic camera parameters
+using known intrinsic parameters and and extrinsic parameters
+for each view. The coordinates of 3D object points and their correspondent 2D projections
+must be specified. This function also minimizes back-projection error.
 </p>
 
 
-<hr><h3><a name="decl_cvUnDistortInit">UnDistortInit</a></h3>
-<p class="Blurb">Calculates arrays of distorted points indices and interpolation coefficients</p>
+<hr><h3><a name="decl_cvRodrigues2">Rodrigues2</a></h3>
+<p class="Blurb">Converts rotation matrix to rotation vector or vice versa</p>
 <pre>
-void cvUnDistortInit( const CvArr* src, CvArr* undistortion_map,
-                      const float* intrinsic_matrix,
-                      const float* distortion_coeffs,
-                      int interpolate=1 );
+int  cvRodrigues2( const CvMat* src, CvMat* dst, CvMat* jacobian=0 );
 </pre><p><dl>
-<dt>src<dd>Artibtrary source (distorted) image, the image size and number of channels do matter.
-<dt>undistortion_map<dd>32-bit integer image of the same size as the source image (if <code>interpolate=0</code>) or
-                 3 times wider than the source image (if <code>interpolate=1</code>).
-<dt>intrinsic_matrix<dd>Matrix of the camera intrinsic parameters.
-<dt>distortion_coeffs<dd>Vector of the 4 distortion coefficients <code>k<sub>1</sub>, k<sub>2</sub>, p<sub>1</sub></code> and <code>p<sub>2</sub></code>.
-<dt>interpolate<dd>Bilinear interpolation flag.
+<dt>src<dd>The input rotation vector (3x1 or 1x3) or rotation matrix (3x3).
+<dt>dst<dd>The output rotation matrix (3x3) or rotation vector (3x1 or 1x3), respectively.
+<dt>jacobian<dd>Optional output Jacobian matrix, 3x9 or 9x3 - partial derivatives of
+                the output array components w.r.t the input array components.
 </dl></p><p>
-The function <a href="#decl_cvUnDistortInit">cvUnDistortInit</a> calculates arrays of distorted points indices and
-interpolation coefficients using known matrix of the camera intrinsic parameters
-and distortion coefficients. It calculates undistortion map for <a href="#decl_cvUnDistort">cvUnDistort</a>.
-<p>
-Matrix of the camera intrinsic parameters and the distortion coefficients
-may be calculated by <a href="#decl_cvCalibrateCamera">cvCalibrateCamera</a>.
+The function <code>cvRodrigues2</code> converts a rotation vector to rotation matrix or
+vice versa. Rotation vector is a compact representation of rotation matrix.
+Direction of the rotation vector is the rotation axis and the length of the vector is the rotation
+angle around the axis.
+The rotation matrix <code>R</code>, corresponding to the rotation vector <code>r</code>,
+is computed as following:
+<pre>
+theta &lt;- norm(r)
+r &lt;- r/theta
+                                                   [0 -r<sub>z</sub> r<sub>y</sub>]
+R = cos(theta)*I + (1-cos(theta))*rr<sup>T</sup> + sin(theta)*[r<sub>z</sub> 0 -r<sub>x</sub>]
+                                                   [r<sub>y</sub> r<sub>x</sub> 0]
+</pre>
+
+Inverse transformation can also be done easily as
+
+<pre>
+
+[0 -r<sub>z</sub> r<sub>y</sub>]
+sin(theta)*[r<sub>z</sub> 0 -r<sub>x</sub>] = (R - R<sup>T</sup>)/2
+[r<sub>y</sub> r<sub>x</sub> 0]
+
+</pre>
+
+Rotation vector is a convenient representation of a rotation matrix as a matrix with only 3 degrees of freedom.
+The representation is used in the global optimization procedures inside
+<a href="#decl_cvFindExtrinsicCameraParams2">cvFindExtrinsicCameraParams2</a> and
+<a href="#decl_cvCalibrateCamera2">cvCalibrateCamera2</a>.
 </p>
 
-<hr><h3><a name="decl_cvUnDistort">UnDistort</a></h3>
-<p class="Blurb">Corrects camera lens distortion</p>
+
+<hr><h3><a name="decl_cvUndistort2">Undistort2</a></h3>
+<p class="Blurb">Transforms image to compensate lens distortion</p>
 <pre>
-void cvUnDistort( const CvArr* src, CvArr* dst,
-                  const CvArr* undistortion_map, int interpolate=1 );
+void cvUndistort2( const CvArr* src, CvArr* dst,
+                   const CvMat* intrinsic_matrix,
+                   const CvMat* distortion_coeffs );
 </pre><p><dl>
-<dt>src<dd>Source (distorted) image.
-<dt>dst<dd>Destination (corrected) image.
-<dt>undistortion_map<dd>Undistortion map, pre-calculated by <a href="#decl_cvUnDistortInit">cvUnDistortInit</a>.
-<dt>interpolate<dd>Bilinear interpolation flag, the same as in <a href="#decl_cvUnDistortInit">cvUnDistortInit</a>.
+<dt>src<dd>The input (distorted) image.
+<dt>dst<dd>The output (corrected) image.
+<dt>intrinsic_matrix<dd>The camera matrix (A) [fx 0 cx; 0 fy cy; 0 0 1].
+<dd><dt>distortion_coeffs<dd>The vector of distortion coefficients, 4x1 or 1x4
+                         [k<sub>1</sub>, k<sub>2</sub>, p<sub>1</sub>, p<sub>2</sub>].
 </dl></p><p>
-The function <a href="#decl_cvUnDistort">cvUnDistort</a> corrects camera lens distortion using previously
-calculated undistortion map. It is faster than <a href="#decl_cvUnDistortOnce">cvUnDistortOnce</a>.
+The function <code>cvUndistort2</code> transforms the image to compensate radial and tangential lens distortion.
+The camera matrix and distortion parameters can be determined using
+<a href="#decl_cvCalibrateCamera2">cvCalibrateCamera2</a>.
+For every pixel in the output image the function computes coordinates of the corresponding location in the input
+image using the formulae in the section beginning. Then, the pixel value is computed using bilinear interpolation.
+If the resolution of images is different from what was used at the calibration stage,
+<code>fx, fy, cx</code> and <code>cy</code> need to be adjusted appropriately, while
+the distortion coefficients remain the same.
 </p>
 
-
-<hr><h3><a name="decl_cvFindChessBoardCornerGuesses">FindChessBoardCornerGuesses</a></h3>
-<p class="Blurb">Finds approximate positions of internal corners of the chessboard</p>
+<hr><h3><a name="decl_cvInitUndistortMap">InitUndistortMap</a></h3>
+<p class="Blurb">Computes undistorion map</p>
 <pre>
-int cvFindChessBoardCornerGuesses( const CvArr* image, CvArr* thresh,
-                                   CvMemStorage* storage, CvSize board_size,
-                                   CvPoint2D32f* corners, int* corner_count=NULL );
+void cvInitUndistortMap( const CvMat* intrinsic_matrix,
+                         const CvMat* distortion_coeffs,
+                         CvArr* mapx, CvArr* mapy );
 </pre><p><dl>
-<dt>image<dd>Source chessboard view; must have the depth of <code>IPL_DEPTH_8U</code>.
-<dt>thresh<dd>Temporary image of the same size and format as the source image.
-<dt>storage<dd>Memory storage for intermediate data. If it is NULL, the function
-               creates a temporary memory storage.
-<dt>board_size<dd>Number of inner corners per chessboard row and column. The width (the
-number of columns) must be less or equal to the height (the number of rows).
-<dt>corners<dd>Pointer to the corner array found.
-<dt>corner_count<dd>Signed value whose absolute value is the number of corners found. A
-positive number means that a whole chessboard has been found and a negative
-number means that not all the corners have been found.
+<dt>intrinsic_matrix<dd>The camera matrix (A) [fx 0 cx; 0 fy cy; 0 0 1].
+<dd><dt>distortion_coeffs<dd>The vector of distortion coefficients, 4x1 or 1x4
+                         [k<sub>1</sub>, k<sub>2</sub>, p<sub>1</sub>, p<sub>2</sub>].
+<dt>mapx<dd>The output array of x-coordinates of the map.
+<dt>mapy<dd>The output array of y-coordinates of the map.
 </dl></p><p>
-The function <a href="#decl_cvFindChessBoardCornerGuesses">cvFindChessBoardCornerGuesses</a>
-attempts to determine whether the input
+The function <code>cvInitUndistortMap</code> pre-computes the undistortion map
+- coordinates of the corresponding pixel in the distorted image for every pixel in the corrected image.
+Then, the map (together with input and output images) can be passed
+to <a href="#decl_cvRemap">cvRemap</a> function.
+</p>
+
+<hr><h3><a name="decl_cvFindChessboardCorners">FindChessboardCorners</a></h3>
+<p class="Blurb">Finds positions of internal corners of the chessboard</p>
+<pre>
+int cvFindChessboardCorners( const void* image, CvSize pattern_size,
+                             CvPoint2D32f* corners, int* corner_count=NULL,
+                             int flags=CV_CALIB_CB_ADAPTIVE_THRESH );
+</pre><p><dl>
+<dt>image<dd>Source chessboard view; it must be 8-bit grayscale or color image.
+<dt>pattern_size<dd>The number of inner corners per chessboard row and column.
+<dt>corners<dd>The output array of corners detected.
+<dt>corner_count<dd>The output corner counter. If it is not NULL, the function stores
+there the number of corners found.
+<dt>flags<dd>Various operation flags, can be 0 or a combination of the following values:<br>
+                     <code>CV_CALIB_CB_ADAPTIVE_THRESH</code> - use adaptive thresholding to convert the
+                     image to black-n-white, rather than a fixed threshold level (computed from the average image brightness).<br>
+                     <code>CV_CALIB_CB_NORMALIZE_IMAGE</code> - normalize the image using
+                     <a href="#decl_cvNormalizeHist">cvNormalizeHist</a> before applying fixed or adaptive thresholding.<br>
+                     <code>CV_CALIB_CB_FILTER_QUADS</code> - use additional criteria (like contour area, perimeter,
+                     square-like shape) to filter out false quads that are extracted at the contour retrieval stage.<br>
+</dl></p><p>
+The function <code>cvFindChessboardCorners</code> attempts to determine whether the input
 image is a view of the chessboard pattern and locate internal chessboard
 corners. The function returns non-zero value if all the corners have been found
 and they have been placed in a certain order (row by row, left to right in every
 row), otherwise, if the function fails to find all the corners or reorder them,
-the function returns 0. For example, a simple chessboard has 8 x 8 squares and 7
-x 7 internal corners, that is, points, where the squares are tangent. The word
-"approximate" in the above description means that the corner coordinates found
-may differ from the actual coordinates by a couple of pixels. To get more
-precise coordinates, the user may use the function
-<a href="#decl_cvFindCornerSubPix">cvFindCornerSubPix</a>.
+it returns 0. For example, a regular chessboard has 8 x 8 squares and 7
+x 7 internal corners, that is, points, where the black squares touch each other.
+The coordinates detected are approximate, and to determine their position more accurately,
+the user may use the function <a href="#decl_cvFindCornerSubPix">cvFindCornerSubPix</a>.
+</p>
+
+
+<hr><h3><a name="decl_cvDrawChessBoardCorners">DrawChessBoardCorners</a></h3>
+<p class="Blurb">Renders the detected chessboard corners</p>
+<pre>
+void cvDrawChessboardCorners( CvArr* image, CvSize pattern_size,
+                              CvPoint2D32f* corners, int count,
+                              int pattern_was_found );
+</pre><p><dl>
+<dt>image<dd>The destination image; it must be 8-bit color image.
+<dt>pattern_size<dd>The number of inner corners per chessboard row and column.
+<dt>corners<dd>The array of corners detected.
+<dt>count<dd>The number of corners.
+<dt>pattern_was_found<dd>Indicates whether the complete board was found (&ne;0) or not (=0). One may just
+                     pass the return value <a href="#decl_cvFindChessboardCorners">cvFindChessboardCorners</a> here.
+</dl></p><p>
+The function <code>cvDrawChessboardCorners</code> draws the individual chessboard corners detected (as red circles)
+in case if the board was not found (<code>pattern_was_found</code>=0) or the colored corners connected with lines
+when the board was found (<code>pattern_was_found</code>&ne;0).
 </p>
 
 
 <hr><h2><a name="cv_3d_pose">Pose Estimation</a></h2>
-
-<hr><h3><a name="decl_cvFindExtrinsicCameraParams">FindExtrinsicCameraParams</a></h3>
-<p class="Blurb">Finds extrinsic camera parameters for pattern</p>
-<pre>
-void cvFindExtrinsicCameraParams( int point_count, CvSize image_size,
-                                  CvPoint2D32f* image_points, CvPoint3D32f* object_points,
-                                  CvVect32f focal_length, CvPoint2D32f principal_point,
-                                  CvVect32f distortion_coeffs, CvVect32f rotation_vector,
-                                  CvVect32f translation_vector );
-</pre><p><dl>
-<dt>point_count<dd>Number of the points.
-<dt>ImageSize<dd>Size of the image.
-<dt>image_points<dd>Pointer to the image.
-<dt>object_points<dd>Pointer to the pattern.
-<dt>focal_length<dd>Focal length.
-<dt>principal_point<dd>Principal point.
-<dt>distortion_coeffs<dd>Distortion coefficients.
-<dt>rotation_vector<dd>Rotation vector.
-<dt>translation_vector<dd>Translate vector.
-</dl></p><p>
-The function <a href="#decl_cvFindExtrinsicCameraParams">cvFindExtrinsicCameraParams</a> finds the extrinsic parameters for the
-pattern.
-</p>
-
-
-<hr><h3><a name="decl_cvFindExtrinsicCameraParams_64d">FindExtrinsicCameraParams_64d</a></h3>
-<p class="Blurb">Finds extrinsic camera parameters for pattern with double precision</p>
-<pre>
-void cvFindExtrinsicCameraParams_64d( int point_count, CvSize image_size,
-                                      CvPoint2D64d* image_points, CvPoint3D64d* object_points,
-                                      CvVect64d focal_length, CvPoint2D64d principal_point,
-                                      CvVect64d distortion_coeffs, CvVect64d rotation_vector,
-                                      CvVect64d translation_vector );
-</pre><p><dl>
-<dt>point_count<dd>Number of the points.
-<dt>ImageSize<dd>Size of the image.
-<dt>image_points<dd>Pointer to the image.
-<dt>object_points<dd>Pointer to the pattern.
-<dt>focal_length<dd>Focal length.
-<dt>principal_point<dd>Principal point.
-<dt>distortion_coeffs<dd>Distortion coefficients.
-<dt>rotation_vector<dd>Rotation vector.
-<dt>translation_vector<dd>Translate vector.
-</dl></p><p>
-The function <a href="#decl_cvFindExtrinsicCameraParams_64d">cvFindExtrinsicCameraParams_64d</a> finds the extrinsic parameters for
-the pattern with double precision.
-</p>
 
 <hr><h3><a name="decl_cvCreatePOSITObject">CreatePOSITObject</a></h3>
 <p class="Blurb">Initializes structure containing object information</p>
@@ -4295,7 +4785,7 @@ CvPOSITObject* cvCreatePOSITObject( CvPoint3D32f* points, int point_count );
 <dt>points<dd>Pointer to the points of the 3D object model.
 <dt>point_count<dd>Number of object points.
 </dl></p><p>
-The function <a href="#decl_cvCreatePOSITObject">cvCreatePOSITObject</a> allocates memory for the object structure and
+The function <code>cvCreatePOSITObject</code> allocates memory for the object structure and
 computes the object inverse matrix.
 <p>
 The preprocessed object data is stored in the structure <a href="#decl_CvPOSITObject">CvPOSITObject</a>, internal
@@ -4324,7 +4814,7 @@ void cvPOSIT( CvPOSITObject* posit_object, CvPoint2D32f* image_points, double fo
 <dt>rotation_matrix<dd>Matrix of rotations.
 <dt>translation_vector<dd>Translation vector.
 </dl></p><p>
-The function <a href="#decl_cvPOSIT">cvPOSIT</a> implements POSIT algorithm. Image coordinates are given in a
+The function <code>cvPOSIT</code> implements POSIT algorithm. Image coordinates are given in a
 camera-related coordinate system. The focal length may be retrieved using camera
 calibration functions. At every iteration of the algorithm new perspective
 projection of estimated pose is computed.
@@ -4341,7 +4831,7 @@ void cvReleasePOSITObject( CvPOSITObject** posit_object );
 </pre><p><dl>
 <dt>posit_object<dd>Double pointer to <code>CvPOSIT</code> structure.
 </dl></p><p>
-The function <a href="#decl_cvReleasePOSITObject">cvReleasePOSITObject</a> releases memory previously allocated by the
+The function <code>cvReleasePOSITObject</code> releases memory previously allocated by the
 function <a href="#decl_cvCreatePOSITObject">cvCreatePOSITObject</a>.
 </p>
 
@@ -4356,7 +4846,7 @@ void cvCalcImageHomography( float* line, CvPoint3D32f* center,
 <dt>intrinsic<dd>intrinsic camera parameters (3x3 matrix).
 <dt>homography<dd>output homography matrix (3x3).
 </dl></p><p>
-The function <a href="#decl_cvCalcImageHomography">cvCalcImageHomography</a> calculates the homography matrix for the initial
+The function <code>cvCalcImageHomography</code> calculates the homography matrix for the initial
 image transformation from image plane to the plane, defined by 3D oblong object line (See
 <u><font color=blue>Figure 6-10</font></u> in OpenCV Guide 3D Reconstruction Chapter).
 </p>
@@ -4368,38 +4858,41 @@ image transformation from image plane to the plane, defined by 3D oblong object 
 <hr><h3><a name="decl_cvFindFundamentalMat">FindFundamentalMat</a></h3>
 <p class="Blurb">Calculates fundamental matrix from corresponding points in two images</p>
 <pre>
-int cvFindFundamentalMat( CvMat* points1,
-                          CvMat* points2,
+int cvFindFundamentalMat( const CvMat* points1,
+                          const CvMat* points2,
                           CvMat* fundamental_matrix,
-                          int    method,
-                          double param1,
-                          double param2,
-                          CvMat* status=0);
+                          int    method=CV_FM_RANSAC,
+                          double param1=1.,
+                          double param2=0.99,
+                          CvMat* status=NULL);
 </pre>
 <p>
 <dl>
-<dt>points1  <dd>Array of the first image points of 2xN/Nx2 or 3xN/Nx3 size (N is number of points).
-                 The point coordinates should be floating-point (single or double precision)
-<dt>points2  <dd>Array of the second image points of the same size and format as <code>points1</code>
-<dt>fundamental_matrix <dd>The output fundamental matrix or matrices. Size 3x3 or 9x3 (7-point method can returns up to 3 matrices).
-
-<dt>method <dd> Method for computing fundamental matrix
-           <dd>CV_FM_7POINT - for 7-point algorithm. Number of points == 7
-           <dd>CV_FM_8POINT - for 8-point algorithm. Number of points >= 8
-           <dd>CV_FM_RANSAC - for RANSAC  algorithm. Number of points >= 8
-           <dd>CV_FM_LMEDS  - for LMedS   algorithm. Number of points >= 8
-<dt>param1 <dd>The parameter is used for RANSAC or LMedS methods only.
-            It is the maximum distance from point to epipolar line,
-            beyound which the point is considered bad and is not considered in
-            further calculations. Usually it is set to 0.5 or 1.0.
+<dt>points1<dd>Array of the first image points of <code>2xN, Nx2, 3xN</code> or <code>Nx3</code> size
+               (where <code>N</code> is number of points).
+               Multi-channel <code>1xN</code> or <code>Nx1</code> array is also acceptable.
+               The point coordinates should be floating-point (single or double precision)
+<dt>points2<dd>Array of the second image points of the same size and format as <code>points1</code>
+<dt>fundamental_matrix <dd>The output fundamental matrix or matrices. The size should be 3x3 or 9x3
+                           (7-point method may return up to 3 matrices).
+<dt>method<dd>Method for computing the fundamental matrix
+          <dd>CV_FM_7POINT - for 7-point algorithm. N == 7
+          <dd>CV_FM_8POINT - for 8-point algorithm. N >= 8
+          <dd>CV_FM_RANSAC - for RANSAC  algorithm. N >= 8
+          <dd>CV_FM_LMEDS  - for LMedS   algorithm. N >= 8
+<dt>param1<dd>The parameter is used for RANSAC or LMedS methods only.
+            It is the maximum distance from point to epipolar line in pixels,
+            beyond which the point is considered an outlier and is not used
+            for computing the final fundamental matrix.
+            Usually it is set to 0.5 or 1.0.
 <dt>param2 <dd>The parameter is used for RANSAC or LMedS methods only.
-            It denotes the desirable level of confidense the matrix is the correct (up
-            to some precision). It can be set to 0.99 for example.
-<dt>status <dd>Array of N elements, every element of which is set to 1
-            if the point was not rejected during the computation, 0 otherwise.
+            It denotes the desirable level of confidence that the matrix
+            is correct.
+<dt>status<dd>The optional output array of N elements,
+            every element of which is set to 0 for outliers
+            and to 1 for the other points.
             The array is computed only in RANSAC and LMedS methods.
-            For other methods it is set to all 1's.
-            This is the optional parameter.</p>
+            For other methods it is set to all 1&#146;s.</p>
 </dl></p>
 
 <p>
@@ -4408,31 +4901,20 @@ The epipolar geometry is described by the following equation:
 </p>
 
 <p>where <code>F</code> is fundamental matrix, <code>p<sub>1</sub></code> and <code>p<sub>2</sub></code> are corresponding
-points on the two images.
+points in the first and the second images, respectively.
 </p>
 
 <p>
-The function <code>FindFundamentalMat</code> calculates fundamental matrix using one of four
-methods listed above and returns the number of fundamental matrix found: 0 if the
-matrix could not be found, 1 or 3 if the matrix or matrices have been found successfully.
+The function <code>cvFindFundamentalMat</code> calculates fundamental matrix using one of four
+methods listed above and returns the number of fundamental matrices found (1 or 3) and 0,
+if no matrix is found.
 </p>
 
 <p>
-The calculated fundamental matrix may be passed further to <code>ComputeCorrespondEpilines</code>
-function that computes coordinates of corresponding epilines on two images.</p>
+The calculated fundamental matrix may be passed further to <code>cvComputeCorrespondEpilines</code>
+that finds epipolar lines corresponding to the specified points.</p>
 
-<p>
-For 7-point method uses exactly 7 points. It can find 1 or 3 fundamental
-matrices. It returns number of the matrices found and if there is a room
-in the destination array to keep all the detected matrices, stores all of them there,
-otherwise it stores only one of the matrices.
-</p>
-
-<p>
-All other methods use 8 or more points and return a single fundamental matrix.
-</p>
-
-<h4>Example. Fundamental matrix calculation</h4>
+<h4>Example. Estimation of fundamental matrix using RANSAC algorithm</h4>
 <pre>
 int point_count = 100;
 CvMat* points1;
@@ -4440,37 +4922,22 @@ CvMat* points2;
 CvMat* status;
 CvMat* fundamental_matrix;
 
-points1  = cvCreateMat(2,point_count,CV_32F);
-points2  = cvCreateMat(2,point_count,CV_32F);
-status   = cvCreateMat(1,point_count,CV_32F);
+points1 = cvCreateMat(1,point_count,CV_32FC2);
+points2 = cvCreateMat(1,point_count,CV_32FC2);
+status = cvCreateMat(1,point_count,CV_8UC1);
 
 /* Fill the points here ... */
-
-fundamental_matrix = cvCreateMat(3,3,CV_32F);
-int num = cvFindFundamentalMat(points1,points2,fundamental_matrix,CV_FM_RANSAC,1.0,0.99,status);
-if( num == 1 )
+for( i = 0; i &lt; point_count; i++ )
 {
-    printf("Fundamental matrix was found\n");
-}
-else
-{
-    printf("Fundamental matrix was not found\n");
+    points1->data.db[i*2] = &lt;x<sub>1,i</sub>&gt;;
+    points1->data.db[i*2+1] = &lt;y<sub>1,i</sub>&gt;;
+    points2->data.db[i*2] = &lt;x<sub>2,i</sub>&gt;;
+    points2->data.db[i*2+1] = &lt;y<sub>2,i</sub>&gt;;
 }
 
-
-/*====== Example of code for three matrixes ======*/
-CvMat* points1;
-CvMat* points2;
-CvMat* fundamental_matrix;
-
-points1  = cvCreateMat(2,7,CV_32F);
-points2  = cvCreateMat(2,7,CV_32F);
-
-/* Fill the points here... */
-
-fundamental_matrix = cvCreateMat(9,3,CV_32F);
-int num = cvFindFundamentalMat(points1,points2,fundamental_matrix,CV_FM_7POINT,0,0,0);
-printf("Found %d matrixes\n",num);
+fundamental_matrix = cvCreateMat(3,3,CV_32FC1);
+int fm_count = cvFindFundamentalMat( points1,points2,fundamental_matrix,
+                                     CV_FM_RANSAC,1.0,0.99,status );
 </pre>
 
 
@@ -4486,41 +4953,84 @@ void cvComputeCorrespondEpilines( const CvMat* points,
 </pre>
 <p><dl>
 
-<dt>points<dd>The input points: 2xN or 3xN array (N number of points)
-<dt>which_image<dd>Image index (1 or 2) that contains the <code>points</code>
+<dt>points<dd>The input points. <code>2xN, Nx2, 3xN</code> or <code>Nx3</code> array (where <code>N</code> number of points).
+              Multi-channel <code>1xN</code> or <code>Nx1</code> array is also acceptable.
+<dt>which_image<dd>Index of the image (1 or 2) that contains the <code>points</code>
 <dt>fundamental_matrix <dd>Fundamental matrix
-<dt>correspondent_lines<dd>Computed epilines, 3xN array
+<dt>correspondent_lines<dd>Computed epilines, <code>3xN</code> or <code>Nx3</code> array
 
 </dl></p>
 
 <p>
-The function <code>ComputeCorrespondEpilines</code> computes the corresponding
-epiline for every input point using the basic equation of epipolar line geometry.
-If the points are located in the first image (<code>which_image</code>=1),
-the corresponding epipolar line can be computed as:
+For every point in one of the two images of stereo-pair the function
+<code>cvComputeCorrespondEpilines</code> finds equation of a line that contains
+the corresponding point (i.e. projection of the same 3D point) in the other image.
+Each line is encoded by a vector of 3 elements <code>l=[a,b,c]<sup>T</sup></code>, so that:
+<pre>
+
+l<sup>T</sup>*[x, y, 1]<sup>T</sup>=0, or
+a*x + b*y + c = 0
+
+</pre>
+
+From the fundamental matrix definition (see <a href="#decl_cvFindFundamentalMatrix">cvFindFundamentalMatrix</a>
+discussion), line <code>l<sub>2</sub></code> for a point <code>p<sub>1</sub></code>
+in the first image (<code>which_image</code>=1) can be computed as:
+
 <pre>l<sub>2</sub>=F*p<sub>1</sub></pre>
 
-where <code>F</code> is the fundamental matrix,
-<code>p<sub>1</sub></code> is a point in the first image,
-<code>l<sub>2</sub></code> - the corresponding epipolar line in the second image.
-</p>
+and the line <code>l<sub>1</sub></code> for a point <code>p<sub>2</sub></code>
+in the second image (<code>which_image</code>=1) can be computed as:
 
-If the points are located on the second image (<code>which_image</code>=2):
 <pre>l<sub>1</sub>=F<sup>T</sup>*p<sub>2</sub></pre>
 
 <p>
-where <code>p<sub>2</sub></code> is a point in the second image,
-<code>l<sub>1</sub></code> is the corresponding epipolar line in the first image
+Line coefficients are defined up to a scale.
+They are normalized (<code>a<sup>2</sup>+b<sup>2</sup>=1</code>)
+are stored into <code>correspondent_lines</code>.
 </p>
 
-Each epipolar line is represented by 3 coefficients <em>a, b, c</em>:
-<pre>a*x + b*y + c = 0</pre>
+
+<hr>
+<h3><a name="decl_cvConvertPointsHomogenious">ConvertPointsHomogenious</a></h3>
+<p class="Blurb">Convert points to/from homogenious coordinates</p>
+
+<pre>
+void cvConvertPointsHomogenious( const CvMat* src, CvMat* dst );
+</pre>
+<p><dl>
+
+<dt>src<dd>The input point array, <code>2xN, Nx2, 3xN, Nx3, 4xN or Nx4</code>
+           (where <code>N</code> is the number of points).
+           Multi-channel <code>1xN</code> or <code>Nx1</code> array is also acceptable.
+<dt>dst<dd>The output point array, must contain the same number of points as the input;
+           The dimensionality must be the same, 1 less or 1 more than the input, and
+           also within 2..4.
+</dl></p>
 
 <p>
-The normalized coefficents (<code>a<sup>2</sup>+b<sup>2</sup>=1</code>)
-of every corresponding epipolar line are stored into <code>correspondent_lines</code>.
-</p>
+The function <code>cvConvertPointsHomogenious</code> converts 2D or 3D points
+from/to homogenious coordinates, or simply copies or transposes the array.
+In case if the input array dimensionality is larger than the output,
+each point coordinates are divided by the last coordinate:
+<pre>
+(x,y[,z],w) -> (x',y'[,z']):
 
+x' = x/w
+y' = y/w
+z' = z/w (if output is 3D)
+</pre>
+
+If the output array dimensionality is larger, an extra 1 is appended to each point.
+<pre>
+(x,y[,z]) -> (x,y[,z],1)
+</pre>
+
+Otherwise, the input array is simply copied (with optional tranposition) to the output.
+<b>Note</b> that, because the function accepts a large variety of array layouts, it
+may report an error when input/output array dimensionality is ambiguous.
+It is always safe to use the function with number of points <code>N</code>&gt;=5, or
+to use multi-channel <code>Nx1</code> or <code>1xN</code> arrays.
 
 <hr><h1><a name="cv_func_index">Alphabetical List of Functions</a></h1>
 
@@ -4557,73 +5067,73 @@ of every corresponding epipolar line are stored into <code>correspondent_lines</
 <table width="100%">
 <tr>
 <td width="25%"><a href="#decl_cvCalcBackProject">CalcBackProject</a></td>
-<td width="25%"><a href="#decl_cvCalibrateCamera">CalibrateCamera</a></td>
+<td width="25%"><a href="#decl_cvCalibrateCamera2">CalibrateCamera2</a></td>
 <td width="25%"><a href="#decl_cvConvexityDefects">ConvexityDefects</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcBackProjectPatch">CalcBackProjectPatch</a></td>
-<td width="25%"><a href="#decl_cvCalibrateCamera_64d">CalibrateCamera_64d</a></td>
+<td width="25%"><a href="#decl_cvCamShift">CamShift</a></td>
 <td width="25%"><a href="#decl_cvCopyHist">CopyHist</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcEMD2">CalcEMD2</a></td>
-<td width="25%"><a href="#decl_cvCamShift">CamShift</a></td>
-<td width="25%"><a href="#decl_cvCornerEigenValsAndVecs">CornerEigenValsAndVecs</a></td>
+<td width="25%"><a href="#decl_cvCanny">Canny</a></td>
+<td width="25%"><a href="#decl_cvCopyMakeBorder">CopyMakeBorder</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcGlobalOrientation">CalcGlobalOrientation</a></td>
-<td width="25%"><a href="#decl_cvCanny">Canny</a></td>
-<td width="25%"><a href="#decl_cvCornerMinEigenVal">CornerMinEigenVal</a></td>
+<td width="25%"><a href="#decl_cvCheckContourConvexity">CheckContourConvexity</a></td>
+<td width="25%"><a href="#decl_cvCornerEigenValsAndVecs">CornerEigenValsAndVecs</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcHist">CalcHist</a></td>
-<td width="25%"><a href="#decl_cvCheckContourConvexity">CheckContourConvexity</a></td>
-<td width="25%"><a href="#decl_cvCreateConDensation">CreateConDensation</a></td>
+<td width="25%"><a href="#decl_cvClearHist">ClearHist</a></td>
+<td width="25%"><a href="#decl_cvCornerHarris">CornerHarris</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcImageHomography">CalcImageHomography</a></td>
-<td width="25%"><a href="#decl_cvClearHist">ClearHist</a></td>
-<td width="25%"><a href="#decl_cvCreateContourTree">CreateContourTree</a></td>
+<td width="25%"><a href="#decl_cvClearSubdivVoronoi2D">ClearSubdivVoronoi2D</a></td>
+<td width="25%"><a href="#decl_cvCornerMinEigenVal">CornerMinEigenVal</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcMotionGradient">CalcMotionGradient</a></td>
-<td width="25%"><a href="#decl_cvClearSubdivVoronoi2D">ClearSubdivVoronoi2D</a></td>
-<td width="25%"><a href="#decl_cvCreateHist">CreateHist</a></td>
+<td width="25%"><a href="#decl_cvCompareHist">CompareHist</a></td>
+<td width="25%"><a href="#decl_cvCreateConDensation">CreateConDensation</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcOpticalFlowBM">CalcOpticalFlowBM</a></td>
-<td width="25%"><a href="#decl_cvCompareHist">CompareHist</a></td>
-<td width="25%"><a href="#decl_cvCreateKalman">CreateKalman</a></td>
+<td width="25%"><a href="#decl_cvComputeCorrespondEpilines">ComputeCorrespondEpilines</a></td>
+<td width="25%"><a href="#decl_cvCreateContourTree">CreateContourTree</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcOpticalFlowHS">CalcOpticalFlowHS</a></td>
-<td width="25%"><a href="#decl_cvComputeCorrespondEpilines">ComputeCorrespondEpilines</a></td>
-<td width="25%"><a href="#decl_cvCreatePOSITObject">CreatePOSITObject</a></td>
+<td width="25%"><a href="#decl_cvConDensInitSampleSet">ConDensInitSampleSet</a></td>
+<td width="25%"><a href="#decl_cvCreateHist">CreateHist</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcOpticalFlowLK">CalcOpticalFlowLK</a></td>
-<td width="25%"><a href="#decl_cvConDensInitSampleSet">ConDensInitSampleSet</a></td>
-<td width="25%"><a href="#decl_cvCreateStructuringElementEx">CreateStructuringElementEx</a></td>
+<td width="25%"><a href="#decl_cvConDensUpdateByTime">ConDensUpdateByTime</a></td>
+<td width="25%"><a href="#decl_cvCreateKalman">CreateKalman</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcOpticalFlowPyrLK">CalcOpticalFlowPyrLK</a></td>
-<td width="25%"><a href="#decl_cvConDensUpdateByTime">ConDensUpdateByTime</a></td>
-<td width="25%"><a href="#decl_cvCreateSubdivDelaunay2D">CreateSubdivDelaunay2D</a></td>
+<td width="25%"><a href="#decl_cvContourArea">ContourArea</a></td>
+<td width="25%"><a href="#decl_cvCreatePOSITObject">CreatePOSITObject</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcPGH">CalcPGH</a></td>
-<td width="25%"><a href="#decl_cvContourArea">ContourArea</a></td>
-<td width="25%"><a href="#decl_cvCvtColor">CvtColor</a></td>
+<td width="25%"><a href="#decl_cvContourFromContourTree">ContourFromContourTree</a></td>
+<td width="25%"><a href="#decl_cvCreateStructuringElementEx">CreateStructuringElementEx</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcProbDensity">CalcProbDensity</a></td>
-<td width="25%"><a href="#decl_cvContourFromContourTree">ContourFromContourTree</a></td>
-<td width="25%%"></td>
+<td width="25%"><a href="#decl_cvConvertPointsHomogenious">ConvertPointsHomogenious</a></td>
+<td width="25%"><a href="#decl_cvCreateSubdivDelaunay2D">CreateSubdivDelaunay2D</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvCalcSubdivVoronoi2D">CalcSubdivVoronoi2D</a></td>
 <td width="25%"><a href="#decl_cvConvexHull2">ConvexHull2</a></td>
-<td width="25%%"></td>
+<td width="25%"><a href="#decl_cvCvtColor">CvtColor</a></td>
 </tr>
 </table>
 <hr><h3>D</h3>
@@ -4631,32 +5141,32 @@ of every corresponding epipolar line are stored into <code>correspondent_lines</
 <tr>
 <td width="25%"><a href="#decl_cvDilate">Dilate</a></td>
 <td width="25%"><a href="#decl_cvDistTransform">DistTransform</a></td>
-<td width="25%%"></td>
+<td width="25%"><a href="#decl_cvDrawChessBoardCorners">DrawChessBoardCorners</a></td>
 </tr>
 </table>
 <hr><h3>E</h3>
 <table width="100%">
 <tr>
 <td width="25%"><a href="#decl_cvEndFindContours">EndFindContours</a></td>
+<td width="25%"><a href="#decl_cvEqualizeHist">EqualizeHist</a></td>
 <td width="25%"><a href="#decl_cvErode">Erode</a></td>
-<td width="25%%"></td>
 </tr>
 </table>
 <hr><h3>F</h3>
 <table width="100%">
 <tr>
 <td width="25%"><a href="#decl_cvFilter2D">Filter2D</a></td>
-<td width="25%"><a href="#decl_cvFindExtrinsicCameraParams">FindExtrinsicCameraParams</a></td>
+<td width="25%"><a href="#decl_cvFindExtrinsicCameraParams2">FindExtrinsicCameraParams2</a></td>
 <td width="25%"><a href="#decl_cvFindNextContour">FindNextContour</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvFindChessBoardCornerGuesses">FindChessBoardCornerGuesses</a></td>
-<td width="25%"><a href="#decl_cvFindExtrinsicCameraParams_64d">FindExtrinsicCameraParams_64d</a></td>
+<td width="25%"><a href="#decl_cvFindChessboardCorners">FindChessboardCorners</a></td>
+<td width="25%"><a href="#decl_cvFindFundamentalMat">FindFundamentalMat</a></td>
 <td width="25%"><a href="#decl_cvFitEllipse">FitEllipse</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvFindContours">FindContours</a></td>
-<td width="25%"><a href="#decl_cvFindFundamentalMat">FindFundamentalMat</a></td>
+<td width="25%"><a href="#decl_cvFindHomography">FindHomography</a></td>
 <td width="25%"><a href="#decl_cvFitLine2D">FitLine2D</a></td>
 </tr>
 <tr>
@@ -4673,7 +5183,7 @@ of every corresponding epipolar line are stored into <code>correspondent_lines</
 <td width="25%"><a href="#decl_cvGetRectSubPix">GetRectSubPix</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvGetHistValue_1D">GetHistValue_1D</a></td>
+<td width="25%"><a href="#decl_cvGetHistValue_*D">GetHistValue_*D</a></td>
 <td width="25%"><a href="#decl_cvGetNormalizedCentralMoment">GetNormalizedCentralMoment</a></td>
 <td width="25%"><a href="#decl_cvGetSpatialMoment">GetSpatialMoment</a></td>
 </tr>
@@ -4687,14 +5197,14 @@ of every corresponding epipolar line are stored into <code>correspondent_lines</
 <table width="100%">
 <tr>
 <td width="25%"><a href="#decl_cvHaarDetectObjects">HaarDetectObjects</a></td>
-<td width="25%"><a href="#decl_cvHoughLines">HoughLines</a></td>
-<td width="25%%"></td>
+<td width="25%"><a href="#decl_cvHoughCircles">HoughCircles</a></td>
+<td width="25%"><a href="#decl_cvHoughLines2">HoughLines2</a></td>
 </tr>
 </table>
 <hr><h3>I</h3>
 <table width="100%">
 <tr>
-<td width="25%"><a href="#decl_cvInitLineIterator">InitLineIterator</a></td>
+<td width="25%"><a href="#decl_cvInitUndistortMap">InitUndistortMap</a></td>
 <td width="25%"><a href="#decl_cvIntegral">Integral</a></td>
 <td width="25%%"></td>
 </tr>
@@ -4712,7 +5222,7 @@ of every corresponding epipolar line are stored into <code>correspondent_lines</
 <tr>
 <td width="25%"><a href="#decl_cvLaplace">Laplace</a></td>
 <td width="25%"><a href="#decl_cvLoadHaarClassifierCascade">LoadHaarClassifierCascade</a></td>
-<td width="25%%"></td>
+<td width="25%"><a href="#decl_cvLogPolar">LogPolar</a></td>
 </tr>
 </table>
 <hr><h3>M</h3>
@@ -4750,19 +5260,24 @@ of every corresponding epipolar line are stored into <code>correspondent_lines</
 <table width="100%">
 <tr>
 <td width="25%"><a href="#decl_cvPOSIT">POSIT</a></td>
-<td width="25%"><a href="#decl_cvPyrDown">PyrDown</a></td>
+<td width="25%"><a href="#decl_cvPreCornerDetect">PreCornerDetect</a></td>
+<td width="25%"><a href="#decl_cvPyrSegmentation">PyrSegmentation</a></td>
+</tr>
+<tr>
+<td width="25%"><a href="#decl_cvPointPolygonTest">PointPolygonTest</a></td>
+<td width="25%"><a href="#decl_cvProjectPoints2">ProjectPoints2</a></td>
 <td width="25%"><a href="#decl_cvPyrUp">PyrUp</a></td>
 </tr>
 <tr>
-<td width="25%"><a href="#decl_cvPreCornerDetect">PreCornerDetect</a></td>
-<td width="25%"><a href="#decl_cvPyrSegmentation">PyrSegmentation</a></td>
+<td width="25%"><a href="#decl_cvPointSeqFromMat">PointSeqFromMat</a></td>
+<td width="25%"><a href="#decl_cvPyrDown">PyrDown</a></td>
 <td width="25%%"></td>
 </tr>
 </table>
 <hr><h3>Q</h3>
 <table width="100%">
 <tr>
-<td width="25%"><a href="#decl_cvQueryHistValue_1D">QueryHistValue_1D</a></td>
+<td width="25%"><a href="#decl_cvQueryHistValue_*D">QueryHistValue_*D</a></td>
 <td width="25%%"></td>
 <td width="25%%"></td>
 </tr>
@@ -4772,22 +5287,22 @@ of every corresponding epipolar line are stored into <code>correspondent_lines</
 <tr>
 <td width="25%"><a href="#decl_cvReadChainPoint">ReadChainPoint</a></td>
 <td width="25%"><a href="#decl_cvReleaseKalman">ReleaseKalman</a></td>
-<td width="25%"><a href="#decl_cvRodrigues">Rodrigues</a></td>
+<td width="25%"><a href="#decl_cvResize">Resize</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvReleaseConDensation">ReleaseConDensation</a></td>
 <td width="25%"><a href="#decl_cvReleasePOSITObject">ReleasePOSITObject</a></td>
-<td width="25%"><a href="#decl_cvRunHaarClassifierCascade">RunHaarClassifierCascade</a></td>
+<td width="25%"><a href="#decl_cvRodrigues2">Rodrigues2</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvReleaseHaarClassifierCascade">ReleaseHaarClassifierCascade</a></td>
 <td width="25%"><a href="#decl_cvReleaseStructuringElement">ReleaseStructuringElement</a></td>
-<td width="25%"><a href="#decl_cvRunningAvg">RunningAvg</a></td>
+<td width="25%"><a href="#decl_cvRunHaarClassifierCascade">RunHaarClassifierCascade</a></td>
 </tr>
 <tr>
 <td width="25%"><a href="#decl_cvReleaseHist">ReleaseHist</a></td>
-<td width="25%"><a href="#decl_cvResize">Resize</a></td>
-<td width="25%%"></td>
+<td width="25%"><a href="#decl_cvRemap">Remap</a></td>
+<td width="25%"><a href="#decl_cvRunningAvg">RunningAvg</a></td>
 </tr>
 </table>
 <hr><h3>S</h3>
@@ -4834,12 +5349,7 @@ of every corresponding epipolar line are stored into <code>correspondent_lines</
 <hr><h3>U</h3>
 <table width="100%">
 <tr>
-<td width="25%"><a href="#decl_cvUnDistort">UnDistort</a></td>
-<td width="25%"><a href="#decl_cvUnDistortOnce">UnDistortOnce</a></td>
-<td width="25%%"></td>
-</tr>
-<tr>
-<td width="25%"><a href="#decl_cvUnDistortInit">UnDistortInit</a></td>
+<td width="25%"><a href="#decl_cvUndistort2">Undistort2</a></td>
 <td width="25%"><a href="#decl_cvUpdateMotionHistory">UpdateMotionHistory</a></td>
 <td width="25%%"></td>
 </tr>
@@ -4855,8 +5365,8 @@ of every corresponding epipolar line are stored into <code>correspondent_lines</
 
 <hr><h1><a name="cv_bib">Bibliography</a></h1>
 <p>
-This bibliography provides a list of publications that might be useful to the
-Intel î Computer Vision Library users. This list is not complete; it serves only
+This bibliography provides a list of publications that were might be useful to
+the OpenCV users. This list is not complete; it serves only
 as a starting point.
 </p>
 <ol>
@@ -4893,9 +5403,12 @@ Using Temporal Templates. MIT Media Lab Technical Report 402, 1997.
 <li><b>[DeMenthon92]</b> Daniel F. DeMenthon and Larry S. Davis. Model-Based Object Pose in
 25 Lines of Code. In Proceedings of ECCV '92, pp. 335-343, 1992.
 
-<li><b>[Fitzgibbon95]</b> Andrew W. Fitzgibbon, R.B.Fisher. A Buyer's Guide to Conic
+<li><b>[Fitzgibbon95]</b> Andrew W. Fitzgibbon, R.B.Fisher. A Buyer&#146;s Guide to Conic
 Fitting. Proc.5th British Machine Vision Conference, Birmingham, pp. 513-522,
 1995.
+
+<li><a name="paper_ford98"><b>[Ford98]</b> Adrian Ford, Alan Roberts. Colour Space Conversions.</a>
+<a href="http://www.poynton.com/PDFs/coloureq.pdf">http://www.poynton.com/PDFs/coloureq.pdf</a>
 
 <li><a name="paper_horn81"><b>[Horn81]</b>
 Berthold K.P. Horn and Brian G. Schunck. Determining Optical Flow.
@@ -4943,7 +5456,7 @@ Applications to Image Databases. Proceedings of the 1998 IEEE International
 Conference on Computer Vision, Bombay, India, January 1998, pp. 59-66.
 
 <li><a name="paper_rubnersept98"><b>[RubnerSept98]</b>
-Y. Rubner. C. Tomasi, L.J. Guibas. The Earth Mover's Distance as a
+Y. Rubner. C. Tomasi, L.J. Guibas. The Earth Mover&#146;s Distance as a
 Metric for Image Retrieval. Technical Report STAN-CS-TN-98-86,
 Department of Computer Science, Stanford University, September
 1998.
@@ -4981,12 +5494,18 @@ The paper is available online at
 <li><a name="paper_welch95"><b>[Welch95]</b>
 Greg Welch, Gary Bishop. An Introduction To the Kalman Filter.
 Technical Report TR95-041, University of North Carolina at Chapel Hill, 1995.</a><br>
-Online version is available at <a href="http://www.cs.unc.edu/~welch/kalman/kalman_filter/kalman.html">
-http://www.cs.unc.edu/~welch/kalman/kalman_filter/kalman.html</a>
+Online version is available at <a href="http://www.cs.unc.edu/~welch/kalman/kalmanIntro.html">
+http://www.cs.unc.edu/~welch/kalman/kalmanIntro.html</a>
 
 <li><b>[Williams92]</b> D. J. Williams and M. Shah. A Fast Algorithm for Active Contours
 and Curvature Estimation. CVGIP: Image Understanding, Vol. 55, No. 1, pp. 14-26,
 Jan., 1992. http://www.cs.ucf.edu/~vision/papers/shah/92/WIS92A.pdf.
+
+<li><a name="paper_yuen03"><b>[Yuen03]</b>
+H.K. Yuen, J. Princen, J. Illingworth and J. Kittler.
+Comparative study of Hough Transform methods for circle finding.<br>
+<a href="http://www.sciencedirect.com/science/article/B6V09-48TCV4N-5Y/2/91f551d124777f7a4cf7b18325235673">
+http://www.sciencedirect.com/science/article/B6V09-48TCV4N-5Y/2/91f551d124777f7a4cf7b18325235673</a>
 
 <li><b>[Yuille89]</b> A.Y.Yuille, D.S.Cohen, and P.W.Hallinan. Feature Extraction from
 Faces Using Deformable Templates in CVPR, pp. 104-109, 1989.

@@ -101,16 +101,24 @@ icvGetContext(void)
 {
 #ifdef CV_DLL
 #if defined WIN32 || defined WIN64
-    CvContext* context = (CvContext*)TlsGetValue( g_TlsIndex );
-    if( !context )
-    {
-    context = icvCreateContext();
+    CvContext* context;
 
+    //assert(g_TlsIndex != TLS_OUT_OF_INDEXES);
+    if( g_TlsIndex == TLS_OUT_OF_INDEXES )
+    {
+        g_TlsIndex = TlsAlloc();
+        if( g_TlsIndex == TLS_OUT_OF_INDEXES )
+            FatalAppExit( 0, "Only set CV_DLL for DLL usage" );
+    }
+
+    context = (CvContext*)TlsGetValue( g_TlsIndex );
     if( !context )
     {
-        FatalAppExit( 0, "OpenCV. Problem to allocate memory for TLS OpenCV context." );
-    }
-    TlsSetValue( g_TlsIndex, context );
+        context = icvCreateContext();
+        if( !context )
+            FatalAppExit( 0, "OpenCV. Problem to allocate memory for TLS OpenCV context." );
+
+        TlsSetValue( g_TlsIndex, context );
     }
     return context;
 #else
@@ -147,7 +155,7 @@ cvStdErrReport( int code, const char *func_name, const char *err_msg,
     else
         fprintf( stderr, "OpenCV ERROR: %s (%s)\n\tin function ",
                  cvErrorStr(code), err_msg ? err_msg : "no description" );
-    
+
     fprintf( stderr, "%s, %s(%d)\n", func_name ? func_name : "<unknown>",
              file != NULL ? file : "", line );
 
@@ -262,7 +270,7 @@ CV_IMPL int cvGetErrInfo( const char** errorcode_desc, const char** description,
 CV_IMPL const char* cvErrorStr( int status )
 {
     static char buf[256];
-    
+
     switch (status)
     {
     case CV_StsOk :        return "No Error";
@@ -368,6 +376,7 @@ BOOL WINAPI DllMain( HINSTANCE, DWORD  fdwReason, LPVOID )
     case DLL_PROCESS_ATTACH:
         g_TlsIndex = TlsAlloc();
         if( g_TlsIndex == TLS_OUT_OF_INDEXES ) return FALSE;
+        //break;
 
     case DLL_THREAD_ATTACH:
         pContext = icvCreateContext();
@@ -440,7 +449,7 @@ cvErrorFromIppStatus( int status )
     case CV_BADFACTOR_ERR: return CV_StsBadArg;
     case CV_BADPOINT_ERR: return CV_StsBadPoint;
 
-    default: assert(0); return CV_StsError;
+    default: return CV_StsError;
     }
 }
 /* End of file */

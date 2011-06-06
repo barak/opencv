@@ -235,8 +235,8 @@ TRSFUN(void *, _trsGuardcAlloc,(size_t number, size_t size,char *file,int line))
     (*block++) =Pattern;
 
     res   = block;                              /* start of allocated block  */
-    block = (INT32*)((INT32)res+
-                     (INT32)number*(INT32)size);/* end of allocated block    */
+    block = (INT32*)((size_t)res+
+                     number*size);/* end of allocated block    */
 
     i=Patterns;
     while (i--) {
@@ -271,8 +271,8 @@ TRSFUN(int, _trsGuardCheck,(void * ptr,char *file,int line)){
       }
     }
     FullBlock=block;                            /* original start of mem block*/
-    block = (INT32*)((INT32)ptr+
-                     (INT32)OriginalSize);      /* end of allocated block    */
+    block = (INT32*)((size_t)ptr+
+                     OriginalSize);      /* end of allocated block    */
     i=FullPatterns;
     while (i--) {
       if ( (( pattern^0x55555555L) != (*block++)) ||
@@ -372,7 +372,7 @@ TRSFUN(char *, StringDup,(const char *str)){
   char * res;
   int    len=1;
 
-  if (str) len=len+strlen(str);
+  if (str) len=len+(int)strlen(str);
   res=(char*)trsmAlloc(len);
   if (!res) printf("No Memory, StringDup(%s)\n",str);
   else {
@@ -394,8 +394,8 @@ TRSFUN(char *, StringCat,(char *str,const char *suffix)) {
   char *res;
   int   len=1;
 
-  if (str)    len=len+strlen(str);
-  if (suffix) len=len+strlen(suffix);
+  if (str)    len=len+(int)strlen(str);
+  if (suffix) len=len+(int)strlen(suffix);
   res=(char*)realloc(str,len);
   if (!res) {
     printf("?StringCat-No Memory for \"%s%s\"\n",str,suffix);
@@ -596,7 +596,7 @@ static const char* trsComment(const char *format,...){
   res=vsprintf(buf,format,argptr);
   va_end(argptr);
 
-  if (res>sizeof(buf)) exit(0);
+  if (res>(int)sizeof(buf)) exit(0);
   if (CommentStatus==COMMENT_READY) DeleteComments();
 
   CommentStatus=COMMENT_STORING;
@@ -622,8 +622,8 @@ static char * TimeString(double dTime) {
   if (htime>99) htime=99;
   mtime=(ltime % 3600) /60;
   stime=(ltime % 60);
-  sprintf(timestr,"%ld%ld:%ld%ld:%ld%ld",htime/10,htime%10,
-          mtime/10,mtime%10,stime/10,stime%10);
+  sprintf(timestr,"%d%d:%d%d:%d%d",(int)(htime/10),(int)(htime%10),
+          (int)(mtime/10),(int)(mtime%10),(int)(stime/10),(int)(stime%10));
   return timestr;
 }
 
@@ -709,7 +709,7 @@ static void trsPrintFooter(TRSid_t *ptr) {
             if (newline) { putchar('|');trailspaces=77;}
 
             newline=StrParse2(buf,"\n",comment,buf);
-            trailspaces=trailspaces-strlen(comment);
+            trailspaces=trailspaces-(int)strlen(comment);
             printf("%s",comment);
             if (newline) {
               if (trailspaces>0) putnchar(' ',trailspaces);
@@ -742,6 +742,7 @@ static int CmdLineHelp(int fullhelp){
 
   ____("-a name       - ini file with answers");
   ____("");
+  WrLn("-A            - append the results to existing .cvs, .sum, .lst files");
   WrLn("-B string     - batch mode, substitute all reads from CON by 'string'");
   FHlp("   -B                  - accept default (simulate <CR>)");
   FHlp("   -B\";>\"              - accept default and write to default sections");
@@ -871,7 +872,7 @@ static void KeysWithArg(char *s){
   int    i,len;
   char   ch;
 
-  len=strlen(s);
+  len=(int)strlen(s);
   for (i=0;i<KEYARRSIZE;i=i+1) {
     KeyFlg[i]=FALSE;
     KeyStr[i]=NULL;
@@ -924,7 +925,7 @@ static void StoreArg(char key){
 }
 
 static void AssignCmd(char *cmd) {
-  cmdBufLen=strlen(cmd);
+  cmdBufLen=(int)strlen(cmd);
   cmdBuf=cmd;
   cmdBufIdx=0;
 }
@@ -1132,7 +1133,7 @@ static int CompareFields(TRSid_t *ptr){
   return TRUE;
 }
 
-static FILE * OpenTstFile(FILE ** file, char **fname, char key,char *mode) {
+static FILE * OpenTstFile(FILE ** file, char **fname, char key,const char *mode) {
   char    *keyval;
 /*  const char    *keyval;*/
 
@@ -1152,6 +1153,7 @@ static void trsCSVHeader(void);
 
 static int ProcessKeys(void){
   const char    *keyval;
+  const char    *mode = "w";
   int            intval;
   int            res;
 
@@ -1179,9 +1181,10 @@ static int ProcessKeys(void){
 
   if (trsGetKeyArg('d')) DebugMode=TW_DEBUG;
 
-  OpenTstFile(&LstFile,&LstFileName,'l',"w");
-  OpenTstFile(&SumFile,&SumFileName,'s',"w");
-  OpenTstFile(&CsvFile,&CsvFileName,'C',"w");
+  if (trsGetKeyArg('A')) mode = "a+";
+  OpenTstFile(&LstFile,&LstFileName,'l',mode);
+  OpenTstFile(&SumFile,&SumFileName,'s',mode);
+  OpenTstFile(&CsvFile,&CsvFileName,'C',mode);
   trsCSVHeader();
 
   keyval=trsGetKeyArg('i');
@@ -1210,8 +1213,8 @@ static TRSid_t *FindPrev(TRSid_t *current){
 static void trsInit(TRSid_t *ptr) {
   int appnamelen;
 
-  appnamelen=strlen(ptr->funcname)+strlen(ptr->testclass)+
-             strlen(ptr->proctext)+3;           /* +.+.+\0                   */
+  appnamelen=(int)(strlen(ptr->funcname)+strlen(ptr->testclass)+
+             strlen(ptr->proctext)+3);           /* +.+.+\0                   */
   TestAppName=(char*)trsreAlloc(TestAppName,appnamelen);
   strcpy(TestAppName,ptr->funcname);  strcat(TestAppName,".");
   strcat(TestAppName,ptr->testclass); strcat(TestAppName,".");
@@ -2767,7 +2770,7 @@ TRSFUN(void, PutToFile,(char *key,char *value, char *help)) {
   char *charptr;
 
   StringnCpy(valueandhelp,value,sizeof(valueandhelp));
-  len=strlen(key)+strlen(valueandhelp)+1;
+  len=(int)(strlen(key)+strlen(valueandhelp)+1);
   if (len<24) spaces=(24-len);
     else spaces=TABSIZE-(len % TABSIZE);
 
@@ -2775,7 +2778,7 @@ TRSFUN(void, PutToFile,(char *key,char *value, char *help)) {
   strcat(valueandhelp,"//");
 
   if (help) {
-    len=strlen(valueandhelp);
+    len=(int)strlen(valueandhelp);
     StringnCpy(&valueandhelp[len],help,sizeof(valueandhelp)-len);
     charptr=strchr(valueandhelp,'\n');          /* Get only fist line of help*/
     if (charptr) (*charptr)=0;

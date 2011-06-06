@@ -164,23 +164,27 @@ get_flavor( const char* name )
 static const char*
 tryLoadOpenCV( const char* name )
 {
+    const char* version = 0;
     HINSTANCE dll = LoadLibrary( name );
 
     if( dll )
     {
-        if( GetProcAddress( dll, "cvWarpAffine" ) != 0 )
-            return "beta 4 (a.k.a 0.9.6) or later";
         if( GetProcAddress( dll, "cvAccMask" ) != 0 ) // alpha 3 had cvAccMask function
-            return "alpha 3.x";
-        if( GetProcAddress( dll, "cvAdd" ) == 0 ) // beta 1 did not have cvAdd function 
-            return "beta 1.5 (a.k.a. 0.0.7)";
-        if( GetProcAddress( dll, "cvOpenFileStorage" ) == 0 )
-            return "beta 2.x (a.k.a. 0.9.3)"; // beta 2 did not have cvOpenFileStorage
-
-        return "beta 3 (a.k.a 0.9.4) or beta 3.1 (a.k.a 0.9.5)";
+            version = "alpha 3.x";
+        else if( GetProcAddress( dll, "cvmAdd" ) != 0 ) // till beta 2.x OpenCV had separate cvm* functions
+            version = "beta 1.5 (a.k.a. 0.0.7)";
+        else if( GetProcAddress( dll, "cvHoughLinesP" ) != 0 )
+            version = "beta 2.x (a.k.a. 0.9.3)"; // beta 2 had separate functions for different variations of Hough transform
+        else if( GetProcAddress( dll, "cvEigenProjection" ) != 0 )
+            version = "beta 3 (a.k.a 0.9.4) or beta 3.1 (a.k.a 0.9.5)"; // beta 3.x had cvEigenProjection and related functions
+        else if( GetProcAddress( dll, "cvHoughCircles" ) == 0 )
+            version = "beta 4.x (a.k.a. 0.9.5 or 0.9.6)";
+        else
+            version = "beta 5 (a.k.a. 0.9.7) or later";
+        FreeLibrary( dll );
     }
 
-    return 0;
+    return version;
 }
 
 typedef struct _IPLLibVersion
@@ -279,13 +283,13 @@ tryLoadIPL( const char* name )
     //time_t  ipl_2_5_date = date("10/09/2000");
 
     HINSTANCE dll;
+    const char* version = 0;
     char* dotptr = strrchr( name, '.' );
     assert( dotptr != 0 );
     if( dotptr[-1] == 'l' || dotptr[-1] == 'L' ) // switcher
     {
         int size = 0;
         char* buffer = load_file( name, &size );
-        const char* version = "";
 
         if( find_signature( buffer, size, "IPLW7.DLL" ))
             version = "2.5 or later";
@@ -307,15 +311,15 @@ tryLoadIPL( const char* name )
                 (IplGetLibVersion)GetProcAddress(dll, "iplGetLibVersion");
 
             if( getLibVersion )
-            {
-                return getLibVersion()->InternalVersion;
-            }
+                version = getLibVersion()->InternalVersion;
             else
-                return "[ERROR - iplGetLibVersion could not be found]";
+                version = "[ERROR - iplGetLibVersion could not be found]";
         }
         else
-            return "[ERROR - dll could not be loaded]";
+            version = "[ERROR - dll could not be loaded]";
     }
+
+    return version;
 }
 
 
@@ -343,8 +347,11 @@ tryLoadIppCV( const char* /*name*/, _finddata_t* finddata )
 
 void scan_folder( char* folder, int length )
 {
+    const char* cv_names[] = { "cv", "cv096", "cv097", 0 };
+
     _finddata_t finddata;
     int search_id;
+    int i;
     const char* version = 0;
     
     if( folder[length - 1] != '/' && folder[length - 1] != '\\' )
@@ -354,37 +361,24 @@ void scan_folder( char* folder, int length )
         folder[++length] = '0';
     }
 
-    // find OpenCV
-    strcpy( folder + length, "cv.dll" );
-    version = tryLoadOpenCV( folder );
-    
-    if( version != 0 )
+    for( i = 0; cv_names[i] != 0; i++ )
     {
-        printf("%s:\n\t OpenCV version %s\n", folder, version );
-    }
+        // find OpenCV
+        sprintf( folder + length, "%s.dll", cv_names[i] );
+        version = tryLoadOpenCV( folder );
+    
+        if( version != 0 )
+        {
+            printf("%s:\n\t OpenCV version %s\n", folder, version );
+        }
 
-    strcpy( folder + length, "cvd.dll" );
-    version = tryLoadOpenCV( folder );
+        sprintf( folder + length, "%sd.dll", cv_names[i] );
+        version = tryLoadOpenCV( folder );
     
-    if( version != 0 )
-    {
-        printf("%s:\n\t OpenCV (Debug) version %s\n", folder, version );
-    }
-
-    strcpy( folder + length, "cv096.dll" );
-    version = tryLoadOpenCV( folder );
-    
-    if( version != 0 )
-    {
-        printf("%s:\n\t New-style OpenCV version %s\n", folder, version );
-    }
-
-    strcpy( folder + length, "cv096d.dll" );
-    version = tryLoadOpenCV( folder );
-    
-    if( version != 0 )
-    {
-        printf("%s:\n\t New-style OpenCV (Debug) version %s\n", folder, version );
+        if( version != 0 )
+        {
+            printf("%s:\n\t OpenCV (Debug) version %s\n", folder, version );
+        }
     }
 
     // find IPL

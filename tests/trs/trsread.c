@@ -366,7 +366,7 @@ static int FillDst(char *buf,void *dst,void *extra,TRSfvr_t dt) {
                   return TRUE;
                 };
                 break;
-    case text_fvr: StringnCpy((char *) dst,buf,(int )extra);
+    case text_fvr: StringnCpy((char *) dst,buf,(int)(size_t)extra);
                 return TRUE;
     case case_fvr: sep[0]=*(char *)extra;
                 StrParse2((char*)extra,(char*)sep,(char*)head,(char*)tail);
@@ -869,7 +869,7 @@ TRSAPI(int, _trsdRead,(double *dst,char *name,char *def,char *help)) {
   return trs_Read(dst,name,NULL,def,help,d_fvr);
 }
 TRSAPI(int, _trstRead,(char * str,int size,char *name,char *def,char *help)){
-  return trs_Read(str,name,(void *)size,def,help,text_fvr);
+  return trs_Read(str,name,(void *)(size_t)size,def,help,text_fvr);
 }
 TRSAPI(int, _trsCaseRead,(int *dst, char *name, char *items,char *def,char *help)){
   return trs_Read(dst,name,items,def,help,case_fvr);

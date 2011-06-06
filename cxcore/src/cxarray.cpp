@@ -667,7 +667,7 @@ cvCreateSparseMat( int dims, const int* sizes, int type )
     arr->refcount = 0;
     memcpy( arr->size, sizes, dims*sizeof(sizes[0]));
 
-    arr->valoffset = (int)cvAlign(sizeof(void*) + sizeof(int), pix_size1 );
+    arr->valoffset = (int)cvAlign(sizeof(CvSparseNode), pix_size1);
     arr->idxoffset = (int)cvAlign(arr->valoffset + pix_size, sizeof(int));
     size = (int)cvAlign(arr->idxoffset + dims*sizeof(int), sizeof(CvSetElem));
 
@@ -831,12 +831,10 @@ icvGetNodePtr( CvSparseMat* mat, int* idx, int* _type,
 
     if( !ptr && create_node )
     {
-        CvSparseNode* node;
-        
         if( mat->heap->active_count >= mat->hashsize*CV_SPARSE_HASH_RATIO )
         {
             void** newtable;
-            int newsize = CV_MAX( mat->hashsize*2, CV_SPARSE_HASH_SIZE0);
+            int newsize = MAX( mat->hashsize*2, CV_SPARSE_HASH_SIZE0);
             int newrawsize = newsize*sizeof(newtable[0]);
             
             CvSparseMatIterator iterator;
@@ -953,7 +951,7 @@ cvCreateData( CvArr* arr )
 
     if( CV_IS_MAT_HDR( arr ))
     {
-        int64 step, total_size;
+        size_t step, total_size;
         CvMat* mat = (CvMat*)arr;
         step = mat->step;
 
@@ -1001,7 +999,7 @@ cvCreateData( CvArr* arr )
     {
         CvMatND* mat = (CvMatND*)arr;
         int i;
-        int64 total_size = icvPixSize[CV_MAT_TYPE(mat->type)];
+        size_t total_size = icvPixSize[CV_MAT_TYPE(mat->type)];
 
         if( mat->data.ptr != 0 )
             CV_ERROR( CV_StsError, "Data is already allocated" );
@@ -1015,15 +1013,14 @@ cvCreateData( CvArr* arr )
         {
             for( i = mat->dims - 1; i >= 0; i-- )
             {
-                int64 size = (int64)mat->dim[i].step*mat->dim[i].size;
+                size_t size = (size_t)mat->dim[i].step*mat->dim[i].size;
 
                 if( total_size < size )
                     total_size = size;
             }
         }
         
-        assert( total_size >= 0 );
-        CV_CALL( mat->refcount = (int*)cvAlloc( (size_t)total_size +
+        CV_CALL( mat->refcount = (int*)cvAlloc( total_size +
                                         sizeof(int) + CV_MALLOC_ALIGN ));
         mat->data.ptr = (uchar*)cvAlignPtr( mat->refcount + 1, CV_MALLOC_ALIGN );
         *mat->refcount = 1;
@@ -1098,7 +1095,7 @@ cvSetData( CvArr* arr, void* data, int step )
             img->imageData = img->imageDataOrigin = (char*)data;
 
             if( (((int)(size_t)data | step) & 7) == 0 &&
-                cvAlign(img->width * pix_size, 8) == (size_t)step )
+                cvAlign(img->width * pix_size, 8) == step )
             {
                 img->align = 8;
             }
@@ -1499,13 +1496,13 @@ cvGetSubRect( const CvArr* arr, CvMat* submat, CvRect rect )
 
     cvDecRefData( submat );
     */
-    submat->rows = rect.height;
-    submat->cols = rect.width;
-    submat->step = mat->step & (submat->rows > 1 ? -1 : 0);
     submat->data.ptr = mat->data.ptr + (size_t)rect.y*mat->step +
                        rect.x*icvPixSize[CV_MAT_TYPE(mat->type)];
-    submat->type = (mat->type & (submat->cols < mat->cols ? ~CV_MAT_CONT_FLAG : -1)) |
+    submat->step = mat->step & (rect.height > 1 ? -1 : 0);
+    submat->type = (mat->type & (rect.width < mat->cols ? ~CV_MAT_CONT_FLAG : -1)) |
                    (submat->step == 0 ? CV_MAT_CONT_FLAG : 0);
+    submat->rows = rect.height;
+    submat->cols = rect.width;
     submat->refcount = 0;
     res = submat;
     }
@@ -2179,7 +2176,7 @@ cvPtrND( const CvArr* arr, int* idx, int* _type,
 CV_IMPL  CvScalar
 cvGet1D( const CvArr* arr, int idx )
 {
-    CvScalar scalar = {0,0,0,0};
+    CvScalar scalar = {{0,0,0,0}};
 
     CV_FUNCNAME( "cvGet1D" );
 
@@ -2220,7 +2217,7 @@ cvGet1D( const CvArr* arr, int idx )
 CV_IMPL  CvScalar
 cvGet2D( const CvArr* arr, int y, int x )
 {
-    CvScalar scalar = {0,0,0,0};
+    CvScalar scalar = {{0,0,0,0}};
 
     CV_FUNCNAME( "cvGet2D" );
 
@@ -2260,7 +2257,7 @@ cvGet2D( const CvArr* arr, int y, int x )
 CV_IMPL  CvScalar
 cvGet3D( const CvArr* arr, int z, int y, int x )
 {
-    CvScalar scalar = {0,0,0,0};
+    CvScalar scalar = {{0,0,0,0}};
 
     /*CV_FUNCNAME( "cvGet3D" );*/
 
@@ -2289,7 +2286,7 @@ cvGet3D( const CvArr* arr, int z, int y, int x )
 CV_IMPL  CvScalar
 cvGetND( const CvArr* arr, int* idx )
 {
-    CvScalar scalar = {0,0,0,0};
+    CvScalar scalar = {{0,0,0,0}};
 
     /*CV_FUNCNAME( "cvGetND" );*/
 
@@ -3110,13 +3107,17 @@ cvReshape( const CvArr* array, CvMat* header,
 
     total_width = mat->cols * CV_MAT_CN( mat->type );
 
-    if( new_cn > total_width )
+    if( (new_cn > total_width || total_width % new_cn != 0) && new_rows == 0 )
         new_rows = mat->rows * total_width / new_cn;
 
-    if( new_rows != 0 )
+    if( new_rows == 0 || new_rows == mat->rows )
+    {
+        header->rows = mat->rows;
+        header->step = mat->step;
+    }
+    else
     {
         int total_size = total_width * mat->rows;
-
         if( !CV_IS_MAT_CONT( mat->type ))
             CV_ERROR( CV_BadStep,
             "The matrix is not continuous, thus its number of rows can not be changed" );

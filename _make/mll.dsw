@@ -1,0 +1,152 @@
+Microsoft Developer Studio Workspace File, Format Version 6.00
+# WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
+
+###############################################################################
+
+Project: "cv"=..\cv\src\cv.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name cxcore
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "cxcore"=..\cxcore\src\cxcore.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "highgui"=..\otherlibs\highgui\highgui.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name cxcore
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "ml"=..\ml\make\ml.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name cxcore
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mlsample"=..\samples\ml_c\mlsample.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name cxcore
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ml
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name highgui
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name cv
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "mltest"=..\tests\ml\src\mltest.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name trs
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name cxcore
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ml
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "trs"=..\tests\trs\trs.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "vclassifiers"=..\apps\vclassifiers\vclassifiers.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name cxcore
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name highgui
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name ml
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Global:
+
+Package=<5>
+{{{
+}}}
+
+Package=<3>
+{{{
+}}}
+
+###############################################################################
+

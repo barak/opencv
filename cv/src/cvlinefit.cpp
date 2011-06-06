@@ -42,10 +42,6 @@
 
 #define _FP double
 
-#if _MSC_VER >= 1200
-#pragma warning (disable:4701)
-#endif
-
 static CvStatus
 icvFitLine2D_wods( CvPoint2D32f * points, int _count, float *weights, float *line )
 {
@@ -106,7 +102,6 @@ static CvStatus
 icvFitLine3D_wods( CvPoint3D32f * points, int count, float *weights, float *line )
 {
     int i;
-    CvStatus ret;
     float w0 = 0;
     float x0 = 0, y0 = 0, z0 = 0;
     float x2 = 0, y2 = 0, z2 = 0, xy = 0, yz = 0, xz = 0;
@@ -191,13 +186,13 @@ icvFitLine3D_wods( CvPoint3D32f * points, int count, float *weights, float *line
 
     /* Searching for a eigenvector of det corresponding to the minimal eigenvalue */
 #if 1
-    ret = icvJacobiEigens_32f( det, evc, evl, 3, 0 );
-    if( ret != CV_NO_ERR )
     {
-        return ret;
-    }
-
+    CvMat _det = cvMat( 3, 3, CV_32F, det );
+    CvMat _evc = cvMat( 3, 3, CV_32F, evc );
+    CvMat _evl = cvMat( 3, 1, CV_32F, evl );
+    cvEigenVV( &_det, &_evc, &_evl, 0 ); 
     i = evl[0] < evl[1] ? (evl[0] < evl[2] ? 0 : 2) : (evl[1] < evl[2] ? 1 : 2);
+    }
 #else
     {
         CvMat _det = cvMat( 3, 3, CV_32F, det );
@@ -647,27 +642,15 @@ cvFitLine( const CvArr* array, int dist, double param,
     else
     {
         CV_CALL( buffer = points = (char*)cvAlloc( ptseq->total*CV_ELEM_SIZE(type) ));
-        
-        if( CV_MAT_DEPTH(type) == CV_32F )
-        {
-            CV_CALL( cvCvtSeqToArray( ptseq, points, CV_WHOLE_SEQ ));
-        }
-        else
-        {
-            /* convert sequence to 32f */
-            float* fldata = (float*)points;
-            CvSeqBlock* block = ptseq->first;
+        CV_CALL( cvCvtSeqToArray( ptseq, points, CV_WHOLE_SEQ ));
 
-            do
-            {
-                int* idata = (int*)block->data;
-                int i, count = block->count*CV_MAT_CN(type);
-                for( i = 0; i < count; i++ )
-                    fldata[i] = (float)idata[i];
-                block = block->next;
-                fldata += count;
-            }
-            while( block != ptseq->first );
+        if( CV_MAT_DEPTH(type) != CV_32F )
+        {
+            int i, total = ptseq->total*CV_MAT_CN(type);
+            assert( CV_MAT_DEPTH(type) == CV_32S );
+
+            for( i = 0; i < total; i++ )
+                ((float*)points)[i] = (float)((int*)points)[i];
         }
     }
 

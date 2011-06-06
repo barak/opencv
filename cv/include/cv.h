@@ -47,10 +47,12 @@
 #define HAVE_IPL
 #endif
 
-#if defined(_CH_)
-#pragma package <opencv>
-#include <chdl.h>
-LOAD_CHDL_CODE(cv,Cv)
+#ifndef SKIP_INCLUDES
+  #if defined(_CH_)
+    #pragma package <chopencv>
+    #include <chdl.h>
+    LOAD_CHDL(cv)
+  #endif
 #endif
 
 #include "cxcore.h"
@@ -63,6 +65,11 @@ extern "C" {
 /****************************************************************************************\
 *                                    Image Processing                                    *
 \****************************************************************************************/
+
+/* Copies source 2D array into interior of destination array and makes a border
+   (of type IPL_BORDER_CONSTANT or IPL_BORDER_REPLICATE) around the copied area. */
+CVAPI(void) cvCopyMakeBorder( const CvArr* src, CvArr* dst, CvPoint offset,
+                              int bordertype, CvScalar value CV_DEFAULT(cvScalarAll(0)));
 
 #define CV_BLUR_NO_SCALE 0
 #define CV_BLUR  1
@@ -80,7 +87,7 @@ CVAPI(void) cvSmooth( const CvArr* src, CvArr* dst,
 /* Linear filter */
 CVAPI(void) cvFilter2D( const CvArr* src, CvArr* dst, const CvMat* kernel,
                         CvPoint anchor CV_DEFAULT(cvPoint(-1,-1)));
-#define cvConvolve2D cvFilter2D
+
 
 /* Finds integral image: SUM(X,Y) = sum(x<X,y<Y)I(x,y) */
 CVAPI(void) cvIntegral( const CvArr* image, CvArr* sum,
@@ -212,7 +219,22 @@ CVAPI(void) cvLaplace( const CvArr* src, CvArr* dst,
 #define  CV_BayerRG2RGB CV_BayerBG2BGR
 #define  CV_BayerGR2RGB CV_BayerGB2BGR
 
-#define  CV_COLORCVT_MAX  56
+#define  CV_BGR2Luv     50
+#define  CV_RGB2Luv     51
+#define  CV_BGR2HLS     52
+#define  CV_RGB2HLS     53
+
+#define  CV_HSV2BGR     54
+#define  CV_HSV2RGB     55
+
+#define  CV_Lab2BGR     56
+#define  CV_Lab2RGB     57
+#define  CV_Luv2BGR     58
+#define  CV_Luv2RGB     59
+#define  CV_HLS2BGR     60
+#define  CV_HLS2RGB     61
+
+#define  CV_COLORCVT_MAX  100
 
 /* Converts input array from one color space to another */
 CVAPI(void)  cvCvtColor( const CvArr* src, CvArr* dst, int code );
@@ -247,6 +269,16 @@ CVAPI(void)  cvWarpPerspective( const CvArr* src, CvArr* dst, const CvMat* map_m
 CVAPI(CvMat*) cvWarpPerspectiveQMatrix( const CvPoint2D32f* src,
                                        const CvPoint2D32f* dst,
                                        CvMat* map_matrix );
+
+/* Performs generic geometric transformation using the specified coordinate maps */
+CVAPI(void)  cvRemap( const CvArr* src, CvArr* dst,
+                      const CvArr* mapx, const CvArr* mapy,
+                      int flags CV_DEFAULT(CV_INTER_LINEAR+CV_WARP_FILL_OUTLIERS),
+                      CvScalar fillval CV_DEFAULT(cvScalarAll(0)) );
+
+CVAPI(void)  cvLogPolar( const CvArr* src, CvArr* dst,
+                         CvPoint2D32f center, double M,
+                         int flags CV_DEFAULT(CV_INTER_LINEAR+CV_WARP_FILL_OUTLIERS));
 
 #define  CV_SHAPE_RECT      0
 #define  CV_SHAPE_CROSS     1
@@ -300,22 +332,6 @@ CVAPI(void) cvGetHuMoments( CvMoments*  moments, CvHuMoments*  hu_moments );
 
 /*********************************** data sampling **************************************/
 
-/* Initializes line iterator. Initially ptr will point to pt1 location in the array.
-   Returns the number of points on the line between the endings. */
-CVAPI(int)  cvInitLineIterator( const CvArr* image, CvPoint pt1, CvPoint pt2,
-                                CvLineIterator* line_iterator,
-                                int connectivity CV_DEFAULT(8));
-
-/* Moves iterator to the next line point */
-#define CV_NEXT_LINE_POINT( line_iterator )                         \
-{                                                                   \
-    int mask =  (line_iterator).err < 0 ? -1 : 0;                   \
-    (line_iterator).err += (line_iterator).minus_delta +            \
-                            ((line_iterator).plus_delta & mask);    \
-    (line_iterator).ptr += (line_iterator).minus_step +             \
-                            ((line_iterator).plus_step & mask);     \
-}
-
 /* Grabs the raster line data into the destination buffer.
    Returns the number of retrieved points. */
 CVAPI(int)  cvSampleLine( const CvArr* image, CvPoint pt1, CvPoint pt2, void* buffer,
@@ -333,9 +349,7 @@ CVAPI(void)  cvGetRectSubPix( const CvArr* src, CvArr* dst, CvPoint2D32f center 
                                      with fractional coordinates)
 */
 CVAPI(void)  cvGetQuadrangleSubPix( const CvArr* src, CvArr* dst,
-                                    const CvMat* map_matrix,
-                                    int fill_outliers CV_DEFAULT(0),
-                                    CvScalar fill_value CV_DEFAULT(cvScalarAll(0)));
+                                    const CvMat* map_matrix );
 
 /* Methods for comparing two array */
 #define  CV_TM_SQDIFF        0
@@ -581,7 +595,6 @@ CVAPI(CvSubdiv2D*)  cvCreateSubdiv2D( int subdiv_type, int header_size,
 /************************* high-level subdivision functions ***************************/
 
 /* Simplified Delaunay diagram creation */
-CV_INLINE  CvSubdiv2D* cvCreateSubdivDelaunay2D( CvRect rect, CvMemStorage* storage );
 CV_INLINE  CvSubdiv2D* cvCreateSubdivDelaunay2D( CvRect rect, CvMemStorage* storage )
 {
     CvSubdiv2D* subdiv = cvCreateSubdiv2D( CV_SEQ_KIND_SUBDIV2D, sizeof(*subdiv),
@@ -617,26 +630,22 @@ CVAPI(CvSubdiv2DPoint*) cvFindNearestPoint2D( CvSubdiv2D* subdiv, CvPoint2D32f p
 
 /************ Basic quad-edge navigation and operations ************/
 
-CV_INLINE  CvSubdiv2DEdge  cvSubdiv2DNextEdge( CvSubdiv2DEdge edge );
 CV_INLINE  CvSubdiv2DEdge  cvSubdiv2DNextEdge( CvSubdiv2DEdge edge )
 {
     return  CV_SUBDIV2D_NEXT_EDGE(edge);
 }
 
 
-CV_INLINE  CvSubdiv2DEdge  cvSubdiv2DRotateEdge( CvSubdiv2DEdge edge, int rotate );
 CV_INLINE  CvSubdiv2DEdge  cvSubdiv2DRotateEdge( CvSubdiv2DEdge edge, int rotate )
 {
     return  (edge & ~3) + ((edge + rotate) & 3);
 }
 
-CV_INLINE  CvSubdiv2DEdge  cvSubdiv2DSymEdge( CvSubdiv2DEdge edge );
 CV_INLINE  CvSubdiv2DEdge  cvSubdiv2DSymEdge( CvSubdiv2DEdge edge )
 {
     return edge ^ 2;
 }
 
-CV_INLINE  CvSubdiv2DEdge  cvSubdiv2DGetEdge( CvSubdiv2DEdge edge, CvNextEdgeType type );
 CV_INLINE  CvSubdiv2DEdge  cvSubdiv2DGetEdge( CvSubdiv2DEdge edge, CvNextEdgeType type )
 {
     CvQuadEdge2D* e = (CvQuadEdge2D*)(edge & ~3);
@@ -645,7 +654,6 @@ CV_INLINE  CvSubdiv2DEdge  cvSubdiv2DGetEdge( CvSubdiv2DEdge edge, CvNextEdgeTyp
 }
 
 
-CV_INLINE  CvSubdiv2DPoint*  cvSubdiv2DEdgeOrg( CvSubdiv2DEdge edge );
 CV_INLINE  CvSubdiv2DPoint*  cvSubdiv2DEdgeOrg( CvSubdiv2DEdge edge )
 {
     CvQuadEdge2D* e = (CvQuadEdge2D*)(edge & ~3);
@@ -653,7 +661,6 @@ CV_INLINE  CvSubdiv2DPoint*  cvSubdiv2DEdgeOrg( CvSubdiv2DEdge edge )
 }
 
 
-CV_INLINE  CvSubdiv2DPoint*  cvSubdiv2DEdgeDst( CvSubdiv2DEdge edge );
 CV_INLINE  CvSubdiv2DPoint*  cvSubdiv2DEdgeDst( CvSubdiv2DEdge edge )
 {
     CvQuadEdge2D* e = (CvQuadEdge2D*)(edge & ~3);
@@ -661,7 +668,6 @@ CV_INLINE  CvSubdiv2DPoint*  cvSubdiv2DEdgeDst( CvSubdiv2DEdge edge )
 }
 
 
-CV_INLINE  double  cvTriangleArea( CvPoint2D32f a, CvPoint2D32f b, CvPoint2D32f c );
 CV_INLINE  double  cvTriangleArea( CvPoint2D32f a, CvPoint2D32f b, CvPoint2D32f c )
 {
     return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
@@ -691,7 +697,7 @@ CVAPI(CvSeq*) cvFindDominantPoints( CvSeq* contour, CvMemStorage* storage,
                                    double parameter3 CV_DEFAULT(0),
                                    double parameter4 CV_DEFAULT(0));
 
-/* Calculates perimeter of a contour or a part of contour */
+/* Calculates perimeter of a contour or length of a part of contour */
 CVAPI(double)  cvArcLength( const void* curve,
                             CvSlice slice CV_DEFAULT(CV_WHOLE_SEQ),
                             int is_closed CV_DEFAULT(-1));
@@ -766,6 +772,19 @@ CVAPI(CvRect)  cvMaxRect( const CvRect* rect1, const CvRect* rect2 );
 /* Finds coordinates of the box vertices */
 CVAPI(void) cvBoxPoints( CvBox2D box, CvPoint2D32f pt[4] );
 
+/* Initializes sequence header for a matrix (column or row vector) of points -
+   a wrapper for cvMakeSeqHeaderForArray (it does not initialize bounding rectangle!!!) */
+CVAPI(CvSeq*) cvPointSeqFromMat( int seq_kind, const CvArr* mat,
+                                 CvContour* contour_header,
+                                 CvSeqBlock* block );
+
+/* Checks whether the point is inside polygon, outside, on an edge (at a vertex).
+   Returns positive, negative or zero value, correspondingly.
+   Optionally, measures a signed distance between
+   the point and the nearest polygon edge (measure_dist=1) */
+CVAPI(double) cvPointPolygonTest( const CvArr* contour,
+                                  CvPoint2D32f pt, int measure_dist );
+
 /****************************************************************************************\
 *                                  Histogram functions                                   *
 \****************************************************************************************/
@@ -806,9 +825,10 @@ CVAPI(void)  cvNormalizeHist( CvHistogram* hist, double factor );
 /* Clear all histogram bins that are below the threshold */
 CVAPI(void)  cvThreshHist( CvHistogram* hist, double threshold );
 
-#define CV_COMP_CORREL      0
-#define CV_COMP_CHISQR      1
-#define CV_COMP_INTERSECT   2
+#define CV_COMP_CORREL        0
+#define CV_COMP_CHISQR        1
+#define CV_COMP_INTERSECT     2
+#define CV_COMP_BHATTACHARYYA 3
 
 /* Compares two histogram */
 CVAPI(double)  cvCompareHist( const CvHistogram* hist1,
@@ -832,9 +852,7 @@ CVAPI(void)  cvCalcArrHist( CvArr** arr, CvHistogram* hist,
 
 CV_INLINE  void  cvCalcHist( IplImage** image, CvHistogram* hist,
                              int accumulate CV_DEFAULT(0),
-                             const CvArr* mask CV_DEFAULT(NULL) );
-CV_INLINE  void  cvCalcHist( IplImage** image, CvHistogram* hist,
-                             int accumulate, const CvArr* mask )
+                             const CvArr* mask CV_DEFAULT(NULL) )
 {
     cvCalcArrHist( (CvArr**)image, hist, accumulate, mask );
 }
@@ -858,6 +876,9 @@ CVAPI(void)  cvCalcArrBackProjectPatch( CvArr** image, CvArr* dst, CvSize range,
 CVAPI(void)  cvCalcProbDensity( const CvHistogram* hist1, const CvHistogram* hist2,
                                 CvHistogram* dst_hist, double scale CV_DEFAULT(255) );
 
+/* equalizes histogram of 8-bit single-channel image */
+CVAPI(void)  cvEqualizeHist( const CvArr* src, CvArr* dst );
+
 
 #define  CV_VALUE  1
 #define  CV_ARRAY  2
@@ -880,7 +901,8 @@ CVAPI(void)  cvCalcImageHomography( float* line, CvPoint3D32f* center,
 CVAPI(void)  cvDistTransform( const CvArr* src, CvArr* dst,
                               int distance_type CV_DEFAULT(CV_DIST_L2),
                               int mask_size CV_DEFAULT(3),
-                              const float* mask CV_DEFAULT(NULL));
+                              const float* mask CV_DEFAULT(NULL),
+                              CvArr* labels CV_DEFAULT(NULL));
 
 
 /* Types of thresholding */
@@ -936,14 +958,20 @@ CVAPI(void) cvPreCornerDetect( const CvArr* image, CvArr* corners,
                               int aperture_size CV_DEFAULT(3) );
 
 /* Calculates eigen values and vectors of 2x2
-   gradient matrix at every image pixel */
+   gradient covariation matrix at every image pixel */
 CVAPI(void)  cvCornerEigenValsAndVecs( const CvArr* image, CvArr* eigenvv,
                                       int block_size, int aperture_size CV_DEFAULT(3) );
 
-/* Calculates minimal eigenvalue for 2x2 gradient matrix at
+/* Calculates minimal eigenvalue for 2x2 gradient covariation matrix at
    every image pixel */
 CVAPI(void)  cvCornerMinEigenVal( const CvArr* image, CvArr* eigenval,
                                  int block_size, int aperture_size CV_DEFAULT(3) );
+
+/* Harris corner detector:
+   Calculates det(M) - k*(trace(M)^2), where M is 2x2 gradient covariation matrix for each pixel */
+CVAPI(void)  cvCornerHarris( const CvArr* image, CvArr* harris_responce,
+                             int block_size, int aperture_size CV_DEFAULT(3),
+                             double k CV_DEFAULT(0.04) );
 
 /* Adjust corner position using some sort of gradient search */
 CVAPI(void)  cvFindCornerSubPix( const CvArr* image, CvPoint2D32f* corners,
@@ -956,11 +984,15 @@ CVAPI(void)  cvGoodFeaturesToTrack( const CvArr* image, CvArr* eig_image,
                                    CvArr* temp_image, CvPoint2D32f* corners,
                                    int* corner_count, double  quality_level,
                                    double  min_distance,
-                                   const CvArr* mask CV_DEFAULT(NULL));
+                                   const CvArr* mask CV_DEFAULT(NULL),
+                                   int block_size CV_DEFAULT(3),
+                                   int use_harris CV_DEFAULT(0),
+                                   double k CV_DEFAULT(0.04) );
 
 #define CV_HOUGH_STANDARD 0
 #define CV_HOUGH_PROBABILISTIC 1
 #define CV_HOUGH_MULTI_SCALE 2
+#define CV_HOUGH_GRADIENT 3
 
 /* Finds lines on binary image using one of several methods.
    line_storage is either memory storage or 1 x <max number of lines> CvMat, its
@@ -972,6 +1004,12 @@ CVAPI(void)  cvGoodFeaturesToTrack( const CvArr* image, CvArr* eig_image,
 CVAPI(CvSeq*)  cvHoughLines2( CvArr* image, void* line_storage, int method, 
                               double rho, double theta, int threshold,
                               double param1 CV_DEFAULT(0), double param2 CV_DEFAULT(0));
+
+/* Finds circles in the image */
+CVAPI(CvSeq*) cvHoughCircles( CvArr* src_image, void* circle_storage,
+                              int method, double dp, double min_dist,
+                              double param1 CV_DEFAULT(100),
+                              double param2 CV_DEFAULT(100));
 
 /* Fits a line into set of 2d or 3d points in a robust way (M-estimator technique) */
 CVAPI(void)  cvFitLine( const CvArr* points, int dist_type, double param,
@@ -989,6 +1027,7 @@ CVAPI(CvHaarClassifierCascade*) cvLoadHaarClassifierCascade(
 CVAPI(void) cvReleaseHaarClassifierCascade( CvHaarClassifierCascade** cascade );
 
 #define CV_HAAR_DO_CANNY_PRUNING 1
+#define CV_HAAR_SCALE_IMAGE      2
 
 CVAPI(CvSeq*) cvHaarDetectObjects( const CvArr* image,
                      CvHaarClassifierCascade* cascade,
@@ -1009,118 +1048,75 @@ CVAPI(int) cvRunHaarClassifierCascade( CvHaarClassifierCascade* cascade,
 *                     Camera Calibration and Rectification functions                     *
 \****************************************************************************************/
 
-/* The function corrects radial and tangential image distortion using known
-   matrix of the camera intrinsic parameters and distortion coefficients */
-CVAPI(void)  cvUnDistortOnce( const CvArr* src, CvArr* dst,
-                              const float* intrinsic_matrix,
-                              const float* distortion_coeffs,
-                              int interpolate CV_DEFAULT(1) );
+/* transforms the input image to compensate lens distortion */
+CVAPI(void) cvUndistort2( const CvArr* src, CvArr* dst,
+                          const CvMat* intrinsic_matrix,
+                          const CvMat* distortion_coeffs );
 
-/* The function calculates map of distorted points indices and
-   interpolation coefficients for cvUnDistort function using known
-   matrix of the camera intrinsic parameters and distortion coefficients */
-CVAPI(void)  cvUnDistortInit( const CvArr* src, CvArr* undistortion_map,
-                              const float* intrinsic_matrix,
-                              const float* distortion_coeffs,
-                              int interpolate CV_DEFAULT(1) );
+/* computes transformation map from intrinsic camera parameters
+   that can used by cvRemap */
+CVAPI(void) cvInitUndistortMap( const CvMat* intrinsic_matrix,
+                                const CvMat* distortion_coeffs,
+                                CvArr* mapx, CvArr* mapy );
 
-/* The function corrects radial and tangential image distortion
-   using previousely calculated (via cvUnDistortInit) map */
-CVAPI(void)  cvUnDistort( const CvArr* src, CvArr* dst, const CvArr* undistortion_map,
-                          int interpolate CV_DEFAULT(1));
-#define cvRemap cvUnDistort
+/* converts rotation vector to rotation matrix or vice versa */
+CVAPI(int) cvRodrigues2( const CvMat* src, CvMat* dst,
+                         CvMat* jacobian CV_DEFAULT(0) );
 
+/* finds perspective transformation between the object plane and image (view) plane */
+CVAPI(void) cvFindHomography( const CvMat* src_points,
+                              const CvMat* dst_points,
+                              CvMat* homography );
 
-/* The function converts floating-point pixel coordinate map to
-   faster fixed-point map, used by cvUnDistort (cvRemap) */
-CVAPI(void)  cvConvertMap( const CvArr* src, const CvArr* map_xy,
-                           CvArr* map_fast, int iterpolate CV_DEFAULT(1) );
+/* projects object points to the view plane using
+   the specified extrinsic and intrinsic camera parameters */
+CVAPI(void) cvProjectPoints2( const CvMat* object_points, const CvMat* rotation_vector,
+                              const CvMat* translation_vector, const CvMat* intrinsic_matrix,
+                              const CvMat* distortion_coeffs, CvMat* image_points,
+                              CvMat* dpdrot CV_DEFAULT(NULL), CvMat* dpdt CV_DEFAULT(NULL),
+                              CvMat* dpdf CV_DEFAULT(NULL), CvMat* dpdc CV_DEFAULT(NULL),
+                              CvMat* dpddist CV_DEFAULT(NULL) );
 
-/* Calibrates camera using multiple views of calibration pattern */
-CVAPI(void)  cvCalibrateCamera( int           image_count,
-                                int*          point_counts,
-                                CvSize        image_size,
-                                CvPoint2D32f* image_points,
-                                CvPoint3D32f* object_points,
-                                CvVect32f     distortion_coeffs,
-                                CvMatr32f     camera_matrix,
-                                CvVect32f     translation_vectors,
-                                CvMatr32f     rotation_matrixes,
-                                int           use_intrinsic_guess);
+/* finds extrinsic camera parameters from
+   a few known corresponding point pairs and intrinsic parameters */
+CVAPI(void) cvFindExtrinsicCameraParams2( const CvMat* object_points,
+                                          const CvMat* image_points,
+                                          const CvMat* intrinsic_matrix,
+                                          const CvMat* distortion_coeffs,
+                                          CvMat* rotation_vector,
+                                          CvMat* translation_vector );
 
-/* Variant of the previous function that takes double-precision parameters */
-CVAPI(void)  cvCalibrateCamera_64d( int           image_count,
-                                    int*          point_counts,
-                                    CvSize        image_size,
-                                    CvPoint2D64d* image_points,
-                                    CvPoint3D64d* object_points,
-                                    CvVect64d     distortion_coeffs,
-                                    CvMatr64d     camera_matrix,
-                                    CvVect64d     translation_vectors,
-                                    CvMatr64d     rotation_matrixes,
-                                    int           use_intrinsic_guess);
+#define CV_CALIB_USE_INTRINSIC_GUESS  1
+#define CV_CALIB_FIX_ASPECT_RATIO     2
+#define CV_CALIB_FIX_PRINCIPAL_POINT  4
+#define CV_CALIB_ZERO_TANGENT_DIST    8
 
-/* Find 3d position of object given intrinsic camera parameters,
-   3d model of the object and projection of the object into view plane */
-CVAPI(void)  cvFindExtrinsicCameraParams( int           point_count,
-                                          CvSize        image_size,
-                                          CvPoint2D32f* image_points,
-                                          CvPoint3D32f* object_points,
-                                          CvVect32f     focal_length,
-                                          CvPoint2D32f  principal_point,
-                                          CvVect32f     distortion_coeffs,
-                                          CvVect32f     rotation_vector,
-                                          CvVect32f     translation_vector);
+/* finds intrinsic and extrinsic camera parameters
+   from a few views of known calibration pattern */
+CVAPI(void) cvCalibrateCamera2( const CvMat* object_points,
+                                const CvMat* image_points,
+                                const CvMat* point_counts,
+                                CvSize image_size,
+                                CvMat* intrinsic_matrix,
+                                CvMat* distortion_coeffs,
+                                CvMat* rotation_vectors CV_DEFAULT(NULL),
+                                CvMat* translation_vectors CV_DEFAULT(NULL),
+                                int flags CV_DEFAULT(0) );
 
-/* Variant of the previous function that takes double-precision parameters */
-CVAPI(void)  cvFindExtrinsicCameraParams_64d( int           point_count,
-                                              CvSize        image_size,
-                                              CvPoint2D64d* image_points,
-                                              CvPoint3D64d* object_points,
-                                              CvVect64d     focal_length,
-                                              CvPoint2D64d  principal_point,
-                                              CvVect64d     distortion_coeffs,
-                                              CvVect64d     rotation_vector,
-                                              CvVect64d     translation_vector);
+#define CV_CALIB_CB_ADAPTIVE_THRESH  1
+#define CV_CALIB_CB_NORMALIZE_IMAGE  2
+#define CV_CALIB_CB_FILTER_QUADS     4 
 
+/* Detects corners on a chessboard calibration pattern */
+CVAPI(int) cvFindChessboardCorners( const void* image, CvSize pattern_size,
+                                    CvPoint2D32f* corners,
+                                    int* corner_count CV_DEFAULT(NULL),
+                                    int flags CV_DEFAULT(CV_CALIB_CB_ADAPTIVE_THRESH) );
 
-/* Rodrigues transform */
-#define CV_RODRIGUES_M2V  0
-#define CV_RODRIGUES_V2M  1
-
-/* Converts rotation_matrix matrix to rotation_matrix vector or vice versa */
-CVAPI(void)  cvRodrigues( CvMat* rotation_matrix, CvMat* rotation_vector,
-                          CvMat* jacobian, int conv_type);
-
-/* Does reprojection of 3d object points to the view plane */
-CVAPI(void)  cvProjectPoints( int             point_count,
-                              CvPoint3D64d*   object_points,
-                              CvVect64d       rotation_vector,
-                              CvVect64d       translation_vector,
-                              CvVect64d       focal_length,
-                              CvPoint2D64d    principal_point,
-                              CvVect64d       distortion,
-                              CvPoint2D64d*   image_points,
-                              CvVect64d       deriv_points_rotation_matrix,
-                              CvVect64d       deriv_points_translation_vect,
-                              CvVect64d       deriv_points_focal,
-                              CvVect64d       deriv_points_principal_point,
-                              CvVect64d       deriv_points_distortion_coeffs);
-
-/* Simpler version of the previous function */
-CVAPI(void) cvProjectPointsSimple( int point_count,
-                                  CvPoint3D64d * object_points,
-                                  CvVect64d rotation_matrix,
-                                  CvVect64d translation_vector,
-                                  CvMatr64d camera_matrix,
-                                  CvVect64d distortion,
-                                  CvPoint2D64d* image_points);
-                                    
-/* Detects corners on a chess-board */
-CVAPI(int)  cvFindChessBoardCornerGuesses( const CvArr* image, CvArr* thresh,
-                                           CvMemStorage* storage, CvSize board_size,
-                                           CvPoint2D32f* corners,
-                                           int* corner_count CV_DEFAULT(NULL));
+/* Draws individual chessboard corners or the whole chessboard detected */
+CVAPI(void) cvDrawChessboardCorners( CvArr* image, CvSize pattern_size,
+                                     CvPoint2D32f* corners,
+                                     int count, int pattern_was_found );
 
 typedef struct CvPOSITObject CvPOSITObject;
 
@@ -1141,19 +1137,21 @@ CVAPI(void)  cvReleasePOSITObject( CvPOSITObject**  posit_object );
 /****************************************************************************************\
 *                                 Epipolar Geometry                                      *
 \****************************************************************************************/
-CVAPI(void) cvMake2DPoints( CvMat* src, CvMat* dst );
-CVAPI(void) cvMake3DPoints( CvMat* src, CvMat* dst );
-CVAPI(int) cvSolveCubic( CvMat* coeffs, CvMat* roots );
+
+CVAPI(void) cvConvertPointsHomogenious( const CvMat* src, CvMat* dst );
 
 /* Calculates fundamental matrix given a set of corresponding points */
 #define CV_FM_7POINT 1
 #define CV_FM_8POINT 2
-#define CV_FM_RANSAC 3
-#define CV_FM_LMEDS  4 
-CVAPI(int) cvFindFundamentalMat( CvMat* points1, CvMat* points2,
-                                 CvMat* fundamental_matrix, int method,
-                                 double param1, double param2,
-                                 CvMat* status CV_DEFAULT(0) );
+#define CV_FM_LMEDS_ONLY  4
+#define CV_FM_RANSAC_ONLY 8
+#define CV_FM_LMEDS (CV_FM_LMEDS_ONLY + CV_FM_8POINT)
+#define CV_FM_RANSAC (CV_FM_RANSAC_ONLY + CV_FM_8POINT)
+CVAPI(int) cvFindFundamentalMat( const CvMat* points1, const CvMat* points2,
+                                 CvMat* fundamental_matrix,
+                                 int method CV_DEFAULT(CV_FM_RANSAC),
+                                 double param1 CV_DEFAULT(1.), double param2 CV_DEFAULT(0.99),
+                                 CvMat* status CV_DEFAULT(NULL) );
 
 /* For each input point on one of images
    computes parameters of the corresponding
@@ -1171,7 +1169,7 @@ CVAPI(void) cvComputeCorrespondEpilines( const CvMat* points,
 *                                 Backward compatibility                                 *
 \****************************************************************************************/
 
-#ifndef _CV_NO_BACKWARD_COMPATIBILITY
+#ifndef CV_NO_BACKWARD_COMPATIBILITY
 #include "cvcompat.h"
 #endif
 

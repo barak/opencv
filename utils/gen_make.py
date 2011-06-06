@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # The script that creates Makefiles for several compilers from DSP files
 #
@@ -76,7 +77,7 @@ bcc.exeflags_all = " -tWC -e$(OUTBIN) "
 bcc.linkpoststep = "implib $(OUTLIB) $(OUTBIN)"
 bcc.make = "make"
 bcc.lib_synonyms.update({ "zlib" : "zlib_bcc", "libpng" : "libpng_bcc",
-                     "libjpeg" : "libjpeg_bcc", "libtiff" : "libtiff_bcc" })
+                     "libjpeg" : "libjpeg_bcc", "libtiff" : "libtiff_bcc", "vfw32" : "" })
 
 gcc = CXX_Compiler("gcc")
 gcc.desc = "GNU C/C++ 3.x or later"
@@ -116,7 +117,7 @@ def create_makefile( dsppath, level, cxx, outfilename ):
 
     # find out if it is DLL or EXE
     for line in dspfile:
-        if re.match( r"^# ADD LINK32.+", line ):
+        if re.match( r"^# ADD LINK32.+", line ) and line.find("AMD64") < 0 and line.find("IA64") < 0:
             n = re.findall( r'/out:"(.+?)d\.(dll|exe)"', line )
             if n and n[0]:
                 dllpath = n[0][0] + "$(SUFFIX)." + n[0][1]
@@ -173,7 +174,7 @@ def create_makefile( dsppath, level, cxx, outfilename ):
             continue
 
         # compiler options
-        if re.match( r"^# ADD CPP.+", line ):
+        if re.match( r"^# ADD CPP.+", line ) and line.find("WIN64") < 0:
             # fetch a list of include directories
             incs = re.findall( r'/I\s*"(\S+)\s+', line )
             for inc in incs:
@@ -194,14 +195,15 @@ def create_makefile( dsppath, level, cxx, outfilename ):
             continue
 
         # linker options
-        if re.match( r"# ADD LINK32.+", line ):
+        if re.match( r"# ADD LINK32.+", line ) and line.find("AMD64") < 0 and line.find("IA64") < 0:
             # fetch list of libraries
             libs_str = ""
             lib_list = re.findall( r"(\w+)\.lib ", line )
 
             for lib_link in lib_list:
                 lib_link = cxx.lib_synonyms.get( lib_link.lower(), lib_link )
-                libs_str = libs_str + cxx.lib_link + lib_link.lower() + cxx.lib_link_ext + " "
+                if lib_link:
+                    libs_str = libs_str + cxx.lib_link + lib_link.lower() + cxx.lib_link_ext + " "
 
             if re.search( r'/out:".+?d\.(dll|exe)"', line ):
                 libs_debug= libs_str

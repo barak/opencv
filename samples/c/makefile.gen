@@ -3,7 +3,7 @@ CXXFLAGS = $(CXXFLAGS0) $(INC)"..\..\cxcore\include" $(INC)"..\..\cv\include" $(
 all: camshiftdemo.exe contours.exe convexhull.exe delaunay.exe demhist.exe \
      distrans.exe drawing.exe edge.exe facedetect.exe ffilldemo.exe \
      fitellipse.exe kalman.exe kmeans.exe laplace.exe lkdemo.exe minarea.exe \
-     morphology.exe motempl.exe pyramid_segmentation.exe squares.exe
+     morphology.exe motempl.exe pyramid_segmentation.exe squares.exe convert_cascade.exe
 
 clean:
 	del *.exe *.tds *.obj *.o *.out *.ilk *.pdb
@@ -13,6 +13,9 @@ camshiftdemo.exe: camshiftdemo.c
 
 contours.exe: contours.c
 	-$(CXX) $(CXXFLAGS) $(LINK1) $(OUT)contours.exe contours.c $(LINK2)
+
+convert_cascade.exe: convert_cascade.c
+	-$(CXX) $(CXXFLAGS) $(LINK1) $(OUT)convert_cascade.exe convert_cascade.c $(LINK2)
 
 convexhull.exe: convexhull.c
 	-$(CXX) $(CXXFLAGS) $(LINK1) $(OUT)convexhull.exe convexhull.c $(LINK2)

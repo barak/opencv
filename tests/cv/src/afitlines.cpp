@@ -45,9 +45,9 @@
 #include <math.h>
 #include <float.h>
 
-static const int LF_FITLINE2D = 1;
-static const int LF_FITLINE3D = 2;
-static const int LF_PROJECT = 3;
+#define LF_FITLINE2D (size_t)1
+#define LF_FITLINE3D (size_t)2
+#define LF_PROJECT   (size_t)3
 
 static char* func_names[] = {"cvFitLine2D", "cvFitLine3D", "cvProject3D"};
 static char* test_desc[] = { "Run the line fitting and projection functions"};
@@ -65,7 +65,7 @@ int test_lf(void* arg)
     float reps = 0.0f, aeps = 0.0f;
     float line[6];
     int ret = 1;
-    int type = int(arg);
+    int type = (int)(size_t)arg;
 
     /* Initialize the data */
     int i;

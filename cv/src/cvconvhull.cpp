@@ -77,7 +77,7 @@ icvSklansky_32s( CvPoint** array, int start, int end, int* stack, int nsign, int
             int ay = cury - array[pprev]->y;
             int convexity = ay*bx - ax*by;/* if >0 then convex angle */
 
-            if( CV_SIGN(convexity) != -sign2 && (ax != 0 || ay != 0))
+            if( CV_SIGN(convexity) == sign2 && (ax != 0 || ay != 0) )
             {
                 pprev = pcur;
                 pcur = pnext;
@@ -150,7 +150,7 @@ icvSklansky_32f( CvPoint2D32f** array, int start, int end, int* stack, int nsign
             float ay = cury - array[pprev]->y;
             float convexity = ay*bx - ax*by;/* if >0 then convex angle */
 
-            if( CV_SIGN( convexity ) != -sign2 && (ax != 0 || ay != 0))
+            if( CV_SIGN( convexity ) == sign2 && (ax != 0 || ay != 0) )
             {
                 pprev = pcur;
                 pcur = pnext;
@@ -191,7 +191,7 @@ typedef int (*sklansky_func)( CvPoint** points, int start, int end,
                               int* stack, int sign, int sign2 );
 
 #define cmp_pts( pt1, pt2 )  \
-    ((pt1)->x < (pt2)->x || (pt1)->x == (pt2)->x && (pt1)->y < (pt2)->y)
+    ((pt1)->x < (pt2)->x || (pt1)->x <= (pt2)->x && (pt1)->y < (pt2)->y)
 static CV_IMPLEMENT_QSORT( icvSortPointsByPointers_32s, CvPoint*, cmp_pts )
 static CV_IMPLEMENT_QSORT( icvSortPointsByPointers_32f, CvPoint2D32f*, cmp_pts )
 
@@ -210,7 +210,7 @@ icvCalcAndWritePtIndices( CvPoint** pointer, int* stack, int start, int end,
     {
         CvPoint* ptr = (CvPoint*)pointer[stack[i]];
         CvSeqBlock* block = ptseq->first;
-        while( (unsigned)(idx = ptr - (CvPoint*)block->data) >= (unsigned)block->count )
+        while( (unsigned)(idx = (int)(ptr - (CvPoint*)block->data)) >= (unsigned)block->count )
         {
             block = block->next;
             if( block == ptseq->first )
@@ -230,6 +230,7 @@ cvConvexHull2( const CvArr* array, void* hull_storage,
 {
     CvSeq* hull = 0;
     CvPoint** pointer = 0;
+    CvPoint2D32f** pointerf = 0;
     int* stack = 0;
     
     CV_FUNCNAME( "cvConvexHull2" );
@@ -246,7 +247,7 @@ cvConvexHull2( const CvArr* array, void* hull_storage,
     int is_float;
     int* t_stack;
     int t_count;
-    int i, miny_ind = 0, maxy_ind = 0;
+    int i, miny_ind = 0, maxy_ind = 0, total;
     int hulltype;
     int stop_idx;
     sklansky_func sklansky;
@@ -261,7 +262,7 @@ cvConvexHull2( const CvArr* array, void* hull_storage,
     }
     else
     {
-        CV_CALL( ptseq = icvPointSeqFromMat(
+        CV_CALL( ptseq = cvPointSeqFromMat(
             CV_SEQ_KIND_GENERIC, array, &contour_header, &block ));
     }
 
@@ -309,7 +310,8 @@ cvConvexHull2( const CvArr* array, void* hull_storage,
         cvClearSeq( hullseq );
     }
 
-    if( ptseq->total == 0 )
+    total = ptseq->total;
+    if( total == 0 )
     {
         if( mat )
             CV_ERROR( CV_StsBadSize,
@@ -326,16 +328,44 @@ cvConvexHull2( const CvArr* array, void* hull_storage,
 
     CV_CALL( pointer = (CvPoint**)cvAlloc( ptseq->total*sizeof(pointer[0]) ));
     CV_CALL( stack = (int*)cvAlloc( (ptseq->total + 2)*sizeof(stack[0]) ));
+    pointerf = (CvPoint2D32f**)pointer;
 
     cvStartReadSeq( ptseq, &reader );
 
-    for( i = 0; i < ptseq->total; i++ )
+    for( i = 0; i < total; i++ )
     {
         pointer[i] = (CvPoint*)reader.ptr;
         CV_NEXT_SEQ_ELEM( ptseq->elem_size, reader );
     }
 
-    if( ptseq->total == 1 )
+    // sort the point set by x-coordinate, find min and max y
+    if( !is_float )
+    {
+        icvSortPointsByPointers_32s( pointer, total, 0 );
+        for( i = 1; i < total; i++ )
+        {
+            int y = pointer[i]->y;
+            if( pointer[miny_ind]->y > y )
+                miny_ind = i;
+            if( pointer[maxy_ind]->y < y )
+                maxy_ind = i;
+        }
+    }
+    else
+    {
+        icvSortPointsByPointers_32f( pointerf, total, 0 );
+        for( i = 1; i < total; i++ )
+        {
+            float y = pointerf[i]->y;
+            if( pointerf[miny_ind]->y > y )
+                miny_ind = i;
+            if( pointerf[maxy_ind]->y < y )
+                maxy_ind = i;
+        }
+    }
+
+    if( pointer[0]->x == pointer[total-1]->x &&
+        pointer[0]->y == pointer[total-1]->y )
     {
         if( hulltype == CV_SEQ_ELTYPE_PPOINT )
         {
@@ -352,21 +382,6 @@ cvConvexHull2( const CvArr* array, void* hull_storage,
             CV_WRITE_SEQ_ELEM( pt, writer );
         }
         goto finish_hull;
-    }
-
-    if( !is_float )
-        icvSortPointsByPointers_32s( pointer, ptseq->total, 0 );
-    else
-        icvSortPointsByPointers_32f( (CvPoint2D32f**)pointer, ptseq->total, 0 );
-
-    /* find top and bottom */
-    for( i = 1; i < ptseq->total; i++ )
-    {
-        int y = pointer[i]->y;
-        if( pointer[miny_ind]->y > y )
-            miny_ind = i;
-        if( pointer[maxy_ind]->y < y )
-            maxy_ind = i;
     }
 
     /*upper half */
@@ -530,7 +545,7 @@ cvConvexityDefects( const CvArr* array,
     }
     else
     {
-        CV_CALL( ptseq = icvPointSeqFromMat(
+        CV_CALL( ptseq = cvPointSeqFromMat(
             CV_SEQ_KIND_GENERIC, array, &contour_header, &block ));
     }
 
@@ -730,7 +745,7 @@ cvCheckContourConvexity( const CvArr* array )
     }
     else
     {
-        CV_CALL( contour = icvPointSeqFromMat(
+        CV_CALL( contour = cvPointSeqFromMat(
             CV_SEQ_KIND_CURVE|CV_SEQ_FLAG_CLOSED, array, &contour_header, &block ));
     }
 

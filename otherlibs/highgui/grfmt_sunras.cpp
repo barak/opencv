@@ -224,7 +224,7 @@ bool  GrFmtSunRasterReader::ReadData( uchar* data, int step, int color )
                
                 for(;;)
                 {
-                    int max_count = line_end - tsrc;
+                    int max_count = (int)(line_end - tsrc);
                     int code = 0, len = 0, len1 = 0;
 
                     do
@@ -292,7 +292,7 @@ bad_decoding_1bpp:
 
                 for(;;)
                 {
-                    int max_count = line_end - data;
+                    int max_count = (int)(line_end - data);
                     int code = 0, len = 0, len1;
                     uchar* tsrc = src;
 
@@ -308,7 +308,7 @@ bad_decoding_1bpp:
                     }
                     while( (max_count -= nch) > 0 );
 
-                    len1 = tsrc - src;
+                    len1 = (int)(tsrc - src);
 
                     if( len1 > 0 )
                     {
@@ -412,21 +412,20 @@ GrFmtSunRasterWriter::~GrFmtSunRasterWriter()
 
 
 bool  GrFmtSunRasterWriter::WriteImage( const uchar* data, int step,
-                                        int width, int height, bool isColor )
+                                        int width, int height, int channels )
 {
     bool result = false;
-    int  nch = isColor ? 3 : 1;
-    int  fileStep = (width*nch + 1) & -2;
+    int  fileStep = (width*channels + 1) & -2;
     int  y;
 
     assert( data && width > 0 && height > 0 && step >= fileStep);
     
     if( m_strm.Open( m_filename ) )
     {
-        m_strm.PutBytes( fmtSignSunRas, strlen(fmtSignSunRas) );
+        m_strm.PutBytes( fmtSignSunRas, (int)strlen(fmtSignSunRas) );
         m_strm.PutDWord( width );
         m_strm.PutDWord( height );
-        m_strm.PutDWord( nch*8 );
+        m_strm.PutDWord( channels*8 );
         m_strm.PutDWord( fileStep*height );
         m_strm.PutDWord( RAS_STANDARD );
         m_strm.PutDWord( RMT_NONE );

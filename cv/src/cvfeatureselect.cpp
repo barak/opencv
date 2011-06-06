@@ -44,12 +44,16 @@
 
 static CV_IMPLEMENT_QSORT( icvSortFeatures, int *, cmp_features )
 
-void
+CV_IMPL void
 cvGoodFeaturesToTrack( const void* image, void* eigImage, void* tempImage,
                        CvPoint2D32f* corners, int *corner_count,
                        double quality_level, double min_distance,
-                       const void* maskImage )
+                       const void* maskImage, int block_size,
+                       int use_harris, double harris_k )
 {
+    CvMat* _eigImg = 0;
+    CvMat* _tmpImg = 0;
+    
     CV_FUNCNAME( "cvGoodFeaturesToTrack" );
 
     __BEGIN__;
@@ -84,8 +88,25 @@ cvGoodFeaturesToTrack( const void* image, void* eigImage, void* tempImage,
     }
 
     CV_CALL( img = cvGetMat( img, &stub, &coi1 ));
-    CV_CALL( eig = cvGetMat( eig, &eig_stub, &coi2 ));
-    CV_CALL( tmp = cvGetMat( tmp, &tmp_stub, &coi3 ));
+    if( eig )
+    {
+        CV_CALL( eig = cvGetMat( eig, &eig_stub, &coi2 ));
+    }
+    else
+    {
+        CV_CALL( _eigImg = cvCreateMat( img->rows, img->cols, CV_32FC1 ));
+        eig = _eigImg;
+    }
+
+    if( tmp )
+    {
+        CV_CALL( tmp = cvGetMat( tmp, &tmp_stub, &coi3 ));
+    }
+    else
+    {
+        CV_CALL( _tmpImg = cvCreateMat( img->rows, img->cols, CV_32FC1 ));
+        tmp = _tmpImg;
+    }
 
     if( mask )
     {
@@ -117,8 +138,15 @@ cvGoodFeaturesToTrack( const void* image, void* eigImage, void* tempImage,
     if( quality_level <= 0 || min_distance < 0 )
         CV_ERROR( CV_StsBadArg, "quality level or min distance are non positive" );
 
-    CV_CALL( cvCornerMinEigenVal( img, eig, 3, 3 ));
-    CV_CALL( cvMinMaxLoc( eig, 0, &max_val, 0, 0 ));
+    if( use_harris )
+    {
+        CV_CALL( cvCornerHarris( img, eig, block_size, 3, harris_k ));
+    }
+    else
+    {
+        CV_CALL( cvCornerMinEigenVal( img, eig, block_size, 3 ));
+    }
+    CV_CALL( cvMinMaxLoc( eig, 0, &max_val, 0, 0, mask ));
     CV_CALL( cvThreshold( eig, eig, max_val * quality_level,
                           0, CV_THRESH_TOZERO ));
     CV_CALL( cvDilate( eig, tmp ));
@@ -155,9 +183,9 @@ cvGoodFeaturesToTrack( const void* image, void* eigImage, void* tempImage,
     /* select the strongest features */
     for( i = 0; i < k; i++ )
     {
-        int j = count, ofs = (uchar*)(ptr_data[i]) - eig->data.ptr;
-        int y = ofs / eig->step;
-        int x = (ofs - y * eig->step)/sizeof(float);
+        int j = count, ofs = (int)((uchar*)(ptr_data[i]) - eig->data.ptr);
+        y = ofs / eig->step;
+        x = (ofs - y * eig->step)/sizeof(float);
 
         if( min_dist != 0 )
         {
@@ -194,6 +222,9 @@ cvGoodFeaturesToTrack( const void* image, void* eigImage, void* tempImage,
     *corner_count = count;
 
     __END__;
+
+    cvReleaseMat( &_eigImg );
+    cvReleaseMat( &_tmpImg );
 }
 
 /* End of file. */

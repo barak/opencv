@@ -42,7 +42,7 @@
 #ifndef _CXCORE_INTERNAL_H_
 #define _CXCORE_INTERNAL_H_
 
-#if _MSC_VER >= 1200
+#if defined _MSC_VER && _MSC_VER >= 1200
     /* disable warnings related to inline functions */
     #pragma warning( disable: 4711 4710 4514 )
 #endif
@@ -70,6 +70,9 @@ typedef unsigned long ulong;
 // -128.f ... 255.f
 extern const float icv8x32fTab[];
 #define CV_8TO32F(x)  icv8x32fTab[(x)+128]
+
+extern const ushort icv8x16uSqrTab[];
+#define CV_SQR_8U(x)  icv8x16uSqrTab[(x)+255]
 
 extern const char* icvHersheyGlyphs[];
 
@@ -289,5 +292,31 @@ typedef CvStatus (CV_STDCALL * CvCopyMaskFunc)(const void* src, int src_step,
 CvCopyMaskFunc icvGetCopyMaskFunc( int elem_size );
 
 CvStatus CV_STDCALL icvSetZero_8u_C1R( uchar* dst, int dststep, CvSize size );
+
+CvStatus CV_STDCALL icvScale_32f( const float* src, float* dst, int len, float a, float b );
+CvStatus CV_STDCALL icvScale_64f( const double* src, double* dst, int len, double a, double b );
+
+CvStatus CV_STDCALL icvLUT_Transform8u_8u_C1R( const void* src, int srcstep, void* dst,
+                                               int dststep, CvSize size, const void* lut );
+CvStatus CV_STDCALL icvLUT_Transform8u_16s_C1R( const void* src, int srcstep, void* dst,
+                                                int dststep, CvSize size, const void* lut );
+CvStatus CV_STDCALL icvLUT_Transform8u_32s_C1R( const void* src, int srcstep, void* dst,
+                                                int dststep, CvSize size, const void* lut );
+CvStatus CV_STDCALL icvLUT_Transform8u_64f_C1R( const void* src, int srcstep, void* dst,
+                                                int dststep, CvSize size, const void* lut );
+
+CvStatus CV_STDCALL icvLUT_Transform8u_8u_C2R( const void* src, int srcstep, void* dst,
+                                               int dststep, CvSize size, const void* lut );
+CvStatus CV_STDCALL icvLUT_Transform8u_8u_C3R( const void* src, int srcstep, void* dst,
+                                               int dststep, CvSize size, const void* lut );
+CvStatus CV_STDCALL icvLUT_Transform8u_8u_C4R( const void* src, int srcstep, void* dst,
+                                               int dststep, CvSize size, const void* lut );
+
+typedef CvStatus (CV_STDCALL * CvLUT_TransformFunc)( const void* src, int srcstep, void* dst,
+                                                     int dststep, CvSize size, const void* lut );
+
+#define  icvLUT_Transform8u_8s_C1R    icvLUT_Transform8u_8u_C1R
+#define  icvLUT_Transform8u_16u_C1R   icvLUT_Transform8u_16s_C1R
+#define  icvLUT_Transform8u_32f_C1R   icvLUT_Transform8u_32s_C1R
 
 #endif /*_CXCORE_INTERNAL_H_*/

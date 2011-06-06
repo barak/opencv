@@ -4,7 +4,7 @@
 
 # TARGTYPE "Win32 (x86) Dynamic-Link Library" 0x0102
 
-CFG=cvaux - Win32 Debug
+CFG=cvaux - Win32 Debug64 Itanium
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
@@ -13,12 +13,16 @@ CFG=cvaux - Win32 Debug
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "cvaux.mak" CFG="cvaux - Win32 Debug"
+!MESSAGE NMAKE /f "cvaux.mak" CFG="cvaux - Win32 Debug64 Itanium"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
 !MESSAGE "cvaux - Win32 Release" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE "cvaux - Win32 Debug" (based on "Win32 (x86) Dynamic-Link Library")
+!MESSAGE "cvaux - Win32 Release64" (based on "Win32 (x86) Dynamic-Link Library")
+!MESSAGE "cvaux - Win32 Debug64" (based on "Win32 (x86) Dynamic-Link Library")
+!MESSAGE "cvaux - Win32 Release64 Itanium" (based on "Win32 (x86) Dynamic-Link Library")
+!MESSAGE "cvaux - Win32 Debug64 Itanium" (based on "Win32 (x86) Dynamic-Link Library")
 !MESSAGE 
 
 # Begin Project
@@ -54,8 +58,8 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /machine:I386
-# ADD LINK32 cv.lib cxcore.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/cvaux096.dll" /implib:"..\..\lib/cvaux.lib" /libpath:"..\..\lib"
-# SUBTRACT LINK32 /profile
+# ADD LINK32 cv.lib cxcore.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /pdb:"..\..\bin/cvaux097.pdb" /debug /machine:I386 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/cvaux097.dll" /implib:"..\..\lib/cvaux.lib" /libpath:"..\..\lib"
+# SUBTRACT LINK32 /profile /pdb:none
 
 !ELSEIF  "$(CFG)" == "cvaux - Win32 Debug"
 
@@ -83,7 +87,128 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=xilink6.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 cvd.lib cxcored.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/cvaux096d.dll" /implib:"..\..\lib/cvauxd.lib" /pdbtype:sept /libpath:"..\..\lib"
+# ADD LINK32 cvd.lib cxcored.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /pdb:"..\..\bin/cvaux097d.pdb" /debug /machine:I386 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/cvaux097d.dll" /implib:"..\..\lib/cvauxd.lib" /pdbtype:sept /libpath:"..\..\lib"
+# SUBTRACT LINK32 /pdb:none
+
+!ELSEIF  "$(CFG)" == "cvaux - Win32 Release64"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "cvaux___Win32_Release64"
+# PROP BASE Intermediate_Dir "cvaux___Win32_Release64"
+# PROP BASE Ignore_Export_Lib 0
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "..\..\_temp\cvaux_Rls64"
+# PROP Intermediate_Dir "..\..\_temp\cvaux_Rls64"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+LIB32=link.exe -lib
+# ADD BASE CPP /nologo /MD /W4 /Zi /O2 /Ob2 /I "../include" /I "../../cxcore/include" /I "../../cv/include" /I "../../cv/src" /D "NDEBUG" /D "CVAPI_EXPORTS" /D "WIN32" /D "_WINDOWS" /Yu"_cvaux.h" /FD /Zm200 /c
+# ADD CPP /nologo /MD /W4 /Zi /O2 /Ob2 /I "../include" /I "../../cxcore/include" /I "../../cv/include" /I "../../cv/src" /D "CVAPI_EXPORTS" /D "_WINDOWS" /D "NDEBUG" /D "WIN32" /D "WIN64" /D "EM64T" /Yu"_cvaux.h" /FD /Zm200 /c
+# ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD BASE RSC /l 0x419 /d "NDEBUG"
+# ADD RSC /l 0x419 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=xilink6.exe
+# ADD BASE LINK32 cv.lib cxcore.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/cvaux097.dll" /implib:"..\..\lib/cvaux.lib" /libpath:"..\..\lib" /machine:AMD64
+# SUBTRACT BASE LINK32 /profile
+# ADD LINK32 cv_64.lib cxcore_64.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/cvaux097_64.dll" /implib:"..\..\lib/cvaux_64.lib" /libpath:"..\..\lib" /machine:AMD64
+# SUBTRACT LINK32 /pdb:none
+
+!ELSEIF  "$(CFG)" == "cvaux - Win32 Debug64"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 1
+# PROP BASE Output_Dir "cvaux___Win32_Debug64"
+# PROP BASE Intermediate_Dir "cvaux___Win32_Debug64"
+# PROP BASE Ignore_Export_Lib 0
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 1
+# PROP Output_Dir "..\..\_temp\cvaux_Dbg64"
+# PROP Intermediate_Dir "..\..\_temp\cvaux_Dbg64"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+LIB32=link.exe -lib
+# ADD BASE CPP /nologo /MDd /W4 /Gm /Zi /Od /I "../include" /I "../../cxcore/include" /I "../../cv/include" /I "../../cv/src" /D "_DEBUG" /D "CVAPI_EXPORTS" /D "WIN32" /D "_WINDOWS" /FR /Yu"_cvaux.h" /FD /GZ /Zm200 /c
+# SUBTRACT BASE CPP /X
+# ADD CPP /nologo /MDd /W4 /Gm /Zi /Od /I "../include" /I "../../cxcore/include" /I "../../cv/include" /I "../../cv/src" /D "CVAPI_EXPORTS" /D "_WINDOWS" /D "_DEBUG" /D "WIN32" /D "WIN64" /D "EM64T" /FR /Yu"_cvaux.h" /FD /Zm200 /Wp64 /c
+# ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
+# ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
+# ADD BASE RSC /l 0x419 /d "_DEBUG"
+# ADD RSC /l 0x419 /d "_DEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=xilink6.exe
+# ADD BASE LINK32 cvd.lib cxcored.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/cvaux097d.dll" /implib:"..\..\lib/cvauxd.lib" /pdbtype:sept /libpath:"..\..\lib" /machine:AMD64
+# SUBTRACT BASE LINK32 /pdb:none
+# ADD LINK32 cvd_64.lib cxcored_64.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /pdb:"..\..\bin/cvaux097d_64.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/cvaux097d_64.dll" /implib:"..\..\lib/cvauxd_64.lib" /pdbtype:sept /libpath:"..\..\lib" /machine:AMD64
+# SUBTRACT LINK32 /pdb:none
+
+!ELSEIF  "$(CFG)" == "cvaux - Win32 Release64 Itanium"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 0
+# PROP BASE Output_Dir "cvaux___Win32_Release64_Itanium"
+# PROP BASE Intermediate_Dir "cvaux___Win32_Release64_Itanium"
+# PROP BASE Ignore_Export_Lib 0
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 0
+# PROP Output_Dir "..\..\_temp\cvaux_RlsI7"
+# PROP Intermediate_Dir "..\..\_temp\cvaux_RlsI7"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+LIB32=link.exe -lib
+# ADD BASE CPP /nologo /MD /W4 /Zi /O2 /Ob2 /I "../include" /I "../../cxcore/include" /I "../../cv/include" /I "../../cv/src" /D "CVAPI_EXPORTS" /D "_WINDOWS" /D "NDEBUG" /D "WIN32" /D "WIN64" /D "EM64T" /Yu"_cvaux.h" /FD /Zm200 /c
+# ADD CPP /nologo /MD /w /W0 /Zi /O2 /Ob2 /I "../include" /I "../../cxcore/include" /I "../../cv/include" /I "../../cv/src" /D "CVAPI_EXPORTS" /D "_WINDOWS" /D "NDEBUG" /D "WIN32" /D "WIN64" /Yu"_cvaux.h" /FD /Zm200 /c
+# ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
+# ADD BASE RSC /l 0x419 /d "NDEBUG"
+# ADD RSC /l 0x419 /d "NDEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=xilink6.exe
+# ADD BASE LINK32 cv_i7.lib cxcore_i7.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /debug /machine:IX86 /nodefaultlib:"libmmd.lib" /out:"..\..\bin/cvaux097_i7.dll" /implib:"..\..\lib/cvaux_i7.lib" /libpath:"..\..\lib" /machine:IA64
+# SUBTRACT BASE LINK32 /pdb:none
+# ADD LINK32 cv_i7.lib cxcore_i7.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /debug /machine:IX86 /out:"..\..\bin/cvaux097_i7.dll" /implib:"..\..\lib/cvaux_i7.lib" /libpath:"..\..\lib" /machine:IA64
+# SUBTRACT LINK32 /pdb:none
+
+!ELSEIF  "$(CFG)" == "cvaux - Win32 Debug64 Itanium"
+
+# PROP BASE Use_MFC 0
+# PROP BASE Use_Debug_Libraries 1
+# PROP BASE Output_Dir "cvaux___Win32_Debug64_Itanium"
+# PROP BASE Intermediate_Dir "cvaux___Win32_Debug64_Itanium"
+# PROP BASE Ignore_Export_Lib 0
+# PROP BASE Target_Dir ""
+# PROP Use_MFC 0
+# PROP Use_Debug_Libraries 1
+# PROP Output_Dir "..\..\_temp\cvaux_DbgI7"
+# PROP Intermediate_Dir "..\..\_temp\cvaux_DbgI7"
+# PROP Ignore_Export_Lib 0
+# PROP Target_Dir ""
+LIB32=link.exe -lib
+# ADD BASE CPP /nologo /MDd /W4 /Gm /Zi /Od /I "../include" /I "../../cxcore/include" /I "../../cv/include" /I "../../cv/src" /D "CVAPI_EXPORTS" /D "_WINDOWS" /D "_DEBUG" /D "WIN32" /D "WIN64" /D "EM64T" /FR /Yu"_cvaux.h" /FD /Zm200 /Wp64 /c
+# ADD CPP /nologo /MDd /W3 /Gm /Zi /Od /I "../include" /I "../../cxcore/include" /I "../../cv/include" /I "../../cv/src" /D "CVAPI_EXPORTS" /D "_WINDOWS" /D "_DEBUG" /D "WIN32" /D "WIN64" /FR /Yu"_cvaux.h" /FD /Zm200 /Qwd167 /c
+# ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
+# ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
+# ADD BASE RSC /l 0x419 /d "_DEBUG"
+# ADD RSC /l 0x419 /d "_DEBUG"
+BSC32=bscmake.exe
+# ADD BASE BSC32 /nologo
+# ADD BSC32 /nologo
+LINK32=xilink6.exe
+# ADD BASE LINK32 cvd_i7.lib cxcored_i7.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /pdb:"..\..\bin/cvaux097d_i7.pdb" /debug /machine:IX86 /nodefaultlib:"libmmdd.lib" /out:"..\..\bin/cvaux097d_i7.dll" /implib:"..\..\lib/cvauxd_i7.lib" /pdbtype:sept /libpath:"..\..\lib" /machine:IA64
+# SUBTRACT BASE LINK32 /pdb:none
+# ADD LINK32 cvd_i7.lib cxcored_i7.lib kernel32.lib user32.lib gdi32.lib /nologo /dll /pdb:"..\..\bin/cvaux097d_i7.pdb" /debug /machine:IX86 /out:"..\..\bin/cvaux097d_i7.dll" /implib:"..\..\lib/cvauxd_i7.lib" /pdbtype:sept /libpath:"..\..\lib" /machine:IA64
 # SUBTRACT LINK32 /pdb:none
 
 !ENDIF 
@@ -92,6 +217,10 @@ LINK32=xilink6.exe
 
 # Name "cvaux - Win32 Release"
 # Name "cvaux - Win32 Debug"
+# Name "cvaux - Win32 Release64"
+# Name "cvaux - Win32 Debug64"
+# Name "cvaux - Win32 Release64 Itanium"
+# Name "cvaux - Win32 Debug64 Itanium"
 # Begin Group "Src"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
@@ -114,6 +243,18 @@ SOURCE=.\cvaux.rc
 # Begin Source File
 
 SOURCE=.\cvauxutils.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\cvbgfg_acmmm2003.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\cvbgfg_common.cpp
+# End Source File
+# Begin Source File
+
+SOURCE=.\cvbgfg_gaussmix.cpp
 # End Source File
 # Begin Source File
 

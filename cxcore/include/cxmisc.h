@@ -39,13 +39,15 @@
 //
 //M*/
 
-/* This is mostly internal use header, which content is likely to change.
+/* The header is mostly for internal use and it is likely to change.
    It contains some macro definitions that are used in cxcore, cv, cvaux
    and, probably, other libraries. If you need some of this functionality,
    the safe way is to copy it into your code and rename the macros.
 */
 #ifndef _CXCORE_MISC_H_
 #define _CXCORE_MISC_H_
+
+#include <limits.h>
 
 /****************************************************************************************\
 *                              Compile-time tuning parameters                            *
@@ -75,7 +77,7 @@
 #define  CV_MALLOC_ALIGN    32
 
 /* default alignment for dynamic data strucutures, resided in storages. */
-#define  CV_STRUCT_ALIGN    sizeof(double)
+#define  CV_STRUCT_ALIGN    ((int)sizeof(double))
 
 /* default storage block size */
 #define  CV_STORAGE_BLOCK_SIZE   ((1<<16) - 128)
@@ -117,7 +119,7 @@
 /* ! DO NOT make it an inline function */
 #define cvStackAlloc(size) cvAlignPtr( alloca((size) + CV_MALLOC_ALIGN), CV_MALLOC_ALIGN )
 
-#if defined _MSC_VER || defined __BORLANDC__ || defined __ICL
+#if defined _MSC_VER || defined __BORLANDC__
     #define CV_BIG_INT(n)   n##I64
     #define CV_BIG_UINT(n)  n##UI64
 #else
@@ -127,7 +129,7 @@
 
 #define CV_IMPL CV_EXTERN_C
 
-#if _MSC_VER >= 1200 || defined __ICL
+#if defined WIN32 && !defined WIN64 && (_MSC_VER >= 1200 || defined CV_ICC)
     #define CV_DBG_BREAK() __asm int 3
 #else
     #define CV_DBG_BREAK() assert(0);
@@ -151,8 +153,6 @@
 #define  CV_TOGGLE_DBL(x) \
     ((x)^((int64)(x) < 0 ? CV_BIG_INT(0x7fffffffffffffff) : 0))
 
-#define  CV_PI   3.1415926535897932384626433832795
-
 #define  CV_NOP(a)      (a)
 #define  CV_ADD(a, b)   ((a) + (b))
 #define  CV_SUB(a, b)   ((a) - (b))
@@ -163,8 +163,6 @@
 #define  CV_ANDN(a, b)  (~(a) & (b))
 #define  CV_ORN(a, b)   (~(a) | (b))
 #define  CV_SQR(a)      ((a) * (a))
-#define  CV_MIN(a, b)   ((a) <= (b) ? (a) : (b))
-#define  CV_MAX(a, b)   ((a) >= (b) ? (a) : (b))
 
 #define  CV_LT(a, b)    ((a) < (b))
 #define  CV_LE(a, b)    ((a) <= (b))
@@ -204,6 +202,8 @@
 
 #define  CV_ZERO_OBJ(x)  memset((x), 0, sizeof(*(x)))
 
+#define  CV_DIM(static_array) ((int)(sizeof(static_array)/sizeof((static_array)[0])))
+
 #define  CV_UN_ENTRY_C1(worktype)           \
     worktype s0 = scalar[0]
     
@@ -218,21 +218,18 @@
 
 #define  cvUnsupportedFormat "Unsupported format"
 
-CV_INLINE void* cvAlignPtr( const void* ptr, int align = 32 );
-CV_INLINE void* cvAlignPtr( const void* ptr, int align )
+CV_INLINE void* cvAlignPtr( const void* ptr, int align=32 )
 {
     assert( (align & (align-1)) == 0 );
     return (void*)( ((size_t)ptr + align - 1) & ~(size_t)(align-1) );
 }
 
-CV_INLINE size_t cvAlign( size_t size, int align );
-CV_INLINE size_t cvAlign( size_t size, int align )
+CV_INLINE int cvAlign( int size, int align )
 {
-    assert( (align & (align-1)) == 0 );
-    return (size + align - 1) & ~(size_t)(align-1);
+    assert( (align & (align-1)) == 0 && size < INT_MAX );
+    return (size + align - 1) & -align;
 }
 
-CV_INLINE  CvSize  cvGetMatSize( const CvMat* mat );
 CV_INLINE  CvSize  cvGetMatSize( const CvMat* mat )
 {
     CvSize size = { mat->width, mat->height };
@@ -242,6 +239,7 @@ CV_INLINE  CvSize  cvGetMatSize( const CvMat* mat )
 #define  CV_DESCALE(x,n)     (((x) + (1 << ((n)-1))) >> (n))
 #define  CV_FLT_TO_FIX(x,n)  cvRound((x)*(1<<(n)))
 
+#if 0
 /* This is a small engine for performing fast division of multiple numbers
    by the same constant. Most compilers do it too if they know the divisor value
    at compile-time. The algorithm was taken from Agner Fog's optimization guide
@@ -254,7 +252,6 @@ CvFastDiv;
 
 #define CV_FAST_DIV_SHIFT 32
 
-CV_INLINE CvFastDiv cvFastDiv( int divisor );
 CV_INLINE CvFastDiv cvFastDiv( int divisor )
 {
     CvFastDiv fastdiv;
@@ -274,7 +271,7 @@ CV_INLINE CvFastDiv cvFastDiv( int divisor )
 
 #define CV_FAST_UDIV( x, fastdiv )  \
     ((int)(((uint64)((x)*2 + (fastdiv).delta))*(fastdiv).scale>>CV_FAST_DIV_SHIFT))
-
+#endif
 
 #define CV_MEMCPY_CHAR( dst, src, len )                                             \
 {                                                                                   \
@@ -409,7 +406,7 @@ CV_INLINE CvFastDiv cvFastDiv( int divisor )
 #define CV_IMPLEMENT_QSORT_EX( func_name, T, LT, user_data_type )                   \
 void func_name( T *array, size_t total, user_data_type aux )                        \
 {                                                                                   \
-    long isort_thresh = 7;                                                          \
+    int isort_thresh = 7;                                                           \
     T t;                                                                            \
     int sp = 0;                                                                     \
                                                                                     \
@@ -435,7 +432,7 @@ void func_name( T *array, size_t total, user_data_type aux )                    
                                                                                     \
         for(;;)                                                                     \
         {                                                                           \
-            long i, n = right - left + 1, m;                                        \
+            int i, n = (int)(right - left) + 1, m;                                  \
             T* ptr;                                                                 \
             T* ptr2;                                                                \
                                                                                     \
@@ -532,15 +529,15 @@ void func_name( T *array, size_t total, user_data_type aux )                    
                     goto insert_sort;                                               \
                 }                                                                   \
                                                                                     \
-                n = MIN( left1 - left0, left - left1 );                             \
+                n = MIN( (int)(left1 - left0), (int)(left - left1) );               \
                 for( i = 0; i < n; i++ )                                            \
                     CV_SWAP( left0[i], left[i-n], t );                              \
                                                                                     \
-                n = MIN( right0 - right1, right1 - right );                         \
+                n = MIN( (int)(right0 - right1), (int)(right1 - right) );           \
                 for( i = 0; i < n; i++ )                                            \
                     CV_SWAP( left[i], right0[i-n+1], t );                           \
-                n = left - left1;                                                   \
-                m = right1 - right;                                                 \
+                n = (int)(left - left1);                                            \
+                m = (int)(right1 - right);                                          \
                 if( n > 1 )                                                         \
                 {                                                                   \
                     if( m > 1 )                                                     \
@@ -630,12 +627,13 @@ CvStatus;
 }
 
 #define CV_PLUGIN_NONE      0
-#define CV_PLUGIN_OPTCV     1
-#define CV_PLUGIN_IPPCV     2
-#define CV_PLUGIN_IPPI      3
-#define CV_PLUGIN_IPPS      4
-#define CV_PLUGIN_IPPVM     5
-#define CV_PLUGIN_MKL       8
+#define CV_PLUGIN_OPTCV     1 /* custom "emerged" ippopencv library */
+#define CV_PLUGIN_IPPCV     2 /* IPP: computer vision */
+#define CV_PLUGIN_IPPI      3 /* IPP: image processing */
+#define CV_PLUGIN_IPPS      4 /* IPP: signal processing */
+#define CV_PLUGIN_IPPVM     5 /* IPP: vector math functions */
+#define CV_PLUGIN_IPPCC     6 /* IPP: color space conversion */
+#define CV_PLUGIN_MKL       8 /* Intel Math Kernel Library */
 
 #define CV_PLUGIN_MAX      16
 
@@ -669,20 +667,28 @@ CvStatus;
 
 /* IPP types' enumeration */
 typedef enum CvDataType {
-   cv1u,
-   cv8u, cv8s,
-   cv16u, cv16s, cv16sc,
-   cv32u, cv32s, cv32sc,
-   cv32f, cv32fc,
-   cv64u, cv64s, cv64sc,
-   cv64f, cv64fc
+    cv1u,
+    cv8u, cv8s,
+    cv16u, cv16s, cv16sc,
+    cv32u, cv32s, cv32sc,
+    cv32f, cv32fc,
+    cv64u, cv64s, cv64sc,
+    cv64f, cv64fc
 } CvDataType;
 
 typedef enum CvHintAlgorithm {
-   cvAlgHintNone,
-   cvAlgHintFast,
-   cvAlgHintAccurate
+    cvAlgHintNone,
+    cvAlgHintFast,
+    cvAlgHintAccurate
 } CvHintAlgorithm;
+
+typedef enum CvCmpOp {
+    cvCmpLess,
+    cvCmpLessEq,
+    cvCmpEq,
+    cvCmpGreaterEq,
+    cvCmpGreater
+} CvCmpOp;
 
 typedef struct CvFuncTable
 {

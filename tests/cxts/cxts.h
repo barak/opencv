@@ -44,10 +44,12 @@
 
 #include "cxcore.h"
 #include "cxmisc.h"
-#include <stdio.h>
-#include <stdarg.h>
-#include <setjmp.h>
 #include <assert.h>
+#include <limits.h>
+#include <setjmp.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 #if _MSC_VER >= 1200
@@ -81,6 +83,7 @@ public:
     }
 
     int size() { return _size; }
+    T* data() { return _buf; }
     void clear() { _size = 0; }
 
 protected:
@@ -105,7 +108,7 @@ public:
     virtual int init( CvTS* system );
 
     // writes default parameters to file storage
-    virtual int write_default_params(CvFileStorage* fs);
+    virtual int write_defaults(CvTS* ts);
 
     // the main procedure of the test
     virtual void run( int start_from );
@@ -113,19 +116,26 @@ public:
     // the wrapper for run that cares of exceptions
     virtual void safe_run( int start_from );
 
-    const char* get_name() { return name; }
-    const char* get_func_list() { return tested_functions; }
-    const char* get_description() { return description; }
+    const char* get_name() const { return name; }
+    const char* get_func_list() const { return tested_functions; }
+    const char* get_description() const { return description; }
+    const char* get_group_name( char* buffer ) const;
     CvTest* get_next() { return next; }
     static CvTest* get_first_test() { return first; }
+    static const char* get_parent_name( const char* name, char* buffer );
 
-    // returns true iff test cases do not depend on each other
-    // (so that test system could get right to the problematic test cases)
+    // returns true if and only if the different test cases do not depend on each other
+    // (so that test system could get right to a problematic test case)
     virtual bool can_do_fast_forward();
 
     // deallocates all the memory.
     // called by init() (before initialization) and by the destructor
     virtual void clear();
+
+    // returns the testing modes supported by the particular test
+    int get_support_testing_modes();
+
+    enum { TIMING_EXTRA_PARAMS=5 };
 
 protected:
     static CvTest* first;
@@ -133,6 +143,20 @@ protected:
     static int test_count;
     CvTest* next;
 
+    const char** default_timing_param_names; // the names of timing parameters to write
+    const CvFileNode* timing_param_names; // and the read param names
+    const CvFileNode** timing_param_current; // the current tuple of timing parameters
+    const CvFileNode** timing_param_seqs; // the array of parameter sequences
+    int* timing_param_idxs; // the array of indices
+    int timing_param_count; // the number of parameters in the tuple
+    int support_testing_modes;
+
+    int test_case_count; // the total number of test cases
+
+    // called from write_defaults
+    virtual int write_default_params(CvFileStorage* fs);
+
+    // read test params
     virtual int read_params( CvFileStorage* fs );
 
     // returns the number of tests or -1 if it is unknown a-priori
@@ -145,16 +169,33 @@ protected:
     virtual int validate_test_results( int test_case_idx );
 
     // calls the tested function. the method is called from run_test_case()
-    virtual void run_func() = 0; // runs tested func(s)
-
-    // retrives timing mode for particular test case
-    virtual int get_timing_mode( int test_case_idx );
+    virtual void run_func(); // runs tested func(s)
 
     // prints results of timing test
     virtual void print_time( int test_case_idx, double time_usecs );
 
     // updates progress bar
     virtual int update_progress( int progress, int test_case_idx, int count, double dt );
+
+    // finds test parameter
+    const CvFileNode* find_param( CvFileStorage* fs, const char* param_name );
+
+    // writes parameters
+    void write_param( CvFileStorage* fs, const char* paramname, int val );
+    void write_param( CvFileStorage* fs, const char* paramname, double val );
+    void write_param( CvFileStorage* fs, const char* paramname, const char* val );
+    void write_string_list( CvFileStorage* fs, const char* paramname, const char** val, int count=-1 );
+    void write_int_list( CvFileStorage* fs, const char* paramname, const int* val,
+                         int count, int stop_value=INT_MIN );
+    void write_real_list( CvFileStorage* fs, const char* paramname, const double* val,
+                          int count, double stop_value=DBL_MIN );
+    void start_write_param( CvFileStorage* fs );
+
+    // returns the specified parameter from the current parameter tuple
+    const CvFileNode* find_timing_param( const char* paramname );
+
+    // gets the next tuple of timing parameters
+    int get_next_timing_param_tuple();
 
     // name of the test (it is possible to locate a test by its name)
     const char* name;
@@ -172,6 +213,8 @@ protected:
 
     // pointer to the system that includes the test
     CvTS* ts;
+
+    int hdr_state;
 };
 
 
@@ -248,6 +291,16 @@ public:
 
     // sets information about a failed test
     virtual void set_failed_test_info( int fail_code, int alloc_index = -1 );
+
+    // types of tests
+    enum
+    {
+        CORRECTNESS_CHECK_MODE = 1,
+        TIMING_MODE = 2
+    };
+
+    // the modes of timing tests:
+    enum { AVG_TIME = 1, MIN_TIME = 2 };
 
     // test error codes
     enum
@@ -328,11 +381,14 @@ public:
     // retrieves one of global options of the test system
     bool is_debug_mode() { return params.debug_mode; }
 
-    // timing modes:
-    enum { NO_TIME = 0, AVG_TIME = 1, MIN_TIME = 2 };
+    // returns the current testing mode
+    int get_testing_mode()  { return params.test_mode; }
 
     // returns the current timing mode
     int get_timing_mode() { return params.timing_mode; }
+
+    int find_written_param( CvTest* test, const char* paramname,
+                            int valtype, const void* val );
 
 protected:
     // deallocates memory buffers and closes all the streams;
@@ -379,6 +435,9 @@ protected:
     // a sequence of tests to run
     CvTestPtrVec* selected_tests;
 
+    // a sequence of written test params
+    CvTestPtrVec* written_params;
+
     // a sequence of failed tests
     CvTestInfoVec* failed_tests;
 
@@ -413,6 +472,9 @@ protected:
         // choose_tests or choose_functions;
         int  test_filter_mode;
 
+        // correctness or performance [or bad-arg, stress etc.]
+        int  test_mode;
+
         // timing mode
         int  timing_mode;
 
@@ -424,6 +486,9 @@ protected:
 
         // relative or absolute path of directory containing subfolders with test data
         const char* resource_path;
+
+        // whether to use IPP, MKL etc. or not
+        int use_optimized;
     }
     params;
 
@@ -479,14 +544,16 @@ protected:
     virtual int prepare_test_case( int test_case_idx );
     virtual int validate_test_results( int test_case_idx );
 
-    virtual int get_test_case_count();
-    virtual void prepare_to_validation( int test_case_idx ) = 0;
+    virtual void prepare_to_validation( int test_case_idx );
     virtual void get_test_array_types_and_sizes( int test_case_idx, CvSize** sizes, int** types );
+    virtual void get_timing_test_array_types_and_sizes( int test_case_idx, CvSize** sizes, int** types,
+                                                        CvSize** whole_sizes, bool *are_images );
     virtual void fill_array( int test_case_idx, int i, int j, CvMat* arr );
     virtual void get_minmax_bounds( int i, int j, int type, CvScalar* low, CvScalar* high );
     virtual double get_success_error_level( int test_case_idx, int i, int j );
+    virtual void print_time( int test_case_idx, double time_usecs );
+    virtual void print_timing_params( int test_case_idx, char* ptr, int params_left=TIMING_EXTRA_PARAMS );
 
-    int test_case_count;
     bool cvmat_allowed;
     bool iplimage_allowed;
     bool optional_mask;
@@ -498,6 +565,12 @@ protected:
     int max_arr; // = MAX_ARR by default, the number of different types of arrays
     int max_hdr; // size of header buffer
     enum { INPUT, INPUT_OUTPUT, OUTPUT, REF_INPUT_OUTPUT, REF_OUTPUT, TEMP, MASK, MAX_ARR };
+
+    const CvSize* size_list;
+    const CvSize* whole_size_list;
+    const int* depth_list;
+    const int* cn_list;
+
     CvTestPtrVec* test_array;
     CvMat* test_mat[MAX_ARR];
     CvMat* hdr;
@@ -508,6 +581,9 @@ protected:
 /****************************************************************************************\
 *                                 Utility Functions                                      *
 \****************************************************************************************/
+
+CV_EXPORTS const char* cvTsGetTypeName( int type );
+CV_EXPORTS int cvTsTypeByName( const char* type_name );
 
 inline  int cvTsClipInt( int val, int min_val, int max_val )
 {
@@ -620,14 +696,14 @@ CV_EXPORTS void cvTsGEMM( const CvMat* a, const CvMat* b, double alpha,
 
 CV_EXPORTS void cvTsConvolve2D( const CvMat* a, CvMat* b, const CvMat* kernel, CvPoint anchor );
 // op_type == CV_TS_MIN/CV_TS_MAX
-CV_EXPORTS void cvTsMinMaxFilter( const CvMat* a, CvMat* b, const CvMat* kernel,
-                             CvPoint anchor, int op_type );
+CV_EXPORTS void cvTsMinMaxFilter( const CvMat* a, CvMat* b,
+                                  const IplConvKernel* element, int op_type );
 
-enum { CV_TS_BORDER_REPLICATE = 0, CV_TS_BORDER_FILLZERO = 2, CV_TS_BORDER_FILLMIN = 3,
-       CV_TS_BORDER_FILLMAX = 4, CV_TS_BORDER_REFLECT = 5 };
+enum { CV_TS_BORDER_REPLICATE=0, CV_TS_BORDER_REFLECT=1, CV_TS_BORDER_FILL=2 };
 
 CV_EXPORTS void cvTsPrepareToFilter( const CvMat* a, CvMat* b, CvPoint ofs,
-                                int border_mode = CV_TS_BORDER_REPLICATE );
+                                     int border_mode = CV_TS_BORDER_REPLICATE,
+                                     CvScalar fill_val=cvScalarAll(0));
 
 CV_EXPORTS double cvTsCrossCorr( const CvMat* a, const CvMat* b );
 
