@@ -41,8 +41,9 @@ override_dh_auto_configure:
 	dh_auto_configure -- $(CMAKE_FLAGS)
 
 override_dh_install:
-	-rm --verbose -r debian/tmp/usr/share/opencv/samples/octave
-	-rm --verbose debian/tmp/usr/share/opencv/samples/c/cvsample.dsp
+	-rm --verbose -rf debian/tmp/usr/share/opencv/samples/octave # just in case
+	-rm --verbose -f debian/tmp/usr/share/opencv/samples/c/cvsample.dsp
 	chmod --verbose +x debian/tmp/usr/share/opencv/samples/c/build_all.sh
-	echo static > debian/tmp/usr/lib/libopencv_BUILD_THE_STATIC_LIBS.a
+	for f in $$(ls obj-*/lib/libopencv_*_s.a); do \
+	 cp --verbose --preserve=mode $$f debian/tmp/usr/lib/$$(basename $$f _s.a).a; done
 	dh_install -O--buildsystem=cmake --list-missing
