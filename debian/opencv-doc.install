@@ -10,3 +10,4 @@ usr/share/opencv/haarcascades	usr/share/doc/opencv-doc/examples/
 usr/share/opencv/lbpcascades	usr/share/doc/opencv-doc/examples/
 usr/share/opencv/samples/*	usr/share/doc/opencv-doc/examples/
 samples/python			usr/share/doc/opencv-doc/examples/
+debian/samples/c/Makefile.debian usr/share/doc/opencv-doc/examples/c/
