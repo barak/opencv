@@ -3,3 +3,5 @@
 0003-hurd.patch
 0004-fix_stdint_gcc45.patch
 0005-build-static-libs.patch
+0006-typos-in-license.patch
+0007-typos-in-strings-docs.patch
