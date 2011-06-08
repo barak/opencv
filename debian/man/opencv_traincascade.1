@@ -22,104 +22,104 @@ supports the following options:
 
 .SH BASIC OPTIONS
 
-.PP
-.BI " \-data " cascade_dir_name
+.TP
+.BI "\-data " cascade_dir_name
 
-.PP  
-.BI " \-vec " vec_file_name
+.TP  
+.BI "\-vec " vec_file_name
 
-.PP
-.BI " \-bg " background_file_name
+.TP
+.BI "\-bg " background_file_name
 
-.PP
-.BI " \-numPos " number_of_positive_samples
+.TP
+.BI "\-numPos " number_of_positive_samples
 The default is
 .IR 2000 .
 
-.PP
-.BI " \-numNeg " number_of_negative_samples
+.TP
+.BI "\-numNeg " number_of_negative_samples
 The default is
 .IR 1000 .
 
-.PP
-.BI " \-num " Stages number_of_stages 
+.TP
+.BI "\-num " Stages number_of_stages 
 The default is
 .IR 20 .
 
-.PP
-.BI " \-precalcValBufSize " precalculated_vals_buffer_size_in_Mb
+.TP
+.BI "\-precalcValBufSize " precalculated_vals_buffer_size_in_Mb
 The default is
 .IR 256 .
 
-.PP
-.BI " \-precalcIdxBufSize " precalculated_idxs_buffer_size_in_Mb
+.TP
+.BI "\-precalcIdxBufSize " precalculated_idxs_buffer_size_in_Mb
 The default is
 .IR 256 .
 
-.PP
-.BI " \-baseFormatSave "
+.TP
+.BI "\-baseFormatSave "
 
 .SH CASCADE OPTIONS
  
-.PP
-.BI " \-stageType "
+.TP
+.BI "\-stageType "
 The default is
 .IR BOOST .
 
-.PP
-.BI " \-featureType "
+.TP
+.BI "\-featureType "
 Set feauture type . You can select HAAR or LBP.
 The default is
 .IR HAAR .
 
-.PP
-.BI " \-w " sampleWidth
+.TP
+.BI "\-w " sampleWidth
 The default is
 .IR 24 .
 
-.PP
-.BI " \-h " sampleHeight
+.TP
+.BI "\-h " sampleHeight
 The default is
 .IR 24 .
 
 .SH BOOST OPTIONS
 
-.PP
-.BI " \-bt {" DAB | RAB | LB | GAB "}"
+.TP
+.BI "\-bt {" DAB | RAB | LB | GAB "}"
 The type of the applied boosting algorithm. You can choose between Discrete
 AdaBoost (\fIDAB\fR), Real AdaBoost (\fIRAB\fR), LogitBoost (\fILB\fR) and
 Gentle AdaBoost (\fIGAB\fR). The default is
 .IR GAB .
 
-.PP
-.BI " \-minHitRate " min_hit_rate
+.TP
+.BI "\-minHitRate " min_hit_rate
 The default is
 .IR 0.995 .
 
-.PP
-.BI " \-maxFalseAlarmRate " max_false_alarm_rate
+.TP
+.BI "\-maxFalseAlarmRate " max_false_alarm_rate
 The default is
 .IR 0.5 .
 
-.PP
-.BI " \-weightTrimRate " weight_trim_rate
+.TP
+.BI "\-weightTrimRate " weight_trim_rate
 The default is
 .IR 0.95 .
 
-.PP
-.BI " \-maxDepth " max_depth_of_weak_tree
+.TP
+.BI "\-maxDepth " max_depth_of_weak_tree
 The default is
 .IR 1 .
 
-.PP
-.BI " \-maxWeakCount max_weak_tree_count
+.TP
+.BI "\-maxWeakCount " max_weak_tree_count
 The default is
 .IR 100 .
 
 .SH HAARFEATURE OPTIONS
 
-.PP
-.BI " \-mode " <BASIC(default) | CORE | ALL
+.TP
+.BI "\-mode " <BASIC | CORE | ALL>
 The type of the applied haarFeature mode. You can choose between \fIBASIC\fR, 
 \fCORE\fR and \fIALL\fR. The default is
 .IR BASIC .
