@@ -1,3 +1,24 @@
+opencv (2.2.0-1) UNRELEASED; urgency=low
+
+  * New upstream release. (Closes: #623532)
+    - Update, refresh and prune debian/patches.
+    - Account for upstream splitting/renaming libs:
+      + generate N dynamic library packages.
+      + name all library package as libopencv-*.
+      + combine lib*-dev into single libopencv-dev.
+    - Update debian/copyright.
+    - Remove debian/README.source.
+    - Update debian/*.install scripts.
+    - Update lintian overrides.
+  * Bump to dh 8.
+  * Switch to source format 3.0 (quilt).
+  * Patch minor upstream typos.
+  * Fix formatting in debian/man/opencv_traincascade.1.
+  * Bumped standards-version to 3.9.2.  No changes needed.
+  * Update debian repository pointers for new alioth hosts.
+
+ -- Barak A. Pearlmutter <bap@debian.org>  Thu, 09 Jun 2011 07:42:39 +0100
+
 opencv (2.1.0-4) unstable; urgency=low
 
   * Fix install path of opencv-doc (Closes: #610803).
