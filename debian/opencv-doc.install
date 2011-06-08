@@ -1,18 +1,12 @@
-#usr/share/opencv/doc/CMakeLists.txt
-#usr/share/opencv/doc/ChangeLog.htm
-#usr/share/opencv/doc/README.txt
-#usr/share/opencv/doc/haartraining.htm
-#usr/share/opencv/doc/index.htm
-#usr/share/opencv/doc/opencv-logo.png
-#usr/share/opencv/doc/opencv-logo2.png
-#usr/share/opencv/doc/opencv.jpg
-#usr/share/opencv/doc/opencv.pdf
-#usr/share/opencv/doc/packaging.txt
-#usr/share/opencv/doc/papers
-#usr/share/opencv/doc/pattern.pdf
-#usr/share/opencv/doc/vidsurv
-usr/share/opencv/doc/*		usr/share/doc/opencv-doc/
+usr/share/opencv/doc/*.jpg	usr/share/doc/opencv-doc/
+usr/share/opencv/doc/*.png	usr/share/doc/opencv-doc/
+usr/share/opencv/doc/*.htm	usr/share/doc/opencv-doc/
+usr/share/opencv/doc/*.pdf	usr/share/doc/opencv-doc/
+
+usr/share/opencv/doc/papers	usr/share/doc/opencv-doc/
+usr/share/opencv/doc/vidsurv	usr/share/doc/opencv-doc/
+
 usr/share/opencv/haarcascades	usr/share/doc/opencv-doc/examples/
 usr/share/opencv/lbpcascades	usr/share/doc/opencv-doc/examples/
 usr/share/opencv/samples/*	usr/share/doc/opencv-doc/examples/
-#../../samples/c/Makefile.debian	usr/share/doc/opencv-doc/examples/c/
+samples/python			usr/share/doc/opencv-doc/examples/
