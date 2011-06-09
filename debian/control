@@ -11,9 +11,9 @@ Build-Depends: debhelper (>= 8), quilt (>= 0.46-7~), cmake,
  zlib1g-dev, liblapack-dev, python-dev, swig, python-support (>= 0.4.1), python-numpy,
  texlive-fonts-extra, texlive-latex-extra, texlive-latex-recommended,
  latex-xcolor, texlive-fonts-recommended
-Standards-Version: 3.9.1
-Vcs-Svn: svn://svn.debian.org/svn/pkg-scicomp/opencv/trunk/
-Vcs-Browser: http://svn.debian.org/wsvn/pkg-scicomp/opencv/
+Standards-Version: 3.9.2
+Vcs-Svn: svn://anonscm.debian.org/pkg-scicomp/opencv/
+Vcs-Browser: http://anonscm.debian.org/viewvc/pkg-scicomp/opencv/
 Homepage: http://opencvlibrary.sourceforge.net/
 
 Package: opencv-doc
