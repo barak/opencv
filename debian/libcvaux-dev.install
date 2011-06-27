@@ -1,3 +1,3 @@
-usr/include/opencv/cvaux.*
-usr/lib/libcvaux.a
-usr/lib/libcvaux.so
+# header files
+usr/include/opencv/cvaux.h
+usr/include/opencv/cvaux.hpp

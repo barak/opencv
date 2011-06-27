@@ -1,0 +1,82 @@
+From: Barak A. Pearlmutter <barak+git@cs.nuim.ie>
+Date: Tue, 7 Jun 2011 00:35:41 +0100
+Subject: [PATCH] build static libs
+
+---
+ OpenCVModule.cmake             |    2 ++
+ modules/gpu/CMakeLists.txt     |    2 ++
+ modules/highgui/CMakeLists.txt |    2 ++
+ tests/cxts/CMakeLists.txt      |    2 ++
+ 4 files changed, 8 insertions(+), 0 deletions(-)
+
+diff --git a/OpenCVModule.cmake b/OpenCVModule.cmake
+index d3a1609..cdb7f67 100644
+--- a/OpenCVModule.cmake
++++ b/OpenCVModule.cmake
+@@ -26,8 +26,10 @@ macro(define_opencv_module name)
+ 	source_group("Include" FILES ${lib_hdrs})
+ 
+ 	set(the_target "opencv_${name}")
++	set(the_target_s "opencv_${name}_s")
+ 
+ 	add_library(${the_target} ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs})
++	add_library(${the_target_s} STATIC ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs})
+ 
+ 	if(PCHSupport_FOUND)
+ 	    set(pch_header ${CMAKE_CURRENT_SOURCE_DIR}/src/precomp.hpp)
+diff --git a/modules/gpu/CMakeLists.txt b/modules/gpu/CMakeLists.txt
+index 8181c3d..37b4afe 100644
+--- a/modules/gpu/CMakeLists.txt
++++ b/modules/gpu/CMakeLists.txt
+@@ -5,6 +5,7 @@ set(DEPS "opencv_core" "opencv_imgproc" "opencv_objdetect")
+ set(OPENCV_LINKER_LIBS ${OPENCV_LINKER_LIBS} opencv_gpu)
+ 
+ set(the_target "opencv_${name}")
++set(the_target_s "opencv_${name}_s")
+ 
+ project(${the_target})
+ 
+@@ -72,6 +73,7 @@ endif()
+ 
+ 
+ add_library(${the_target} ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs} ${lib_cuda} ${lib_cuda_hdrs} ${cuda_objs})
++add_library(${the_target_s} STATIC ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs} ${lib_cuda} ${lib_cuda_hdrs} ${cuda_objs})
+ 
+ 
+ if(PCHSupport_FOUND)
+diff --git a/modules/highgui/CMakeLists.txt b/modules/highgui/CMakeLists.txt
+index a07ae55..49e6a14 100644
+--- a/modules/highgui/CMakeLists.txt
++++ b/modules/highgui/CMakeLists.txt
+@@ -217,6 +217,7 @@ set(lib_srcs ${highgui_srcs} ${grfmt_srcs})
+ # 				Define the library target:
+ # ----------------------------------------------------------------------------------
+ set(the_target "opencv_highgui")
++set(the_target_s "opencv_highgui_s")
+ 
+ add_definitions(-DHIGHGUI_EXPORTS -DCVAPI_EXPORTS)
+ 
+@@ -227,6 +228,7 @@ include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include"
+                     "${CMAKE_CURRENT_BINARY_DIR}")
+ 
+ add_library(${the_target} ${lib_srcs} ${highgui_hdrs} ${grfmt_hdrs} ${highgui_ext_hdrs})
++add_library(${the_target_s} STATIC ${lib_srcs} ${highgui_hdrs} ${grfmt_hdrs} ${highgui_ext_hdrs})
+ 
+ if(PCHSupport_FOUND)
+     set(pch_header ${CMAKE_CURRENT_SOURCE_DIR}/src/precomp.hpp)
+diff --git a/tests/cxts/CMakeLists.txt b/tests/cxts/CMakeLists.txt
+index 77a9d5a..372e422 100644
+--- a/tests/cxts/CMakeLists.txt
++++ b/tests/cxts/CMakeLists.txt
+@@ -38,8 +38,10 @@ endif()
+ # 				Define the library target:
+ # ----------------------------------------------------------------------------------
+ set(the_target "opencv_ts")
++set(the_target_s "opencv_ts_s")
+ 
+ add_library(${the_target} ${lib_srcs} ${lib_hdrs})
++add_library(${the_target_s} STATIC ${lib_srcs} ${lib_hdrs})
+ 
+ # For dynamic link numbering convenions
+ set_target_properties(${the_target} PROPERTIES
+-- 

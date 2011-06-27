@@ -1,3 +1,7 @@
+if(ANDROID)
+define_3rdparty_module(jpeg)
+else()
+#endif()#android
 # ----------------------------------------------------------------------------
 #  CMake file for libjpeg. See root CMakeLists.txt
 #
@@ -34,8 +38,19 @@ if(UNIX)
      endif()
 endif()
 
+if(CMAKE_COMPILER_IS_GNUCXX)
+    set_source_files_properties(jcdctmgr.c PROPERTIES COMPILE_FLAGS "-O1")
+endif()
+
 set_target_properties(${the_target}
 	PROPERTIES OUTPUT_NAME "${the_target}"
 	DEBUG_POSTFIX "${OPENCV_DEBUG_POSTFIX}"
 	ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/3rdparty/lib
 	)
+    
+if(NOT BUILD_SHARED_LIBS)
+    install(TARGETS ${the_target}
+	    ARCHIVE DESTINATION share/opencv/3rdparty/lib COMPONENT main)
+endif()
+    
+endif()#android

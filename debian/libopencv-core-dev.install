@@ -1,0 +1,12 @@
+# header files
+usr/include/opencv2/core/*
+# libraries
+usr/lib/libopencv_core.a
+usr/lib/libopencv_core.so
+usr/lib/pkgconfig
+usr/share/opencv/OpenCVConfig.cmake
+# samples
+usr/bin
+usr/share/opencv/haarcascades
+usr/share/opencv/lbpcascades
+

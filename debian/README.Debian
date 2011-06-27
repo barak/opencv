@@ -8,6 +8,8 @@ Notes for the Debian OpenCV packages:
 
    gcc code.o -o code `pkg-config --libs opencv` -lotherlibs
 
- There is currently no way to exclude libcvaux or libhighgui from the
-link process. I will talk with upstream about this.
+There is currently no way to exclude libcvhighgui-dev and other from the
+link process. I reported with upstream about this [0].
+
+[0]: https://code.ros.org/trac/opencv/ticket/332
 

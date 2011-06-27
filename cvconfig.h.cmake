@@ -156,3 +156,13 @@
 
 /* Intel Threading Building Blocks */
 #cmakedefine  HAVE_TBB
+
+/* Eigen2 Matrix & Linear Algebra Library */
+#cmakedefine  HAVE_EIGEN2
+
+/* NVidia Cuda Runtime API*/
+#cmakedefine HAVE_CUDA
+
+/* VideoInput library */
+#cmakedefine HAVE_VIDEOINPUT
+

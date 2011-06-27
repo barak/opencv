@@ -1,0 +1,119 @@
+diff --git a/modules/highgui/src/grfmt_png.cpp b/modules/highgui/src/grfmt_png.cpp
+index c9b4b54..ba04331 100644
+--- a/modules/highgui/src/grfmt_png.cpp
++++ b/modules/highgui/src/grfmt_png.cpp
+@@ -53,8 +53,10 @@
+ 
+ #ifdef HAVE_LIBPNG_PNG_H
+ #include <libpng/png.h>
++#include <zlib.h>
+ #else
+ #include <png.h>
++#include <zlib.h>
+ #endif
+ #include "grfmt_png.hpp"
+ 
+@@ -95,11 +97,23 @@ void  PngDecoder::close()
+ 
+     if( m_png_ptr )
+     {
++#if PNG_LIBPNG_VER_MAJOR >= 1 && PNG_LIBPNG_VER_MINOR >= 4
++        png_structp png_ptr = m_png_ptr;
++        png_infop info_ptr = m_info_ptr;
++        png_infop end_info = m_end_info;
++#else
+         png_structp png_ptr = (png_structp)m_png_ptr;
+         png_infop info_ptr = (png_infop)m_info_ptr;
+         png_infop end_info = (png_infop)m_end_info;
++#endif
+         png_destroy_read_struct( &png_ptr, &info_ptr, &end_info );
++#if PNG_LIBPNG_VER_MAJOR >= 1 && PNG_LIBPNG_VER_MINOR >= 4
++        m_png_ptr = NULL;
++		m_info_ptr = NULL;
++		m_end_info = NULL;
++#else
+         m_png_ptr = m_info_ptr = m_end_info = 0;
++#endif
+     }
+ }
+ 
+@@ -107,7 +121,11 @@ void  PngDecoder::close()
+ void  PngDecoder::readDataFromBuf( void* _png_ptr, uchar* dst, size_t size )
+ {
+     png_structp png_ptr = (png_structp)_png_ptr;
++#if PNG_LIBPNG_VER_MAJOR >= 1 && PNG_LIBPNG_VER_MINOR >= 4
++    PngDecoder* decoder = (PngDecoder*)png_get_io_ptr(png_ptr);
++#else
+     PngDecoder* decoder = (PngDecoder*)(png_ptr->io_ptr);
++#endif
+     CV_Assert( decoder );
+     const Mat& buf = decoder->m_buf;
+     if( decoder->m_buf_pos + size > buf.cols*buf.rows*buf.elemSize() )
+@@ -138,7 +156,11 @@ bool  PngDecoder::readHeader()
+ 
+         if( info_ptr && end_info )
+         {
++#if PNG_LIBPNG_VER_MAJOR >= 1 && PNG_LIBPNG_VER_MINOR >= 4
++            if( setjmp(png_jmpbuf((png_ptr))) == 0 )
++#else
+             if( setjmp( png_ptr->jmpbuf ) == 0 )
++#endif
+             {
+                 if( !m_buf.empty() )
+                     png_set_read_fn(png_ptr, this, (png_rw_ptr)readDataFromBuf );
+@@ -200,7 +222,11 @@ bool  PngDecoder::readData( Mat& img )
+         png_infop info_ptr = (png_infop)m_info_ptr;
+         png_infop end_info = (png_infop)m_end_info;
+ 
++#if PNG_LIBPNG_VER_MAJOR >= 1 && PNG_LIBPNG_VER_MINOR >= 4
++        if( setjmp(png_jmpbuf((png_ptr))) == 0 )
++#else
+         if( setjmp(png_ptr->jmpbuf) == 0 )
++#endif
+         {
+             int y;
+ 
+@@ -280,7 +306,11 @@ void PngEncoder::writeDataToBuf(void* _png_ptr, uchar* src, size_t size)
+     if( size == 0 )
+         return;
+     png_structp png_ptr = (png_structp)_png_ptr;
++#if PNG_LIBPNG_VER_MAJOR >= 1 && PNG_LIBPNG_VER_MINOR >= 4
++    PngEncoder* encoder = (PngEncoder*)png_get_io_ptr(png_ptr);
++#else
+     PngEncoder* encoder = (PngEncoder*)(png_ptr->io_ptr);
++#endif
+     CV_Assert( encoder && encoder->m_buf );
+     size_t cursz = encoder->m_buf->size();
+     encoder->m_buf->resize(cursz + size);
+@@ -322,7 +352,11 @@ bool  PngEncoder::write( const Mat& img, const vector<int>& params )
+ 
+         if( info_ptr )
+         {
++#if PNG_LIBPNG_VER_MAJOR >= 1 && PNG_LIBPNG_VER_MINOR >= 4
++            if( setjmp(png_jmpbuf((png_ptr))) == 0 )
++#else
+             if( setjmp( png_ptr->jmpbuf ) == 0 )
++#endif
+             {
+                 if( m_buf )
+                 {
+diff --git a/modules/highgui/src/grfmt_png.hpp b/modules/highgui/src/grfmt_png.hpp
+index 91d4496..317d154 100644
+--- a/modules/highgui/src/grfmt_png.hpp
++++ b/modules/highgui/src/grfmt_png.hpp
+@@ -69,9 +69,15 @@ protected:
+     static void readDataFromBuf(void* png_ptr, uchar* dst, size_t size);
+ 
+     int   m_bit_depth;
++#if PNG_LIBPNG_VER_MAJOR >= 1 && PNG_LIBPNG_VER_MINOR >= 4
++    png_structp m_png_ptr;
++    png_infop m_info_ptr;
++    png_infop m_end_info;
++#else
+     void* m_png_ptr;  // pointer to decompression structure
+     void* m_info_ptr; // pointer to image information structure
+     void* m_end_info; // pointer to one more image information structure
++#endif
+     FILE* m_f;
+     int   m_color_type;
+     size_t m_buf_pos;

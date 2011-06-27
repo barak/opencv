@@ -51,7 +51,7 @@
 using namespace cv;
 using namespace std;
 
-#if defined WIN32 || defined _WIN32 || defined WIN64 || defined _WIN64
+#if defined WIN32 || defined _WIN32
 //#if 0
     
 #else
@@ -66,8 +66,14 @@ using namespace std;
 
 struct TempDirHolder
 {
-	const string temp_folder;
-	TempDirHolder() : temp_folder(tmpnam(0)) {exec_cmd("mkdir " + temp_folder); }	
+	string temp_folder;
+	TempDirHolder()
+    {
+        char* p = tmpnam(0);
+        if(p[0] == '\\') p++;
+        temp_folder = string(p);
+        exec_cmd("mkdir " + temp_folder);
+    }	
 	~TempDirHolder() { exec_cmd("rm -rf " + temp_folder); }
 	static void exec_cmd(const string& cmd) { marker(cmd); int res = system( cmd.c_str() ); (void)res; }
 	

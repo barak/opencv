@@ -4,18 +4,27 @@
  * Author: Liu Liu
  * liuliu.1987+opencv@gmail.com
  */
-
-#include <cv.h>
-#include <highgui.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/imgproc/imgproc_c.h>
 
 #include <iostream>
 #include <vector>
 
 using namespace std;
+void help()
+{
+	printf(
+			"This program demonstrated the use of the SURF Detector and Descriptor using\n"
+			"either FLANN (fast approx nearst neighbor classification) or brute force matching\n"
+			"on planar objects.\n"
+			"Call:\n"
+			"./find_obj [<object_filename default box.png> <scene_filename default box_in_scene.png>]\n\n"
+			);
 
+}
 
 // define whether to use approximate nearest-neighbor search
 #define USE_FLANN
@@ -171,7 +180,7 @@ locatePlanarObject( const CvSeq* objectKeypoints, const CvSeq* objectDescriptors
     findPairs( objectKeypoints, objectDescriptors, imageKeypoints, imageDescriptors, ptpairs );
 #endif
 
-    n = ptpairs.size()/2;
+    n = (int)(ptpairs.size()/2);
     if( n < 4 )
         return 0;
 
@@ -206,7 +215,7 @@ int main(int argc, char** argv)
     const char* scene_filename = argc == 3 ? argv[2] : "box_in_scene.png";
 
     CvMemStorage* storage = cvCreateMemStorage(0);
-
+    help();
     cvNamedWindow("Object", 1);
     cvNamedWindow("Object Correspond", 1);
 

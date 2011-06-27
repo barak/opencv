@@ -2008,7 +2008,10 @@ void CxCore_GraphTest::run( int )
     {
         struct_idx = iter = -1;
         t = cvTsRandReal(rng)*(max_log_storage_block_size - min_log_storage_block_size) + min_log_storage_block_size;
-        storage = cvCreateMemStorage( cvRound( exp(t * CV_LOG2) ) );
+        int block_size = cvRound( exp(t * CV_LOG2) );
+        block_size = MAX(block_size, (int)(sizeof(CvGraph) + sizeof(CvMemBlock) + sizeof(CvSeqBlock)));
+        
+        storage = cvCreateMemStorage(block_size);
 
         for( i = 0; i < struct_count; i++ )
         {
@@ -2135,7 +2138,11 @@ void CxCore_GraphScanTest::run( int )
     {
         struct_idx = iter = -1;
         t = cvTsRandReal(rng)*(max_log_storage_block_size - min_log_storage_block_size) + min_log_storage_block_size;
-        storage = cvCreateMemStorage( cvRound( exp(t * CV_LOG2) ) );
+        int storage_blocksize = cvRound( exp(t * CV_LOG2) );
+        storage_blocksize = MAX(storage_blocksize, (int)(sizeof(CvGraph) + sizeof(CvMemBlock) + sizeof(CvSeqBlock)));
+        storage_blocksize = MAX(storage_blocksize, (int)(sizeof(CvGraphEdge) + sizeof(CvMemBlock) + sizeof(CvSeqBlock)));
+        storage_blocksize = MAX(storage_blocksize, (int)(sizeof(CvGraphVtx) + sizeof(CvMemBlock) + sizeof(CvSeqBlock)));
+        storage = cvCreateMemStorage(storage_blocksize);
 
         if( gen == 0 )
         {
@@ -2271,13 +2278,13 @@ void CxCore_GraphScanTest::run( int )
                 if( !vtx_mask || vtx_mask->cols < graph->active_count )
                 {
                     cvReleaseMat( &vtx_mask );
-                    CV_CALL( vtx_mask = cvCreateMat( 1, graph->active_count, CV_8UC1 ));
+                    CV_CALL( vtx_mask = cvCreateMat( 1, MAX(graph->active_count, 1), CV_8UC1 ));
                 }
 
                 if( !edge_mask || edge_mask->cols < graph->edges->active_count )
                 {
                     cvReleaseMat( &edge_mask );
-                    CV_CALL( edge_mask = cvCreateMat( 1, graph->edges->active_count, CV_8UC1 ));
+                    CV_CALL( edge_mask = cvCreateMat( 1, MAX(graph->edges->active_count, 1), CV_8UC1 ));
                 }
 
                 cvZero( vtx_mask );

@@ -7,6 +7,8 @@ import pyparsing as pp
 import StringIO
 from qfile import QOpen
 from string import Template
+from random import random
+import urllib
 
 # useful things for pyparsing
 def returnList(x):
@@ -26,7 +28,7 @@ def sl(s):
 
 import pythonapi
 
-python_api = pythonapi.reader("../../interfaces/python/api")
+python_api = pythonapi.reader("../../modules/python/api")
 
 
 class SphinxWriter:
@@ -51,6 +53,7 @@ class SphinxWriter:
         self.function_props = {}
         self.covered = set()        # covered functions, used for error report
         self.description = ""
+        self.cur_module = ""
 
     def write(self, s):
         self.freshline = len(s) > 0 and (s[-1] == '\n')
@@ -99,7 +102,7 @@ class SphinxWriter:
         print >>self
 
     def cmd_chapter(self, c):
-        filename = str(c.params[0]).lower().replace(' ', '_').replace('/','_')
+        filename = str(c.params[0]).lower().replace(' ', '_').replace('/','_').replace('.','_')
         self.f_index.write("    %s\n" % filename)
         self.f_chapter = QOpen(os.path.join(self.language, filename + '.rst'), 'wt')
         self.f_section = None
@@ -114,6 +117,8 @@ class SphinxWriter:
 
     def cmd_section(self, c):
         filename = str(c.params[0]).lower().replace(' ', '_').replace('/','_')
+        if len(self.cur_module) > 0:
+            filename = self.cur_module + "_" + filename
         if not self.chapter_intoc:
             self.chapter_intoc = True
             print >>self.f_chapter
@@ -144,6 +149,15 @@ class SphinxWriter:
         filename = os.path.join('..', '..', str(c.params[0]))
         print >>self, "\n\n.. image:: %s\n\n" % filename
 
+    def cmd_renewcommand(self, c):
+        self.indent = 0
+        command = self.render(c.params[0].str)
+	if command == 'curModule':
+		self.cur_module = self.render(c.params[1].str)
+
+    def wikiLink(self, name):
+        return '`id=%s Comments from the Wiki <http://opencv.willowgarage.com/wiki/documentation/%s/%s/%s>`__' % (random(), self.language, self.cur_module, urllib.quote(name) )
+
     def cmd_cvCppCross(self, c):
         self.write(":func:`%s`" % str(c.params[0]))
 
@@ -164,6 +178,8 @@ class SphinxWriter:
         print >>self, ".. _%s:\n" % nm
         print >>self, nm
         print >>self, '-' * len(nm)
+        print >>self
+        print >>self, self.wikiLink(nm)
         print >>self
         if self.language == 'py':
             print >>self, ".. class:: " + nm + "\n"
@@ -201,6 +217,8 @@ class SphinxWriter:
         print >>self, nm
         print >>self, '-' * len(nm)
         print >>self
+        print >>self, self.wikiLink(nm)
+        print >>self
         self.state = 'fpreamble'
         if self.description != "":
             self.report_error(c, "overflow - preceding cvfunc (starting %s) not terminated?" % repr(self.description[:30]))
@@ -219,6 +237,8 @@ class SphinxWriter:
         print >>self
         print >>self, 'cv::%s' % nm
         print >>self, '-' * (4+len(nm))
+        print >>self
+        print >>self, self.wikiLink(nm)
         print >>self
         self.state = 'fpreamble'
         if self.description != "":
@@ -500,7 +520,7 @@ class SphinxWriter:
             type = type.replace('*', '')
             translate = {
                 "ints" : "sequence of int",
-                "floats" : "sequence of int",
+                "floats" : "sequence of float",
                 "IplImages" : "sequence of :class:`IplImage`",
                 "double" : "float",
                 "int" : "int",
@@ -537,7 +557,9 @@ class SphinxWriter:
         print >>self, "\\hline"
 
     def cmd_cite(self, c):
-        self.write("[%s]_" % str(c.params[0]))
+        # XXX jcb - these references are crashing Sphinx 0.65
+        # self.write("[%s]_" % str(c.params[0]))
+        self.write("%s" % str(c.params[0]))
 
     def cmd_href(self, c):
         if len(c.params) == 2:

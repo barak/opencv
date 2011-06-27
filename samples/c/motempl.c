@@ -1,19 +1,20 @@
-#ifdef _CH_
-#pragma package <opencv>
-#endif
-
-#define CV_NO_BACKWARD_COMPATIBILITY
-
-#ifndef _EiC
-// motion templates sample code
-#include "cv.h"
-#include "highgui.h"
+#include "opencv2/video/tracking.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
 #include <time.h>
-#include <math.h>
-#include <ctype.h>
 #include <stdio.h>
-#endif
 
+void help()
+{
+	printf(
+			"\nThis program demonstrated the use of motion templates -- basically using the gradients\n"
+			"of thresholded layers of decaying frame differencing. New movements are stamped on top with floating system\n"
+			"time code and motions too old are thresholded away. This is the 'motion history file'. The program reads from the camera of your choice or from\n"
+			"a file. Gradients of motion history are used to detect direction of motoin etc\n"
+			"Call:\n"
+			"./motempl [camera number 0-n or file name, default is camera 0]\n"
+			);
+}
 // various tracking parameters (in seconds)
 const double MHI_DURATION = 1;
 const double MAX_TIME_DELTA = 0.5;
@@ -158,7 +159,7 @@ int main(int argc, char** argv)
 {
     IplImage* motion = 0;
     CvCapture* capture = 0;
-
+    help();
     if( argc == 1 || (argc == 2 && strlen(argv[1]) == 1 && isdigit(argv[1][0])))
         capture = cvCaptureFromCAM( argc == 2 ? argv[1][0] - '0' : 0 );
     else if( argc == 2 )

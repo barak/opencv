@@ -92,7 +92,7 @@ void CV_POSITTest::run( int start_from )
     CvMat* true_translation = cvCreateMat( 3, 1, CV_32F );
 
     const float flFocalLength = 760.f;
-    const float flEpsilon = 0.1f;
+    const float flEpsilon = 0.5f;
 
     /* Initilization */
     criteria.type = CV_TERMCRIT_EPS|CV_TERMCRIT_ITER;
@@ -153,7 +153,7 @@ void CV_POSITTest::run( int start_from )
         cvMatMul( tmp_matrix, true_rotationZ, true_rotation);
 
         /* fill translation vector */
-        true_translation->data.fl[2] = (float)(cvRandReal(rng)*(2*flFocalLength-40) + 40);
+        true_translation->data.fl[2] = (float)(cvRandReal(rng)*(2*flFocalLength-40) + 60);
         true_translation->data.fl[0] = (float)((cvRandReal(rng)*2-1)*true_translation->data.fl[2]);
         true_translation->data.fl[1] = (float)((cvRandReal(rng)*2-1)*true_translation->data.fl[2]);
 
@@ -161,8 +161,8 @@ void CV_POSITTest::run( int start_from )
         for ( i = 0; i < 8; i++ )
         {
             float vec[3];
-            CvMat Vec = cvMat( 3, 1, CV_MAT32F, vec );
-            CvMat Obj_point = cvMat( 3, 1, CV_MAT32F, &obj_points[i].x );
+            CvMat Vec = cvMat( 3, 1, CV_32F, vec );
+            CvMat Obj_point = cvMat( 3, 1, CV_32F, &obj_points[i].x );
 
             cvMatMul( true_rotation, &Obj_point, &Vec );
 

@@ -21,12 +21,13 @@
      ISBN-10: 0596516134 or: ISBN-13: 978-0596516130    
 ************************************************** */
 
-#include "cvaux.h"
-#include "cxmisc.h"
-#include "highgui.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+
+#include <opencv2/video/background_segm.hpp>
+#include <opencv2/imgproc/imgproc_c.h>
+#include <opencv2/highgui/highgui.hpp>
 
 //VARIABLES for CODEBOOK METHOD:
 CvBGCodeBookModel* model = 0;
@@ -36,6 +37,7 @@ bool ch[NCHANNELS]={true,true,true}; // This sets what channels should be adjust
 void help(void)
 {
     printf("\nLearn background and find foreground using simple average and average difference learning method:\n"
+    		"Originally from the book: Learning OpenCV by O'Reilly press\n"
         "\nUSAGE:\nbgfg_codebook [--nframes=300] [movie filename, else from camera]\n"
         "***Keep the focus on the video windows, NOT the consol***\n\n"
         "INTERACTIVE PARAMETERS:\n"
@@ -220,7 +222,7 @@ int main(int argc, char** argv)
                 if( ch[n] )
                 {
                     int v = ptr[n] + (c == 'i' || c == 'l' ? 1 : -1);
-                    ptr[n] = CV_CAST_8U(v);
+                    ptr[n] = cv::saturate_cast<uchar>(v);
                 }
                 printf("%d,", ptr[n]);
             }

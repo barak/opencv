@@ -156,6 +156,8 @@ void CV_IOTest::run( int )
         char buf[L_tmpnam+16];
         char* filename = tmpnam(buf);
         strcat(filename, idx % 2 ? ".yml" : ".xml");
+        if(filename[0] == '\\')
+            filename++;
         
         FileStorage fs(filename, FileStorage::WRITE);
         
@@ -176,8 +178,8 @@ void CV_IOTest::run( int )
             multiply(test_mat, test_mat_scale, test_mat);
         }
         
-        CvSeq* seq = cvCreateSeq(test_mat.type(), sizeof(CvSeq),
-            test_mat.elemSize(), storage);
+        CvSeq* seq = cvCreateSeq(test_mat.type(), (int)sizeof(CvSeq),
+            (int)test_mat.elemSize(), storage);
         cvSeqPushMulti(seq, test_mat.data, test_mat.cols*test_mat.rows); 
         
         CvGraph* graph = cvCreateGraph( CV_ORIENTED_GRAPH,
@@ -423,11 +425,7 @@ void CV_IOTest::run( int )
         }
         
         fs.release();
-        #ifdef _MSC_VER
-            _unlink(filename);
-        #else
-            unlink(filename);
-        #endif
+        remove(filename);
     }
 }
 

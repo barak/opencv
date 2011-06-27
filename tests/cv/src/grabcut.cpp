@@ -52,7 +52,8 @@ class CV_GrabcutTest : public CvTest
 public:
     CV_GrabcutTest();
     ~CV_GrabcutTest();    
-protected:    
+protected:
+    bool verify(const Mat& mask, const Mat& exp);
     void run(int);    
 };
 
@@ -62,18 +63,15 @@ CV_GrabcutTest::CV_GrabcutTest(): CvTest( "segmentation-grabcut", "cv::grabCut" 
 }
 CV_GrabcutTest::~CV_GrabcutTest() {}
 
-bool verify(const Mat& mask, const Mat& exp)
-{    
-    if (0 == norm(mask, exp, NORM_INF))
-        return true;
+bool CV_GrabcutTest::verify(const Mat& mask, const Mat& exp)
+{
+    const float maxDiffRatio = 0.005f;
+    int expArea = countNonZero( exp );
+    int nonIntersectArea = countNonZero( mask != exp );
 
-    Mat mask_dilated, exp_dilated;
-
-    const int inter_num = 2;
-    dilate(mask, mask_dilated, Mat(), Point(-1, -1), inter_num);
-    dilate(exp, exp_dilated, Mat(), Point(-1, -1), inter_num);
-    
-    return countNonZero(mask-exp_dilated) + countNonZero(mask_dilated-exp) == 0;
+    float curRatio = (float)nonIntersectArea / (float)expArea;
+    ts->printf( CvTS::LOG, "nonIntersectArea/expArea = %f\n", curRatio );
+    return curRatio < maxDiffRatio;
 }
 
 void CV_GrabcutTest::run( int /* start_from */)
@@ -85,9 +83,9 @@ void CV_GrabcutTest::run( int /* start_from */)
     Mat exp_mask1 = imread(string(ts->get_data_path()) + "grabcut/exp_mask1.png", 0);
     Mat exp_mask2 = imread(string(ts->get_data_path()) + "grabcut/exp_mask2.png", 0);
     
-    if (img.empty() || mask_prob.empty() || exp_mask1.empty() || exp_mask2.empty() ||
-        img.size() != mask_prob.size() || mask_prob.size() != exp_mask1.size() || 
-        exp_mask1.size() != exp_mask2.size())
+    if (img.empty() || (!mask_prob.empty() && img.size() != mask_prob.size()) ||
+                       (!exp_mask1.empty() && img.size() != exp_mask1.size()) ||
+                       (!exp_mask2.empty() && img.size() != exp_mask2.size()) )
     {
          ts->set_failed_test_info(CvTS::FAIL_MISSING_TEST_DATA);         
          return;
@@ -102,10 +100,19 @@ void CV_GrabcutTest::run( int /* start_from */)
     grabCut( img, mask, rect, bgdModel, fgdModel, 0, GC_INIT_WITH_RECT );    
     grabCut( img, mask, rect, bgdModel, fgdModel, 2, GC_EVAL );
 
-    //imwrite(string(ts->get_data_path()) + "grabcut/mask_prob.png", mask_prob);
-    //imwrite(string(ts->get_data_path()) + "grabcut/exp_mask1.png", mask);
+    // Multiply images by 255 for more visuality of test data.
+    if( mask_prob.empty() )
+    {
+        mask.copyTo( mask_prob );
+        imwrite(string(ts->get_data_path()) + "grabcut/mask_prob.png", mask_prob);
+    }
+    if( exp_mask1.empty() )
+    {
+        exp_mask1 = (mask & 1) * 255;
+        imwrite(string(ts->get_data_path()) + "grabcut/exp_mask1.png", exp_mask1);
+    }
     
-    if (!verify(mask & 1, exp_mask1))
+    if (!verify((mask & 1) * 255, exp_mask1))
     {        
         ts->set_failed_test_info(CvTS::FAIL_MISMATCH);        
         return;
@@ -118,9 +125,13 @@ void CV_GrabcutTest::run( int /* start_from */)
     grabCut( img, mask, rect, bgdModel, fgdModel, 0, GC_INIT_WITH_MASK );
     grabCut( img, mask, rect, bgdModel, fgdModel, 1, GC_EVAL );
 
-    //imwrite(string(ts->get_data_path()) + "grabcut/exp_mask2.png", mask);
+    if( exp_mask2.empty() )
+    {
+        exp_mask2 = (mask & 1) * 255;
+        imwrite(string(ts->get_data_path()) + "grabcut/exp_mask2.png", exp_mask2);
+    }
     
-    if (!verify(mask & 1, exp_mask2))
+    if (!verify((mask & 1) * 255, exp_mask2))
     {
         ts->set_failed_test_info(CvTS::FAIL_MISMATCH);        
         return;

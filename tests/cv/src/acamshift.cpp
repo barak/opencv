@@ -134,7 +134,7 @@ void CV_TrackBaseTest::generate_object()
     double width = box0.size.width*0.5;
     double height = box0.size.height*0.5;
     double angle = box0.angle*CV_PI/180.;
-    double a = cos(angle), b = sin(angle);
+    double a = sin(angle), b = -cos(angle);
     double inv_ww = 1./(width*width), inv_hh = 1./(height*height);
 
     img = cvCreateMat( img_size.height, img_size.width, img_type );
@@ -352,7 +352,7 @@ int CV_CamShiftTest::validate_test_results( int /*test_case_idx*/ )
         goto _exit_;
     }
 
-    if( fabs(comp.area - area0) > area0*0.1 )
+    if( fabs(comp.area - area0) > area0*0.15 )
     {
         ts->printf( CvTS::LOG,
             "Incorrect CvConnectedComp area (=%.1f, should be %d)\n", comp.area, area0 );

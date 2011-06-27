@@ -1,3 +1,37 @@
+opencv (2.2.0-0exp1) experimental; urgency=low
+
+  * New upstream release. (Closes: #623532, #563428, #604642)
+    - Update, refresh and prune debian/patches.
+    - Account for upstream splitting/renaming libs:
+      + generate N dynamic library packages.
+      + name all library package as libopencv-*.
+    - Update debian/copyright.
+    - Remove debian/README.source.
+    - Update debian/*.install scripts.
+    - Update lintian overrides.
+    - Add libv4l-dev to Build-Depends.
+  * Bump to dh 8.
+  * Switch to source format 3.0 (quilt).
+  * Patch minor upstream typos.
+  * Fix formatting in debian/man/opencv_traincascade.1.
+  * Bumped standards-version to 3.9.2.  No changes needed.
+  * Update debian repository pointers for new alioth hosts.
+  * Add support openexr.
+  * Move usr/share/opencv/haarcascades and usr/share/opencv/lbpcascades
+    to libopencv-core-dev (Closes: #598356).
+  * Fix build using gcc-4.6 (Closes: #624917).
+    - Add patches/0008_fix_ftbfs_with_gcc-4.6.patch.
+  * Fix build without v4l1 (Closes: #623418).
+    - Add patches/0009_support_v4lv2_only.patch.
+  * Fix build with libpng15.
+    - Add patch/0010_fix_ftbs_png15.patch.
+  * Fix optimize of i386 (Closes: 629414).
+    - Opencv was optimized to i686. This chenged optimization to i486.
+    - Add patch/0011_optimize_i486.patch.
+  * If build architecture is amd64, enable SSE2 option.
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Mon, 27 Jun 2011 11:51:39 +0900
+
 opencv (2.1.0-4) unstable; urgency=low
 
   * Fix install path of opencv-doc (Closes: #610803).
