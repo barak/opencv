@@ -1,3 +1,11 @@
+opencv (2.2.0-0exp2) experimental; urgency=low
+
+  * Add libopencv-contrib-dev to Depends of libcvaux-dev (Closes: #632439).
+    Thanks to Mark Purcell.
+  * Arranged the dependence.
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Tue, 05 Jul 2011 13:30:06 +0900
+
 opencv (2.2.0-0exp1) experimental; urgency=low
 
   * New upstream release. (Closes: #623532, #563428, #604642)

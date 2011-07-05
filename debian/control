@@ -59,7 +59,8 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
 	libopencv-objdetect-dev,
 	libopencv-legacy-dev,
 	libopencv-video-dev,
-	libopencv-ml-dev,
+	libopencv-ml-dev
+Conflicts: libcvaux-dev (<= 2.1.0-4), libhighgui-dev (<= 2.1.0-4)
 Description: Translation package for libcv-dev
  This package provide files for translation from libcv-dev to
  subdivided packages.
@@ -107,7 +108,6 @@ Section: libdevel
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
 	pkg-config,
-	libopencv-core-dev,
 	libopencv-highgui-dev
 Description: Translation package for libhighgui-dev
  This package provide files for translation from libhighgui-dev to
@@ -129,7 +129,6 @@ Description: Translation package for libhighgui-dev
 Package: libhighgui2.2
 Architecture: all
 Depends: ${misc:Depends},
-	libopencv-core2.2,
 	libopencv-highgui2.2
 Description: computer vision library - libhighgui translation package
  This package provide files for translation from libhighgui2.1 to libhighgui2.2.
@@ -155,7 +154,8 @@ Depends: ${misc:Depends}, ${shlibs:Depends},
 	libopencv-calib3d-dev,
 	libopencv-objdetect-dev,
 	libopencv-legacy-dev,
-	libopencv-video-dev
+	libopencv-video-dev,
+	libopencv-contrib-dev
 Description: Translation package for libcvaux-dev
  This package provide files for translation from libcvaux-dev to
  subdivided packages.
@@ -196,9 +196,7 @@ Description: computer vision library - libcvaux translation package
 Package: libopencv-core-dev
 Section: libdevel
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends},
-		libopencv-core2.2 (= ${binary:Version}),
-		pkg-config
+Depends: ${misc:Depends}, ${shlibs:Depends}, libopencv-core2.2 (= ${binary:Version}), pkg-config
 Replaces: libcv-dev (<= 2.1.0-4)
 Breaks: libcv-dev (<= 2.1.0-4)
 Description: development files for libopencv-core
@@ -218,7 +216,7 @@ Description: development files for libopencv-core
 Package: libopencv-core2.2
 Section: libs
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: computer vision core library
  This package contains the OpenCV (Open Computer Vision) core runtime libraries.
  .
@@ -356,7 +354,6 @@ Package: libopencv-objdetect-dev
 Section: libdevel
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
-		libopencv-imgproc-dev (= ${binary:Version}),
 		libopencv-highgui-dev (= ${binary:Version}),
 		libopencv-objdetect2.2 (= ${binary:Version}),
 		pkg-config
@@ -378,7 +375,6 @@ Package: libopencv-objdetect2.2
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
-		libopencv-imgproc2.2 (= ${binary:Version}),
 		libopencv-highgui2.2 (= ${binary:Version}),
 Description: computer vision Object Detection library
  This package contains the OpenCV (Open Computer Vision) Object Detection
@@ -439,7 +435,7 @@ Section: libdevel
 Architecture: any
 Depends: ${misc:Depends},
 		${shlibs:Depends},
-		libopencv-core-dev (= ${binary:Version}),
+		libopencv-imgproc-dev (= ${binary:Version}),
 		libopencv-highgui2.2 (= ${binary:Version}),
 		pkg-config
 Description: development files for libopencv-highgui
@@ -461,7 +457,7 @@ Package: libopencv-highgui2.2
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
-		libopencv-core2.2 (= ${binary:Version}),
+		libopencv-imgproc2.2 (= ${binary:Version})
 Description: computer vision High-level GUI and Media I/O library
  This package contains the OpenCV (Open Computer Vision) High-level GUI
  and Media I/O runtime libraries.
@@ -480,7 +476,6 @@ Package: libopencv-calib3d-dev
 Section: libdevel
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
-		libopencv-highgui-dev (= ${binary:Version}),
 		libopencv-imgproc-dev (= ${binary:Version}),
 		libopencv-calib3d2.2 (= ${binary:Version}),
 		pkg-config
@@ -502,7 +497,6 @@ Package: libopencv-calib3d2.2
 Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
-		libopencv-highgui2.2 (= ${binary:Version}),
 		libopencv-imgproc2.2 (= ${binary:Version}),
 Description: computer vision Camera Calibration library
  This package contains the OpenCV (Open Computer Vision) Camera Calibration
@@ -565,6 +559,7 @@ Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
 		libopencv-flann-dev (= ${binary:Version}),
 		libopencv-calib3d-dev (= ${binary:Version}),
+		libopencv-highgui-dev (= ${binary:Version}),
 		libopencv-features2d2.2 (= ${binary:Version}),
 		pkg-config
 Description: development files for libopencv-features2d
@@ -588,6 +583,7 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
 		libopencv-flann2.2 (= ${binary:Version}),
 		libopencv-calib3d2.2 (= ${binary:Version}),
+		libopencv-highgui2.2 (= ${binary:Version}),
 Description: computer vision Feature Detection and Descriptor Extraction library
  This package contains the OpenCV (Open Computer Vision) Feature Detection
  and Descriptor Extraction runtime libraries.
@@ -649,7 +645,6 @@ Section: libdevel
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
 		libopencv-features2d-dev (= ${binary:Version}),
-		libopencv-video-dev (= ${binary:Version}),
 		libopencv-objdetect-dev (= ${binary:Version}),
 		libopencv-contrib2.2 (= ${binary:Version}),
 		pkg-config
@@ -672,7 +667,6 @@ Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
 		libopencv-features2d2.2 (= ${binary:Version}),
-		libopencv-video2.2 (= ${binary:Version}),
 		libopencv-objdetect2.2 (= ${binary:Version}),
 Description: computer vision contrib library
  This package contains the OpenCV (Open Computer Vision) contrib
