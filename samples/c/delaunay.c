@@ -1,5 +1,5 @@
 #include <opencv2/imgproc/imgproc_c.h>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/highgui/highgui.hpp"
 
 #include <stdio.h>
 void help()
@@ -7,8 +7,8 @@ void help()
 	printf("\nThis program demostrates iterative construction of\n"
 			"delaunay triangulation and voronoi tesselation.\n"
 			"It draws a random set of points in an image and then delaunay triangulates them.\n"
-			"Call:\n"
-			"./delaunay\n"
+            "Usage: \n"
+            "./delaunay \n"
 			"\nThis program builds the traingulation interactively, you may stop this process by\n"
 			"hitting any key.\n");
 }

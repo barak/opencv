@@ -61,7 +61,7 @@ CMAKE_FLAGS = \
 	dh $@ --with quilt --buildsystem=cmake
 
 override_dh_clean:
-	rm -rf modules/python/hdr_parser.pyc
+	rm -rf modules/python/src2/hdr_parser.pyc
 
 	dh_clean -O--buildsystem=cmake
 

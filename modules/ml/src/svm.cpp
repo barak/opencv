@@ -1736,7 +1736,7 @@ bool CvSVM::train_auto( const CvMat* _train_data, const CvMat* _responses,
     block_size = MAX( block_size, sample_count*2*(int)sizeof(double) + 1024 );
     block_size = MAX( block_size, sample_size*2 + 1024 );
 
-    CV_CALL(storage = cvCreateMemStorage(block_size));
+    CV_CALL( storage = cvCreateMemStorage(block_size + sizeof(CvMemBlock) + sizeof(CvSeqBlock)));
     CV_CALL(temp_storage = cvCreateChildMemStorage(storage));
     CV_CALL(alpha = (double*)cvMemStorageAlloc(temp_storage, sample_count*sizeof(double)));
 
@@ -2001,21 +2001,14 @@ float CvSVM::predict( const float* row_sample, int row_len, bool returnDFVal ) c
 
     int var_count = get_var_count();
     assert( row_len == var_count );
+	(void)row_len;
 
     int class_count = class_labels ? class_labels->cols :
                   params.svm_type == ONE_CLASS ? 1 : 0;
 
     float result = 0;
-    bool local_alloc = 0;
-    float* buffer = 0;
-    int buf_sz = sv_total*sizeof(buffer[0]) + (class_count+1)*sizeof(int);
-    if( buf_sz <= CV_MAX_LOCAL_SIZE )
-    {
-        buffer = (float*)cvStackAlloc( buf_sz );
-        local_alloc = true;
-    }
-    else
-        buffer = (float*)cvAlloc( buf_sz );
+    cv::AutoBuffer<float> _buffer(sv_total + (class_count+1)*2);
+    float* buffer = _buffer;
 
     if( params.svm_type == EPS_SVR ||
         params.svm_type == NU_SVR ||
@@ -2065,8 +2058,6 @@ float CvSVM::predict( const float* row_sample, int row_len, bool returnDFVal ) c
     else
         CV_Error( CV_StsBadArg, "INTERNAL ERROR: Unknown SVM type, "
                                 "the SVM structure is probably corrupted" );
-    if( !local_alloc )
-        cvFree( &buffer );
 
     return result;
 }
@@ -2091,12 +2082,50 @@ float CvSVM::predict( const CvMat* sample, bool returnDFVal ) const
     CV_CALL( cvPreparePredictData( sample, var_all, var_idx,
                                    class_count, 0, &row_sample ));
     result = predict( row_sample, get_var_count(), returnDFVal );
-
+  
     __END__;
 
     if( sample && (!CV_IS_MAT(sample) || sample->data.fl != row_sample) )
         cvFree( &row_sample );
 
+    return result;
+}
+
+struct predict_body_svm {
+    predict_body_svm(const CvSVM* _pointer, float* _result, const CvMat* _samples, CvMat* _results)
+    {
+        pointer = _pointer;
+        result = _result;
+        samples = _samples;
+        results = _results;
+    }
+    
+    const CvSVM* pointer;
+    float* result;
+    const CvMat* samples;
+    CvMat* results;
+  
+    void operator()( const cv::BlockedRange& range ) const
+    {
+        for(int i = range.begin(); i < range.end(); i++ )
+        {
+            CvMat sample;
+            cvGetRow( samples, &sample, i );
+            int r = (int)pointer->predict(&sample);
+            if (results)
+                results->data.fl[i] = (float)r;
+            if (i == 0)
+                *result = (float)r;
+	}
+    }
+};
+
+float CvSVM::predict(const CvMat* samples, CV_OUT CvMat* results) const
+{
+    float result = 0;
+    cv::parallel_for(cv::BlockedRange(0, samples->rows), 
+		     predict_body_svm(this, &result, samples, results)
+    );
     return result;
 }
 
@@ -2416,7 +2445,8 @@ void CvSVM::read( CvFileStorage* fs, CvFileNode* svm_node )
     block_size = MAX( block_size, sv_total*(int)sizeof(CvSVMKernelRow));
     block_size = MAX( block_size, sv_total*2*(int)sizeof(double));
     block_size = MAX( block_size, var_all*(int)sizeof(double));
-    CV_CALL( storage = cvCreateMemStorage( block_size ));
+
+    CV_CALL( storage = cvCreateMemStorage(block_size + sizeof(CvMemBlock) + sizeof(CvSeqBlock)));
     CV_CALL( sv = (float**)cvMemStorageAlloc( storage,
                                 sv_total*sizeof(sv[0]) ));
 

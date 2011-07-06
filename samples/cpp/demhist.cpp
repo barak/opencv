@@ -1,5 +1,5 @@
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
 
 #include <iostream>
 
@@ -12,7 +12,7 @@ int _contrast = 100;
 Mat image;
 
 /* brightness/contrast callback function */
-void updateBrightnessContrast( int arg, void* )
+void updateBrightnessContrast( int /*arg*/, void* )
 {
     int histSize = 64;
     int brightness = _brightness - 100;

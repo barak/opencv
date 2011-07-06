@@ -17,8 +17,8 @@ void help()
 {
 	printf("\nThis program demonstrates the one way interest point descriptor found in features2d.hpp\n"
 			"Correspondences are drawn\n");
-    printf("Format: \n./one_way_sample [path_to_samples] [image1] [image2]\n");
-    printf("For example: ./one_way_sample ../../../opencv/samples/c scene_l.bmp scene_r.bmp\n");
+    printf("Format: \n./one_way_sample <path_to_samples> <image1> <image2>\n");
+    printf("For example: ./one_way_sample . ../c/scene_l.bmp ../c/scene_r.bmp\n");
 }
 
 using namespace cv;
@@ -32,7 +32,7 @@ int main(int argc, char** argv)
     const CvSize patch_size = cvSize(24, 24);
     const int pose_count = 50;
 
-    if (argc != 3 && argc != 4)
+    if (argc != 4)
     {
     	help();
         return 0;
@@ -108,7 +108,7 @@ IplImage* DrawCorrespondences(IplImage* img1, const vector<KeyPoint>& features1,
 
     for (size_t i = 0; i < features2.size(); i++)
     {
-        CvPoint pt = cvPoint(features2[i].pt.x + img1->width, features2[i].pt.y);
+        CvPoint pt = cvPoint((int)features2[i].pt.x + img1->width, (int)features2[i].pt.y);
         cvCircle(img_corr, pt, 3, CV_RGB(255, 0, 0));
         cvLine(img_corr, features1[desc_idx[i]].pt, pt, CV_RGB(0, 255, 0));
     }

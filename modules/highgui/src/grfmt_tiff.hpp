@@ -118,6 +118,8 @@ public:
     TiffEncoder();
     virtual ~TiffEncoder();
 
+    bool isFormatSupported( int depth ) const;
+
     bool  write( const Mat& img, const vector<int>& params );
     ImageEncoder newEncoder() const;
 
@@ -125,6 +127,8 @@ protected:
     void  writeTag( WLByteStream& strm, TiffTag tag,
                     TiffFieldType fieldType,
                     int count, int value );
+
+    bool writeLibTiff( const Mat& img, const vector<int>& params );
 };
 
 }

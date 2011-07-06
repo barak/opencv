@@ -1,3 +1,23 @@
+opencv (2.3.0-0exp1) experimental; urgency=low
+
+  * New upstream release.
+    - Update install files.
+    - Update some patches for 2.3.
+	  patches/0005-build-static-libs.patch
+      patches/0001-fix_3rdparty_build.patch
+      patches/0011_optimize_i486.patch
+    - Remove some patches revised in upstream.
+      patches/0002-fix_build_pdf.patch patches/0003-hurd.patch
+      patches/0004-fix_stdint_gcc45.patch patches/0009_support_v4lv2_only.patch
+	  patches/0008_fix_ftbfs_with_gcc-4.6.patch patches/0010_fix_ftbs_png15.patch
+  * Update debian/control.
+    - Update depends of packages.
+  * Update debian/rules.
+    - Update path of hdr_parser.pyc from modules/python to
+      modules/python/src2.
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Wed, 06 Jul 2011 09:47:09 +0900
+
 opencv (2.2.0-0exp2) experimental; urgency=low
 
   * Add libopencv-contrib-dev to Depends of libcvaux-dev (Closes: #632439).

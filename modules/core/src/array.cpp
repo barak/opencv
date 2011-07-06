@@ -294,7 +294,8 @@ cvCloneMatND( const CvMatND* src )
     if( !CV_IS_MATND_HDR( src ))
         CV_Error( CV_StsBadArg, "Bad CvMatND header" );
 
-    int* sizes = (int*)cvStackAlloc( src->dims*sizeof(sizes[0]) );
+    CV_Assert( src->dims <= CV_MAX_DIM );
+    int sizes[CV_MAX_DIM];
 
     for( int i = 0; i < src->dims; i++ )
         sizes[i] = src->dim[i].size;
@@ -721,10 +722,10 @@ icvGetNodePtr( CvSparseMat* mat, const int* idx, int* _type,
         node->hashval = hashval;
         node->next = (CvSparseNode*)mat->hashtable[tabidx];
         mat->hashtable[tabidx] = node;
-        CV_MEMCPY_INT( CV_NODE_IDX(mat,node), idx, mat->dims );
+        memcpy(CV_NODE_IDX(mat,node), idx, mat->dims*sizeof(idx[0]));
         ptr = (uchar*)CV_NODE_VAL(mat,node);
         if( create_node > 0 )
-            CV_ZERO_CHAR( ptr, CV_ELEM_SIZE(mat->type));
+            memset( ptr, 0, CV_ELEM_SIZE(mat->type));
     }
 
     if( _type )
@@ -1511,7 +1512,7 @@ cvScalarToRawData( const CvScalar* scalar, void* data, int type, int extend_to_1
         do
         {
             offset -= pix_size;
-            CV_MEMCPY_AUTO( (char*)data + offset, data, pix_size );
+            memcpy((char*)data + offset, data, pix_size);
         }
         while( offset > pix_size );
     }
@@ -1717,7 +1718,8 @@ cvPtr1D( const CvArr* arr, int idx, int* _type )
         else
         {
             int i, n = m->dims;
-            int* _idx = (int*)cvStackAlloc(n*sizeof(_idx[0]));
+            CV_DbgAssert( n <= CV_MAX_DIM_HEAP );
+            int _idx[CV_MAX_DIM_HEAP];
             
             for( i = n - 1; i >= 0; i-- )
             {
@@ -2356,7 +2358,7 @@ cvClearND( CvArr* arr, const int* idx )
         uchar* ptr;
         ptr = cvPtrND( arr, idx, &type );
         if( ptr )
-            CV_ZERO_CHAR( ptr, CV_ELEM_SIZE(type) );
+            memset( ptr, 0, CV_ELEM_SIZE(type) );
     }
     else
         icvDeleteNode( (CvSparseMat*)arr, idx, 0 );

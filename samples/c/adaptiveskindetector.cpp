@@ -39,8 +39,8 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
-#include <opencv2/contrib/contrib.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/contrib/contrib.hpp"
+#include "opencv2/highgui/highgui.hpp"
 
 void help(char **argv)
 {
@@ -180,7 +180,7 @@ bool ASDFrameSequencer::isOpen()
 	return false;
 };
 
-void ASDFrameSequencer::getFrameCaption(char *caption) {
+void ASDFrameSequencer::getFrameCaption(char* /*caption*/) {
 	return;
 };
 

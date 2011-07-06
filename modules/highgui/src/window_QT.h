@@ -79,6 +79,7 @@
 #include <QRadioButton>
 #include <QButtonGroup>
 #include <QMenu>
+#include <QtTest/QTest>
 
 //start private enum
 enum {CV_MODE_NORMAL= 0, CV_MODE_OPENGL = 1};
@@ -121,6 +122,7 @@ public:
 
 private:
 	int nb_windows;
+	bool doesExternalQAppExist;
 
 public slots:
     void createWindow( QString name, int flags = 0 );
@@ -434,7 +436,6 @@ private:
     void mousePressEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
     void mouseDoubleClickEvent(QMouseEvent *event);
-    //void dragMoveEvent(QDragMoveEvent *event);
     void drawInstructions(QPainter *painter);
     void drawViewOverview(QPainter *painter);
     void drawImgRegion(QPainter *painter);

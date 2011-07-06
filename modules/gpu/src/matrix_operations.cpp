@@ -65,7 +65,9 @@ namespace cv
         GpuMat& GpuMat::setTo(const Scalar& /*s*/, const GpuMat& /*mask*/) { throw_nogpu(); return *this; }
         GpuMat GpuMat::reshape(int /*new_cn*/, int /*new_rows*/) const { throw_nogpu(); return GpuMat(); }
         void GpuMat::create(int /*_rows*/, int /*_cols*/, int /*_type*/) { throw_nogpu(); }
-        void GpuMat::release() { throw_nogpu(); }
+        void GpuMat::release() {}
+
+        void createContinuous(int /*rows*/, int /*cols*/, int /*type*/, GpuMat& /*m*/) { throw_nogpu(); }
 
         void CudaMem::create(int /*_rows*/, int /*_cols*/, int /*_type*/, int /*type_alloc*/) { throw_nogpu(); }
         bool CudaMem::canMapHostMemory() { throw_nogpu(); return false; }
@@ -85,10 +87,12 @@ namespace cv
         {
             void copy_to_with_mask(const DevMem2D& src, DevMem2D dst, int depth, const DevMem2D& mask, int channels, const cudaStream_t & stream = 0);
 
-            void set_to_without_mask (DevMem2D dst, int depth, const double *scalar, int channels, const cudaStream_t & stream = 0);
-            void set_to_with_mask    (DevMem2D dst, int depth, const double *scalar, const DevMem2D& mask, int channels, const cudaStream_t & stream = 0);
+            template <typename T>
+            void set_to_gpu(const DevMem2D& mat, const T* scalar, int channels, cudaStream_t stream);
+            template <typename T>
+            void set_to_gpu(const DevMem2D& mat, const T* scalar, const DevMem2D& mask, int channels, cudaStream_t stream);
 
-            void convert_to(const DevMem2D& src, int sdepth, DevMem2D dst, int ddepth, int channels, double alpha, double beta, const cudaStream_t & stream = 0);
+            void convert_gpu(const DevMem2D& src, int sdepth, const DevMem2D& dst, int ddepth, double alpha, double beta, cudaStream_t stream = 0);
         }
     }
 }
@@ -124,7 +128,7 @@ void cv::gpu::GpuMat::copyTo( GpuMat& m ) const
     CV_DbgAssert(!this->empty());
     m.create(size(), type());
     cudaSafeCall( cudaMemcpy2D(m.data, m.step, data, step, cols * elemSize(), rows, cudaMemcpyDeviceToDevice) );
-    cudaSafeCall( cudaThreadSynchronize() );
+    cudaSafeCall( cudaDeviceSynchronize() );
 }
 
 void cv::gpu::GpuMat::copyTo( GpuMat& mat, const GpuMat& mask ) const
@@ -174,6 +178,8 @@ namespace
             sz.width = src.cols;
             sz.height = src.rows;
             nppSafeCall( func(src.ptr<src_t>(), src.step, dst.ptr<dst_t>(), dst.step, sz) );
+
+            cudaSafeCall( cudaDeviceSynchronize() );
         }
     };
     template<int DDEPTH, typename NppConvertFunc<CV_32F, DDEPTH>::func_ptr func> struct NppCvt<CV_32F, DDEPTH, func>
@@ -186,17 +192,22 @@ namespace
             sz.width = src.cols;
             sz.height = src.rows;
             nppSafeCall( func(src.ptr<Npp32f>(), src.step, dst.ptr<dst_t>(), dst.step, sz, NPP_RND_NEAR) );
+
+            cudaSafeCall( cudaDeviceSynchronize() );
         }
     };
 
     void convertToKernelCaller(const GpuMat& src, GpuMat& dst)
     {
-        matrix_operations::convert_to(src, src.depth(), dst, dst.depth(), src.channels(), 1.0, 0.0);
+        matrix_operations::convert_gpu(src.reshape(1), src.depth(), dst.reshape(1), dst.depth(), 1.0, 0.0);
     }
 }
 
 void cv::gpu::GpuMat::convertTo( GpuMat& dst, int rtype, double alpha, double beta ) const
 {
+    CV_Assert((depth() != CV_64F && CV_MAT_DEPTH(rtype) != CV_64F) || 
+        (TargetArchs::builtWith(NATIVE_DOUBLE) && DeviceInfo().supports(NATIVE_DOUBLE)));
+
     bool noScale = fabs(alpha-1) < std::numeric_limits<double>::epsilon() && fabs(beta) < std::numeric_limits<double>::epsilon();
 
     if( rtype < 0 )
@@ -220,7 +231,7 @@ void cv::gpu::GpuMat::convertTo( GpuMat& dst, int rtype, double alpha, double be
     dst.create( size(), rtype );
 
     if (!noScale)
-        matrix_operations::convert_to(*psrc, sdepth, dst, ddepth, psrc->channels(), alpha, beta);
+        matrix_operations::convert_gpu(psrc->reshape(1), sdepth, dst.reshape(1), ddepth, alpha, beta);
     else
     {
         typedef void (*convert_caller_t)(const GpuMat& src, GpuMat& dst);
@@ -337,6 +348,8 @@ namespace
             sz.height = src.rows;
             Scalar_<src_t> nppS = s;
             nppSafeCall( func(nppS.val, src.ptr<src_t>(), src.step, sz) );
+
+            cudaSafeCall( cudaDeviceSynchronize() );
         }
     };
     template<int SDEPTH, typename NppSetFunc<SDEPTH, 1>::func_ptr func> struct NppSet<SDEPTH, 1, func>
@@ -350,12 +363,16 @@ namespace
             sz.height = src.rows;
             Scalar_<src_t> nppS = s;
             nppSafeCall( func(nppS[0], src.ptr<src_t>(), src.step, sz) );
+
+            cudaSafeCall( cudaDeviceSynchronize() );
         }
     };
 
+    template <typename T>
     void kernelSet(GpuMat& src, const Scalar& s)
     {
-        matrix_operations::set_to_without_mask(src, src.depth(), s.val, src.channels());
+        Scalar_<T> sf = s;
+        matrix_operations::set_to_gpu(src, sf.val, src.channels(), 0);
     }
 
     template<int SDEPTH, int SCN> struct NppSetMaskFunc
@@ -382,6 +399,8 @@ namespace
             sz.height = src.rows;
             Scalar_<src_t> nppS = s;
             nppSafeCall( func(nppS.val, src.ptr<src_t>(), src.step, sz, mask.ptr<Npp8u>(), mask.step) );
+
+            cudaSafeCall( cudaDeviceSynchronize() );
         }
     };
     template<int SDEPTH, typename NppSetMaskFunc<SDEPTH, 1>::func_ptr func> struct NppSetMask<SDEPTH, 1, func>
@@ -395,18 +414,25 @@ namespace
             sz.height = src.rows;
             Scalar_<src_t> nppS = s;
             nppSafeCall( func(nppS[0], src.ptr<src_t>(), src.step, sz, mask.ptr<Npp8u>(), mask.step) );
+
+            cudaSafeCall( cudaDeviceSynchronize() );
         }
     };
 
+    template <typename T>
     void kernelSetMask(GpuMat& src, const Scalar& s, const GpuMat& mask)
     {
-        matrix_operations::set_to_with_mask(src, src.depth(), s.val, mask, src.channels());
+        Scalar_<T> sf = s;
+        matrix_operations::set_to_gpu(src, sf.val, mask, src.channels(), 0);
     }
 }
 
 GpuMat& GpuMat::setTo(const Scalar& s, const GpuMat& mask)
 {
     CV_Assert(mask.type() == CV_8UC1);
+
+    CV_Assert((depth() != CV_64F) || 
+        (TargetArchs::builtWith(NATIVE_DOUBLE) && DeviceInfo().supports(NATIVE_DOUBLE)));
 
     CV_DbgAssert(!this->empty());
 
@@ -416,16 +442,32 @@ GpuMat& GpuMat::setTo(const Scalar& s, const GpuMat& mask)
 
     if (mask.empty())
     {
+        if (s[0] == 0.0 && s[1] == 0.0 && s[2] == 0.0 && s[3] == 0.0)
+        {
+            cudaSafeCall( cudaMemset2D(data, step, 0, cols * elemSize(), rows) );
+            return *this;
+        }
+        if (depth() == CV_8U)
+        {
+            int cn = channels();
+
+            if (cn == 1 || (cn == 2 && s[0] == s[1]) || (cn == 3 && s[0] == s[1] && s[0] == s[2]) || (cn == 4 && s[0] == s[1] && s[0] == s[2] && s[0] == s[3]))
+            {
+                int val = saturate_cast<uchar>(s[0]);
+                cudaSafeCall( cudaMemset2D(data, step, val, cols * elemSize(), rows) );
+                return *this;
+            }
+        }
         typedef void (*set_caller_t)(GpuMat& src, const Scalar& s);
         static const set_caller_t set_callers[8][4] =
         {
-            {NppSet<CV_8U, 1, nppiSet_8u_C1R>::set,kernelSet,kernelSet,NppSet<CV_8U, 4, nppiSet_8u_C4R>::set},
-            {kernelSet,kernelSet,kernelSet,kernelSet},
-            {NppSet<CV_16U, 1, nppiSet_16u_C1R>::set,kernelSet,kernelSet,NppSet<CV_16U, 4, nppiSet_16u_C4R>::set},
-            {NppSet<CV_16S, 1, nppiSet_16s_C1R>::set,kernelSet,kernelSet,NppSet<CV_16S, 4, nppiSet_16s_C4R>::set},
-            {NppSet<CV_32S, 1, nppiSet_32s_C1R>::set,kernelSet,kernelSet,NppSet<CV_32S, 4, nppiSet_32s_C4R>::set},
-            {NppSet<CV_32F, 1, nppiSet_32f_C1R>::set,kernelSet,kernelSet,NppSet<CV_32F, 4, nppiSet_32f_C4R>::set},
-            {kernelSet,kernelSet,kernelSet,kernelSet},
+            {NppSet<CV_8U, 1, nppiSet_8u_C1R>::set,kernelSet<uchar>,kernelSet<uchar>,NppSet<CV_8U, 4, nppiSet_8u_C4R>::set},
+            {kernelSet<schar>,kernelSet<schar>,kernelSet<schar>,kernelSet<schar>},
+            {NppSet<CV_16U, 1, nppiSet_16u_C1R>::set,NppSet<CV_16U, 2, nppiSet_16u_C2R>::set,kernelSet<ushort>,NppSet<CV_16U, 4, nppiSet_16u_C4R>::set},
+            {NppSet<CV_16S, 1, nppiSet_16s_C1R>::set,NppSet<CV_16S, 2, nppiSet_16s_C2R>::set,kernelSet<short>,NppSet<CV_16S, 4, nppiSet_16s_C4R>::set},
+            {NppSet<CV_32S, 1, nppiSet_32s_C1R>::set,kernelSet<int>,kernelSet<int>,NppSet<CV_32S, 4, nppiSet_32s_C4R>::set},
+            {NppSet<CV_32F, 1, nppiSet_32f_C1R>::set,kernelSet<float>,kernelSet<float>,NppSet<CV_32F, 4, nppiSet_32f_C4R>::set},
+            {kernelSet<double>,kernelSet<double>,kernelSet<double>,kernelSet<double>},
             {0,0,0,0}
         };
         set_callers[depth()][channels()-1](*this, s);
@@ -435,13 +477,13 @@ GpuMat& GpuMat::setTo(const Scalar& s, const GpuMat& mask)
         typedef void (*set_caller_t)(GpuMat& src, const Scalar& s, const GpuMat& mask);
         static const set_caller_t set_callers[8][4] =
         {
-            {NppSetMask<CV_8U, 1, nppiSet_8u_C1MR>::set,kernelSetMask,kernelSetMask,NppSetMask<CV_8U, 4, nppiSet_8u_C4MR>::set},
-            {kernelSetMask,kernelSetMask,kernelSetMask,kernelSetMask},
-            {NppSetMask<CV_16U, 1, nppiSet_16u_C1MR>::set,kernelSetMask,kernelSetMask,NppSetMask<CV_16U, 4, nppiSet_16u_C4MR>::set},
-            {NppSetMask<CV_16S, 1, nppiSet_16s_C1MR>::set,kernelSetMask,kernelSetMask,NppSetMask<CV_16S, 4, nppiSet_16s_C4MR>::set},
-            {NppSetMask<CV_32S, 1, nppiSet_32s_C1MR>::set,kernelSetMask,kernelSetMask,NppSetMask<CV_32S, 4, nppiSet_32s_C4MR>::set},
-            {NppSetMask<CV_32F, 1, nppiSet_32f_C1MR>::set,kernelSetMask,kernelSetMask,NppSetMask<CV_32F, 4, nppiSet_32f_C4MR>::set},
-            {kernelSetMask,kernelSetMask,kernelSetMask,kernelSetMask},
+            {NppSetMask<CV_8U, 1, nppiSet_8u_C1MR>::set,kernelSetMask<uchar>,kernelSetMask<uchar>,NppSetMask<CV_8U, 4, nppiSet_8u_C4MR>::set},
+            {kernelSetMask<schar>,kernelSetMask<schar>,kernelSetMask<schar>,kernelSetMask<schar>},
+            {NppSetMask<CV_16U, 1, nppiSet_16u_C1MR>::set,kernelSetMask<ushort>,kernelSetMask<ushort>,NppSetMask<CV_16U, 4, nppiSet_16u_C4MR>::set},
+            {NppSetMask<CV_16S, 1, nppiSet_16s_C1MR>::set,kernelSetMask<short>,kernelSetMask<short>,NppSetMask<CV_16S, 4, nppiSet_16s_C4MR>::set},
+            {NppSetMask<CV_32S, 1, nppiSet_32s_C1MR>::set,kernelSetMask<int>,kernelSetMask<int>,NppSetMask<CV_32S, 4, nppiSet_32s_C4MR>::set},
+            {NppSetMask<CV_32F, 1, nppiSet_32f_C1MR>::set,kernelSetMask<float>,kernelSetMask<float>,NppSetMask<CV_32F, 4, nppiSet_32f_C4MR>::set},
+            {kernelSetMask<double>,kernelSetMask<double>,kernelSetMask<double>,kernelSetMask<double>},
             {0,0,0,0}
         };
         set_callers[depth()][channels()-1](*this, s, mask);
@@ -511,6 +553,10 @@ void cv::gpu::GpuMat::create(int _rows, int _cols, int _type)
         void *dev_ptr;
         cudaSafeCall( cudaMallocPitch(&dev_ptr, &step, esz * cols, rows) );
 
+        // Single row must be continuous
+        if (rows == 1)
+            step = esz * cols;
+
         if (esz * cols == step)
             flags |= Mat::CONTINUOUS_FLAG;
 
@@ -537,6 +583,21 @@ void cv::gpu::GpuMat::release()
     refcount = 0;
 }
 
+void cv::gpu::createContinuous(int rows, int cols, int type, GpuMat& m)
+{
+    int area = rows * cols;
+    if (!m.isContinuous() || m.type() != type || m.size().area() != area)
+        m.create(1, area, type);
+    m = m.reshape(0, rows);
+}
+
+void cv::gpu::ensureSizeIsEnough(int rows, int cols, int type, GpuMat& m)
+{
+    if (m.type() == type && m.rows >= rows && m.cols >= cols)
+        return;
+    m.create(rows, cols, type);
+}
+
 
 ///////////////////////////////////////////////////////////////////////
 //////////////////////////////// CudaMem //////////////////////////////
@@ -545,8 +606,19 @@ void cv::gpu::GpuMat::release()
 bool cv::gpu::CudaMem::canMapHostMemory()
 {
     cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
+    cudaSafeCall( cudaGetDeviceProperties(&prop, getDevice()) );
     return (prop.canMapHostMemory != 0) ? true : false;
+}
+
+namespace
+{
+    size_t alignUpStep(size_t what, size_t alignment)
+    {
+        size_t alignMask = alignment-1;
+        size_t inverseAlignMask = ~alignMask;
+        size_t res = (what + alignMask) & inverseAlignMask;
+        return res;
+    }
 }
 
 void cv::gpu::CudaMem::create(int _rows, int _cols, int _type, int _alloc_type)
@@ -566,6 +638,12 @@ void cv::gpu::CudaMem::create(int _rows, int _cols, int _type, int _alloc_type)
         rows = _rows;
         cols = _cols;
         step = elemSize()*cols;
+        if (_alloc_type == ALLOC_ZEROCOPY)
+        {
+            cudaDeviceProp prop;
+            cudaSafeCall( cudaGetDeviceProperties(&prop, getDevice()) );
+            step = alignUpStep(step, prop.textureAlignment);
+        }
         int64 _nettosize = (int64)step*rows;
         size_t nettosize = (size_t)_nettosize;
         if( _nettosize != (int64)nettosize )

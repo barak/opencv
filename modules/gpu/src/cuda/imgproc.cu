@@ -40,10 +40,11 @@
 //
 //M*/
 
-#include "cuda_shared.hpp"
-#include "border_interpolate.hpp"
+#include "internal_shared.hpp"
+#include "opencv2/gpu/device/border_interpolate.hpp"
 
 using namespace cv::gpu;
+using namespace cv::gpu::device;
 
 /////////////////////////////////// Remap ///////////////////////////////////////////////
 namespace cv { namespace gpu { namespace imgproc
@@ -136,8 +137,9 @@ namespace cv { namespace gpu { namespace imgproc
         cudaSafeCall( cudaBindTexture2D(0, tex_remap, src.data, desc, src.cols, src.rows, src.step) );
 
         remap_1c<<<grid, threads>>>(xmap.data, ymap.data, xmap.step, dst.data, dst.step, dst.cols, dst.rows);
+        cudaSafeCall( cudaGetLastError() );
 
-        cudaSafeCall( cudaThreadSynchronize() );  
+        cudaSafeCall( cudaDeviceSynchronize() );  
         cudaSafeCall( cudaUnbindTexture(tex_remap) );
     }
     
@@ -149,8 +151,9 @@ namespace cv { namespace gpu { namespace imgproc
         grid.y = divUp(dst.rows, threads.y);
 
         remap_3c<<<grid, threads>>>(src.data, src.step, xmap.data, ymap.data, xmap.step, dst.data, dst.step, dst.cols, dst.rows);
+        cudaSafeCall( cudaGetLastError() );
 
-        cudaSafeCall( cudaThreadSynchronize() ); 
+        cudaSafeCall( cudaDeviceSynchronize() ); 
     }
 
 /////////////////////////////////// MeanShiftfiltering ///////////////////////////////////////////////
@@ -258,7 +261,9 @@ namespace cv { namespace gpu { namespace imgproc
         cudaSafeCall( cudaBindTexture2D( 0, tex_meanshift, src.data, desc, src.cols, src.rows, src.step ) );
 
         meanshift_kernel<<< grid, threads >>>( dst.data, dst.step, dst.cols, dst.rows, sp, sr, maxIter, eps );
-        cudaSafeCall( cudaThreadSynchronize() );
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
         cudaSafeCall( cudaUnbindTexture( tex_meanshift ) );        
     }
     extern "C" void meanShiftProc_gpu(const DevMem2D& src, DevMem2D dstr, DevMem2D dstsp, int sp, int sr, int maxIter, float eps) 
@@ -272,7 +277,9 @@ namespace cv { namespace gpu { namespace imgproc
         cudaSafeCall( cudaBindTexture2D( 0, tex_meanshift, src.data, desc, src.cols, src.rows, src.step ) );
 
         meanshiftproc_kernel<<< grid, threads >>>( dstr.data, dstr.step, dstsp.data, dstsp.step, dstr.cols, dstr.rows, sp, sr, maxIter, eps );
-        cudaSafeCall( cudaThreadSynchronize() );
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
         cudaSafeCall( cudaUnbindTexture( tex_meanshift ) );        
     }
 
@@ -387,9 +394,10 @@ namespace cv { namespace gpu { namespace imgproc
         grid.y = divUp(src.rows, threads.y);
          
         drawColorDisp<<<grid, threads, 0, stream>>>(src.data, src.step, dst.data, dst.step, src.cols, src.rows, ndisp);
+        cudaSafeCall( cudaGetLastError() );
 
         if (stream == 0)
-            cudaSafeCall( cudaThreadSynchronize() ); 
+            cudaSafeCall( cudaDeviceSynchronize() ); 
     }
 
     void drawColorDisp_gpu(const DevMem2D_<short>& src, const DevMem2D& dst, int ndisp, const cudaStream_t& stream)
@@ -400,9 +408,10 @@ namespace cv { namespace gpu { namespace imgproc
         grid.y = divUp(src.rows, threads.y);
          
         drawColorDisp<<<grid, threads, 0, stream>>>(src.data, src.step / sizeof(short), dst.data, dst.step, src.cols, src.rows, ndisp);
+        cudaSafeCall( cudaGetLastError() );
         
         if (stream == 0)
-            cudaSafeCall( cudaThreadSynchronize() );
+            cudaSafeCall( cudaDeviceSynchronize() );
     }
 
 /////////////////////////////////// reprojectImageTo3D ///////////////////////////////////////////////
@@ -450,9 +459,10 @@ namespace cv { namespace gpu { namespace imgproc
         cudaSafeCall( cudaMemcpyToSymbol(cq, q, 16 * sizeof(float)) );
 
         reprojectImageTo3D<<<grid, threads, 0, stream>>>(disp.data, disp.step / sizeof(T), xyzw.data, xyzw.step / sizeof(float), disp.rows, disp.cols);
+        cudaSafeCall( cudaGetLastError() );
 
         if (stream == 0)
-            cudaSafeCall( cudaThreadSynchronize() );
+            cudaSafeCall( cudaDeviceSynchronize() );
     }
 
     void reprojectImageTo3D_gpu(const DevMem2D& disp, const DevMem2Df& xyzw, const float* q, const cudaStream_t& stream)
@@ -490,13 +500,48 @@ namespace cv { namespace gpu { namespace imgproc
         dim3 grid(divUp(Dx.cols, threads.x), divUp(Dx.rows, threads.y));
 
         extractCovData_kernel<<<grid, threads>>>(Dx.cols, Dx.rows, Dx, Dy, dst);
-        cudaSafeCall(cudaThreadSynchronize());
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
     }
 
 /////////////////////////////////////////// Corner Harris /////////////////////////////////////////////////
 
     texture<float, 2> harrisDxTex;
     texture<float, 2> harrisDyTex;
+
+    __global__ void cornerHarris_kernel(const int cols, const int rows, const int block_size, const float k,
+                                        PtrStep dst)
+    {
+        const unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+        const unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+        if (x < cols && y < rows)
+        {
+            float a = 0.f;
+            float b = 0.f;
+            float c = 0.f;
+
+            const int ibegin = y - (block_size / 2);
+            const int jbegin = x - (block_size / 2);
+            const int iend = ibegin + block_size;
+            const int jend = jbegin + block_size;
+
+            for (int i = ibegin; i < iend; ++i)
+            {
+                for (int j = jbegin; j < jend; ++j)
+                {
+                    float dx = tex2D(harrisDxTex, j, i);
+                    float dy = tex2D(harrisDyTex, j, i);
+                    a += dx * dx;
+                    b += dx * dy;
+                    c += dy * dy;
+                }
+            }
+
+            ((float*)dst.ptr(y))[x] = a * c - b * b - k * (a + c) * (a + c);
+        }
+    }
 
     template <typename B>
     __global__ void cornerHarris_kernel(const int cols, const int rows, const int block_size, const float k,
@@ -551,13 +596,23 @@ namespace cv { namespace gpu { namespace imgproc
 
         switch (border_type) 
         {
-        case BORDER_REFLECT101:
+        case BORDER_REFLECT101_GPU:
             cornerHarris_kernel<<<grid, threads>>>(
                     cols, rows, block_size, k, dst, BrdReflect101(cols), BrdReflect101(rows));
             break;
+        case BORDER_REPLICATE_GPU:
+            harrisDxTex.addressMode[0] = cudaAddressModeClamp;
+            harrisDxTex.addressMode[1] = cudaAddressModeClamp;
+            harrisDyTex.addressMode[0] = cudaAddressModeClamp;
+            harrisDyTex.addressMode[1] = cudaAddressModeClamp;
+            cornerHarris_kernel<<<grid, threads>>>(cols, rows, block_size, k, dst);
+            break;
         }
 
-        cudaSafeCall(cudaThreadSynchronize());
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
+
         cudaSafeCall(cudaUnbindTexture(harrisDxTex));
         cudaSafeCall(cudaUnbindTexture(harrisDyTex));
     }
@@ -566,6 +621,42 @@ namespace cv { namespace gpu { namespace imgproc
 
     texture<float, 2> minEigenValDxTex;
     texture<float, 2> minEigenValDyTex;
+
+    __global__ void cornerMinEigenVal_kernel(const int cols, const int rows, const int block_size, 
+                                             PtrStep dst)
+    {
+        const unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+        const unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+        if (x < cols && y < rows)
+        {
+            float a = 0.f;
+            float b = 0.f;
+            float c = 0.f;
+
+            const int ibegin = y - (block_size / 2);
+            const int jbegin = x - (block_size / 2);
+            const int iend = ibegin + block_size;
+            const int jend = jbegin + block_size;
+
+            for (int i = ibegin; i < iend; ++i)
+            {
+                for (int j = jbegin; j < jend; ++j)
+                {
+                    float dx = tex2D(minEigenValDxTex, j, i);
+                    float dy = tex2D(minEigenValDyTex, j, i);
+                    a += dx * dx;
+                    b += dx * dy;
+                    c += dy * dy;
+                }
+            }
+
+            a *= 0.5f;
+            c *= 0.5f;
+            ((float*)dst.ptr(y))[x] = (a + c) - sqrtf((a - c) * (a - c) + b * b);
+        }
+    }
+
 
     template <typename B>
     __global__ void cornerMinEigenVal_kernel(const int cols, const int rows, const int block_size, 
@@ -622,16 +713,206 @@ namespace cv { namespace gpu { namespace imgproc
 
         switch (border_type)
         {
-        case BORDER_REFLECT101:
+        case BORDER_REFLECT101_GPU:
             cornerMinEigenVal_kernel<<<grid, threads>>>(
-                    cols, rows, block_size, dst, 
-                    BrdReflect101(cols), BrdReflect101(rows));
+                    cols, rows, block_size, dst, BrdReflect101(cols), BrdReflect101(rows));
+            break;
+        case BORDER_REPLICATE_GPU:
+            minEigenValDxTex.addressMode[0] = cudaAddressModeClamp;
+            minEigenValDxTex.addressMode[1] = cudaAddressModeClamp;
+            minEigenValDyTex.addressMode[0] = cudaAddressModeClamp;
+            minEigenValDyTex.addressMode[1] = cudaAddressModeClamp;
+            cornerMinEigenVal_kernel<<<grid, threads>>>(cols, rows, block_size, dst);
             break;
         }
 
-        cudaSafeCall(cudaThreadSynchronize());
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall(cudaDeviceSynchronize());
+
         cudaSafeCall(cudaUnbindTexture(minEigenValDxTex));
         cudaSafeCall(cudaUnbindTexture(minEigenValDyTex));
     }
+
+////////////////////////////// Column Sum //////////////////////////////////////
+
+    __global__ void column_sumKernel_32F(int cols, int rows, const PtrStep src, const PtrStep dst)
+    {
+        int x = blockIdx.x * blockDim.x + threadIdx.x;
+
+        if (x < cols)
+        {
+            const unsigned char* src_data = src.data + x * sizeof(float);
+            unsigned char* dst_data = dst.data + x * sizeof(float);
+
+            float sum = 0.f;
+            for (int y = 0; y < rows; ++y)
+            {
+                sum += *(const float*)src_data;
+                *(float*)dst_data = sum;
+                src_data += src.step;
+                dst_data += dst.step;
+            }
+        }
+    }
+
+
+    void columnSum_32F(const DevMem2D src, const DevMem2D dst)
+    {
+        dim3 threads(256);
+        dim3 grid(divUp(src.cols, threads.x));
+
+        column_sumKernel_32F<<<grid, threads>>>(src.cols, src.rows, src, dst);
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // mulSpectrums
+
+    __global__ void mulSpectrumsKernel(const PtrStep_<cufftComplex> a, const PtrStep_<cufftComplex> b, 
+                                       DevMem2D_<cufftComplex> c)
+    {
+        const int x = blockIdx.x * blockDim.x + threadIdx.x;    
+        const int y = blockIdx.y * blockDim.y + threadIdx.y;    
+
+        if (x < c.cols && y < c.rows) 
+        {
+            c.ptr(y)[x] = cuCmulf(a.ptr(y)[x], b.ptr(y)[x]);
+        }
+    }
+
+
+    void mulSpectrums(const PtrStep_<cufftComplex> a, const PtrStep_<cufftComplex> b, 
+                      DevMem2D_<cufftComplex> c)
+    {
+        dim3 threads(256);
+        dim3 grid(divUp(c.cols, threads.x), divUp(c.rows, threads.y));
+
+        mulSpectrumsKernel<<<grid, threads>>>(a, b, c);
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // mulSpectrums_CONJ
+
+    __global__ void mulSpectrumsKernel_CONJ(
+            const PtrStep_<cufftComplex> a, const PtrStep_<cufftComplex> b,
+            DevMem2D_<cufftComplex> c)
+    {
+        const int x = blockIdx.x * blockDim.x + threadIdx.x;    
+        const int y = blockIdx.y * blockDim.y + threadIdx.y;    
+
+        if (x < c.cols && y < c.rows) 
+        {
+            c.ptr(y)[x] = cuCmulf(a.ptr(y)[x], cuConjf(b.ptr(y)[x]));
+        }
+    }
+
+
+    void mulSpectrums_CONJ(const PtrStep_<cufftComplex> a, const PtrStep_<cufftComplex> b, 
+                           DevMem2D_<cufftComplex> c)
+    {
+        dim3 threads(256);
+        dim3 grid(divUp(c.cols, threads.x), divUp(c.rows, threads.y));
+
+        mulSpectrumsKernel_CONJ<<<grid, threads>>>(a, b, c);
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // mulAndScaleSpectrums
+
+    __global__ void mulAndScaleSpectrumsKernel(
+            const PtrStep_<cufftComplex> a, const PtrStep_<cufftComplex> b, 
+            float scale, DevMem2D_<cufftComplex> c)
+    {
+        const int x = blockIdx.x * blockDim.x + threadIdx.x;
+        const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+        if (x < c.cols && y < c.rows) 
+        {
+            cufftComplex v = cuCmulf(a.ptr(y)[x], b.ptr(y)[x]);
+            c.ptr(y)[x] = make_cuFloatComplex(cuCrealf(v) * scale, cuCimagf(v) * scale);
+        }
+    }
+
+
+    void mulAndScaleSpectrums(const PtrStep_<cufftComplex> a, const PtrStep_<cufftComplex> b,
+                              float scale, DevMem2D_<cufftComplex> c)
+    {
+        dim3 threads(256);
+        dim3 grid(divUp(c.cols, threads.x), divUp(c.rows, threads.y));
+
+        mulAndScaleSpectrumsKernel<<<grid, threads>>>(a, b, scale, c);
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
+    }
+
+    //////////////////////////////////////////////////////////////////////////
+    // mulAndScaleSpectrums_CONJ
+
+    __global__ void mulAndScaleSpectrumsKernel_CONJ(
+            const PtrStep_<cufftComplex> a, const PtrStep_<cufftComplex> b,
+            float scale, DevMem2D_<cufftComplex> c)
+    {
+        const int x = blockIdx.x * blockDim.x + threadIdx.x;
+        const int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+        if (x < c.cols && y < c.rows) 
+        {
+            cufftComplex v = cuCmulf(a.ptr(y)[x], cuConjf(b.ptr(y)[x]));
+            c.ptr(y)[x] = make_cuFloatComplex(cuCrealf(v) * scale, cuCimagf(v) * scale);
+        }
+    }
+
+
+    void mulAndScaleSpectrums_CONJ(const PtrStep_<cufftComplex> a, const PtrStep_<cufftComplex> b,
+                                  float scale, DevMem2D_<cufftComplex> c)
+    {
+        dim3 threads(256);
+        dim3 grid(divUp(c.cols, threads.x), divUp(c.rows, threads.y));
+
+        mulAndScaleSpectrumsKernel_CONJ<<<grid, threads>>>(a, b, scale, c);
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    // downsample
+
+    template <typename T>
+    __global__ void downsampleKernel(const PtrStep_<T> src, int rows, int cols, int k, PtrStep_<T> dst)
+    {
+        int x = blockIdx.x * blockDim.x + threadIdx.x;
+        int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+        if (x < cols && y < rows)
+            dst.ptr(y)[x] = src.ptr(y * k)[x * k];
+    }
+
+
+    template <typename T>
+    void downsampleCaller(const PtrStep_<T> src, int rows, int cols, int k, PtrStep_<T> dst)
+    {
+        dim3 threads(16, 16);
+        dim3 grid(divUp(cols, threads.x), divUp(rows, threads.y));
+
+        downsampleKernel<<<grid, threads>>>(src, rows, cols, k, dst);
+        cudaSafeCall( cudaGetLastError() );
+
+        cudaSafeCall( cudaDeviceSynchronize() );
+    }
+
+    template void downsampleCaller(const PtrStep src, int rows, int cols, int k, PtrStep dst);
+    template void downsampleCaller(const PtrStepf src, int rows, int cols, int k, PtrStepf dst);
+
 }}}
 

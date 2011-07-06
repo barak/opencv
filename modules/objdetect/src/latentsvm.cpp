@@ -271,17 +271,32 @@ int searchObjectThreshold(const CvLSVMFeaturePyramid *H,
                           int maxXBorder, int maxYBorder, 
                           float scoreThreshold,
                           CvPoint **points, int **levels, int *kPoints, 
-                          float **score, CvPoint ***partsDisplacement)
+                          float **score, CvPoint ***partsDisplacement,
+                          int numThreads)
 {
     int opResult;
 
 
     // Matching
+#ifdef HAVE_TBB
+    if (numThreads <= 0)
+    {
+        opResult = LATENT_SVM_TBB_NUMTHREADS_NOT_CORRECT;
+        return opResult;
+    }
+    opResult = tbbThresholdFunctionalScore(all_F, n, H, b, maxXBorder, maxYBorder,
+                                           scoreThreshold, numThreads, score, 
+                                           points, levels, kPoints, 
+                                           partsDisplacement);
+#else
     opResult = thresholdFunctionalScore(all_F, n, H, b, 
                                         maxXBorder, maxYBorder, 
                                         scoreThreshold, 
                                         score, points, levels, 
                                         kPoints, partsDisplacement);
+
+	(void)numThreads;
+#endif
     if (opResult != LATENT_SVM_OK)
     {
         return LATENT_SVM_SEARCH_OBJECT_FAILED;
@@ -537,7 +552,8 @@ int searchObjectThresholdSomeComponents(const CvLSVMFeaturePyramid *H,
                                         int kComponents, const int *kPartFilters,
                                         const float *b, float scoreThreshold,
                                         CvPoint **points, CvPoint **oppPoints,
-                                        float **score, int *kPoints)
+                                        float **score, int *kPoints,
+                                        int numThreads)
 {
     int error = 0;
     int i, j, s, f, componentIndex;
@@ -561,10 +577,29 @@ int searchObjectThresholdSomeComponents(const CvLSVMFeaturePyramid *H,
     // For each component perform searching
     for (i = 0; i < kComponents; i++)
     {
+#ifdef HAVE_TBB
+        error = searchObjectThreshold(H, &(filters[componentIndex]), kPartFilters[i],
+            b[i], maxXBorder, maxYBorder, scoreThreshold,
+            &(pointsArr[i]), &(levelsArr[i]), &(kPointsArr[i]), 
+            &(scoreArr[i]), &(partsDisplacementArr[i]), numThreads);
+        if (error != LATENT_SVM_OK)
+        {
+            // Release allocated memory
+            free(pointsArr);
+            free(oppPointsArr);
+            free(scoreArr);
+            free(kPointsArr);
+            free(levelsArr);
+            free(partsDisplacementArr);
+            return LATENT_SVM_SEARCH_OBJECT_FAILED;
+        }
+#else
+		(void)numThreads;
         searchObjectThreshold(H, &(filters[componentIndex]), kPartFilters[i],
             b[i], maxXBorder, maxYBorder, scoreThreshold, 
             &(pointsArr[i]), &(levelsArr[i]), &(kPointsArr[i]), 
             &(scoreArr[i]), &(partsDisplacementArr[i]));
+#endif
         estimateBoxes(pointsArr[i], levelsArr[i], kPointsArr[i], 
             filters[componentIndex]->sizeX, filters[componentIndex]->sizeY, &(oppPointsArr[i]));        
         componentIndex += (kPartFilters[i] + 1);

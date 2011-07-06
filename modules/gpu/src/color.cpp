@@ -47,8 +47,7 @@ using namespace cv::gpu;
 
 #if !defined (HAVE_CUDA)
 
-void cv::gpu::cvtColor(const GpuMat&, GpuMat&, int, int) { throw_nogpu(); }
-void cv::gpu::cvtColor(const GpuMat&, GpuMat&, int, int, const Stream&) { throw_nogpu(); }
+void cv::gpu::cvtColor(const GpuMat&, GpuMat&, int, int, Stream&) { throw_nogpu(); }
 
 #else /* !defined (HAVE_CUDA) */
 
@@ -391,9 +390,9 @@ namespace
                         
                     dst.create(sz, CV_MAKETYPE(depth, dcn));
                     
-                    //const void* coeffs = depth == CV_32F ? (void*)coeffs_f : (void*)coeffs_i;
+                    const void* coeffs = depth == CV_32F ? (void*)coeffs_f : (void*)coeffs_i;
 
-                    funcs[depth](src, scn, dst, dcn, coeffs_i, stream);
+                    funcs[depth](src, scn, dst, dcn, coeffs, stream);
                     break;
                 }
 
@@ -412,7 +411,7 @@ namespace
                     bidx = code == CV_BGR2HSV || code == CV_BGR2HLS ||
                         code == CV_BGR2HSV_FULL || code == CV_BGR2HLS_FULL ? 0 : 2;
                     int hrange = depth == CV_32F ? 360 : code == CV_BGR2HSV || code == CV_RGB2HSV ||
-                        code == CV_BGR2HLS || code == CV_RGB2HLS ? 180 : 255;
+                        code == CV_BGR2HLS || code == CV_RGB2HLS ? 180 : 256;
                 
                     dst.create(sz, CV_MAKETYPE(depth, dcn));
 
@@ -455,12 +454,7 @@ namespace
     }
 }
 
-void cv::gpu::cvtColor(const GpuMat& src, GpuMat& dst, int code, int dcn)
-{
-    cvtColor_caller(src, dst, code, dcn, 0);
-}
-
-void cv::gpu::cvtColor(const GpuMat& src, GpuMat& dst, int code, int dcn, const Stream& stream)
+void cv::gpu::cvtColor(const GpuMat& src, GpuMat& dst, int code, int dcn, Stream& stream)
 {
     cvtColor_caller(src, dst, code, dcn, StreamAccessor::getStream(stream));
 }

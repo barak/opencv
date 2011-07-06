@@ -99,7 +99,6 @@ public:
 	~CvCaptureCAM(); 
 	virtual bool grabFrame(); 
 	virtual IplImage* retrieveFrame(int);
-	virtual IplImage* queryFrame(); 
 	virtual double getProperty(int property_id); 
 	virtual bool setProperty(int property_id, double value); 
 	virtual int didStart(); 
@@ -142,7 +141,6 @@ public:
 	~CvCaptureFile(); 
 	virtual bool grabFrame(); 
 	virtual IplImage* retrieveFrame(int);
-	virtual IplImage* queryFrame(); 
 	virtual double getProperty(int property_id); 
 	virtual bool setProperty(int property_id, double value); 
 	virtual int didStart(); 
@@ -294,18 +292,6 @@ IplImage* CvCaptureCAM::retrieveFrame(int) {
 	return [capture getOutput]; 
 }
 
-IplImage* CvCaptureCAM::queryFrame() {
-	while (!grabFrame()) {
-		cout << "WARNING: Couldn't grab new frame from camera!!!" << endl; 
-		/*
-		cout << "Attempting to restart camera; set capture property DISABLE_AUTO_RESTART to disable." << endl; 		
-		stopCaptureDevice(); 
-		startCaptureDevice(camNum); 
-		 */
-	}
-	return retrieveFrame(0); 
-}	
-
 void CvCaptureCAM::stopCaptureDevice() {
 	NSAutoreleasePool* localpool = [[NSAutoreleasePool alloc] init];
 	
@@ -338,11 +324,10 @@ int CvCaptureCAM::startCaptureDevice(int cameraNum) {
 	}
 	
 	if (cameraNum >= 0) {
-		camNum = cameraNum % [devices count]; 
-		if (camNum != cameraNum) {
-			cout << "Warning: Max Camera Num is " << [devices count]-1 << "; Using camera " << camNum << endl; 
-		}
-		device = [devices objectAtIndex:camNum] ;
+		int nCameras = [devices count];
+        if( cameraNum < 0 || cameraNum >= nCameras )
+            return 0;
+		device = [devices objectAtIndex:cameraNum] ;
 	} else {
 		device = [QTCaptureDevice defaultInputDeviceWithMediaType:QTMediaTypeVideo]  ;
 	}
@@ -782,11 +767,6 @@ IplImage* CvCaptureFile::retrieveFrame(int) {
 	return retrieveFramePixelBuffer(); 
 }
 
-IplImage* CvCaptureFile::queryFrame() {
-	grabFrame(); 
-	return retrieveFrame(0); 
-}	
-
 double CvCaptureFile::getFPS() {
 	if (mCaptureSession == nil) return 0; 
 	NSAutoreleasePool* localpool = [[NSAutoreleasePool alloc] init];
@@ -815,6 +795,7 @@ double CvCaptureFile::getProperty(int property_id){
 	double retval; 
 	QTTime t; 
 	
+	//cerr << "get_prop"<<endl;
 	switch (property_id) {
 		case CV_CAP_PROP_POS_MSEC:
 			[[mCaptureSession attributeForKey:QTMovieCurrentTimeAttribute] getValue:&t]; 
@@ -835,6 +816,9 @@ double CvCaptureFile::getProperty(int property_id){
 		case CV_CAP_PROP_FPS:
 			retval = currentFPS;  
 			break; 
+		case CV_CAP_PROP_FRAME_COUNT:
+			retval = movieDuration*movieFPS/1000;
+			break;
 		case CV_CAP_PROP_FOURCC:
 		default:
 			retval = 0; 

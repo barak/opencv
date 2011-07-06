@@ -41,6 +41,8 @@
 
 #include "precomp.hpp"
 
+using namespace std;
+
 #undef INFINITY
 #define INFINITY 10000
 #define OCCLUSION_PENALTY 10000
@@ -482,8 +484,9 @@ icvComputeK( CvStereoGCState* state )
 {
     int x, y, x1, d, i, j, rows = state->left->rows, cols = state->left->cols, n = 0;
     int mind = state->minDisparity, nd = state->numberOfDisparities, maxd = mind + nd;
-    int k = MIN(MAX((nd + 2)/4, 3), nd);
-    int *arr = (int*)cvStackAlloc(k*sizeof(arr[0])), delta, t, sum = 0;
+    int k = MIN(MAX((nd + 2)/4, 3), nd), delta, t, sum = 0;
+    std::vector<int> _arr(k+1);
+    int *arr = &_arr[0];
 
     for( y = 0; y < rows; y++ )
     {
@@ -846,8 +849,6 @@ CV_IMPL void cvFindStereoCorrespondenceGC( const CvArr* _left, const CvArr* _rig
     CvSize size;
     int iter, i, nZeroExpansions = 0;
     CvRNG rng = cvRNG(-1);
-    int* disp;
-    CvMat _disp;
     int64 E;
 
     CV_Assert( state != 0 );
@@ -902,8 +903,9 @@ CV_IMPL void cvFindStereoCorrespondenceGC( const CvArr* _left, const CvArr* _rig
 
     icvInitStereoConstTabs();
     icvInitGraySubpix( left, right, state->left, state->right );
-    disp = (int*)cvStackAlloc( state->numberOfDisparities*sizeof(disp[0]) );
-    _disp = cvMat( 1, state->numberOfDisparities, CV_32S, disp );
+    
+    std::vector<int> disp(state->numberOfDisparities);
+    CvMat _disp = cvMat( 1, (int)disp.size(), CV_32S, &disp[0] );
     cvRange( &_disp, state->minDisparity, state->minDisparity + state->numberOfDisparities );
     cvRandShuffle( &_disp, &rng );
 

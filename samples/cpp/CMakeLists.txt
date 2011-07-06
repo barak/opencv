@@ -39,8 +39,15 @@ if (BUILD_EXAMPLES)
         target_link_libraries(${the_target} ${OPENCV_LINKER_LIBS} opencv_core
             opencv_flann opencv_imgproc opencv_highgui opencv_ml opencv_video opencv_objdetect
             opencv_features2d opencv_calib3d opencv_legacy opencv_contrib)
+			
+		if(ENABLE_SOLUTION_FOLDERS)
+			set_target_properties(${the_target} PROPERTIES FOLDER "samples//cpp")
+		endif()
 
         if(WIN32)
+	    if (MSVC AND NOT BUILD_SHARED_LIBS)
+	        set_target_properties(${the_target} PROPERTIES LINK_FLAGS "/NODEFAULTLIB:atlthunk.lib /NODEFAULTLIB:atlsd.lib /DEBUG")
+	    endif()
             install(TARGETS ${the_target}
                 RUNTIME DESTINATION "samples/cpp" COMPONENT main)
         endif()

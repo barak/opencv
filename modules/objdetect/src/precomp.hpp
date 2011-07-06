@@ -47,8 +47,8 @@
 #pragma warning( disable: 4251 4710 4711 4514 4996 )
 #endif
 
-#ifdef HAVE_CONFIG_H 
-#include <cvconfig.h> 
+#ifdef HAVE_CVCONFIG_H 
+#include "cvconfig.h"
 #endif
 
 #include "opencv2/objdetect/objdetect.hpp"
@@ -57,5 +57,7 @@
 #include "opencv2/core/core_c.h"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/core/internal.hpp"
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/calib3d/calib3d.hpp"
 
 #endif

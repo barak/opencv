@@ -3,19 +3,19 @@
 #include <algorithm>
 #include <iterator>
 
-#include <opencv2/calib3d/calib3d.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/calib3d/calib3d.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
 
 using namespace cv;
 using namespace std;
 void help()
 {
-	cout << "\nThis code generates an artificial camera and artificial chessboard images,\n"
-         <<  "and then calibrates. It is basically test code for calibration that shows\n"
-		 <<	"how to package calibration points and then calibrate the camera.\n"
-		 <<	"Call:\n"
-		 <<	"./calibration_artificial\n" << endl;
+    printf( "\nThis code generates an artificial camera and artificial chessboard images,\n"
+            "and then calibrates. It is basically test code for calibration that shows\n"
+            "how to package calibration points and then calibrate the camera.\n"
+            "Usage:\n"
+            "./calibration_artificial\n\n");
 }
 namespace cv
 {

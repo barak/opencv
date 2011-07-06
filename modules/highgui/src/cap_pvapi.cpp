@@ -58,6 +58,7 @@
 
 #include <PvApi.h>
 #include <unistd.h>
+#include <string>
 //#include <arpa/inet.h>
 
 #define MAX_CAMERAS 10
@@ -190,7 +191,7 @@ bool CvCaptureCAM_PvAPI::open( int index )
         //PvAttrUint32Get(Camera.Handle,"PacketSize",&maxSize);
         if (PvCaptureAdjustPacketSize(Camera.Handle,maxSize)!=ePvErrSuccess)
 			return false;
-        if (strncmp(pixelFormat, "Mono8",NULL)==0) {
+        if (strcmp(pixelFormat, "Mono8")==0) {
 				grayframe = cvCreateImage(cvSize((int)frameWidth, (int)frameHeight), IPL_DEPTH_8U, 1);
 				grayframe->widthStep = (int)frameWidth;
 				frame = cvCreateImage(cvSize((int)frameWidth, (int)frameHeight), IPL_DEPTH_8U, 3);
@@ -198,7 +199,7 @@ bool CvCaptureCAM_PvAPI::open( int index )
 				Camera.Frame.ImageBufferSize = frameSize;
 				Camera.Frame.ImageBuffer = grayframe->imageData;   
 		}	    
-		else if (strncmp(pixelFormat, "Mono16",NULL)==0) {
+		else if (strcmp(pixelFormat, "Mono16")==0) {
 				grayframe = cvCreateImage(cvSize((int)frameWidth, (int)frameHeight), IPL_DEPTH_16U, 1);
 				grayframe->widthStep = (int)frameWidth;	
 				frame = cvCreateImage(cvSize((int)frameWidth, (int)frameHeight), IPL_DEPTH_16U, 3);
@@ -206,7 +207,7 @@ bool CvCaptureCAM_PvAPI::open( int index )
 				Camera.Frame.ImageBufferSize = frameSize;
 				Camera.Frame.ImageBuffer = grayframe->imageData;
 		}	  
-		else if	(strncmp(pixelFormat, "Bgr24",NULL)==0) {
+		else if	(strcmp(pixelFormat, "Bgr24")==0) {
 				frame = cvCreateImage(cvSize((int)frameWidth, (int)frameHeight), IPL_DEPTH_8U, 3);
 				frame->widthStep = (int)frameWidth*3;
 				Camera.Frame.ImageBufferSize = frameSize;
@@ -276,8 +277,26 @@ double CvCaptureCAM_PvAPI::getProperty( int property_id )
         PvAttrUint32Get(Camera.Handle, "Height", &nTemp);
         return (double)nTemp;
     case CV_CAP_PROP_EXPOSURE:
-		PvAttrUint32Get(Camera.Handle,"ExposureValue",&nTemp);
-		return (double)nTemp;
+	PvAttrUint32Get(Camera.Handle,"ExposureValue",&nTemp);
+	return (double)nTemp;
+    case CV_CAP_PROP_FPS:
+	tPvFloat32 nfTemp;
+        PvAttrFloat32Get(Camera.Handle, "StatFrameRate", &nfTemp);
+        return (double)nfTemp;
+    case CV_CAP_PROP_PVAPI_MULTICASTIP:
+	char mEnable[2];
+	char mIp[11];
+	PvAttrEnumGet(Camera.Handle,"MulticastEnable",mEnable,sizeof(mEnable),NULL);
+	if (strcmp(mEnable, "Off") == 0) {
+	    return -1;
+	}
+	else {
+	    long int ip;
+	    int a,b,c,d;
+	    PvAttrStringGet(Camera.Handle, "MulticastIPAddress",mIp,sizeof(mIp),NULL);
+	    sscanf(mIp, "%d.%d.%d.%d", &a, &b, &c, &d); ip = ((a*256 + b)*256 + c)*256 + d;
+	    return (double)ip;
+	}
     }
     return -1.0;
 }
@@ -298,7 +317,7 @@ bool CvCaptureCAM_PvAPI::setProperty( int property_id, double value )
         if (value==1) {
 			char pixelFormat[256];
 			PvAttrEnumGet(Camera.Handle, "PixelFormat", pixelFormat,256,NULL);
-			if ((strncmp(pixelFormat, "Mono8",NULL)==0) || strncmp(pixelFormat, "Mono16",NULL)==0) {
+			if ((strcmp(pixelFormat, "Mono8")==0) || strcmp(pixelFormat, "Mono16")==0) {
 				monocrome=true;
 			}	
 			else
@@ -307,11 +326,27 @@ bool CvCaptureCAM_PvAPI::setProperty( int property_id, double value )
 		else
 			monocrome=false;
 		break;	
-	case CV_CAP_PROP_EXPOSURE:
-		if (PvAttrUint32Set(Camera.Handle,"ExposureValue",(tPvUint32)value)==ePvErrSuccess)
-			break;
+    case CV_CAP_PROP_EXPOSURE:
+	    if ((PvAttrUint32Set(Camera.Handle,"ExposureValue",(tPvUint32)value)==ePvErrSuccess)) 
+		break;
+	    else
+		return false;
+    case CV_CAP_PROP_PVAPI_MULTICASTIP:
+	    
+    	    if (value==-1) {
+		if ((PvAttrEnumSet(Camera.Handle,"MulticastEnable", "Off")==ePvErrSuccess)) 
+		    break;
+		else 
+		    return false;
+	    }
+	    else {
+		std::string ip=cv::format("%d.%d.%d.%d", ((int)value>>24)&255, ((int)value>>16)&255, ((int)value>>8)&255, (int)value&255);
+		if ((PvAttrEnumSet(Camera.Handle,"MulticastEnable", "On")==ePvErrSuccess) &&
+		(PvAttrStringSet(Camera.Handle, "MulticastIPAddress", ip.c_str())==ePvErrSuccess)) 
+		    break;
 		else
-			return false;
+		    return false;
+	    }
     default:
         return false;
     }

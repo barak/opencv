@@ -42,8 +42,6 @@
 #ifndef _CV_GCGRAPH_H_
 #define _CV_GCGRAPH_H_
 
-using namespace std;
-
 template <class TWeight> class GCGraph
 {
 public:
@@ -76,8 +74,8 @@ private:
         TWeight weight;
     };
 
-    vector<Vtx> vtcs;
-    vector<Edge> edges;
+    std::vector<Vtx> vtcs;
+    std::vector<Edge> edges;
     TWeight flow;
 };
 
@@ -99,7 +97,7 @@ template <class TWeight>
 void GCGraph<TWeight>::create( unsigned int vtxCount, unsigned int edgeCount )
 {
     vtcs.reserve( vtxCount );
-    edges.reserve( edgeCount );
+    edges.reserve( edgeCount + 2 );
     flow = 0;
 }
 
@@ -119,6 +117,9 @@ void GCGraph<TWeight>::addEdges( int i, int j, TWeight w, TWeight revw )
     CV_Assert( j>=0 && j<(int)vtcs.size() );
     CV_Assert( w>=0 && revw>=0 );
     CV_Assert( i != j );
+
+    if( !edges.size() )
+        edges.resize( 2 );
 
     Edge fromI, toI;
     fromI.dst = j;
@@ -158,7 +159,7 @@ TWeight GCGraph<TWeight>::maxFlow()
     Vtx *vtxPtr = &vtcs[0];
     Edge *edgePtr = &edges[0];
 
-    vector<Vtx*> orphans;
+    std::vector<Vtx*> orphans;
 
     // initialize the active queue and the graph vertices
     for( int i = 0; i < (int)vtcs.size(); i++ )

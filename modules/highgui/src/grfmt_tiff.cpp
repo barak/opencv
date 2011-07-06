@@ -108,7 +108,6 @@ ImageDecoder TiffDecoder::newDecoder() const
 
 bool TiffDecoder::readHeader()
 {
-    char errmsg[1024];
     bool result = false;
 
     close();
@@ -119,8 +118,7 @@ bool TiffDecoder::readHeader()
         int width = 0, height = 0, photometric = 0;
         m_tif = tif;
 
-        if( TIFFRGBAImageOK( tif, errmsg ) &&
-            TIFFGetField( tif, TIFFTAG_IMAGEWIDTH, &width ) &&
+        if( TIFFGetField( tif, TIFFTAG_IMAGEWIDTH, &width ) &&
             TIFFGetField( tif, TIFFTAG_IMAGELENGTH, &height ) &&
             TIFFGetField( tif, TIFFTAG_PHOTOMETRIC, &photometric ))
         {
@@ -134,7 +132,26 @@ bool TiffDecoder::readHeader()
                ((photometric != 2 && photometric != 1) ||
                 (ncn != 1 && ncn != 3 && ncn != 4)))
                 bpp = 8;
-            m_type = CV_MAKETYPE(bpp > 8 ? CV_16U : CV_8U, photometric > 1 ? 3 : 1);
+
+            switch(bpp)
+            {
+                case 8:
+                    m_type = CV_MAKETYPE(CV_8U, photometric > 1 ? 3 : 1);
+                    break;
+                case 16:
+                    m_type = CV_MAKETYPE(CV_16U, photometric > 1 ? 3 : 1);
+                    break;
+
+                case 32:
+                    m_type = CV_MAKETYPE(CV_32F, photometric > 1 ? 3 : 1);
+                    break;
+                case 64:
+                    m_type = CV_MAKETYPE(CV_64F, photometric > 1 ? 3 : 1);
+                    break;
+
+                default:
+                    result = false;
+            }
             result = true;
         }
     }
@@ -153,7 +170,7 @@ bool  TiffDecoder::readData( Mat& img )
     uchar* data = img.data;
     int step = (int)img.step;
     
-    if( img.depth() != CV_8U && img.depth() != CV_16U )
+    if( img.depth() != CV_8U && img.depth() != CV_16U && img.depth() != CV_32F && img.depth() != CV_64F )
         return false;
 
     if( m_tif && m_width && m_height )
@@ -167,7 +184,18 @@ bool  TiffDecoder::readData( Mat& img )
         int bpp = 8, ncn = photometric > 1 ? 3 : 1;
         TIFFGetField( tif, TIFFTAG_BITSPERSAMPLE, &bpp );
         TIFFGetField( tif, TIFFTAG_SAMPLESPERPIXEL, &ncn );
-        int dst_bpp = img.depth() == CV_8U ? 8 : 16;
+        const int bitsPerByte = 8;
+        int dst_bpp = img.elemSize1() * bitsPerByte;
+
+        if(dst_bpp == 8)
+        {
+            char errmsg[1024];
+            if(!TIFFRGBAImageOK( tif, errmsg ))
+            {
+                close();
+                return false;
+            }
+        }
 
         if( (!is_tiled &&
             TIFFGetField( tif, TIFFTAG_ROWSPERSTRIP, &tile_height0 )) ||
@@ -184,6 +212,8 @@ bool  TiffDecoder::readData( Mat& img )
             AutoBuffer<uchar> _buffer(tile_height0*tile_width0*8);
             uchar* buffer = _buffer;
             ushort* buffer16 = (ushort*)buffer;
+            float* buffer32 = (float*)buffer;
+            double* buffer64 = (double*)buffer;
             int tileidx = 0;
 
             for( y = 0; y < m_height; y += tile_height0, data += step*tile_height0 )
@@ -200,82 +230,126 @@ bool  TiffDecoder::readData( Mat& img )
                     if( x + tile_width > m_width )
                         tile_width = m_width - x;
 
-                    if( dst_bpp == 8 )
+                    switch(dst_bpp)
                     {
-                        if( !is_tiled )
-                            ok = TIFFReadRGBAStrip( tif, y, (uint32*)buffer );
-                        else
-                            ok = TIFFReadRGBATile( tif, x, y, (uint32*)buffer );
-                        
-                        if( !ok )
+                        case 8:
+                        {
+                            if( !is_tiled )
+                                ok = TIFFReadRGBAStrip( tif, y, (uint32*)buffer );
+                            else
+                                ok = TIFFReadRGBATile( tif, x, y, (uint32*)buffer );
+
+                            if( !ok )
+                            {
+                                close();
+                                return false;
+                            }
+
+                            for( i = 0; i < tile_height; i++ )
+                                if( color )
+                                    icvCvt_BGRA2BGR_8u_C4C3R( buffer + i*tile_width*4, 0,
+                                                             data + x*3 + step*(tile_height - i - 1), 0,
+                                                             cvSize(tile_width,1), 2 );
+                                else
+                                    icvCvt_BGRA2Gray_8u_C4C1R( buffer + i*tile_width*4, 0,
+                                                              data + x + step*(tile_height - i - 1), 0,
+                                                              cvSize(tile_width,1), 2 );
+                            break;
+                        }
+
+                        case 16:
+                        {
+                            if( !is_tiled )
+                                ok = (int)TIFFReadEncodedStrip( tif, tileidx, (uint32*)buffer, (tsize_t)-1 ) >= 0;
+                            else
+                                ok = (int)TIFFReadEncodedTile( tif, tileidx, (uint32*)buffer, (tsize_t)-1 ) >= 0;
+
+                            if( !ok )
+                            {
+                                close();
+                                return false;
+                            }
+
+                            for( i = 0; i < tile_height; i++ )
+                            {
+                                if( color )
+                                {
+                                    if( ncn == 1 )
+                                    {
+                                        icvCvt_Gray2BGR_16u_C1C3R(buffer16 + i*tile_width*ncn, 0,
+                                                                  (ushort*)(data + step*i) + x*3, 0,
+                                                                  cvSize(tile_width,1) );
+                                    }
+                                    else if( ncn == 3 )
+                                    {
+                                        icvCvt_RGB2BGR_16u_C3R(buffer16 + i*tile_width*ncn, 0,
+                                                               (ushort*)(data + step*i) + x*3, 0,
+                                                               cvSize(tile_width,1) );
+                                    }
+                                    else
+                                    {
+                                        icvCvt_BGRA2BGR_16u_C4C3R(buffer16 + i*tile_width*ncn, 0,
+                                                               (ushort*)(data + step*i) + x*3, 0,
+                                                               cvSize(tile_width,1), 2 );
+                                    }
+                                }
+                                else
+                                {
+                                    if( ncn == 1 )
+                                    {
+                                        memcpy((ushort*)(data + step*i)+x,
+                                               buffer16 + i*tile_width*ncn,
+                                               tile_width*sizeof(buffer16[0]));
+                                    }
+                                    else
+                                    {
+                                        icvCvt_BGRA2Gray_16u_CnC1R(buffer16 + i*tile_width*ncn, 0,
+                                                               (ushort*)(data + step*i) + x, 0,
+                                                               cvSize(tile_width,1), ncn, 2 );
+                                    }
+                                }
+                            }
+                            break;
+                        }
+
+                        case 32:
+                        case 64:
+                        {
+                            if( !is_tiled )
+                                ok = (int)TIFFReadEncodedStrip( tif, tileidx, buffer, (tsize_t)-1 ) >= 0;
+                            else
+                                ok = (int)TIFFReadEncodedTile( tif, tileidx, buffer, (tsize_t)-1 ) >= 0;
+
+                            if( !ok || ncn != 1 )
+                            {
+                                close();
+                                return false;
+                            }
+
+                            for( i = 0; i < tile_height; i++ )
+                            {
+                                if(dst_bpp == 32)
+                                {
+                                    memcpy((float*)(data + step*i)+x,
+                                           buffer32 + i*tile_width*ncn,
+                                           tile_width*sizeof(buffer32[0]));
+                                }
+                                else
+                                {
+                                    memcpy((double*)(data + step*i)+x,
+                                         buffer64 + i*tile_width*ncn,
+                                         tile_width*sizeof(buffer64[0]));
+                                }
+                            }
+
+                            break;
+                        }
+                        default:
                         {
                             close();
                             return false;
                         }
-                        
-                        for( i = 0; i < tile_height; i++ )
-                            if( color )
-                                icvCvt_BGRA2BGR_8u_C4C3R( buffer + i*tile_width*4, 0,
-                                                         data + x*3 + step*(tile_height - i - 1), 0,
-                                                         cvSize(tile_width,1), 2 );
-                            else
-                                icvCvt_BGRA2Gray_8u_C4C1R( buffer + i*tile_width*4, 0,
-                                                          data + x + step*(tile_height - i - 1), 0,
-                                                          cvSize(tile_width,1), 2 );
                     }
-                    else
-                    {
-                        if( !is_tiled )
-                            ok = (int)TIFFReadEncodedStrip( tif, tileidx, (uint32*)buffer, (tsize_t)-1 ) >= 0;
-                        else
-                            ok = (int)TIFFReadEncodedTile( tif, tileidx, (uint32*)buffer, (tsize_t)-1 ) >= 0;
-                        
-                        if( !ok )
-                        {
-                            close();
-                            return false;
-                        }
-                        
-                        for( i = 0; i < tile_height; i++ )
-                        {
-                            if( color )
-                            {
-                                if( ncn == 1 )
-                                {
-                                    icvCvt_Gray2BGR_16u_C1C3R(buffer16 + i*tile_width*ncn, 0,
-                                                              (ushort*)(data + step*i) + x*3, 0,
-                                                              cvSize(tile_width,1) );
-                                }
-                                else if( ncn == 3 )
-                                {
-                                    icvCvt_RGB2BGR_16u_C3R(buffer16 + i*tile_width*ncn, 0,
-                                                           (ushort*)(data + step*i) + x*3, 0,
-                                                           cvSize(tile_width,1) );
-                                }
-                                else
-                                {
-                                    icvCvt_BGRA2BGR_16u_C4C3R(buffer16 + i*tile_width*ncn, 0,
-                                                           (ushort*)(data + step*i) + x*3, 0,
-                                                           cvSize(tile_width,1), 2 );
-                                }
-                            }
-                            else
-                            {
-                                if( ncn == 1 )
-                                {
-                                    memcpy((ushort*)(data + step*i)+x,
-                                           buffer16 + i*tile_width*ncn,
-                                           tile_width*sizeof(buffer16[0]));
-                                }
-                                else
-                                {
-                                    icvCvt_BGRA2Gray_16u_CnC1R(buffer16 + i*tile_width*ncn, 0,
-                                                           (ushort*)(data + step*i) + x, 0,
-                                                           cvSize(tile_width,1), ncn, 2 );
-                                }
-                            }
-                        }
-                    } 
                 }
             }
 
@@ -294,7 +368,11 @@ bool  TiffDecoder::readData( Mat& img )
 TiffEncoder::TiffEncoder()
 {
     m_description = "TIFF Files (*.tiff;*.tif)";
+#ifdef HAVE_TIFF
+    m_buf_supported = false;
+#else
     m_buf_supported = true;
+#endif
 }
 
 TiffEncoder::~TiffEncoder()
@@ -304,6 +382,11 @@ TiffEncoder::~TiffEncoder()
 ImageEncoder TiffEncoder::newEncoder() const
 {
     return new TiffEncoder;
+}
+
+bool TiffEncoder::isFormatSupported( int depth ) const
+{
+    return depth == CV_8U || depth == CV_16U;
 }
 
 void  TiffEncoder::writeTag( WLByteStream& strm, TiffTag tag,
@@ -316,12 +399,146 @@ void  TiffEncoder::writeTag( WLByteStream& strm, TiffTag tag,
     strm.putDWord( value );
 }
 
-
-bool  TiffEncoder::write( const Mat& img, const vector<int>& )
+#ifdef HAVE_TIFF
+bool  TiffEncoder::writeLibTiff( const Mat& img, const vector<int>& /*params*/)
 {
     int channels = img.channels();
     int width = img.cols, height = img.rows;
-    int fileStep = width*channels;
+    int depth = img.depth();
+
+    int bitsPerChannel = -1;
+    switch (depth)
+    {
+        case CV_8U:
+        {
+            bitsPerChannel = 8;
+            break;
+        }
+        case CV_16U:
+        {
+            bitsPerChannel = 16;
+            break;
+        }
+        default:
+        {
+            return false;
+        }   
+    }
+    
+    const int bitsPerByte = 8;
+    size_t fileStep = (width * channels * bitsPerChannel) / bitsPerByte;
+    int rowsPerStrip = (1 << 13)/fileStep;
+
+    if( rowsPerStrip < 1 )
+        rowsPerStrip = 1;
+
+    if( rowsPerStrip > height )
+        rowsPerStrip = height;
+
+
+    // do NOT put "wb" as the mode, because the b means "big endian" mode, not "binary" mode.
+    // http://www.remotesensing.org/libtiff/man/TIFFOpen.3tiff.html
+    TIFF* pTiffHandle = TIFFOpen(m_filename.c_str(), "w");
+    if (!pTiffHandle)
+    {
+        return false;
+    }
+    
+    // defaults for now, maybe base them on params in the future
+    int   compression  = COMPRESSION_LZW;
+    int   predictor    = PREDICTOR_HORIZONTAL;
+
+    int   colorspace = channels > 1 ? PHOTOMETRIC_RGB : PHOTOMETRIC_MINISBLACK;
+
+    if ( !TIFFSetField(pTiffHandle, TIFFTAG_IMAGEWIDTH, width)
+      || !TIFFSetField(pTiffHandle, TIFFTAG_IMAGELENGTH, height)
+      || !TIFFSetField(pTiffHandle, TIFFTAG_BITSPERSAMPLE, bitsPerChannel)
+      || !TIFFSetField(pTiffHandle, TIFFTAG_COMPRESSION, compression)
+      || !TIFFSetField(pTiffHandle, TIFFTAG_PHOTOMETRIC, colorspace)
+      || !TIFFSetField(pTiffHandle, TIFFTAG_SAMPLESPERPIXEL, channels)
+      || !TIFFSetField(pTiffHandle, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG)
+      || !TIFFSetField(pTiffHandle, TIFFTAG_ROWSPERSTRIP, rowsPerStrip)
+      || !TIFFSetField(pTiffHandle, TIFFTAG_PREDICTOR, predictor)
+       )
+    {
+        TIFFClose(pTiffHandle);
+        return false;
+    }
+
+    // row buffer, because TIFFWriteScanline modifies the original data!
+    size_t scanlineSize = TIFFScanlineSize(pTiffHandle);
+    AutoBuffer<uchar,1024> _buffer(scanlineSize+32);
+    uchar* buffer = _buffer;
+    if (!buffer)
+    {
+        TIFFClose(pTiffHandle);
+        return false;
+    }
+
+    for (int y = 0; y < height; ++y)
+    {
+        switch(channels)
+        {
+            case 1:
+            {
+                memcpy(buffer, img.data + img.step * y, scanlineSize);
+                break;
+            }
+
+            case 3:
+            {
+                if (depth == CV_8U)
+                    icvCvt_BGR2RGB_8u_C3R( img.data + img.step*y, 0, buffer, 0, cvSize(width,1) );
+                else
+                    icvCvt_BGR2RGB_16u_C3R( (const ushort*)(img.data + img.step*y), 0, (ushort*)buffer, 0, cvSize(width,1) );
+                break;
+            }
+
+            case 4:
+            {
+                if (depth == CV_8U)
+                    icvCvt_BGRA2RGBA_8u_C4R( img.data + img.step*y, 0, buffer, 0, cvSize(width,1) );
+                else
+                    icvCvt_BGRA2RGBA_16u_C4R( (const ushort*)(img.data + img.step*y), 0, (ushort*)buffer, 0, cvSize(width,1) );
+            }
+
+            default:
+            {
+                TIFFClose(pTiffHandle);
+                return false;
+            }
+        }
+
+        int writeResult = TIFFWriteScanline(pTiffHandle, buffer, y, 0);
+        if (writeResult != 1)
+        {
+            TIFFClose(pTiffHandle);
+            return false;
+        }
+    }
+    
+    TIFFClose(pTiffHandle);
+    return true;
+}
+
+#endif
+
+#ifdef HAVE_TIFF
+bool  TiffEncoder::write( const Mat& img, const vector<int>& params)
+#else
+bool  TiffEncoder::write( const Mat& img, const vector<int>& /*params*/)
+#endif
+{
+    int channels = img.channels();
+    int width = img.cols, height = img.rows;
+    int depth = img.depth();
+
+    if (depth != CV_8U && depth != CV_16U)
+        return false;
+
+    int bytesPerChannel = depth == CV_8U ? 1 : 2;
+    int fileStep = width * channels * bytesPerChannel;
+
     WLByteStream strm;
 
     if( m_buf )
@@ -329,8 +546,15 @@ bool  TiffEncoder::write( const Mat& img, const vector<int>& )
         if( !strm.open(*m_buf) )
             return false;
     }
-    else if( !strm.open(m_filename) )
-        return false;
+    else 
+    {
+#ifdef HAVE_TIFF
+      return writeLibTiff(img, params);
+#else
+      if( !strm.open(m_filename) )
+          return false;
+#endif
+    }
 
     int rowsPerStrip = (1 << 13)/fileStep;
 
@@ -356,7 +580,7 @@ bool  TiffEncoder::write( const Mat& img, const vector<int>& )
     uchar* buffer = _buffer;
     int  stripOffsetsOffset = 0;
     int  stripCountsOffset = 0;
-    int  bitsPerSample = 8; // TODO support 16 bit
+    int  bitsPerSample = 8 * bytesPerChannel;
     int  y = 0;
 
     strm.putBytes( fmtSignTiffII, 4 );
@@ -376,9 +600,22 @@ bool  TiffEncoder::write( const Mat& img, const vector<int>& )
         for( ; y < limit; y++ )
         {
             if( channels == 3 )
-                icvCvt_BGR2RGB_8u_C3R( img.data + img.step*y, 0, buffer, 0, cvSize(width,1) );
-            else if( channels == 4 )
-                icvCvt_BGRA2RGBA_8u_C4R( img.data + img.step*y, 0, buffer, 0, cvSize(width,1) );
+            {
+                if (depth == CV_8U)
+                    icvCvt_BGR2RGB_8u_C3R( img.data + img.step*y, 0, buffer, 0, cvSize(width,1) );
+                else
+                    icvCvt_BGR2RGB_16u_C3R( (const ushort*)(img.data + img.step*y), 0, (ushort*)buffer, 0, cvSize(width,1) );
+            }
+            else
+            {
+              if( channels == 4 )
+              {
+                if (depth == CV_8U)
+                    icvCvt_BGRA2RGBA_8u_C4R( img.data + img.step*y, 0, buffer, 0, cvSize(width,1) );
+                else
+                    icvCvt_BGRA2RGBA_16u_C4R( (const ushort*)(img.data + img.step*y), 0, (ushort*)buffer, 0, cvSize(width,1) );
+              }
+            }
 
             strm.putBytes( channels > 1 ? buffer : img.data + img.step*y, fileStep );
         }
@@ -416,12 +653,13 @@ bool  TiffEncoder::write( const Mat& img, const vector<int>& )
 
     if( channels > 1 )
     {
-        bitsPerSample = strm.getPos();
-        strm.putWord(8);
-        strm.putWord(8);
-        strm.putWord(8);
+        int bitsPerSamplePos = strm.getPos();
+        strm.putWord(bitsPerSample);
+        strm.putWord(bitsPerSample);
+        strm.putWord(bitsPerSample);
         if( channels == 4 )
-            strm.putWord(8);
+            strm.putWord(bitsPerSample);
+        bitsPerSample = bitsPerSamplePos;
     }
 
     directoryOffset = strm.getPos();

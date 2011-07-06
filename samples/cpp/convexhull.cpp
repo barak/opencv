@@ -1,5 +1,5 @@
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -13,7 +13,7 @@ void help()
 		 << "./convexhull\n" << endl;
 }
 
-int main( int argc, char** argv )
+int main( int /*argc*/, char** /*argv*/ )
 {
     Mat img(500, 500, CV_8UC3);
     RNG& rng = theRNG();
@@ -37,7 +37,7 @@ int main( int argc, char** argv )
         }
         
         vector<int> hull;
-        convexHull(Mat(points), hull, CV_CLOCKWISE);
+        convexHull(Mat(points), hull, true);
         
         img = Scalar::all(0);
         for( i = 0; i < count; i++ )

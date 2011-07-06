@@ -40,7 +40,7 @@
 //
 //M*/
 
-//#include "cuda_shared.hpp"
+//#include "internal_shared.hpp"
 #include "opencv2/gpu/devmem2d.hpp"
 #include "safe_call.hpp"
 static inline int divUp(int total, int grain) { return (total + grain - 1) / grain; }
@@ -68,7 +68,7 @@ __constant__ size_t cminSSD_step;
 __constant__ int cwidth;
 __constant__ int cheight;
 
-__device__ int SQ(int a)
+__device__ __forceinline__ int SQ(int a)
 {
     return a * a;
 }
@@ -102,19 +102,19 @@ __device__ uint2 MinSSD(volatile unsigned int *col_ssd_cache, volatile unsigned 
 
     //See above:  #define COL_SSD_SIZE (BLOCK_W + 2 * RADIUS)
     ssd[0] = CalcSSD<RADIUS>(col_ssd_cache, col_ssd + 0 * (BLOCK_W + 2 * RADIUS));
-	__syncthreads();
+    __syncthreads();
     ssd[1] = CalcSSD<RADIUS>(col_ssd_cache, col_ssd + 1 * (BLOCK_W + 2 * RADIUS));
-	__syncthreads();
+    __syncthreads();
     ssd[2] = CalcSSD<RADIUS>(col_ssd_cache, col_ssd + 2 * (BLOCK_W + 2 * RADIUS));
-	__syncthreads();
+    __syncthreads();
     ssd[3] = CalcSSD<RADIUS>(col_ssd_cache, col_ssd + 3 * (BLOCK_W + 2 * RADIUS));
-	__syncthreads();
+    __syncthreads();
     ssd[4] = CalcSSD<RADIUS>(col_ssd_cache, col_ssd + 4 * (BLOCK_W + 2 * RADIUS));
-	__syncthreads();
+    __syncthreads();
     ssd[5] = CalcSSD<RADIUS>(col_ssd_cache, col_ssd + 5 * (BLOCK_W + 2 * RADIUS));
-	__syncthreads();
+    __syncthreads();
     ssd[6] = CalcSSD<RADIUS>(col_ssd_cache, col_ssd + 6 * (BLOCK_W + 2 * RADIUS));
-	__syncthreads();
+    __syncthreads();
     ssd[7] = CalcSSD<RADIUS>(col_ssd_cache, col_ssd + 7 * (BLOCK_W + 2 * RADIUS));
 
     int mssd = min(min(min(ssd[0], ssd[1]), min(ssd[4], ssd[5])), min(min(ssd[2], ssd[3]), min(ssd[6], ssd[7])));
@@ -252,7 +252,7 @@ __global__ void stereoKernel(unsigned char *left, unsigned char *right, size_t i
         for(uint *ptr = minSSDImage; ptr != minSSDImage_end; ptr += minssd_step )
             *ptr = 0xFFFFFFFF;
     }*/
-    int end_row = min(ROWSperTHREAD, cheight - Y);
+    int end_row = min(ROWSperTHREAD, cheight - Y - RADIUS);
     int y_tex;
     int x_tex = X - RADIUS;
 
@@ -325,8 +325,10 @@ template<int RADIUS> void kernel_caller(const DevMem2D& left, const DevMem2D& ri
     size_t smem_size = (BLOCK_W + N_DISPARITIES * (BLOCK_W + 2 * RADIUS)) * sizeof(unsigned int);
 
     stereoKernel<RADIUS><<<grid, threads, smem_size, stream>>>(left.data, right.data, left.step, disp, maxdisp);
-    if (stream == 0)        
-        cudaSafeCall( cudaThreadSynchronize() );
+    cudaSafeCall( cudaGetLastError() );
+
+    if (stream == 0)
+        cudaSafeCall( cudaDeviceSynchronize() );
 };
 
 typedef void (*kernel_caller_t)(const DevMem2D& left, const DevMem2D& right, const DevMem2D& disp, int maxdisp, cudaStream_t & stream);
@@ -357,7 +359,7 @@ extern "C" void stereoBM_GPU(const DevMem2D& left, const DevMem2D& right, const 
     cudaSafeCall( cudaMemset2D(disp.data, disp.step, 0, disp.cols, disp.rows) );
     cudaSafeCall( cudaMemset2D(minSSD_buf.data, minSSD_buf.step, 0xFF, minSSD_buf.cols * minSSD_buf.elemSize(), disp.rows) );
 
-    cudaSafeCall( cudaMemcpyToSymbol(  cwidth, &left.cols, sizeof(left.cols) ) );
+    cudaSafeCall( cudaMemcpyToSymbol( cwidth, &left.cols, sizeof(left.cols) ) );
     cudaSafeCall( cudaMemcpyToSymbol( cheight, &left.rows, sizeof(left.rows) ) );
     cudaSafeCall( cudaMemcpyToSymbol( cminSSDImage, &minSSD_buf.data, sizeof(minSSD_buf.data) ) );
 
@@ -390,7 +392,6 @@ extern "C" __global__ void prefilter_kernel(DevMem2D output, int prefilterCap)
     }
 }
 
-
 extern "C" void prefilter_xsobel(const DevMem2D& input, const DevMem2D& output, int prefilterCap, cudaStream_t & stream)
 {
     cudaChannelFormatDesc desc = cudaCreateChannelDesc<unsigned char>();
@@ -403,9 +404,10 @@ extern "C" void prefilter_xsobel(const DevMem2D& input, const DevMem2D& output, 
     grid.y = divUp(input.rows, threads.y);
 
     prefilter_kernel<<<grid, threads, 0, stream>>>(output, prefilterCap);
+    cudaSafeCall( cudaGetLastError() );
 
     if (stream == 0)   
-		cudaSafeCall( cudaThreadSynchronize() );    
+        cudaSafeCall( cudaDeviceSynchronize() );    
 
     cudaSafeCall( cudaUnbindTexture (texForSobel ) );
 }
@@ -417,7 +419,7 @@ extern "C" void prefilter_xsobel(const DevMem2D& input, const DevMem2D& output, 
 
 texture<unsigned char, 2, cudaReadModeNormalizedFloat> texForTF;
 
-__device__ float sobel(int x, int y)
+__device__ __forceinline__ float sobel(int x, int y)
 {
     float conv = tex2D(texForTF, x - 1, y - 1) * (-1) + tex2D(texForTF, x + 1, y - 1) * (1) +
                  tex2D(texForTF, x - 1, y    ) * (-2) + tex2D(texForTF, x + 1, y    ) * (2) +
@@ -527,11 +529,12 @@ extern "C" void postfilter_textureness(const DevMem2D& input, int winsz, float a
 
     size_t smem_size = (threads.x + threads.x + (winsz/2) * 2 ) * sizeof(float);
     textureness_kernel<<<grid, threads, smem_size, stream>>>(disp, winsz, avgTexturenessThreshold);
+    cudaSafeCall( cudaGetLastError() );
 
-	if (stream == 0)					
-		cudaSafeCall( cudaThreadSynchronize() );		
+    if (stream == 0)
+        cudaSafeCall( cudaDeviceSynchronize() );
+
     cudaSafeCall( cudaUnbindTexture (texForTF) );
-
 }
 
 }}}

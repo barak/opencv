@@ -42,18 +42,19 @@
 #include <float.h>
 #include <stdio.h>
 
-namespace cv
-{
-
-void calcOpticalFlowPyrLK( const Mat& prevImg, const Mat& nextImg,
-                           const vector<Point2f>& prevPts,
-                           vector<Point2f>& nextPts,
-                           vector<uchar>& status, vector<float>& err,
+void cv::calcOpticalFlowPyrLK( InputArray _prevImg, InputArray _nextImg,
+                           InputArray _prevPts, InputOutputArray _nextPts,
+                           OutputArray _status, OutputArray _err,
                            Size winSize, int maxLevel,
                            TermCriteria criteria,
                            double derivLambda,
                            int flags )
 {
+#ifdef HAVE_TEGRA_OPTIMIZATION
+    if (tegra::calcOpticalFlowPyrLK(_prevImg, _nextImg, _prevPts, _nextPts, _status, _err, winSize, maxLevel, criteria, derivLambda, flags))
+        return;
+#endif
+    Mat prevImg = _prevImg.getMat(), nextImg = _nextImg.getMat(), prevPtsMat = _prevPts.getMat();
     derivLambda = std::min(std::max(derivLambda, 0.), 1.);
     double lambda1 = 1. - derivLambda, lambda2 = derivLambda;
     const int derivKernelSize = 3;
@@ -66,16 +67,43 @@ void calcOpticalFlowPyrLK( const Mat& prevImg, const Mat& nextImg,
     CV_Assert( prevImg.size() == nextImg.size() &&
         prevImg.type() == nextImg.type() );
 
-    size_t npoints = prevPts.size();
-    nextPts.resize(npoints);
-    status.resize(npoints);
-    for( size_t i = 0; i < npoints; i++ )
-        status[i] = true;
-    err.resize(npoints);
-
-    if( npoints == 0 )
-        return;
+    int npoints;
+    CV_Assert( (npoints = prevPtsMat.checkVector(2, CV_32F, true)) >= 0 );
     
+    if( npoints == 0 )
+    {
+        _nextPts.release();
+        _status.release();
+        _err.release();
+        return;
+    }
+    
+    if( !(flags & OPTFLOW_USE_INITIAL_FLOW) )
+        _nextPts.create(prevPtsMat.size(), prevPtsMat.type(), -1, true);
+    
+    Mat nextPtsMat = _nextPts.getMat();
+    CV_Assert( nextPtsMat.checkVector(2, CV_32F, true) == npoints );
+    
+    const Point2f* prevPts = (const Point2f*)prevPtsMat.data;
+    Point2f* nextPts = (Point2f*)nextPtsMat.data;
+    
+    _status.create((int)npoints, 1, CV_8U, -1, true);
+    Mat statusMat = _status.getMat(), errMat;
+    CV_Assert( statusMat.isContinuous() );
+    uchar* status = statusMat.data;
+    float* err = 0;
+    
+    for( int i = 0; i < npoints; i++ )
+        status[i] = true;
+    
+    if( _err.needed() )
+    {
+        _err.create((int)npoints, 1, CV_32F, -1, true);
+        errMat = _err.getMat();
+        CV_Assert( errMat.isContinuous() );
+        err = (float*)errMat.data;
+    }
+
     vector<Mat> prevPyr, nextPyr;
 
     int cn = prevImg.channels();
@@ -175,7 +203,7 @@ void calcOpticalFlowPyrLK( const Mat& prevImg, const Mat& nextImg,
         copyMakeBorder( derivJ, _derivJ, winSize.height, winSize.height,
             winSize.width, winSize.width, BORDER_CONSTANT );*/
 
-        for( size_t ptidx = 0; ptidx < npoints; ptidx++ )
+        for( int ptidx = 0; ptidx < npoints; ptidx++ )
         {
             Point2f prevPt = prevPts[ptidx]*(float)(1./(1 << level));
             Point2f nextPt;
@@ -255,7 +283,8 @@ void calcOpticalFlowPyrLK( const Mat& prevImg, const Mat& nextImg,
             double D = A11*A22 - A12*A12;
             double minEig = (A22 + A11 - std::sqrt((A11-A22)*(A11-A22) +
                 4.*A12*A12))/(2*winSize.width*winSize.height);
-            err[ptidx] = (float)minEig;
+            if( err )
+                err[ptidx] = (float)minEig;
 
             if( D < DBL_EPSILON )
             {
@@ -332,8 +361,6 @@ void calcOpticalFlowPyrLK( const Mat& prevImg, const Mat& nextImg,
             }
         }
     }
-}
-
 }
 
 static void
@@ -1799,7 +1826,7 @@ cvEstimateRigidTransform( const CvArr* matA, const CvArr* matB, CvMat* matM, int
                     
                     double dax1 = a[1].x - a[0].x, day1 = a[1].y - a[0].y;
                     double dax2 = a[2].x - a[0].x, day2 = a[2].y - a[0].y;
-                    double dbx1 = b[1].x - b[0].y, dby1 = b[1].y - b[0].y;
+                    double dbx1 = b[1].x - b[0].x, dby1 = b[1].y - b[0].y;
                     double dbx2 = b[2].x - b[0].x, dby2 = b[2].y - b[0].y;
                     const double eps = 0.01;
 
@@ -1852,18 +1879,14 @@ cvEstimateRigidTransform( const CvArr* matA, const CvArr* matB, CvMat* matM, int
     return 1;
 }
 
-namespace cv
+cv::Mat cv::estimateRigidTransform( InputArray src1,
+                                    InputArray src2,
+                                    bool fullAffine )
 {
-
-Mat estimateRigidTransform( const Mat& A,
-                            const Mat& B,
-                            bool fullAffine )
-{
-    Mat M(2, 3, CV_64F);
+    Mat M(2, 3, CV_64F), A = src1.getMat(), B = src2.getMat();
     CvMat matA = A, matB = B, matM = M;
     cvEstimateRigidTransform(&matA, &matB, &matM, fullAffine);
     return M;
-}
 }
 
 /* End of file. */

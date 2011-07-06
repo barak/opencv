@@ -1,6 +1,6 @@
-#include <opencv2/objdetect/objdetect.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
+#include "opencv2/objdetect/objdetect.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 
 #include <iostream>
 #include <stdio.h>
@@ -10,28 +10,25 @@ using namespace cv;
 
 void help()
 {
-    cout << "\nThis program demonstrates the haar cascade recognizer\n"
-    		"this classifier can recognize many ~rigid objects, it's most known use is for faces.\n"
-    	"Usage:\n"
-    	"./facedetect [--cascade=<cascade_path> this is the primary trained classifier such as frontal face]\n"
-        "   [--nested-cascade[=nested_cascade_path this an optional secondary classifier such as eyes]]\n"
-        "   [--scale=<image scale greater or equal to 1, try 1.3 for example>\n"
-        "   [filename|camera_index]\n\n"
-    		"see facedetect.cmd for one call:\n"
-    		"./facedetect --cascade=\"../../data/haarcascades/haarcascade_frontalface_alt.xml\" --nested-cascade=\"../../data/haarcascades/haarcascade_eye.xml\" --scale=1.3 \n"
-    	"Hit any key to quit.\n"
-    		"Using OpenCV version %s\n" << CV_VERSION << "\n"
-    		<< endl;
+    cout << "\nThis program demonstrates the cascade recognizer. Now you can use Haar or LBP features.\n"
+            "This classifier can recognize many ~rigid objects, it's most known use is for faces.\n"
+            "Usage:\n"
+            "./facedetect [--cascade=<cascade_path> this is the primary trained classifier such as frontal face]\n"
+               "   [--nested-cascade[=nested_cascade_path this an optional secondary classifier such as eyes]]\n"
+               "   [--scale=<image scale greater or equal to 1, try 1.3 for example>\n"
+               "   [filename|camera_index]\n\n"
+            "see facedetect.cmd for one call:\n"
+            "./facedetect --cascade=\"../../data/haarcascades/haarcascade_frontalface_alt.xml\" --nested-cascade=\"../../data/haarcascades/haarcascade_eye.xml\" --scale=1.3 \n"
+            "Hit any key to quit.\n"
+            "Using OpenCV version " << CV_VERSION << "\n" << endl;
 }
 
 void detectAndDraw( Mat& img,
                    CascadeClassifier& cascade, CascadeClassifier& nestedCascade,
                    double scale);
 
-String cascadeName =
-"../../data/haarcascades/haarcascade_frontalface_alt.xml";
-String nestedCascadeName =
-"../../data/haarcascades/haarcascade_eye_tree_eyeglasses.xml";
+String cascadeName = "../../data/haarcascades/haarcascade_frontalface_alt.xml";
+String nestedCascadeName = "../../data/haarcascades/haarcascade_eye_tree_eyeglasses.xml";
 
 int main( int argc, const char** argv )
 {
@@ -46,12 +43,13 @@ int main( int argc, const char** argv )
     String inputName;
 
     help();
+
     CascadeClassifier cascade, nestedCascade;
     double scale = 1;
 
     for( int i = 1; i < argc; i++ )
     {
-    	cout << "Processing " << i << " " <<  argv[i] << endl;
+        cout << "Processing " << i << " " <<  argv[i] << endl;
         if( cascadeOpt.compare( 0, cascadeOptLen, argv[i], cascadeOptLen ) == 0 )
         {
             cascadeName.assign( argv[i] + cascadeOptLen );
@@ -102,7 +100,7 @@ int main( int argc, const char** argv )
             capture = cvCaptureFromAVI( inputName.c_str() );
             if(!capture) cout << "Capture from AVI didn't work" << endl;
         }
-   }
+    }
     else
     {
         image = imread( "lena.jpg", 1 );
@@ -113,7 +111,7 @@ int main( int argc, const char** argv )
 
     if( capture )
     {
-    	cout << "In capture ..." << endl;
+        cout << "In capture ..." << endl;
         for(;;)
         {
             IplImage* iplImg = cvQueryFrame( capture );
@@ -132,12 +130,13 @@ int main( int argc, const char** argv )
         }
 
         waitKey(0);
+
 _cleanup_:
         cvReleaseCapture( &capture );
     }
     else
     {
-    	cout << "In image read" << endl;
+        cout << "In image read" << endl;
         if( !image.empty() )
         {
             detectAndDraw( image, cascade, nestedCascade, scale );
@@ -241,6 +240,6 @@ void detectAndDraw( Mat& img,
             radius = cvRound((nr->width + nr->height)*0.25*scale);
             circle( img, center, radius, color, 3, 8, 0 );
         }
-    }  
-    cv::imshow( "result", img );    
+    }
+    cv::imshow( "result", img );
 }

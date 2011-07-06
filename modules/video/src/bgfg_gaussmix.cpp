@@ -59,7 +59,11 @@ namespace cv
 {
     
 BackgroundSubtractor::~BackgroundSubtractor() {}
-void BackgroundSubtractor::operator()(const Mat&, Mat&, double)
+void BackgroundSubtractor::operator()(InputArray, OutputArray, double)
+{
+}
+
+void BackgroundSubtractor::getBackgroundImage(OutputArray) const
 {
 }
 
@@ -261,7 +265,7 @@ static void process8uC3( BackgroundSubtractorMOG& obj, const Mat& image, Mat& fg
     int K = obj.nmixtures;
     
     const float w0 = (float)CV_BGFG_MOG_WEIGHT_INIT;
-    const float sk0 = (float)(w0/CV_BGFG_MOG_SIGMA_INIT*sqrt(3.));
+    const float sk0 = (float)(w0/(CV_BGFG_MOG_SIGMA_INIT*sqrt(3.)));
     const float var0 = (float)(CV_BGFG_MOG_SIGMA_INIT*CV_BGFG_MOG_SIGMA_INIT);
     const float minVar = (float)(obj.noiseSigma*obj.noiseSigma);
     MixData<Vec3f>* mptr = (MixData<Vec3f>*)obj.bgmodel.data;
@@ -381,15 +385,17 @@ static void process8uC3( BackgroundSubtractorMOG& obj, const Mat& image, Mat& fg
     }
 }
 
-void BackgroundSubtractorMOG::operator()(const Mat& image, Mat& fgmask, double learningRate)
+void BackgroundSubtractorMOG::operator()(InputArray _image, OutputArray _fgmask, double learningRate)
 {
+    Mat image = _image.getMat();
     bool needToInitialize = nframes == 0 || learningRate >= 1 || image.size() != frameSize || image.type() != frameType;
     
     if( needToInitialize )
         initialize(image.size(), image.type());
     
     CV_Assert( image.depth() == CV_8U );
-    fgmask.create( image.size(), CV_8U );
+    _fgmask.create( image.size(), CV_8U );
+    Mat fgmask = _fgmask.getMat();
     
     ++nframes;
     learningRate = learningRate >= 0 && nframes > 1 ? learningRate : 1./min( nframes, history );
@@ -440,7 +446,7 @@ icvUpdateGaussianBGModel( IplImage* curr_frame, CvGaussBGModel*  bg_model, doubl
     mog.nframes = bg_model->countFrames;
     mog.history = bg_model->params.win_size;
     mog.nmixtures = bg_model->params.n_gauss;
-    mog.varThreshold = bg_model->params.std_threshold;
+    mog.varThreshold = bg_model->params.std_threshold*bg_model->params.std_threshold;
     mog.backgroundRatio = bg_model->params.bg_threshold;
     
     mog(image, mask, learningRate);

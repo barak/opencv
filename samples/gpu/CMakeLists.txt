@@ -14,7 +14,13 @@ if (BUILD_EXAMPLES)
         "${CMAKE_SOURCE_DIR}/modules/legacy/include"
         "${CMAKE_SOURCE_DIR}/modules/contrib/include"
         "${CMAKE_SOURCE_DIR}/modules/gpu/include"
+		"${CMAKE_SOURCE_DIR}/modules/gpu/src/nvidia"
+		"${CMAKE_SOURCE_DIR}/modules/gpu/src/nvidia/core"
     )   
+    
+    if(HAVE_CUDA)
+        include_directories(${CUDA_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/modules/gpu/src/nvidia ${CMAKE_SOURCE_DIR}/modules/gpu/src/nvidia/core)
+    endif()
 
     if(CMAKE_COMPILER_IS_GNUCXX)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-unused-function")
@@ -35,8 +41,15 @@ if (BUILD_EXAMPLES)
     	target_link_libraries(${the_target} ${OPENCV_LINKER_LIBS} opencv_core
     	    opencv_flann opencv_imgproc opencv_highgui opencv_ml opencv_video opencv_objdetect
     	    opencv_features2d opencv_calib3d opencv_legacy opencv_contrib opencv_gpu)
+			
+		if(ENABLE_SOLUTION_FOLDERS)
+			set_target_properties(${the_target} PROPERTIES FOLDER "samples//gpu")
+		endif()
 
         if(WIN32)
+	    if (MSVC AND NOT BUILD_SHARED_LIBS)
+	        set_target_properties(${the_target} PROPERTIES LINK_FLAGS "/NODEFAULTLIB:atlthunk.lib /NODEFAULTLIB:atlsd.lib /DEBUG")
+	    endif()
             install(TARGETS ${the_target}
                 RUNTIME DESTINATION "samples/gpu" COMPONENT main)
         endif()
@@ -47,7 +60,9 @@ if (BUILD_EXAMPLES)
     foreach(sample_filename ${gpu_samples})
         get_filename_component(sample ${sample_filename} NAME_WE)
         MY_DEFINE_EXAMPLE(${sample}  ${sample_filename})
-    endforeach()
+    endforeach()   
+    
+    include("performance/CMakeLists.txt")
 endif(BUILD_EXAMPLES)
 
 if (NOT WIN32)

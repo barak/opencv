@@ -90,6 +90,13 @@ cvMeanShift( const void* imgProb, CvRect windowIn,
         int dx, dy, nx, ny;
         double inv_m00;
         cur_rect = cv::Rect(cur_rect) & cv::Rect(0, 0, mat->cols, mat->rows);
+        if( cv::Rect(cur_rect) == cv::Rect() )
+        {
+            cur_rect.x = mat->cols/2;
+            cur_rect.y = mat->rows/2;
+        }
+        cur_rect.width = MAX(cur_rect.width, 1);
+        cur_rect.height = MAX(cur_rect.height, 1);
         
         cvGetSubRect( mat, &cur_win, cur_rect ); 
         cvMoments( &cur_win, &moments );
@@ -289,29 +296,27 @@ cvCamShift( const void* imgProb, CvRect windowIn,
     return itersUsed;
 }
 
-namespace cv
-{
 
-RotatedRect CamShift( const Mat& probImage, Rect& window,
-                      TermCriteria criteria )
+cv::RotatedRect cv::CamShift( InputArray _probImage, Rect& window,
+                              TermCriteria criteria )
 {
     CvConnectedComp comp;
     CvBox2D box;
-    CvMat _probImage = probImage;
-    cvCamShift(&_probImage, window, (CvTermCriteria)criteria, &comp, &box);
+    Mat probImage = _probImage.getMat();
+    CvMat c_probImage = probImage;
+    cvCamShift(&c_probImage, window, (CvTermCriteria)criteria, &comp, &box);
     window = comp.rect;
     return RotatedRect(Point2f(box.center), Size2f(box.size), box.angle);
 }
 
-int meanShift( const Mat& probImage, Rect& window, TermCriteria criteria )
+int cv::meanShift( InputArray _probImage, Rect& window, TermCriteria criteria )
 {
     CvConnectedComp comp;
-    CvMat _probImage = probImage;
-    int iters = cvMeanShift(&_probImage, window, (CvTermCriteria)criteria, &comp );
+    Mat probImage = _probImage.getMat();
+    CvMat c_probImage = probImage;
+    int iters = cvMeanShift(&c_probImage, window, (CvTermCriteria)criteria, &comp );
     window = comp.rect;
     return iters;
-}
-
 }
 
 /* End of file. */

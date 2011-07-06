@@ -1,11 +1,5 @@
 0001-fix_3rdparty_build.patch
-0002-fix_build_pdf.patch
-0003-hurd.patch
-0004-fix_stdint_gcc45.patch
 0005-build-static-libs.patch
 0006-typos-in-license.patch
 0007-typos-in-strings-docs.patch
-0008_fix_ftbfs_with_gcc-4.6.patch
-0009_support_v4lv2_only.patch
-0010_fix_ftbs_png15.patch
 0011_optimize_i486.patch

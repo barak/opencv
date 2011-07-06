@@ -48,8 +48,8 @@
     #pragma warning( disable: 4251 4711 4710 4514 )
 #endif
 
-#ifdef HAVE_CONFIG_H 
-#include <cvconfig.h> 
+#ifdef HAVE_CVCONFIG_H 
+#include "cvconfig.h"
 #endif
 
 #include "opencv2/imgproc/imgproc.hpp"
@@ -62,6 +62,10 @@
 #include <stdio.h>
 #include <limits.h>
 #include <float.h>
+
+#ifdef HAVE_TEGRA_OPTIMIZATION
+#include "opencv2/imgproc/imgproc_tegra.hpp"
+#endif
 
 /* helper tables */
 extern const uchar icvSaturate8u_cv[];

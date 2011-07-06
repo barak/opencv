@@ -14,7 +14,7 @@ void help()
 			"./kmeans\n" << endl;
 }
 
-int main( int argc, char** argv )
+int main( int /*argc*/, char** /*argv*/ )
 {
     const int MAX_CLUSTERS = 5;
     Scalar colorTab[] =
@@ -54,7 +54,7 @@ int main( int argc, char** argv )
 
         kmeans(points, clusterCount, labels, 
                TermCriteria( CV_TERMCRIT_EPS+CV_TERMCRIT_ITER, 10, 1.0),
-               3, KMEANS_PP_CENTERS, &centers);
+               3, KMEANS_PP_CENTERS, centers);
 
         img = Scalar::all(0);
 

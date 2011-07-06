@@ -115,6 +115,221 @@ void CvEM::clear()
     }
 }
 
+void CvEM::read( CvFileStorage* fs, CvFileNode* node )
+{
+    bool ok = false;
+    CV_FUNCNAME( "CvEM::read" );
+
+    __BEGIN__;
+
+    clear();
+
+    size_t data_size;
+    CvEMParams _params;
+    CvSeqReader reader;
+    CvFileNode* em_node = 0;
+    CvFileNode* tmp_node = 0;
+    CvSeq* seq = 0;
+    CvMat **tmp_covs = 0;
+    CvMat **tmp_cov_rotate_mats = 0;
+
+    read_params( fs, node );
+
+    em_node = cvGetFileNodeByName( fs, node, "cvEM" );
+    if( !em_node )
+        CV_ERROR( CV_StsBadArg, "cvEM tag not found" );
+
+    CV_CALL( weights = (CvMat*)cvReadByName( fs, em_node, "weights" ));
+    CV_CALL( means = (CvMat*)cvReadByName( fs, em_node, "means" ));
+    CV_CALL( log_weight_div_det = (CvMat*)cvReadByName( fs, em_node, "log_weight_div_det" ));
+    CV_CALL( inv_eigen_values = (CvMat*)cvReadByName( fs, em_node, "inv_eigen_values" ));
+
+    // Size of all the following data
+    data_size = _params.nclusters*2*sizeof(CvMat*);
+
+    CV_CALL( tmp_covs = (CvMat**)cvAlloc( data_size ));
+    memset( tmp_covs, 0, data_size );
+
+    tmp_cov_rotate_mats = tmp_covs + params.nclusters;
+
+    CV_CALL( tmp_node = cvGetFileNodeByName( fs, em_node, "covs" ));
+    seq = tmp_node->data.seq;
+    if( !CV_NODE_IS_SEQ(tmp_node->tag) || seq->total != params.nclusters)
+        CV_ERROR( CV_StsParseError, "Missing or invalid sequence of covariance matrices" );
+    CV_CALL( cvStartReadSeq( seq, &reader, 0 ));
+    for( int i = 0; i < params.nclusters; i++ )
+    {
+        CV_CALL( tmp_covs[i] = (CvMat*)cvRead( fs, (CvFileNode*)reader.ptr ));
+        CV_NEXT_SEQ_ELEM( seq->elem_size, reader );
+    }
+
+    CV_CALL( tmp_node = cvGetFileNodeByName( fs, em_node, "cov_rotate_mats" ));
+    seq = tmp_node->data.seq;
+    if( !CV_NODE_IS_SEQ(tmp_node->tag) || seq->total != params.nclusters)
+        CV_ERROR( CV_StsParseError, "Missing or invalid sequence of rotated cov. matrices" );
+    CV_CALL( cvStartReadSeq( seq, &reader, 0 ));
+    for( int i = 0; i < params.nclusters; i++ )
+    {
+        CV_CALL( tmp_cov_rotate_mats[i] = (CvMat*)cvRead( fs, (CvFileNode*)reader.ptr ));
+        CV_NEXT_SEQ_ELEM( seq->elem_size, reader );
+    }
+
+    covs = tmp_covs;
+    cov_rotate_mats = tmp_cov_rotate_mats;
+
+    ok = true;
+    __END__;
+
+    if (!ok)
+        clear();
+}
+
+void CvEM::read_params( CvFileStorage *fs, CvFileNode *node)
+{
+    CV_FUNCNAME( "CvEM::read_params");
+
+    __BEGIN__;
+
+    size_t data_size;
+    CvEMParams _params;
+    CvSeqReader reader;
+    CvFileNode* param_node = 0;
+    CvFileNode* tmp_node = 0;
+    CvSeq* seq = 0;
+
+    const char * start_step_name = 0;
+    const char * cov_mat_type_name = 0;
+
+    param_node = cvGetFileNodeByName( fs, node, "params" );
+    if( !param_node )
+        CV_ERROR( CV_StsBadArg, "params tag not found" );
+
+    CV_CALL( start_step_name = cvReadStringByName( fs, param_node, "start_step", 0 ) );
+    CV_CALL( cov_mat_type_name = cvReadStringByName( fs, param_node, "cov_mat_type", 0 ) );
+
+    if( start_step_name )
+        _params.start_step = strcmp( start_step_name, "START_E_STEP" ) == 0 ? START_E_STEP :
+                     strcmp( start_step_name, "START_M_STEP" ) == 0 ? START_M_STEP :
+                     strcmp( start_step_name, "START_AUTO_STEP" ) == 0 ? START_AUTO_STEP : 0;
+    else
+        CV_CALL( _params.start_step = cvReadIntByName( fs, param_node, "start_step", -1 ) );
+
+
+     if( cov_mat_type_name )
+        _params.cov_mat_type = strcmp( cov_mat_type_name, "COV_MAT_SPHERICAL" ) == 0 ? COV_MAT_SPHERICAL :
+                       strcmp( cov_mat_type_name, "COV_MAT_DIAGONAL" ) == 0 ? COV_MAT_DIAGONAL :
+                       strcmp( cov_mat_type_name, "COV_MAT_GENERIC" ) == 0 ? COV_MAT_GENERIC : 0;
+    else
+        CV_CALL( _params.cov_mat_type = cvReadIntByName( fs, param_node, "cov_mat_type", -1) );
+
+    CV_CALL( _params.nclusters = cvReadIntByName( fs, param_node, "nclusters", -1 ));
+    CV_CALL( _params.weights = (CvMat*)cvReadByName( fs, param_node, "weights" ));
+    CV_CALL( _params.means = (CvMat*)cvReadByName( fs, param_node, "means" ));
+
+    data_size = _params.nclusters*sizeof(CvMat*);
+    CV_CALL( _params.covs = (const CvMat**)cvAlloc( data_size ));
+    memset( _params.covs, 0, data_size );
+    CV_CALL( tmp_node = cvGetFileNodeByName( fs, param_node, "covs" ));
+    seq = tmp_node->data.seq;
+    if( !CV_NODE_IS_SEQ(tmp_node->tag) || seq->total != _params.nclusters)
+        CV_ERROR( CV_StsParseError, "Missing or invalid sequence of covariance matrices" );
+    CV_CALL( cvStartReadSeq( seq, &reader, 0 ));
+    for( int i = 0; i < _params.nclusters; i++ )
+    {
+        CV_CALL( _params.covs[i] = (CvMat*)cvRead( fs, (CvFileNode*)reader.ptr ));
+        CV_NEXT_SEQ_ELEM( seq->elem_size, reader );
+    }
+    params = _params;
+
+    __END__;
+}
+
+void CvEM::write_params( CvFileStorage* fs ) const
+{
+    CV_FUNCNAME( "CvEM::write_params" );
+
+    __BEGIN__;
+
+    const char* cov_mat_type_name =
+        (params.cov_mat_type == COV_MAT_SPHERICAL) ? "COV_MAT_SPHERICAL" :
+        (params.cov_mat_type == COV_MAT_DIAGONAL) ? "COV_MAT_DIAGONAL" :
+        (params.cov_mat_type == COV_MAT_GENERIC) ? "COV_MAT_GENERIC" : 0;
+
+    const char* start_step_name =
+        (params.start_step == START_E_STEP) ? "START_E_STEP" :
+        (params.start_step == START_M_STEP) ? "START_M_STEP" :
+        (params.start_step == START_AUTO_STEP) ? "START_AUTO_STEP" : 0;
+
+    CV_CALL( cvStartWriteStruct( fs, "params", CV_NODE_MAP ) );
+
+    if( cov_mat_type_name )
+    {
+        CV_CALL( cvWriteString( fs, "cov_mat_type", cov_mat_type_name) );
+    }
+    else
+    {
+        CV_CALL( cvWriteInt( fs, "cov_mat_type", params.cov_mat_type ) );
+    }
+
+    if( start_step_name )
+    {
+        CV_CALL( cvWriteString( fs, "start_step", start_step_name) );
+    }
+    else
+    {
+        CV_CALL( cvWriteInt( fs, "cov_mat_type", params.start_step ) );
+    }
+
+    CV_CALL( cvWriteInt( fs, "nclusters", params.nclusters ));
+    CV_CALL( cvWrite( fs, "weights", weights ));
+    CV_CALL( cvWrite( fs, "means", means ));
+
+    CV_CALL( cvStartWriteStruct( fs, "covs", CV_NODE_SEQ ));
+    for( int i = 0; i < params.nclusters; i++ )
+        CV_CALL( cvWrite( fs, NULL, covs[i] ));
+    CV_CALL( cvEndWriteStruct( fs ) );
+
+    // Close params struct
+    CV_CALL( cvEndWriteStruct( fs ) );
+
+    __END__;
+}
+
+void CvEM::write( CvFileStorage* fs, const char* name ) const
+{
+    CV_FUNCNAME( "CvEM::write" );
+
+    __BEGIN__;
+
+    CV_CALL( cvStartWriteStruct( fs, name, CV_NODE_MAP, CV_TYPE_NAME_ML_EM ) );
+
+    write_params(fs);
+
+    CV_CALL( cvStartWriteStruct( fs, "cvEM", CV_NODE_MAP ) );
+
+    CV_CALL( cvWrite( fs, "means", means ) );
+    CV_CALL( cvWrite( fs, "weights", weights ) );
+    CV_CALL( cvWrite( fs, "log_weight_div_det", log_weight_div_det ) );
+    CV_CALL( cvWrite( fs, "inv_eigen_values", inv_eigen_values ) );
+
+    CV_CALL( cvStartWriteStruct( fs, "covs", CV_NODE_SEQ ));
+    for( int i = 0; i < params.nclusters; i++ )
+        CV_CALL( cvWrite( fs, NULL, covs[i] ));
+    CV_CALL( cvEndWriteStruct( fs ));
+
+    CV_CALL( cvStartWriteStruct( fs, "cov_rotate_mats", CV_NODE_SEQ ));
+    for( int i = 0; i < params.nclusters; i++ )
+        CV_CALL( cvWrite( fs, NULL, cov_rotate_mats[i] ));
+    CV_CALL( cvEndWriteStruct( fs ) );
+
+    // close cvEM
+    CV_CALL( cvEndWriteStruct( fs ) );
+
+    // close top level
+    CV_CALL( cvEndWriteStruct( fs ) );
+
+    __END__;
+}
 
 void CvEM::set_params( const CvEMParams& _params, const CvVectors& train_data )
 {
@@ -203,45 +418,101 @@ void CvEM::set_params( const CvEMParams& _params, const CvVectors& train_data )
     __END__;
 }
 
+/****************************************************************************************/
+double CvEM::calcLikelihood( const cv::Mat &input_sample ) const
+{
+    const CvMat _input_sample = input_sample;
+    const CvMat* _sample = &_input_sample ;
+
+    float* sample_data = 0;
+    int cov_mat_type = params.cov_mat_type;
+    int i, dims = means->cols;
+    int nclusters = params.nclusters;
+
+    cvPreparePredictData( _sample, dims, 0, params.nclusters, 0, &sample_data );
+
+    // allocate memory and initializing headers for calculating
+    cv::AutoBuffer<double> buffer(nclusters + dims);
+    CvMat expo = cvMat(1, nclusters, CV_64F, &buffer[0] );
+    CvMat diff = cvMat(1, dims, CV_64F, &buffer[nclusters] );
+
+    // calculate the probabilities
+    for( int k = 0; k < nclusters; k++ )
+    {
+        const double* mean_k = (const double*)(means->data.ptr + means->step*k);
+        const double* w = (const double*)(inv_eigen_values->data.ptr + inv_eigen_values->step*k);
+        double cur = log_weight_div_det->data.db[k];
+        CvMat* u = cov_rotate_mats[k];
+        // cov = u w u'  -->  cov^(-1) = u w^(-1) u'
+        if( cov_mat_type == COV_MAT_SPHERICAL )
+        {
+            double w0 = w[0];
+            for( i = 0; i < dims; i++ )
+            {
+                double val = sample_data[i] - mean_k[i];
+                cur += val*val*w0;
+            }
+        }
+        else
+        {
+            for( i = 0; i < dims; i++ )
+                diff.data.db[i] = sample_data[i] - mean_k[i];
+            if( cov_mat_type == COV_MAT_GENERIC )
+                cvGEMM( &diff, u, 1, 0, 0, &diff, CV_GEMM_B_T );
+            for( i = 0; i < dims; i++ )
+            {
+                double val = diff.data.db[i];
+                cur += val*val*w[i];
+            }
+        }
+        expo.data.db[k] = cur;
+    }
+
+    // probability = (2*pi)^(-dims/2)*exp( -0.5 * cur )
+    cvConvertScale( &expo, &expo, -0.5 );
+    double factor = -double(dims)/2.0 * log(2.0*CV_PI);
+    cvAndS( &expo, cvScalar(factor), &expo );
+
+    // Calculate the log-likelihood of the given sample -
+    // see Alex Smola's blog http://blog.smola.org/page/2 for
+    // details on the log-sum-exp trick
+    double mini,maxi,retval;
+    cvMinMaxLoc( &expo, &mini, &maxi, 0, 0 );
+    CvMat *flp = cvCloneMat(&expo);
+    cvSubS( &expo, cvScalar(maxi), flp);
+    cvExp( flp, flp );
+    CvScalar ss = cvSum( flp );
+    retval = log(ss.val[0]) + maxi;
+    cvReleaseMat(&flp);
+
+    if( sample_data != _sample->data.fl )
+        cvFree( &sample_data );
+
+    return retval;
+}
 
 /****************************************************************************************/
 float
 CvEM::predict( const CvMat* _sample, CvMat* _probs ) const
 {
     float* sample_data   = 0;
-    void* buffer = 0;
-    int allocated_buffer = 0;
     int cls = 0;
 
-    CV_FUNCNAME( "CvEM::predict" );
-    __BEGIN__;
-
-    int i, k, dims;
-    int nclusters;
     int cov_mat_type = params.cov_mat_type;
     double opt = FLT_MAX;
-    size_t size;
-    CvMat diff, expo;
 
-    dims = means->cols;
-    nclusters = params.nclusters;
+    int i, dims = means->cols;
+    int nclusters = params.nclusters;
 
-    CV_CALL( cvPreparePredictData( _sample, dims, 0, params.nclusters, _probs, &sample_data ));
+    cvPreparePredictData( _sample, dims, 0, params.nclusters, _probs, &sample_data );
 
-// allocate memory and initializing headers for calculating
-    size = sizeof(double) * (nclusters + dims);
-    if( size <= CV_MAX_LOCAL_SIZE )
-        buffer = cvStackAlloc( size );
-    else
-    {
-        CV_CALL( buffer = cvAlloc( size ));
-        allocated_buffer = 1;
-    }
-    expo = cvMat( 1, nclusters, CV_64FC1, buffer );
-    diff = cvMat( 1, dims, CV_64FC1, (double*)buffer + nclusters );
+    // allocate memory and initializing headers for calculating
+    cv::AutoBuffer<double> buffer(nclusters + dims);
+    CvMat expo = cvMat(1, nclusters, CV_64F, &buffer[0] );
+    CvMat diff = cvMat(1, dims, CV_64F, &buffer[nclusters] );
 
-// calculate the probabilities
-    for( k = 0; k < nclusters; k++ )
+    // calculate the probabilities
+    for( int k = 0; k < nclusters; k++ )
     {
         const double* mean_k = (const double*)(means->data.ptr + means->step*k);
         const double* w = (const double*)(inv_eigen_values->data.ptr + inv_eigen_values->step*k);
@@ -276,24 +547,25 @@ CvEM::predict( const CvMat* _sample, CvMat* _probs ) const
             cls = k;
             opt = cur;
         }
-        /* probability = (2*pi)^(-dims/2)*exp( -0.5 * cur ) */
     }
 
+    // probability = (2*pi)^(-dims/2)*exp( -0.5 * cur )
+    cvConvertScale( &expo, &expo, -0.5 );
+    double factor = -double(dims)/2.0 * log(2.0*CV_PI);
+    cvAndS( &expo, cvScalar(factor), &expo );
+
+    // Calculate the posterior probability of each component
+    // given the sample data.
     if( _probs )
     {
-        CV_CALL( cvConvertScale( &expo, &expo, -0.5 ));
-        CV_CALL( cvExp( &expo, &expo ));
+        cvExp( &expo, &expo );
         if( _probs->cols == 1 )
-            CV_CALL( cvReshape( &expo, &expo, 0, nclusters ));
-        CV_CALL( cvConvertScale( &expo, _probs, 1./cvSum( &expo ).val[0] ));
+            cvReshape( &expo, &expo, 0, nclusters );
+        cvConvertScale( &expo, _probs, 1./cvSum( &expo ).val[0] );
     }
-
-    __END__;
 
     if( sample_data != _sample->data.fl )
         cvFree( &sample_data );
-    if( allocated_buffer )
-        cvFree( &buffer );
 
     return (float)cls;
 }
@@ -356,6 +628,7 @@ bool CvEM::train( const CvMat* _samples, const CvMat* _sample_idx,
 
     init_em( train_data );
     log_likelihood = run_em( train_data );
+
     if( log_likelihood <= -DBL_MAX/10000. )
         EXIT;
 
@@ -517,8 +790,11 @@ void CvEM::init_auto( const CvVectors& train_data )
         if( nclusters > 1 )
         {
             CV_CALL( labels = cvCreateMat( 1, nsamples, CV_32SC1 ));
+
+            // Not fully executed in case means are already given
             kmeans( train_data, nclusters, labels, cvTermCriteria( CV_TERMCRIT_ITER,
                     params.means ? 1 : 10, 0.5 ), params.means );
+
             CV_CALL( cvSortSamplesByClasses( (const float**)train_data.data.fl,
                                             labels, class_ranges->data.i ));
         }
@@ -571,189 +847,15 @@ void CvEM::init_auto( const CvVectors& train_data )
 
 
 void CvEM::kmeans( const CvVectors& train_data, int nclusters, CvMat* labels,
-                   CvTermCriteria termcrit, const CvMat* centers0 )
+                   CvTermCriteria termcrit, const CvMat* /*centers0*/ )
 {
-    CvMat* centers = 0;
-    CvMat* old_centers = 0;
-    CvMat* counters = 0;
-
-    CV_FUNCNAME( "CvEM::kmeans" );
-
-    __BEGIN__;
-
-    cv::RNG* rng = &cv::theRNG();
-    int i, j, k, nsamples, dims;
-    int iter = 0;
-    double max_dist = DBL_MAX;
-
-    termcrit = cvCheckTermCriteria( termcrit, 1e-6, 100 );
-    termcrit.epsilon *= termcrit.epsilon;
-    nsamples = train_data.count;
-    dims = train_data.dims;
-    nclusters = MIN( nclusters, nsamples );
-
-    CV_CALL( centers = cvCreateMat( nclusters, dims, CV_64FC1 ));
-    CV_CALL( old_centers = cvCreateMat( nclusters, dims, CV_64FC1 ));
-    CV_CALL( counters = cvCreateMat( 1, nclusters, CV_32SC1 ));
-    cvZero( old_centers );
-
-    if( centers0 )
-    {
-        CV_CALL( cvConvert( centers0, centers ));
-    }
-    else
-    {
-        for( i = 0; i < nsamples; i++ )
-            labels->data.i[i] = i*nclusters/nsamples;
-        cvRandShuffle( labels, &rng->state );
-    }
-
-    for( ;; )
-    {
-        CvMat* temp;
-
-        if( iter > 0 || centers0 )
-        {
-            for( i = 0; i < nsamples; i++ )
-            {
-                const float* s = train_data.data.fl[i];
-                int k_best = 0;
-                double min_dist = DBL_MAX;
-
-                for( k = 0; k < nclusters; k++ )
-                {
-                    const double* c = (double*)(centers->data.ptr + k*centers->step);
-                    double dist = 0;
-
-                    for( j = 0; j <= dims - 4; j += 4 )
-                    {
-                        double t0 = c[j] - s[j];
-                        double t1 = c[j+1] - s[j+1];
-                        dist += t0*t0 + t1*t1;
-                        t0 = c[j+2] - s[j+2];
-                        t1 = c[j+3] - s[j+3];
-                        dist += t0*t0 + t1*t1;
-                    }
-
-                    for( ; j < dims; j++ )
-                    {
-                        double t = c[j] - s[j];
-                        dist += t*t;
-                    }
-
-                    if( min_dist > dist )
-                    {
-                        min_dist = dist;
-                        k_best = k;
-                    }
-                }
-
-                labels->data.i[i] = k_best;
-            }
-        }
-
-        if( ++iter > termcrit.max_iter )
-            break;
-
-        CV_SWAP( centers, old_centers, temp );
-        cvZero( centers );
-        cvZero( counters );
-
-        // update centers
-        for( i = 0; i < nsamples; i++ )
-        {
-            const float* s = train_data.data.fl[i];
-            k = labels->data.i[i];
-            double* c = (double*)(centers->data.ptr + k*centers->step);
-
-            for( j = 0; j <= dims - 4; j += 4 )
-            {
-                double t0 = c[j] + s[j];
-                double t1 = c[j+1] + s[j+1];
-
-                c[j] = t0;
-                c[j+1] = t1;
-
-                t0 = c[j+2] + s[j+2];
-                t1 = c[j+3] + s[j+3];
-
-                c[j+2] = t0;
-                c[j+3] = t1;
-            }
-            for( ; j < dims; j++ )
-                c[j] += s[j];
-            counters->data.i[k]++;
-        }
-
-        if( iter > 1 )
-            max_dist = 0;
-
-        for( k = 0; k < nclusters; k++ )
-        {
-            double* c = (double*)(centers->data.ptr + k*centers->step);
-            if( counters->data.i[k] != 0 )
-            {
-                double scale = 1./counters->data.i[k];
-                for( j = 0; j < dims; j++ )
-                    c[j] *= scale;
-            }
-            else
-            {
-                const float* s;
-                for( j = 0; j < 10; j++ )
-                {
-                    i = (*rng)(nsamples);
-                    if( counters->data.i[labels->data.i[i]] > 1 )
-                        break;
-                }
-                s = train_data.data.fl[i];
-                for( j = 0; j < dims; j++ )
-                    c[j] = s[j];
-            }
-
-            if( iter > 1 )
-            {
-                double dist = 0;
-                const double* c_o = (double*)(old_centers->data.ptr + k*old_centers->step);
-                for( j = 0; j < dims; j++ )
-                {
-                    double t = c[j] - c_o[j];
-                    dist += t*t;
-                }
-                if( max_dist < dist )
-                    max_dist = dist;
-            }
-        }
-
-        if( max_dist < termcrit.epsilon )
-            break;
-    }
-
-    cvZero( counters );
+    int i, nsamples = train_data.count, dims = train_data.dims;
+    cv::Ptr<CvMat> temp_mat = cvCreateMat(nsamples, dims, CV_32F);
+    
     for( i = 0; i < nsamples; i++ )
-        counters->data.i[labels->data.i[i]]++;
-
-    // ensure that we do not have empty clusters
-    for( k = 0; k < nclusters; k++ )
-        if( counters->data.i[k] == 0 )
-            for(;;)
-            {
-                i = (*rng)(nsamples);
-                j = labels->data.i[i];
-                if( counters->data.i[j] > 1 )
-                {
-                    labels->data.i[i] = k;
-                    counters->data.i[j]--;
-                    counters->data.i[k]++;
-                    break;
-                }
-            }
-
-    __END__;
-
-    cvReleaseMat( &centers );
-    cvReleaseMat( &old_centers );
-    cvReleaseMat( &counters );
+        memcpy( temp_mat->data.ptr + temp_mat->step*i, train_data.data.fl[i], dims*sizeof(float));
+    
+    cvKMeans2(temp_mat, nclusters, labels, termcrit, 10);
 }
 
 
@@ -875,18 +977,18 @@ double CvEM::run_em( const CvVectors& train_data )
                 else
                     cvTranspose( cvGetDiag( covs[k], &diag ), w );
                 w_data = w->data.db;
-                for( j = 0, det = 1.; j < dims; j++ )
-                    det *= w_data[j];
-                if( det < min_det_value )
+                for( j = 0, det = 0.; j < dims; j++ )
+                    det += std::log(w_data[j]);
+                if( det < std::log(min_det_value) )
                 {
                     if( start_step == START_AUTO_STEP )
-                        det = min_det_value;
+                        det = std::log(min_det_value);
                     else
                         EXIT;
                 }
                 log_det->data.db[k] = det;
             }
-            else
+            else // spherical
             {
                 d = cvTrace(covs[k]).val[0]/(double)dims;
                 if( d < min_variation )
@@ -901,9 +1003,11 @@ double CvEM::run_em( const CvVectors& train_data )
             }
         }
 
-        cvLog( log_det, log_det );
         if( is_spherical )
+        {
+            cvLog( log_det, log_det );
             cvScale( log_det, log_det, dims );
+        }
     }
 
     for( n = 0; n < params.term_crit.max_iter; n++ )
@@ -972,10 +1076,13 @@ double CvEM::run_em( const CvVectors& train_data )
             }
             _log_likelihood+=sum_max_val;
 
-            // check termination criteria
-            //if( fabs( (_log_likelihood - prev_log_likelihood) / prev_log_likelihood ) < params.term_crit.epsilon )
-            if( fabs( (_log_likelihood - prev_log_likelihood)  ) < params.term_crit.epsilon )
-                break;
+            // Check termination criteria. Use the same termination criteria as it is used in MATLAB
+            log_likelihood_delta = _log_likelihood - prev_log_likelihood;
+//            if( n>0 )
+//                fprintf(stderr, "iter=%d, ll=%0.5f (delta=%0.5f, goal=%0.5f)\n",
+//                     n, _log_likelihood, delta,   params.term_crit.epsilon * fabs( _log_likelihood));
+             if ( log_likelihood_delta > 0 && log_likelihood_delta < params.term_crit.epsilon * std::fabs( _log_likelihood) )
+                 break;
             prev_log_likelihood = _log_likelihood;
         }
 
@@ -1029,11 +1136,12 @@ double CvEM::run_em( const CvVectors& train_data )
             }
             else
             {
+                // Det. of general NxN cov. matrix is the prod. of the eig. vals
                 if( is_general )
                     cvSVD( cov, w, cov_rotate_mats[k], 0, CV_SVD_U_T );
                 cvMaxS( w, min_variation, w );
-                for( j = 0, det = 1.; j < dims; j++ )
-                    det *= w_data[j];
+                for( j = 0, det = 0.; j < dims; j++ )
+                    det += std::log( w_data[j] );
                 log_det->data.db[k] = det;
             }
         }
@@ -1041,9 +1149,11 @@ double CvEM::run_em( const CvVectors& train_data )
         cvConvertScale( weights, weights, 1./(double)nsamples, 0 );
         cvMaxS( weights, DBL_MIN, weights );
 
-        cvLog( log_det, log_det );
         if( is_spherical )
+        {
+            cvLog( log_det, log_det );
             cvScale( log_det, log_det, dims );
+        }
     } // end of iteration process
 
     //log_weight_div_det[k] = -2*log(weights_k/det(Sigma_k))^0.5) = -2*log(weights_k) + log(det(Sigma_k)))
@@ -1174,7 +1284,7 @@ void CvEM::getCovs(vector<Mat>& _covs) const
     int i, n = params.nclusters;
     _covs.resize(n);
     for( i = 0; i < n; i++ )
-        _covs[i] = Mat(covs[i]);
+        Mat(covs[i]).copyTo(_covs[i]);
 }
 
 Mat CvEM::getWeights() const

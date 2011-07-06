@@ -2,20 +2,20 @@ project(haartraining)
 
 include_directories(
     "${CMAKE_CURRENT_SOURCE_DIR}"
-    "${CMAKE_SOURCE_DIR}/modules/core/include"
-    "${CMAKE_SOURCE_DIR}/modules/imgproc/include"
-    "${CMAKE_SOURCE_DIR}/modules/objdetect/include"
-    "${CMAKE_SOURCE_DIR}/modules/ml/include"
-    "${CMAKE_SOURCE_DIR}/modules/highgui/include"
-    "${CMAKE_SOURCE_DIR}/modules/video/include"
-    "${CMAKE_SOURCE_DIR}/modules/features2d/include"
-    "${CMAKE_SOURCE_DIR}/modules/flann/include"
-    "${CMAKE_SOURCE_DIR}/modules/calib3d/include"
-    "${CMAKE_SOURCE_DIR}/modules/legacy/include"
+    "${OpenCV_SOURCE_DIR}/modules/core/include"
+    "${OpenCV_SOURCE_DIR}/modules/imgproc/include"
+    "${OpenCV_SOURCE_DIR}/modules/objdetect/include"
+    "${OpenCV_SOURCE_DIR}/modules/ml/include"
+    "${OpenCV_SOURCE_DIR}/modules/highgui/include"
+    "${OpenCV_SOURCE_DIR}/modules/video/include"
+    "${OpenCV_SOURCE_DIR}/modules/features2d/include"
+    "${OpenCV_SOURCE_DIR}/modules/flann/include"
+    "${OpenCV_SOURCE_DIR}/modules/calib3d/include"
+    "${OpenCV_SOURCE_DIR}/modules/legacy/include"
     )
 
 if(WIN32)
-    link_directories(${CMAKE_SOURCE_DIR}/lib ${CMAKE_SOURCE_DIR}/bin ${CMAKE_CURRENT_BINARY_DIR})
+    link_directories(${OpenCV_SOURCE_DIR}/lib ${OpenCV_SOURCE_DIR}/bin ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 set(haartraining_libs opencv_core opencv_imgproc opencv_highgui opencv_objdetect opencv_calib3d opencv_haartraining_engine)
@@ -38,7 +38,14 @@ set(cvhaartraining_lib_src
     )
 
 add_library(opencv_haartraining_engine STATIC ${cvhaartraining_lib_src})
+set_target_properties(opencv_haartraining_engine PROPERTIES
+    DEBUG_POSTFIX "${OPENCV_DEBUG_POSTFIX}"
+    ARCHIVE_OUTPUT_DIRECTORY ${LIBRARY_OUTPUT_PATH}
+    RUNTIME_OUTPUT_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}
+    INSTALL_NAME_DIR lib
+    )
 
+if(NOT ANDROID)
 # -----------------------------------------------------------
 #  haartraining
 # -----------------------------------------------------------
@@ -75,3 +82,13 @@ set_target_properties(opencv_performance PROPERTIES
 install(TARGETS opencv_haartraining RUNTIME DESTINATION bin COMPONENT main)
 install(TARGETS opencv_createsamples RUNTIME DESTINATION bin COMPONENT main)
 install(TARGETS opencv_performance RUNTIME DESTINATION bin COMPONENT main)
+
+
+if(ENABLE_SOLUTION_FOLDERS)
+	set_target_properties(opencv_performance PROPERTIES FOLDER "applications")
+	set_target_properties(opencv_createsamples PROPERTIES FOLDER "applications")
+	set_target_properties(opencv_haartraining PROPERTIES FOLDER "applications")
+	set_target_properties(opencv_haartraining_engine PROPERTIES FOLDER "applications")
+endif()	
+
+endif()

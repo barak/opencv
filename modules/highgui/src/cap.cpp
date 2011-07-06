@@ -52,10 +52,10 @@
 namespace cv
 {
 
-template<> inline void Ptr<CvCapture>::delete_obj()
+template<> void Ptr<CvCapture>::delete_obj()
 { cvReleaseCapture(&obj); }
 
-template<> inline void Ptr<CvVideoWriter>::delete_obj()
+template<> void Ptr<CvVideoWriter>::delete_obj()
 { cvReleaseVideoWriter(&obj); }
 
 }
@@ -73,7 +73,11 @@ CV_IMPL void cvReleaseCapture( CvCapture** pcapture )
 
 CV_IMPL IplImage* cvQueryFrame( CvCapture* capture )
 {
-    return capture ? capture->queryFrame() : 0;
+    if(!capture)
+        return 0;
+    if(!capture->grabFrame())
+        return 0;
+    return capture->retrieveFrame(0);
 }
 
 
@@ -123,6 +127,8 @@ CV_IMPL CvCapture * cvCreateCameraCapture (int index)
         CV_CAP_MIL,
         CV_CAP_QT,
         CV_CAP_UNICAP,
+        CV_CAP_OPENNI,
+        CV_CAP_ANDROID,
         -1
     };
 
@@ -142,7 +148,7 @@ CV_IMPL CvCapture * cvCreateCameraCapture (int index)
         defined(HAVE_CAMV4L) || defined (HAVE_CAMV4L2) || defined(HAVE_GSTREAMER) || \
         defined(HAVE_DC1394_2) || defined(HAVE_DC1394) || defined(HAVE_CMU1394) || \
         defined(HAVE_GSTREAMER) || defined(HAVE_MIL) || defined(HAVE_QUICKTIME) || \
-        defined(HAVE_UNICAP) || defined(HAVE_PVAPI)
+        defined(HAVE_UNICAP) || defined(HAVE_PVAPI) || defined(HAVE_OPENNI) || defined(HAVE_ANDROID_NATIVE_CAMERA)
         // local variable to memorize the captured device
         CvCapture *capture;
         #endif
@@ -171,7 +177,7 @@ CV_IMPL CvCapture * cvCreateCameraCapture (int index)
             if (capture)
                 return capture;
         #endif
-        #if defined (HAVE_CAMV4L) || defined (HAVE_CAMV4L2)
+        #if defined HAVE_LIBV4L || (defined (HAVE_CAMV4L) && defined (HAVE_CAMV4L2))
             capture = cvCreateCameraCapture_V4L (index);
             if (capture)
                 return capture;
@@ -241,7 +247,23 @@ CV_IMPL CvCapture * cvCreateCameraCapture (int index)
             return capture;
         break;
         #endif
-        
+
+        #ifdef HAVE_OPENNI
+        case CV_CAP_OPENNI:
+        capture = cvCreateCameraCapture_OpenNI (index);
+        if (capture)
+            return capture;
+        break;
+        #endif
+
+		#ifdef HAVE_ANDROID_NATIVE_CAMERA
+        case CV_CAP_ANDROID:
+          capture = cvCreateCameraCapture_Android (index);
+        if (capture)
+            return capture;
+        break;
+        #endif
+
         }
     }
 
@@ -257,16 +279,9 @@ CV_IMPL CvCapture * cvCreateFileCapture (const char * filename)
 {
     CvCapture * result = 0;
 
-    #ifdef WIN32
     if (! result)
-        result = cvCreateFileCapture_Win32 (filename);
-    #endif
+        result = cvCreateFileCapture_FFMPEG_proxy (filename);
 
-    #ifdef HAVE_FFMPEG
-        if (! result)
-            result = cvCreateFileCapture_FFMPEG (filename);
-    #endif
-    
     #ifdef HAVE_XINE
     if (! result)
         result = cvCreateFileCapture_XINE (filename);
@@ -302,20 +317,14 @@ CV_IMPL CvVideoWriter* cvCreateVideoWriter( const char* filename, int fourcc,
 	if(!fourcc || !fps)
 		result = cvCreateVideoWriter_Images(filename);
 
-	#ifdef WIN32
 	if(!result)
-		result = cvCreateVideoWriter_Win32(filename, fourcc, fps, frameSize, is_color);
-	#endif
+		result = cvCreateVideoWriter_FFMPEG_proxy (filename, fourcc, fps, frameSize, is_color);
 
 /*	#ifdef HAVE_XINE
 	if(!result)
 		result = cvCreateVideoWriter_XINE(filename, fourcc, fps, frameSize, is_color);
 	#endif
 */
-	#ifdef HAVE_FFMPEG
-	if(!result)
-		result = cvCreateVideoWriter_FFMPEG(filename, fourcc, fps, frameSize, is_color);
-	#endif
 
 	#ifdef HAVE_QUICKTIME
 	if(!result)

@@ -247,9 +247,8 @@ cvFindHomography( const CvMat* objectPoints, const CvMat* imagePoints,
         CV_Assert( CV_IS_MASK_ARR(mask) && CV_IS_MAT_CONT(mask->type) &&
             (mask->rows == 1 || mask->cols == 1) &&
             mask->rows*mask->cols == count );
-        tempMask = cvCloneMat(mask);
     }
-    else if( count > 4 )
+    if( mask || count > 4 )
         tempMask = cvCreateMat( 1, count, CV_8U );
     if( !tempMask.empty() )
         cvSet( tempMask, cvScalarAll(1.) );
@@ -269,6 +268,8 @@ cvFindHomography( const CvMat* objectPoints, const CvMat* imagePoints,
         icvCompressPoints( (CvPoint2D64f*)M->data.ptr, tempMask->data.ptr, 1, count );
         count = icvCompressPoints( (CvPoint2D64f*)m->data.ptr, tempMask->data.ptr, 1, count );
         M->cols = m->cols = count;
+        if( method == CV_RANSAC )
+            estimator.runKernel( M, m, &matH );
         estimator.refine( M, m, &matH, 10 );
     }
 
@@ -276,7 +277,12 @@ cvFindHomography( const CvMat* objectPoints, const CvMat* imagePoints,
         cvConvert( &matH, __H );
     
     if( mask && tempMask )
-        cvCopy( tempMask, mask );
+    {
+        if( CV_ARE_SIZES_EQ(mask, tempMask) )
+           cvCopy( tempMask, mask );
+        else
+           cvTranspose( tempMask, mask );
+    }
 
     return (int)result;
 }
@@ -438,6 +444,7 @@ int CvFMEstimator::run8Point( const CvMat* _m1, const CvMat* _m2, CvMat* _fmatri
     const CvPoint2D64f* m1 = (const CvPoint2D64f*)_m1->data.ptr;
     const CvPoint2D64f* m2 = (const CvPoint2D64f*)_m2->data.ptr;
     double* fmatrix = _fmatrix->data.db;
+    CV_Assert( (_m1->cols == 1 || _m1->rows == 1) && CV_ARE_SIZES_EQ(_m1, _m2));
     int i, j, k, count = _m1->cols*_m1->rows;
 
     // compute centers and average distances for each of the two point sets
@@ -462,7 +469,7 @@ int CvFMEstimator::run8Point( const CvMat* _m1, const CvMat* _m2, CvMat* _fmatri
         double x = m1[i].x - m0c.x, y = m1[i].y - m0c.y;
         scale0 += sqrt(x*x + y*y);
 
-        x = fabs(m2[i].x - m1c.x), y = fabs(m2[i].y - m1c.y);
+        x = m2[i].x - m1c.x, y = m2[i].y - m1c.y;
         scale1 += sqrt(x*x + y*y);
     }
 
@@ -608,9 +615,8 @@ CV_IMPL int cvFindFundamentalMat( const CvMat* points1, const CvMat* points2,
         CV_Assert( CV_IS_MASK_ARR(mask) && CV_IS_MAT_CONT(mask->type) &&
             (mask->rows == 1 || mask->cols == 1) &&
             mask->rows*mask->cols == count );
-        tempMask = cvCloneMat(mask);
     }
-    else if( count > 8 )
+    if( mask || count > 8 )
         tempMask = cvCreateMat( 1, count, CV_8U );
     if( !tempMask.empty() )
         cvSet( tempMask, cvScalarAll(1.) );
@@ -644,7 +650,12 @@ CV_IMPL int cvFindFundamentalMat( const CvMat* points1, const CvMat* points2,
         cvConvert( fmatrix->rows == 3 ? &_F3x3 : &_F9x3, fmatrix );
     
     if( mask && tempMask )
-        cvCopy( tempMask, mask );
+    {
+        if( CV_ARE_SIZES_EQ(mask, tempMask) )
+            cvCopy( tempMask, mask );
+        else
+            cvTranspose( tempMask, mask );
+    }
 
     return result;
 }
@@ -1042,114 +1053,119 @@ CV_IMPL void cvConvertPointsHomogeneous( const CvMat* src, CvMat* dst )
     }
 }
 
-namespace cv
+cv::Mat cv::findHomography( InputArray _points1, InputArray _points2,
+                            int method, double ransacReprojThreshold, OutputArray _mask )
 {
-
-static Mat _findHomography( const Mat& points1, const Mat& points2,
-                            int method, double ransacReprojThreshold,
-                            vector<uchar>* mask )
-{
-    CV_Assert(points1.isContinuous() && points2.isContinuous() &&
-              points1.type() == points2.type() &&
-              ((points1.rows == 1 && points1.channels() == 2) ||
-               points1.cols*points1.channels() == 2) &&
-              ((points2.rows == 1 && points2.channels() == 2) ||
-               points2.cols*points2.channels() == 2));
+    Mat points1 = _points1.getMat(), points2 = _points2.getMat();
+    int npoints = points1.checkVector(2);
+    CV_Assert( npoints >= 0 && points2.checkVector(2) == npoints &&
+               points1.type() == points2.type());
     
     Mat H(3, 3, CV_64F);
-    CvMat _pt1 = Mat(points1), _pt2 = Mat(points2);
-    CvMat matH = H, _mask, *pmask = 0;
-    if( mask )
+    CvMat _pt1 = points1, _pt2 = points2;
+    CvMat matH = H, c_mask, *p_mask = 0;
+    if( _mask.needed() )
     {
-        mask->resize(points1.cols*points1.rows*points1.channels()/2);
-        pmask = &(_mask = cvMat(1, (int)mask->size(), CV_8U, (void*)&(*mask)[0]));
+        _mask.create(npoints, 1, CV_8U, -1, true);
+        p_mask = &(c_mask = _mask.getMat());
     }
-    bool ok = cvFindHomography( &_pt1, &_pt2, &matH, method, ransacReprojThreshold, pmask ) > 0;
+    bool ok = cvFindHomography( &_pt1, &_pt2, &matH, method, ransacReprojThreshold, p_mask ) > 0;
     if( !ok )
         H = Scalar(0);
     return H;
 }
-    
-static Mat _findFundamentalMat( const Mat& points1, const Mat& points2,
-                               int method, double param1, double param2,
-                               vector<uchar>* mask )
+
+cv::Mat cv::findHomography( InputArray _points1, InputArray _points2,
+                            OutputArray _mask, int method, double ransacReprojThreshold )
 {
-    CV_Assert(points1.checkVector(2) >= 0 && points2.checkVector(2) >= 0 &&
-              (points1.depth() == CV_32F || points1.depth() == CV_32S) &&
-              points1.depth() == points2.depth());
+    return cv::findHomography(_points1, _points2, method, ransacReprojThreshold, _mask);
+}
+
+cv::Mat cv::findFundamentalMat( InputArray _points1, InputArray _points2,
+                               int method, double param1, double param2,
+                               OutputArray _mask )
+{
+    Mat points1 = _points1.getMat(), points2 = _points2.getMat();
+    int npoints = points1.checkVector(2);
+    CV_Assert( npoints >= 0 && points2.checkVector(2) == npoints &&
+              points1.type() == points2.type());
     
     Mat F(3, 3, CV_64F);
-    CvMat _pt1 = Mat(points1), _pt2 = Mat(points2);
-    CvMat matF = F, _mask, *pmask = 0;
-    if( mask )
+    CvMat _pt1 = points1, _pt2 = points2;
+    CvMat matF = F, c_mask, *p_mask = 0;
+    if( _mask.needed() )
     {
-        mask->resize(points1.cols*points1.rows*points1.channels()/2);
-        pmask = &(_mask = cvMat(1, (int)mask->size(), CV_8U, (void*)&(*mask)[0]));
+        _mask.create(npoints, 1, CV_8U, -1, true);
+        p_mask = &(c_mask = _mask.getMat());
     }
-    int n = cvFindFundamentalMat( &_pt1, &_pt2, &matF, method, param1, param2, pmask );
+    int n = cvFindFundamentalMat( &_pt1, &_pt2, &matF, method, param1, param2, p_mask );
     if( n <= 0 )
         F = Scalar(0);
     return F;
 }
+
+cv::Mat cv::findFundamentalMat( InputArray _points1, InputArray _points2,
+                                OutputArray _mask, int method, double param1, double param2 )
+{
+    return cv::findFundamentalMat(_points1, _points2, method, param1, param2, _mask);
+}
+
+
+void cv::computeCorrespondEpilines( InputArray _points, int whichImage,
+                                    InputArray _Fmat, OutputArray _lines )
+{
+    Mat points = _points.getMat(), F = _Fmat.getMat();
+    int npoints = points.checkVector(2);
+    CV_Assert( npoints >= 0 && (points.depth() == CV_32F || points.depth() == CV_32S));
     
-}    
-
-
-cv::Mat cv::findHomography( const Mat& srcPoints, const Mat& dstPoints,
-                            vector<uchar>& mask, int method,
-                            double ransacReprojThreshold )
-{
-    return _findHomography(srcPoints, dstPoints, method, ransacReprojThreshold, &mask);
+    _lines.create(npoints, 1, CV_32FC3, -1, true);
+    CvMat c_points = points, c_lines = _lines.getMat(), c_F = F;
+    cvComputeCorrespondEpilines(&c_points, whichImage, &c_F, &c_lines);
 }
 
-cv::Mat cv::findHomography( const Mat& srcPoints, const Mat& dstPoints,
-                            int method, double ransacReprojThreshold )
+void cv::convertPointsFromHomogeneous( InputArray _src, OutputArray _dst )
 {
-    return _findHomography(srcPoints, dstPoints, method, ransacReprojThreshold, 0);
-}
-
+    Mat src = _src.getMat();
+    int npoints = src.checkVector(3), cn = 3;
+    if( npoints < 0 )
+    {
+        npoints = src.checkVector(4);
+        if( npoints >= 0 )
+            cn = 4;
+    }
+    CV_Assert( npoints >= 0 && (src.depth() == CV_32F || src.depth() == CV_32S));
     
-cv::Mat cv::findFundamentalMat( const Mat& points1, const Mat& points2,
-                                vector<uchar>& mask, int method, double param1, double param2 )
-{
-    return _findFundamentalMat( points1, points2, method, param1, param2, &mask );
+    _dst.create(npoints, 1, CV_MAKETYPE(CV_32F, cn-1));
+    CvMat c_src = src, c_dst = _dst.getMat();
+    cvConvertPointsHomogeneous(&c_src, &c_dst);
 }
 
-cv::Mat cv::findFundamentalMat( const Mat& points1, const Mat& points2,
-                                int method, double param1, double param2 )
+void cv::convertPointsToHomogeneous( InputArray _src, OutputArray _dst )
 {
-    return _findFundamentalMat( points1, points2, method, param1, param2, 0 );
-}
-
-void cv::computeCorrespondEpilines( const Mat& points, int whichImage,
-                                    const Mat& F, vector<Vec3f>& lines )
-{
-    CV_Assert(points.checkVector(2) >= 0 &&
-              (points.depth() == CV_32F || points.depth() == CV_32S));
+    Mat src = _src.getMat();
+    int npoints = src.checkVector(2), cn = 2;
+    if( npoints < 0 )
+    {
+        npoints = src.checkVector(3);
+        if( npoints >= 0 )
+            cn = 3;
+    }
+    CV_Assert( npoints >= 0 && (src.depth() == CV_32F || src.depth() == CV_32S));
     
-    lines.resize(points.cols*points.rows*points.channels()/2);
-    CvMat _points = points, _lines = Mat(lines), matF = F;
-    cvComputeCorrespondEpilines(&_points, whichImage, &matF, &_lines);
+    _dst.create(npoints, 1, CV_MAKETYPE(CV_32F, cn+1));
+    CvMat c_src = src, c_dst = _dst.getMat();
+    cvConvertPointsHomogeneous(&c_src, &c_dst);
 }
 
-void cv::convertPointsHomogeneous( const Mat& src, vector<Point3f>& dst )
+void cv::convertPointsHomogeneous( InputArray _src, OutputArray _dst )
 {
-    int srccn = src.checkVector(2) >= 0 ? 2 : src.checkVector(4) >= 0 ? 4 : -1;
-    CV_Assert( srccn > 0 && (src.depth() == CV_32F || src.depth() == CV_32S));
+    int stype = _src.type(), dtype = _dst.type();
+    CV_Assert( _dst.fixedType() );
     
-    dst.resize(src.cols*src.rows*src.channels()/srccn);
-    CvMat _src = src, _dst = Mat(dst);
-    cvConvertPointsHomogeneous(&_src, &_dst);
-}
-
-void cv::convertPointsHomogeneous( const Mat& src, vector<Point2f>& dst )
-{
-    CV_Assert(src.checkVector(3) >= 0 &&
-              (src.depth() == CV_32F || src.depth() == CV_32S));
-    
-    dst.resize(src.cols*src.rows*src.channels()/3);
-    CvMat _src = Mat(src), _dst = Mat(dst);
-    cvConvertPointsHomogeneous(&_src, &_dst);
+    if( CV_MAT_CN(stype) > CV_MAT_CN(dtype) )
+        convertPointsFromHomogeneous(_src, _dst);
+    else
+        convertPointsToHomogeneous(_src, _dst);
 }
 
 /* End of file. */

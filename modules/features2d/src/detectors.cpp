@@ -48,31 +48,20 @@ namespace cv
 /*
  *  FeatureDetector
  */
-class MaskPredicate
-{
-public:
-    MaskPredicate( const Mat& _mask ) : mask(_mask) {}
-    bool operator() (const KeyPoint& key_pt) const
-    {
-      return mask.at<uchar>( (int)(key_pt.pt.y + 0.5f), (int)(key_pt.pt.x + 0.5f) ) == 0;
-    }
-private:
-	const Mat mask;
-};
 
 FeatureDetector::~FeatureDetector()
 {}
 
 void FeatureDetector::detect( const Mat& image, vector<KeyPoint>& keypoints, const Mat& mask ) const
 {
-	keypoints.clear();
+    keypoints.clear();
 
-	if( image.empty() )
-		return;
+    if( image.empty() )
+        return;
 
-	CV_Assert( mask.empty() || (mask.type() == CV_8UC1 && mask.size() == image.size()) );
+    CV_Assert( mask.empty() || (mask.type() == CV_8UC1 && mask.size() == image.size()) );
 
-	detectImpl( image, keypoints, mask );
+    detectImpl( image, keypoints, mask );
 }
 
 void FeatureDetector::detect(const vector<Mat>& imageCollection, vector<vector<KeyPoint> >& pointCollection, const vector<Mat>& masks ) const
@@ -82,19 +71,21 @@ void FeatureDetector::detect(const vector<Mat>& imageCollection, vector<vector<K
         detect( imageCollection[i], pointCollection[i], masks.empty() ? Mat() : masks[i] );
 }
 
-void FeatureDetector::removeInvalidPoints( const Mat& mask, vector<KeyPoint>& keypoints )
-{
-    if( mask.empty() )
-        return;
-
-    keypoints.erase(remove_if(keypoints.begin(), keypoints.end(), MaskPredicate(mask)), keypoints.end());
-};
-
 void FeatureDetector::read( const FileNode& )
 {}
 
 void FeatureDetector::write( FileStorage& ) const
 {}
+
+bool FeatureDetector::empty() const
+{
+    return false;
+}
+
+void FeatureDetector::removeInvalidPoints( const Mat& mask, vector<KeyPoint>& keypoints )
+{
+    KeyPointsFilter::runByPixelsMask( keypoints, mask );
+}
 
 Ptr<FeatureDetector> FeatureDetector::create( const string& detectorType )
 {
@@ -116,6 +107,10 @@ Ptr<FeatureDetector> FeatureDetector::create( const string& detectorType )
     else if( !detectorType.compare( "SURF" ) )
     {
         fd = new SurfFeatureDetector();
+    }
+    else if( !detectorType.compare( "ORB" ) )
+    {
+        fd = new OrbFeatureDetector();
     }
     else if( !detectorType.compare( "MSER" ) )
     {
@@ -174,7 +169,7 @@ void FastFeatureDetector::detectImpl( const Mat& image, vector<KeyPoint>& keypoi
     Mat grayImage = image;
     if( image.type() != CV_8U ) cvtColor( image, grayImage, CV_BGR2GRAY );
     FAST( grayImage, keypoints, threshold, nonmaxSuppression );
-    removeInvalidPoints( mask, keypoints );
+    KeyPointsFilter::runByPixelsMask( keypoints, mask );
 }
 
 /*
@@ -355,7 +350,7 @@ void StarFeatureDetector::detectImpl( const Mat& image, vector<KeyPoint>& keypoi
     if( image.type() != CV_8U ) cvtColor( image, grayImage, CV_BGR2GRAY );
 
     star(grayImage, keypoints);
-    removeInvalidPoints(mask, keypoints);
+    KeyPointsFilter::runByPixelsMask( keypoints, mask );
 }
 
 /*
@@ -412,8 +407,8 @@ void SiftFeatureDetector::detectImpl( const Mat& image, vector<KeyPoint>& keypoi
 /*
  *  SurfFeatureDetector
  */
-SurfFeatureDetector::SurfFeatureDetector( double hessianThreshold, int octaves, int octaveLayers)
-    : surf(hessianThreshold, octaves, octaveLayers)
+SurfFeatureDetector::SurfFeatureDetector( double hessianThreshold, int octaves, int octaveLayers, bool upright )
+    : surf(hessianThreshold, octaves, octaveLayers, false, upright)
 {}
 
 void SurfFeatureDetector::read (const FileNode& fn)
@@ -421,8 +416,9 @@ void SurfFeatureDetector::read (const FileNode& fn)
     double hessianThreshold = fn["hessianThreshold"];
     int octaves = fn["octaves"];
     int octaveLayers = fn["octaveLayers"];
+    bool upright = (int)fn["upright"] != 0;
 
-    surf = SURF( hessianThreshold, octaves, octaveLayers );
+    surf = SURF( hessianThreshold, octaves, octaveLayers, false, upright );
 }
 
 void SurfFeatureDetector::write (FileStorage& fs) const
@@ -432,6 +428,7 @@ void SurfFeatureDetector::write (FileStorage& fs) const
     fs << "hessianThreshold" << surf.hessianThreshold;
     fs << "octaves" << surf.nOctaves;
     fs << "octaveLayers" << surf.nOctaveLayers;
+    fs << "upright" << surf.upright;
 }
 
 void SurfFeatureDetector::detectImpl( const Mat& image, vector<KeyPoint>& keypoints, const Mat& mask ) const
@@ -441,6 +438,54 @@ void SurfFeatureDetector::detectImpl( const Mat& image, vector<KeyPoint>& keypoi
 
     surf(grayImage, mask, keypoints);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void ORB::CommonParams::read(const FileNode& fn)
+{
+  scale_factor_ = fn["scaleFactor"];
+  n_levels_ = int(fn["nLevels"]);
+  first_level_ = int(fn["firsLevel"]);
+  edge_threshold_ = fn["edgeThreshold"];
+  patch_size_ = fn["patchSize"];
+}
+
+void ORB::CommonParams::write(FileStorage& fs) const
+{
+  fs << "scaleFactor" << scale_factor_;
+  fs << "nLevels" << int(n_levels_);
+  fs << "firsLevel" << int(first_level_);
+  fs << "edgeThreshold" << int(edge_threshold_);
+  fs << "patchSize" << int(patch_size_);
+}
+
+/** Default constructor
+ * @param n_features the number of desired features
+ */
+OrbFeatureDetector::OrbFeatureDetector(size_t n_features, ORB::CommonParams params) :
+  params_(params)
+{
+  orb_ = ORB(n_features, params);
+}
+
+void OrbFeatureDetector::read(const FileNode& fn)
+{
+  params_.read(fn);
+  n_features_ = int(fn["nFeatures"]);
+}
+
+void OrbFeatureDetector::write(FileStorage& fs) const
+{
+  params_.write(fs);
+  fs << "nFeatures" << int(n_features_);
+}
+
+void OrbFeatureDetector::detectImpl(const cv::Mat& image, std::vector<cv::KeyPoint>& keypoints, const cv::Mat& mask) const
+{
+  orb_(image, mask, keypoints);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
  *  DenseFeatureDetector
@@ -477,7 +522,7 @@ void DenseFeatureDetector::detectImpl( const Mat& image, vector<KeyPoint>& keypo
         if( params.varyImgBoundWithScale ) curBound = static_cast<int>( curBound * params.featureScaleMul + 0.5f );
     }
 
-    removeInvalidPoints( mask, keypoints );
+    KeyPointsFilter::runByPixelsMask( keypoints, mask );
 }
 
 /*
@@ -487,6 +532,11 @@ GridAdaptedFeatureDetector::GridAdaptedFeatureDetector( const Ptr<FeatureDetecto
                                                         int _maxTotalKeypoints, int _gridRows, int _gridCols )
     : detector(_detector), maxTotalKeypoints(_maxTotalKeypoints), gridRows(_gridRows), gridCols(_gridCols)
 {}
+
+bool GridAdaptedFeatureDetector::empty() const
+{
+    return detector.empty() || (FeatureDetector*)detector->empty();
+}
 
 struct ResponseComparator
 {
@@ -540,18 +590,23 @@ void GridAdaptedFeatureDetector::detectImpl( const Mat& image, vector<KeyPoint>&
 /*
  *  PyramidAdaptedFeatureDetector
  */
-PyramidAdaptedFeatureDetector::PyramidAdaptedFeatureDetector( const Ptr<FeatureDetector>& _detector, int _levels )
-    : detector(_detector), levels(_levels)
+PyramidAdaptedFeatureDetector::PyramidAdaptedFeatureDetector( const Ptr<FeatureDetector>& _detector, int _maxLevel )
+    : detector(_detector), maxLevel(_maxLevel)
 {}
+
+bool PyramidAdaptedFeatureDetector::empty() const
+{
+    return detector.empty() || (FeatureDetector*)detector->empty();
+}
 
 void PyramidAdaptedFeatureDetector::detectImpl( const Mat& image, vector<KeyPoint>& keypoints, const Mat& mask ) const
 {
     Mat src = image;
-    for( int l = 0, multiplier = 1; l <= levels; ++l, multiplier *= 2 )
+    for( int l = 0, multiplier = 1; l <= maxLevel; ++l, multiplier *= 2 )
     {
         // Detect on current level of the pyramid
         vector<KeyPoint> new_pts;
-        detector->detect(src, new_pts);
+        detector->detect( src, new_pts, mask );
         for( vector<KeyPoint>::iterator it = new_pts.begin(), end = new_pts.end(); it != end; ++it)
         {
             it->pt.x *= multiplier;
@@ -559,11 +614,10 @@ void PyramidAdaptedFeatureDetector::detectImpl( const Mat& image, vector<KeyPoin
             it->size *= multiplier;
             it->octave = l;
         }
-        removeInvalidPoints( mask, new_pts );
         keypoints.insert( keypoints.end(), new_pts.begin(), new_pts.end() );
 
         // Downsample
-        if( l < levels )
+        if( l < maxLevel )
         {
             Mat dst;
             pyrDown(src, dst);
