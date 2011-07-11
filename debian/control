@@ -8,7 +8,7 @@ Build-Depends: debhelper (>= 8),
  cmake,
  libavcodec-dev (>= 0.svn20080206), libavformat-dev, libswscale-dev, libgtk2.0-dev,
  libjasper-dev (>= 1.900.1),
- libjpeg62-dev,
+ libjpeg-dev,
  libpng12-dev,
  libtiff4-dev (>= 3.9.4),
  libopenexr-dev (>= 1.4.0),
@@ -197,7 +197,8 @@ Description: computer vision library - libcvaux translation package
 Package: libopencv-core-dev
 Section: libdevel
 Architecture: any
-Depends: ${misc:Depends}, ${shlibs:Depends}, libopencv-core2.3 (= ${binary:Version}), pkg-config
+Depends: ${misc:Depends}, ${shlibs:Depends}, libopencv-core2.3 (= ${binary:Version}),
+	zlib1g-dev ,pkg-config
 Replaces: libcv-dev (<= 2.1.0-4)
 Breaks: libcv-dev (<= 2.1.0-4)
 Description: development files for libopencv-core
@@ -438,6 +439,17 @@ Depends: ${misc:Depends},
 		${shlibs:Depends},
 		libopencv-imgproc-dev (= ${binary:Version}),
 		libopencv-highgui2.3 (= ${binary:Version}),
+ 		libavcodec-dev (>= 0.svn20080206),
+		libavformat-dev,
+		libswscale-dev,
+		libgtk2.0-dev,
+		libjasper-dev (>= 1.900.1),
+		libjpeg-dev,
+		libpng12-dev,
+		libtiff4-dev (>= 3.9.4),
+		libopenexr-dev (>= 1.4.0),
+		libraw1394-dev [!kfreebsd-amd64 !kfreebsd-i386 !hurd-i386],
+		libdc1394-22-dev [!kfreebsd-amd64 !kfreebsd-i386 !hurd-i386],
 		pkg-config
 Description: development files for libopencv-highgui
  This package contains the header files and static library needed to compile
@@ -479,7 +491,6 @@ Section: libdevel
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends},
 		libopencv-features2d-dev (= ${binary:Version}),
-		libopencv-flann-dev (= ${binary:Version}),
 		libopencv-calib3d2.3 (= ${binary:Version}),
 		pkg-config
 Description: development files for libopencv-calib3d
@@ -501,7 +512,6 @@ Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends},
 		libopencv-features2d2.3 (= ${binary:Version}),
-		libopencv-flann2.3 (= ${binary:Version})
 Description: computer vision Camera Calibration library
  This package contains the OpenCV (Open Computer Vision) Camera Calibration
  runtime libraries.
