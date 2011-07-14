@@ -1,3 +1,11 @@
+opencv (2.3.0-0exp3) experimental; urgency=low
+
+  * Add libopencv-dev package.
+    This is a meta package providing development package necessary for
+    development of OpenCV (Open Computer Vision).
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Fri, 15 Jul 2011 02:46:05 +0900
+
 opencv (2.3.0-0exp2) experimental; urgency=low
 
   * Update debian/control
