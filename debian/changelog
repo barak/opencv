@@ -1,3 +1,10 @@
+opencv (2.3.0-0exp4) experimental; urgency=low
+
+  * Fix FTBFS with libav 0.7. (Closes: #634818)
+    Add patches/vcap_ffmpeg_fix_compile_against_libav0.7.patch.
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Wed, 27 Jul 2011 01:51:25 +0900
+
 opencv (2.3.0-0exp3) experimental; urgency=low
 
   * Add libopencv-dev package.

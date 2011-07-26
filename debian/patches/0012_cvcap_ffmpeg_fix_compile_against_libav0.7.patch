@@ -1,0 +1,109 @@
+diff --git a/modules/highgui/src/cap_ffmpeg_impl.hpp b/modules/highgui/src/cap_ffmpeg_impl.hpp
+index ccb8f13..4f784ab 100644
+--- a/modules/highgui/src/cap_ffmpeg_impl.hpp
++++ b/modules/highgui/src/cap_ffmpeg_impl.hpp
+@@ -489,7 +489,7 @@ bool CvCapture_FFMPEG::open( const char* _filename )
+         AVCodecContext *enc = &ic->streams[i]->codec;
+ #endif
+ 
+-        if( CODEC_TYPE_VIDEO == enc->codec_type && video_stream < 0) {
++        if( AVMEDIA_TYPE_VIDEO == enc->codec_type && video_stream < 0) {
+             AVCodec *codec = avcodec_find_decoder(enc->codec_id);
+             if (!codec ||
+             avcodec_open(enc, codec) < 0)
+@@ -541,6 +541,23 @@ exit_func:
+     return valid;
+ }
+ 
++#if LIBAVFORMAT_BUILD >= (53<<16 | 0<<8 | 0) /* As defined when compiled against libav-0.7 from Ubuntu 11.10 Oneiric */
++/* Gal Shalif: temporary add a backward compatible function - till OpenCV is properly ported to compile against ffmpeg 0.7 */
++/* Gal Shalif: code is copy from Ubuntu 11.04 Natty libav-0.6.2/libavcodec/utils.c */
++int avcodec_decode_video(AVCodecContext *avctx, AVFrame *picture,
++                         int *got_picture_ptr,
++                         uint8_t *buf, int buf_size)
++{
++    AVPacket avpkt;
++    av_init_packet(&avpkt);
++    avpkt.data = buf;
++    avpkt.size = buf_size;
++    // HACK for CorePNG to decode as normal PNG by default
++    avpkt.flags = AV_PKT_FLAG_KEY;
++
++    return avcodec_decode_video2(avctx, picture, got_picture_ptr, &avpkt);
++}
++#endif /* LIBAVFORMAT_BUILD >= (53<<16 | 0<<8 | 0) */
+ 
+ bool CvCapture_FFMPEG::grabFrame()
+ {
+@@ -822,6 +839,17 @@ struct CvVideoWriter_FFMPEG
+ #endif
+ };
+ 
++#if LIBAVFORMAT_BUILD >= (53<<16 | 0<<8 | 0) /* As defined when compiled against libav-0.7 from Ubuntu 11.10 Oneiric */
++/* Gal Shalif: temporary add a backward compatible define - till OpenCV is properly ported to compile against ffmpeg 0.7 */
++
++/* Gal Shalif: code is copy from Ubuntu 11.04 Natty libav-0.6.2/libavutil/error.h and is enclosed within LIBAVUTIL_VERSION_MAJOR < 51 ... #endif */
++#define AVERROR_NUMEXPECTED AVERROR(EDOM)    ///< Number syntax expected in filename
++#define AVERROR_NOFMT       AVERROR(EILSEQ)  ///< Unknown format
++#define AVERROR_IO          AVERROR(EIO)     ///< I/O error
++#define AVERROR_NOMEM       AVERROR(ENOMEM)  ///< Not enough memory
++
++#endif /* LIBAVFORMAT_BUILD >= (53<<16 | 0<<8 | 0) */
++
+ static const char * icvFFMPEGErrStr(int err)
+ {
+     switch(err) {
+@@ -918,7 +946,7 @@ static AVStream *icv_add_video_stream_FFMPEG(AVFormatContext *oc,
+ #endif
+ 
+ #if LIBAVFORMAT_BUILD > 4621
+-	c->codec_id = av_guess_codec(oc->oformat, NULL, oc->filename, NULL, CODEC_TYPE_VIDEO);
++	c->codec_id = av_guess_codec(oc->oformat, NULL, oc->filename, NULL, AVMEDIA_TYPE_VIDEO);
+ #else
+ 	c->codec_id = oc->oformat->video_codec;
+ #endif
+@@ -930,7 +958,7 @@ static AVStream *icv_add_video_stream_FFMPEG(AVFormatContext *oc,
+     //if(codec_tag) c->codec_tag=codec_tag;
+ 	codec = avcodec_find_encoder(c->codec_id);
+ 
+-	c->codec_type = CODEC_TYPE_VIDEO;
++	c->codec_type = AVMEDIA_TYPE_VIDEO;
+ 
+ 	/* put sample parameters */
+ 	c->bit_rate = bitrate;
+@@ -1015,7 +1043,7 @@ int icv_av_write_frame_FFMPEG( AVFormatContext * oc, AVStream * video_st, uint8_
+         AVPacket pkt;
+         av_init_packet(&pkt);
+ 
+-        pkt.flags |= PKT_FLAG_KEY;
++        pkt.flags |= AV_PKT_FLAG_KEY;
+         pkt.stream_index= video_st->index;
+         pkt.data= (uint8_t *)picture;
+         pkt.size= sizeof(AVPicture);
+@@ -1035,7 +1063,7 @@ int icv_av_write_frame_FFMPEG( AVFormatContext * oc, AVStream * video_st, uint8_
+ 			pkt.pts = c->coded_frame->pts;
+ #endif
+             if(c->coded_frame->key_frame)
+-                pkt.flags |= PKT_FLAG_KEY;
++                pkt.flags |= AV_PKT_FLAG_KEY;
+             pkt.stream_index= video_st->index;
+             pkt.data= outbuf;
+             pkt.size= out_size;
+@@ -1237,7 +1265,7 @@ bool CvVideoWriter_FFMPEG::open( const char * filename, int fourcc,
+ 	av_register_all ();
+ 
+ 	/* auto detect the output format from the name and fourcc code. */
+-	fmt = guess_format(NULL, filename, NULL);
++	fmt = av_guess_format(NULL, filename, NULL);
+ 	if (!fmt)
+         return false;
+ 
+@@ -1260,7 +1288,7 @@ bool CvVideoWriter_FFMPEG::open( const char * filename, int fourcc,
+ #endif
+ 
+     // alloc memory for context
+-	oc = av_alloc_format_context();
++	oc = avformat_alloc_context();
+ 	assert (oc);
+ 
+ 	/* set file name */
