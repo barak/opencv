@@ -1,3 +1,21 @@
+opencv (2.3.1-0exp1) experimental; urgency=low
+
+  * New upstream release.
+  * Update debian/control.
+    - Fix uses hardcoded list of non-Linux architectures in debian/control.
+      (Closes: #634365)
+  * Add lintian overrides files.
+  * Update install files.
+  * Update and remove some patches.
+    - Update patches/0005-build-static-libs.patch.
+    - Update patches/0007-typos-in-strings-docs.patch.
+    - Update patches/0011_optimize_i486.patch.
+    - Remove patches/0001-fix_3rdparty_build.patch.
+    - Remove patches/0006-typos-in-license.patch.
+    - Remove patches/0012_cvcap_ffmpeg_fix_compile_against_libav0.7.patch.
+
+ -- Nobuhiro Iwamatsu <iwamatsu@debian.org>  Thu, 25 Aug 2011 12:04:49 +0900
+
 opencv (2.3.0-0exp4) experimental; urgency=low
 
   * Fix FTBFS with libav 0.7. (Closes: #634818)

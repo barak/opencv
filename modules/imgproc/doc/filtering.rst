@@ -51,17 +51,16 @@ The class ``BaseColumnFilter`` is a base class for filtering data using single-c
 
 where
 :math:`F` is a filtering function but, as it is represented as a class, it can produce any side effects, memorize previously processed data, and so on. The class only defines an interface and is not used directly. Instead, there are several functions in OpenCV (and you can add more) that return pointers to the derived classes that implement specific filtering operations. Those pointers are then passed to the
-:ocv:func:`FilterEngine` constructor. While the filtering operation interface uses the ``uchar`` type, a particular implementation is not limited to 8-bit data.
+:ocv:class:`FilterEngine` constructor. While the filtering operation interface uses the ``uchar`` type, a particular implementation is not limited to 8-bit data.
 
 .. seealso::
 
-    :ocv:func:`BaseRowFilter`,
-    :ocv:func:`BaseFilter`,
-    :ocv:func:`FilterEngine`,
-    :ocv:func:`getColumnSumFilter`,
-    :ocv:func:`getLinearColumnFilter`,
-    :ocv:func:`getMorphologyColumnFilter`
-
+   :ocv:class:`BaseRowFilter`,
+   :ocv:class:`BaseFilter`,
+   :ocv:class:`FilterEngine`,
+   :ocv:func:`getColumnSumFilter`,
+   :ocv:func:`getLinearColumnFilter`,
+   :ocv:func:`getMorphologyColumnFilter`
 
 
 BaseFilter
@@ -102,13 +101,13 @@ The class ``BaseFilter`` is a base class for filtering data using 2D kernels. Fi
 
 where
 :math:`F` is a filtering function. The class only defines an interface and is not used directly. Instead, there are several functions in OpenCV (and you can add more) that return pointers to the derived classes that implement specific filtering operations. Those pointers are then passed to the
-:ocv:func:`FilterEngine` constructor. While the filtering operation interface uses the ``uchar`` type, a particular implementation is not limited to 8-bit data.
+:ocv:class:`FilterEngine` constructor. While the filtering operation interface uses the ``uchar`` type, a particular implementation is not limited to 8-bit data.
 
 .. seealso::
 
-    :ocv:func:`BaseColumnFilter`,
-    :ocv:func:`BaseRowFilter`,
-    :ocv:func:`FilterEngine`,
+    :ocv:class:`BaseColumnFilter`,
+    :ocv:class:`BaseRowFilter`,
+    :ocv:class:`FilterEngine`,
     :ocv:func:`getLinearFilter`,
     :ocv:func:`getMorphologyFilter`
 
@@ -144,13 +143,13 @@ The class ``BaseRowFilter`` is a base class for filtering data using single-row 
 
 where
 :math:`F` is a filtering function. The class only defines an interface and is not used directly. Instead, there are several functions in OpenCV (and you can add more) that return pointers to the derived classes that implement specific filtering operations. Those pointers are then passed to the
-:ocv:func:`FilterEngine` constructor. While the filtering operation interface uses the ``uchar`` type, a particular implementation is not limited to 8-bit data.
+:ocv:class:`FilterEngine` constructor. While the filtering operation interface uses the ``uchar`` type, a particular implementation is not limited to 8-bit data.
 
 .. seealso::
 
-    :ocv:func:`BaseColumnFilter`,
-    :ocv:func:`Filter`,
-    :ocv:func:`FilterEngine`,
+    :ocv:class:`BaseColumnFilter`,
+    :ocv:class:`BaseFilter`,
+    :ocv:class:`FilterEngine`,
     :ocv:func:`getLinearRowFilter`,
     :ocv:func:`getMorphologyRowFilter`,
     :ocv:func:`getRowSumFilter`
@@ -348,7 +347,7 @@ Unlike the earlier versions of OpenCV, now the filtering operations fully suppor
 
 
 Explore the data types. As it was mentioned in the
-:ocv:func:`BaseFilter` description, the specific filters can process data of any type, despite that ``Base*Filter::operator()`` only takes ``uchar`` pointers and no information about the actual types. To make it all work, the following rules are used:
+:ocv:class:`BaseFilter` description, the specific filters can process data of any type, despite that ``Base*Filter::operator()`` only takes ``uchar`` pointers and no information about the actual types. To make it all work, the following rules are used:
 
 *
     In case of separable filtering, ``FilterEngine::rowFilter``   is  applied first. It transforms the input image data (of type ``srcType``  ) to the intermediate results stored in the internal buffers (of type ``bufType``   ). Then, these intermediate results are processed as
@@ -360,15 +359,15 @@ Explore the data types. As it was mentioned in the
 
 .. seealso::
 
-    :ocv:func:`BaseColumnFilter`,
-    :ocv:func:`BaseFilter`,
-    :ocv:func:`BaseRowFilter`,
-    :ocv:func:`createBoxFilter`,
-    :ocv:func:`createDerivFilter`,
-    :ocv:func:`createGaussianFilter`,
-    :ocv:func:`createLinearFilter`,
-    :ocv:func:`createMorphologyFilter`,
-    :ocv:func:`createSeparableLinearFilter`
+   :ocv:class:`BaseColumnFilter`,
+   :ocv:class:`BaseFilter`,
+   :ocv:class:`BaseRowFilter`,
+   :ocv:func:`createBoxFilter`,
+   :ocv:func:`createDerivFilter`,
+   :ocv:func:`createGaussianFilter`,
+   :ocv:func:`createLinearFilter`,
+   :ocv:func:`createMorphologyFilter`,
+   :ocv:func:`createSeparableLinearFilter`
 
 
 
@@ -431,11 +430,10 @@ The call ``blur(src, dst, ksize, anchor, borderType)`` is equivalent to ``boxFil
 
 .. seealso::
 
-    :ocv:func:`boxFilter`,
-    :ocv:func:`bilateralFilter`,
-    :ocv:func:`GaussianBlur`,
-    :ocv:func:`medianBlur` 
-
+   :ocv:func:`boxFilter`,
+   :ocv:func:`bilateralFilter`,
+   :ocv:func:`GaussianBlur`,
+   :ocv:func:`medianBlur` 
 
 
 borderInterpolate
@@ -459,12 +457,12 @@ The function computes and returns the coordinate of a donor pixel corresponding 
 
 
 Normally, the function is not called directly. It is used inside
-:ocv:func:`FilterEngine` and
+:ocv:class:`FilterEngine` and
 :ocv:func:`copyMakeBorder` to compute tables for quick extrapolation.
 
 .. seealso::
 
-    :ocv:func:`FilterEngine`,
+    :ocv:class:`FilterEngine`,
     :ocv:func:`copyMakeBorder`
 
 
@@ -560,7 +558,7 @@ Forms a border around an image.
     :param value: Border value if  ``borderType==BORDER_CONSTANT`` .
     
 The function copies the source image into the middle of the destination image. The areas to the left, to the right, above and below the copied source image will be filled with extrapolated pixels. This is not what
-:ocv:func:`FilterEngine` or filtering functions based on it do (they extrapolate pixels on-fly), but what other more complex functions, including your own, may do to simplify image boundary handling.
+:ocv:class:`FilterEngine` or filtering functions based on it do (they extrapolate pixels on-fly), but what other more complex functions, including your own, may do to simplify image boundary handling.
 
 The function supports the mode when ``src`` is already in the middle of ``dst`` . In this case, the function does not copy ``src`` itself but simply constructs the border, for example: ::
 
@@ -580,6 +578,7 @@ The function supports the mode when ``src`` is already in the middle of ``dst`` 
 
 
 .. seealso::
+
     :ocv:func:`borderInterpolate`
 
 
@@ -612,7 +611,7 @@ Returns a box filter engine.
 The function is a convenience function that retrieves the horizontal sum primitive filter with
 :ocv:func:`getRowSumFilter` , vertical sum filter with
 :ocv:func:`getColumnSumFilter` , constructs new
-:ocv:func:`FilterEngine` , and passes both of the primitive filters there. The constructed filter engine can be used for image filtering with normalized or unnormalized box filter.
+:ocv:class:`FilterEngine` , and passes both of the primitive filters there. The constructed filter engine can be used for image filtering with normalized or unnormalized box filter.
 
 The function itself is used by
 :ocv:func:`blur` and
@@ -620,7 +619,7 @@ The function itself is used by
 
 .. seealso::
 
-    :ocv:func:`FilterEngine`,
+    :ocv:class:`FilterEngine`,
     :ocv:func:`blur`,
     :ocv:func:`boxFilter` 
 
@@ -678,7 +677,7 @@ Returns an engine for smoothing images with the Gaussian filter.
 The function :ocv:func:`createGaussianFilter` computes Gaussian kernel coefficients and then returns a separable linear filter for that kernel. The function is used by
 :ocv:func:`GaussianBlur` . Note that while the function takes just one data type, both for input and output, you can pass this limitation by calling
 :ocv:func:`getGaussianKernel` and then
-:ocv:func:`createSeparableFilter` directly.
+:ocv:func:`createSeparableLinearFilter` directly.
 
 .. seealso::
 
@@ -715,12 +714,12 @@ Creates a non-separable linear filter engine.
     :param borderValue: Border vaule used in case of a constant border.
 
 The function returns a pointer to a 2D linear filter for the specified kernel, the source array type, and the destination array type. The function is a higher-level function that calls ``getLinearFilter`` and passes the retrieved 2D filter to the
-:ocv:func:`FilterEngine` constructor.
+:ocv:class:`FilterEngine` constructor.
 
 .. seealso::
 
     :ocv:func:`createSeparableLinearFilter`,
-    :ocv:func:`FilterEngine`,
+    :ocv:class:`FilterEngine`,
     :ocv:func:`filter2D`
 
 
@@ -767,7 +766,7 @@ Note that
     :ocv:func:`erode`,
     :ocv:func:`dilate`,
     :ocv:func:`morphologyEx`,
-    :ocv:func:`FilterEngine`
+    :ocv:class:`FilterEngine`
 
 
 createSeparableLinearFilter
@@ -808,13 +807,13 @@ The functions construct primitive separable linear filtering operations or a fil
 :ocv:func:`createSeparableLinearFilter` or even higher-level
 :ocv:func:`sepFilter2D` . The function
 :ocv:func:`createMorphologyFilter` is smart enough to figure out the ``symmetryType`` for each of the two kernels, the intermediate ``bufType``  and, if filtering can be done in integer arithmetics, the number of ``bits`` to encode the filter coefficients. If it does not work for you, it is possible to call ``getLinearColumnFilter``,``getLinearRowFilter`` directly and then pass them to the
-:ocv:func:`FilterEngine` constructor.
+:ocv:class:`FilterEngine` constructor.
 
 .. seealso::
 
     :ocv:func:`sepFilter2D`,
     :ocv:func:`createLinearFilter`,
-    :ocv:func:`FilterEngine`,
+    :ocv:class:`FilterEngine`,
     :ocv:func:`getKernelType`
 
 
@@ -881,7 +880,7 @@ Erodes an image by using a specific structuring element.
 
     :param borderType: Pixel extrapolation method. See  :ocv:func:`borderInterpolate` for details.
     
-    :param borderValue: Border value in case of a constant border. The default value has a special meaning. See  :ocv:func:`createMorphoogyFilter` for details.
+    :param borderValue: Border value in case of a constant border. The default value has a special meaning. See  :ocv:func:`createMorphologyFilter` for details.
     
 The function erodes the source image using the specified structuring element that determines the shape of a pixel neighborhood over which the minimum is taken:
 
@@ -970,12 +969,12 @@ The function convolves the source image with the specified Gaussian kernel. In-p
 
 .. seealso::
 
-    :ocv:func:`sepFilter2D`,
-    :ocv:func:`filter2D`,
-    :ocv:func:`blur`,
-    :ocv:func:`boxFilter`,
-    :ocv:func:`bilateralFilter`,
-    :ocv:func:`medianBlur`
+   :ocv:func:`sepFilter2D`,
+   :ocv:func:`filter2D`,
+   :ocv:func:`blur`,
+   :ocv:func:`boxFilter`,
+   :ocv:func:`bilateralFilter`,
+   :ocv:func:`medianBlur`
 
 
 getDerivKernels
@@ -1041,11 +1040,11 @@ Two of such generated kernels can be passed to
 
 .. seealso::
 
-    :ocv:func:`sepFilter2D`,
-    :ocv:func:`createSeparableLinearFilter`,
-    :ocv:func:`getDerivKernels`,
-    :ocv:func:`getStructuringElement`,
-    :ocv:func:`GaussianBlur` 
+   :ocv:func:`sepFilter2D`,
+   :ocv:func:`createSeparableLinearFilter`,
+   :ocv:func:`getDerivKernels`,
+   :ocv:func:`getStructuringElement`,
+   :ocv:func:`GaussianBlur` 
 
 
 
@@ -1184,7 +1183,7 @@ Performs advanced morphological transformations.
 
     :param borderType: Pixel extrapolation method. See  :ocv:func:`borderInterpolate` for details.
     
-    :param borderValue: Border value in case of a constant border. The default value has a special meaning. See  :ocv:func:`createMorphoogyFilter` for details.
+    :param borderValue: Border value in case of a constant border. The default value has a special meaning. See  :ocv:func:`createMorphologyFilter` for details.
 
 The function can perform advanced morphological transformations using an erosion and dilation as basic operations.
 
@@ -1300,7 +1299,7 @@ The function performs the downsampling step of the Gaussian pyramid construction
 
 .. math::
 
-    \frac{1}{16} \begin{bmatrix} 1 & 4 & 6 & 4 & 1  \\ 4 & 16 & 24 & 16 & 4  \\ 6 & 24 & 36 & 24 & 6  \\ 4 & 16 & 24 & 16 & 4  \\ 1 & 4 & 6 & 4 & 1 \end{bmatrix}
+    \frac{1}{256} \begin{bmatrix} 1 & 4 & 6 & 4 & 1  \\ 4 & 16 & 24 & 16 & 4  \\ 6 & 24 & 36 & 24 & 6  \\ 4 & 16 & 24 & 16 & 4  \\ 1 & 4 & 6 & 4 & 1 \end{bmatrix}
 
 Then, it downsamples the image by rejecting even rows and columns.
 
@@ -1333,7 +1332,7 @@ pyrMeanShiftFiltering
 ---------------------
 Performs initial step of meanshift segmentation of an image.
 
-.. ocv:function: void pyrMeanShiftFiltering( InputArray src, OutputArray dst, double sp, double sr, int maxLevel=1, TermCriteria termcrit=TermCriteria(TermCriteria::MAX_ITER+TermCriteria::EPS,5,1) )
+.. ocv:function:: void pyrMeanShiftFiltering( InputArray src, OutputArray dst, double sp, double sr, int maxLevel=1, TermCriteria termcrit=TermCriteria(TermCriteria::MAX_ITER+TermCriteria::EPS,5,1) )
 
 .. ocv:pyfunction:: cv2.pyrMeanShiftFiltering(src, sp, sr[, dst[, maxLevel[, termcrit]]]) -> dst
 
@@ -1406,12 +1405,12 @@ The function applies a separable linear filter to the image. That is, first, eve
 
 .. seealso::
 
-    :ocv:func:`createSeparableLinearFilter`,
-    :ocv:func:`filter2D`,
-    :ocv:func:`Sobel`,
-    :ocv:func:`GaussianBlur`,
-    :ocv:func:`boxFilter`,
-    :ocv:func:`blur` 
+   :ocv:func:`createSeparableLinearFilter`,
+   :ocv:func:`filter2D`,
+   :ocv:func:`Sobel`,
+   :ocv:func:`GaussianBlur`,
+   :ocv:func:`boxFilter`,
+   :ocv:func:`blur` 
 
 
 Smooth
@@ -1457,7 +1456,7 @@ Smooths the image in one of several ways.
     
 The function smooths an image using one of several methods. Every of the methods has some features and restrictions listed below:
 
- * Blur with no scaling works with single-channel images only and supports accumulation of 8-bit to 16-bit format (similar to :ocv:func:`Sobel` and :ocv:func:`Laplace`) and 32-bit floating point to 32-bit floating-point format.
+ * Blur with no scaling works with single-channel images only and supports accumulation of 8-bit to 16-bit format (similar to :ocv:func:`Sobel` and :ocv:func:`Laplacian`) and 32-bit floating point to 32-bit floating-point format.
 
  * Simple blur and Gaussian blur support 1- or 3-channel, 8-bit and 32-bit floating point images. These two methods can process images in-place.
 
@@ -1538,7 +1537,7 @@ The second case corresponds to a kernel of:
 .. seealso::
 
     :ocv:func:`Scharr`,
-    :ocv:func:`Lapacian`,
+    :ocv:func:`Laplacian`,
     :ocv:func:`sepFilter2D`,
     :ocv:func:`filter2D`,
     :ocv:func:`GaussianBlur`

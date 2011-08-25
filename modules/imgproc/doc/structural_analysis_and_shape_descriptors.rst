@@ -31,15 +31,6 @@ The function computes moments, up to the 3rd order, of a vector shape or a raste
         Moments( const CvMoments& moments );
         operator CvMoments() const;
 
-        // spatial moments
-        double  m00, m10, m01, m20, m11, m02, m30, m21, m12, m03;
-        // central moments
-        double  mu20, mu11, mu02, mu30, mu21, mu12, mu03;
-        // central normalized moments
-        double  nu20, nu11, nu02, nu30, nu21, nu12, nu03;
-    };
-
-
 In case of a raster image, the spatial moments :math:`\texttt{Moments::m}_{ji}` are computed as:
 
 .. math::
@@ -68,14 +59,12 @@ The normalized central moments
     \texttt{nu} _{ji}= \frac{\texttt{mu}_{ji}}{\texttt{m}_{00}^{(i+j)/2+1}} .
 
 .. note::
-:math:`\texttt{mu}_{00}=\texttt{m}_{00}`,
-:math:`\texttt{nu}_{00}=1` 
-:math:`\texttt{nu}_{10}=\texttt{mu}_{10}=\texttt{mu}_{01}=\texttt{mu}_{10}=0` , hence the values are not stored.
 
-The moments of a contour are defined in the same way but computed using the Green's formula
-(see
-http://en.wikipedia.org/wiki/Green_theorem
-). So, due to a limited raster resolution, the moments computed for a contour are slightly different from the moments computed for the same rasterized contour.
+    :math:`\texttt{mu}_{00}=\texttt{m}_{00}`,
+    :math:`\texttt{nu}_{00}=1` 
+    :math:`\texttt{nu}_{10}=\texttt{mu}_{10}=\texttt{mu}_{01}=\texttt{mu}_{10}=0` , hence the values are not stored.
+
+The moments of a contour are defined in the same way but computed using the Green's formula (see http://en.wikipedia.org/wiki/Green_theorem). So, due to a limited raster resolution, the moments computed for a contour are slightly different from the moments computed for the same rasterized contour.
 
 .. seealso::
 
@@ -155,9 +144,7 @@ Finds contours in a binary image.
 The function retrieves contours from the binary image using the algorithm
 [Suzuki85]_. The contours are a useful tool for shape analysis and object detection and recognition. See ``squares.c`` in the OpenCV sample directory.
 
-.. note::
-Source ``image`` is modified by this function.
-
+.. note:: Source ``image`` is modified by this function.
 
 
 drawContours
@@ -178,7 +165,7 @@ Draws contours outlines or filled contours.
     :param contourIdx: Parameter indicating a contour to draw. If it is negative, all the contours are drawn.
 
     :param color: Color of the contours.
-	
+    
     :param thickness: Thickness of lines the contours are drawn with. If it is negative (for example,  ``thickness=CV_FILLED`` ), the contour interiors are
         drawn.
 

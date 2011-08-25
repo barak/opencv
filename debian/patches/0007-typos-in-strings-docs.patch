@@ -1,21 +1,24 @@
-diff --git a/modules/flann/include/opencv2/flann/autotuned_index.h b/modules/flann/include/opencv2/flann/autotuned_index.h
-index d5a7876..4c652fd 100644
---- a/modules/flann/include/opencv2/flann/autotuned_index.h
-+++ b/modules/flann/include/opencv2/flann/autotuned_index.h
-@@ -133,7 +133,7 @@ public:
-     		bestIndex = new KMeansIndex<ELEM_TYPE>(dataset, (const KMeansIndexParams&)*bestParams);
-     		break;
-     	default:
--    		throw FLANNException("Unknown algorithm choosen by the autotuning, most likely a bug.");
-+    		throw FLANNException("Unknown algorithm chosen by the autotuning, most likely a bug.");
-     	}
- 		bestIndex->buildIndex();
- 		speedup = estimateSearchParams(bestSearchParams);
+From 884fb8f58d6b1d8a5fd44f563050bf9bd1830402 Mon Sep 17 00:00:00 2001
+From: Nobuhiro Iwamatsu <iwamatsu@debian.org>
+Date: Wed, 24 Aug 2011 12:11:57 +0900
+Subject: Fix typo
+
+Signed-off-by: Nobuhiro Iwamatsu <iwamatsu@debian.org>
+---
+ modules/highgui/src/cap_libv4l.cpp              |    2 +-
+ modules/highgui/src/cap_v4l.cpp                 |    2 +-
+ modules/legacy/src/clique.cpp                   |    4 ++--
+ modules/legacy/src/lcm.cpp                      |    2 +-
+ modules/legacy/src/trifocal.cpp                 |    2 +-
+
+ diff --git a/modules/highgui/src/cap_libv4l.cpp b/modules/highgui/src/cap_libv4l.cpp
+ index 54cc351..8fa99b1 100644
+ --- a/modules/highgui/src/cap_libv4l.cpp
 diff --git a/modules/highgui/src/cap_libv4l.cpp b/modules/highgui/src/cap_libv4l.cpp
-index 54cc351..8fa99b1 100644
+index ce75072..47b6d50 100644
 --- a/modules/highgui/src/cap_libv4l.cpp
 +++ b/modules/highgui/src/cap_libv4l.cpp
-@@ -1611,7 +1611,7 @@ static int icvSetControl (CvCaptureCAM_V4L* capture, int property_id, double val
+@@ -1615,7 +1615,7 @@ static int icvSetControl (CvCaptureCAM_V4L* capture, int property_id, double val
      }
  
      if (v4l1_ioctl(capture->deviceHandle, VIDIOCSPICT, &capture->imageProperties) < 0){
@@ -25,7 +28,7 @@ index 54cc351..8fa99b1 100644
        return -1;
      }
 diff --git a/modules/highgui/src/cap_v4l.cpp b/modules/highgui/src/cap_v4l.cpp
-index 11ea3c5..75af378 100644
+index cf3ef89..6c426a0 100644
 --- a/modules/highgui/src/cap_v4l.cpp
 +++ b/modules/highgui/src/cap_v4l.cpp
 @@ -2682,7 +2682,7 @@ static int icvSetControl (CvCaptureCAM_V4L* capture,
@@ -86,3 +89,5 @@ index 1f361f0..5908b7d 100644
          while( wasCount < NumSamples )
          {
 -- 
+1.7.5.4
+

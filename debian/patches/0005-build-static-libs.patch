@@ -1,8 +1,20 @@
+From 8cc03516da0b5c93079d5184a73bce438c77d18a Mon Sep 17 00:00:00 2001
+From: Nobuhiro Iwamatsu <iwamatsu@debian.org>
+Date: Wed, 24 Aug 2011 12:06:56 +0900
+Subject: Support static library.
+
+Signed-off-by: Nobuhiro Iwamatsu <iwamatsu@debian.org>
+---
+ OpenCVModule.cmake             |    4 +++-
+ modules/gpu/CMakeLists.txt     |    2 ++
+ modules/highgui/CMakeLists.txt |    2 ++
+ 3 files changed, 7 insertions(+), 1 deletions(-)
+
 diff --git a/OpenCVModule.cmake b/OpenCVModule.cmake
-index f7620b6..0eb2225 100644
+index 53a24bd..be077f7 100644
 --- a/OpenCVModule.cmake
 +++ b/OpenCVModule.cmake
-@@ -27,11 +27,13 @@ macro(define_opencv_module name)
+@@ -47,11 +47,13 @@ macro(define_opencv_module name)
      file(GLOB lib_hdrs "include/opencv2/${name}/*.h*")
      source_group("Include" FILES ${lib_hdrs})
  
@@ -18,7 +30,7 @@ index f7620b6..0eb2225 100644
  
      # For dynamic link numbering convenions
 diff --git a/modules/gpu/CMakeLists.txt b/modules/gpu/CMakeLists.txt
-index a8cc0fe..b3118ef 100644
+index b9f3666..8de8ecf 100644
 --- a/modules/gpu/CMakeLists.txt
 +++ b/modules/gpu/CMakeLists.txt
 @@ -1,6 +1,7 @@
@@ -29,20 +41,19 @@ index a8cc0fe..b3118ef 100644
  project(${the_target})
  
  set(DEPS "opencv_core" "opencv_imgproc" "opencv_objdetect" "opencv_features2d" "opencv_flann" "opencv_calib3d") #"opencv_features2d" "opencv_flann" "opencv_objdetect" - only headers needed 
-@@ -84,7 +85,7 @@ foreach(d ${DEPS})
+@@ -86,6 +87,7 @@ foreach(d ${DEPS})
  endforeach()
  
- add_library(${the_target} ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs} ${lib_cuda} ${lib_cuda_hdrs} ${lib_device_hdrs} ${ncv_srcs} ${ncv_hdrs} ${ncv_cuda} ${cuda_objs})
--
-+add_library(${the_target_s} STATIC ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs} ${lib_cuda} ${lib_cuda_hdrs} ${lib_device_hdrs} ${ncv_srcs} ${ncv_hdrs} ${ncv_cuda} ${cuda_objs})
- if(PCHSupport_FOUND)
- 	set(pch_header ${CMAKE_CURRENT_SOURCE_DIR}/src/precomp.hpp)
- 	if(${CMAKE_GENERATOR} MATCHES "Visual*" OR ${CMAKE_GENERATOR} MATCHES "Xcode*")
+ add_library(${the_target} ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs} ${lib_cuda} ${lib_cuda_hdrs} ${lib_device_hdrs} ${lib_device_hdrs_detail} ${ncv_srcs} ${ncv_hdrs} ${ncv_cuda} ${cuda_objs})
++add_library(${the_target_s} STATIC ${lib_srcs} ${lib_hdrs} ${lib_int_hdrs} ${lib_cuda} ${lib_cuda_hdrs} ${lib_device_hdrs} ${lib_device_hdrs_detail} ${ncv_srcs} ${ncv_hdrs} ${ncv_cuda} ${cuda_objs})
+ 
+ # For dynamic link numbering convenions
+ set_target_properties(${the_target} PROPERTIES
 diff --git a/modules/highgui/CMakeLists.txt b/modules/highgui/CMakeLists.txt
-index 2e12aa6..89d4110 100644
+index b0975d7..e5c3341 100644
 --- a/modules/highgui/CMakeLists.txt
 +++ b/modules/highgui/CMakeLists.txt
-@@ -245,6 +245,7 @@ set(lib_srcs ${highgui_srcs} ${grfmt_srcs})
+@@ -254,6 +254,7 @@ set(lib_srcs ${highgui_srcs} ${grfmt_srcs})
  #               Define the library target:
  # ----------------------------------------------------------------------------------
  set(the_target "opencv_highgui")
@@ -50,7 +61,7 @@ index 2e12aa6..89d4110 100644
  
  include_directories("${CMAKE_CURRENT_SOURCE_DIR}/include"
                      "${CMAKE_CURRENT_SOURCE_DIR}/../core/include"
-@@ -257,6 +258,7 @@ if(WIN32)
+@@ -266,6 +267,7 @@ if(WIN32)
  endif()
  
  add_library(${the_target} ${lib_srcs} ${highgui_hdrs} ${grfmt_hdrs} ${highgui_ext_hdrs})
@@ -58,3 +69,6 @@ index 2e12aa6..89d4110 100644
  
  if (BUILD_SHARED_LIBS)
  	add_definitions(-DHIGHGUI_EXPORTS)
+-- 
+1.7.5.4
+

@@ -7,7 +7,7 @@ Initalization and Information
 gpu::getCudaEnabledDeviceCount
 ----------------------------------
 
-.. ocv:function:: int getCudaEnabledDeviceCount()
+.. ocv:function:: int gpu::getCudaEnabledDeviceCount()
 
     Returns the number of installed CUDA-enabled devices. Use this function before any other GPU functions calls. If OpenCV is compiled without GPU support, this function returns 0.
 
@@ -15,7 +15,7 @@ gpu::getCudaEnabledDeviceCount
 
 gpu::setDevice
 ------------------
-.. ocv:function:: void setDevice(int device)
+.. ocv:function:: void gpu::setDevice(int device)
 
     Sets a device and initializes it for the current thread. If the call of this function is omitted, a default device is initialized at the fist GPU usage.
 
@@ -25,7 +25,7 @@ gpu::setDevice
 
 gpu::getDevice
 ------------------
-.. ocv:function:: int getDevice()
+.. ocv:function:: int gpu::getDevice()
 
     Returns the current device index set by ``{gpu::getDevice}`` or initialized by default.
 
@@ -166,9 +166,9 @@ Class providing a set of static methods to check what NVIDIA* card architecture 
 
 The following method checks whether the module was built with the support of the given feature:
 
-	.. ocv:function:: static bool gpu::TargetArchs::builtWith(GpuFeature feature)
+    .. ocv:function:: static bool gpu::TargetArchs::builtWith(GpuFeature feature)
 
-		:param feature: Feature to be checked. See :ocv:class:`gpu::GpuFeature`.
+        :param feature: Feature to be checked. See :ocv:class:`gpu::GpuFeature`.
 
 There is a set of methods to check whether the module contains intermediate (PTX) or binary GPU code for the given architecture(s):
 

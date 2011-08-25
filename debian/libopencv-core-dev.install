@@ -4,9 +4,9 @@ usr/include/opencv2/core/*
 usr/lib/libopencv_core.a
 usr/lib/libopencv_core.so
 usr/lib/pkgconfig
-usr/share/opencv/OpenCVConfig.cmake
+usr/share/OpenCV/OpenCVConfig.cmake usr/share/opencv/
 # samples
 usr/bin
-usr/share/opencv/haarcascades
-usr/share/opencv/lbpcascades
+usr/share/OpenCV/haarcascades usr/share/opencv/
+usr/share/OpenCV/lbpcascades usr/share/opencv/
 

@@ -8,25 +8,28 @@ Goal
 
 In this tutorial you will learn how to:
 
-* Use the OpenCV function :morphology_ex:`morphologyEx <>` to apply Morphological Transformation such as:
-  
-  * Opening 
-  * Closing
-  * Morphological Gradient
-  * Top Hat
-  * Black Hat
+.. container:: enumeratevisibleitemswithsquare
 
-Cool Theory
-============
+   * Use the OpenCV function :morphology_ex:`morphologyEx <>` to apply Morphological Transformation such as:
+  
+     + Opening 
+     + Closing
+     + Morphological Gradient
+     + Top Hat
+     + Black Hat
+
+Theory
+=======
 
 .. note::
    The explanation below belongs to the book **Learning OpenCV** by Bradski and Kaehler.
 
 In the previous tutorial we covered two basic Morphology operations: 
 
-* Erosion
+.. container:: enumeratevisibleitemswithsquare
 
-* Dilation. 
+   * Erosion
+   * Dilation. 
 
 Based on these two we can effectuate more sophisticated transformations to our images. Here we discuss briefly 05 operations offered by OpenCV:
 
@@ -44,7 +47,6 @@ Opening
 * For instance, check out the example below. The image at the left is the original and the image at the right is the result after applying the opening transformation. We can observe that the small spaces in the corners of the letter tend to dissapear.
 
   .. image:: images/Morphology_2_Tutorial_Theory_Opening.png
-     :height: 150pt
      :alt: Opening
      :align: center  
 
@@ -60,7 +62,6 @@ Closing
 * Useful to remove small holes (dark regions). 
 
   .. image:: images/Morphology_2_Tutorial_Theory_Closing.png
-     :height: 150pt
      :alt: Closing example
      :align: center  
 
@@ -77,7 +78,6 @@ Morphological Gradient
 * It is useful for finding the outline of an object as can be seen below:
 
   .. image:: images/Morphology_2_Tutorial_Theory_Gradient.png
-     :height: 150pt
      :alt: Gradient
      :align: center  
 
@@ -92,7 +92,6 @@ Top Hat
      dst = tophat( src, element ) = src - open( src, element )
 
   .. image:: images/Morphology_2_Tutorial_Theory_TopHat.png
-     :height: 150pt
      :alt: Top Hat
      :align: center  
 
@@ -106,7 +105,6 @@ Black Hat
      dst = blackhat( src, element ) = close( src, element ) - src
 
   .. image:: images/Morphology_2_Tutorial_Theory_BlackHat.png
-     :height: 150pt
      :alt: Black Hat
      :align: center    
 
@@ -251,11 +249,11 @@ Explanation
      * **dst**: Output image
      * **operation**: The kind of morphology transformation to be performed. Note that we have 5 alternatives:
 
-       * *Opening*: MORPH_OPEN : 2
-       * *Closing*: MORPH_CLOSE: 3
-       * *Gradient*: MORPH_GRADIENT: 4
-       * *Top Hat*: MORPH_TOPHAT: 5
-       * *Black Hat*: MORPH_BLACKHAT: 6
+       + *Opening*: MORPH_OPEN : 2
+       + *Closing*: MORPH_CLOSE: 3
+       + *Gradient*: MORPH_GRADIENT: 4
+       + *Top Hat*: MORPH_TOPHAT: 5
+       + *Black Hat*: MORPH_BLACKHAT: 6
 
        As you can see the values range from <2-6>, that is why we add (+2) to the values entered by the Trackbar:
 
@@ -270,17 +268,15 @@ Explanation
 Results
 ========
 
-* After compiling the code above we can execute it giving an image path as an argument. For this tutorial we use as input the image: **baboon.jpg**:
+* After compiling the code above we can execute it giving an image path as an argument. For this tutorial we use as input the image: **baboon.png**:
 
   .. image:: images/Morphology_2_Tutorial_Original_Image.jpg
-     :height: 200pt
      :alt: Morphology 2: Original image
      :align: center 
 
 * And here are two snapshots of the display window. The first picture shows the output after using the operator **Opening** with a cross kernel. The second picture (right side, shows the result of using a **Blackhat** operator with an ellipse kernel.
  
-  .. image:: images/Morphology_2_Tutorial_Cover.png
-     :height: 300pt
+  .. image:: images/Morphology_2_Tutorial_Cover.jpg
      :alt: Morphology 2: Result sample
      :align: center 
 

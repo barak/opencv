@@ -8,7 +8,9 @@ Goal
 
 In this tutorial you will learn how to:
 
-* Use the OpenCV functions :pyr_up:`pyrUp <>` and :pyr_down:`pyrDown <>` to downsample  or upsample a given image.
+.. container:: enumeratevisibleitemswithsquare
+
+   * Use the OpenCV functions :pyr_up:`pyrUp <>` and :pyr_down:`pyrDown <>` to downsample  or upsample a given image.
   
 Theory
 =======
@@ -16,25 +18,30 @@ Theory
 .. note::
    The explanation below belongs to the book **Learning OpenCV** by Bradski and Kaehler.
 
-* Usually we need to convert an image to a size different than its original. For this, there are two possible options:
-  
-  * *Upsize* the image (zoom in) or 
-  * *Downsize* it (zoom out). 
+.. container:: enumeratevisibleitemswithsquare
 
-* Although there is a *geometric transformation* function in OpenCV that -literally- resize an image (:resize:`resize <>`, which we will show in a future tutorial), in this section we analyze first the use of **Image Pyramids**, which are widely applied in a huge range of vision applications.
+   * Usually we need to convert an image to a size different than its original. For this, there are two possible options:
+  
+     #. *Upsize* the image (zoom in) or 
+     #. *Downsize* it (zoom out). 
+
+   * Although there is a *geometric transformation* function in OpenCV that -literally- resize an image (:resize:`resize <>`, which we will show in a future tutorial), in this section we analyze first the use of **Image Pyramids**, which are widely applied in a huge range of vision applications.
+
 
 Image Pyramid
 --------------
 
-* An image pyramid is a collection of images - all arising from a single original image - that are successively downsampled until some desired stopping point is reached.
+.. container:: enumeratevisibleitemswithsquare
 
-* There are two common kinds of image pyramids:
+   * An image pyramid is a collection of images - all arising from a single original image - that are successively downsampled until some desired stopping point is reached.
 
-  * **Gaussian pyramid:** Used to downsample images
+   * There are two common kinds of image pyramids:
 
-  * **Laplacian pyramid:** Used to  reconstruct an upsampled image from an image lower in the pyramid (with less resolution) 
+     * **Gaussian pyramid:** Used to downsample images
 
-* In this tutorial we'll use the *Gaussian pyramid*.
+     * **Laplacian pyramid:** Used to  reconstruct an upsampled image from an image lower in the pyramid (with less resolution) 
+
+   * In this tutorial we'll use the *Gaussian pyramid*.
 
 Gaussian Pyramid
 ^^^^^^^^^^^^^^^^^
@@ -103,7 +110,7 @@ This tutorial code's is shown lines below. You can also download it from `here <
      printf( " * [ESC] -> Close program \n \n" );
 
      /// Test image - Make sure it s divisible by 2^{n}
-     src = imread( "../images/chicky_512.png" );
+     src = imread( "../images/chicky_512.jpg" );
      if( !src.data )
        { printf(" No data! -- Exiting the program \n");
          return -1; }
@@ -148,7 +155,7 @@ Explanation
      .. code-block:: cpp
 
         /// Test image - Make sure it s divisible by 2^{n}
-        src = imread( "../images/chicky_512.png" );
+        src = imread( "../images/chicky_512.jpg" );
         if( !src.data )
           { printf(" No data! -- Exiting the program \n");
             return -1; }
@@ -235,21 +242,21 @@ Explanation
 Results
 ========
 
-* After compiling the code above we can test it. The program calls an image **chicky_512.png** that comes in the *tutorial_code/image* folder. Notice that this image is :math:`512 \times 512`, hence a downsample won't generate any error (:math:`512 = 2^{9}`). The original image is shown below:
+* After compiling the code above we can test it. The program calls an image **chicky_512.jpg** that comes in the *tutorial_code/image* folder. Notice that this image is :math:`512 \times 512`, hence a downsample won't generate any error (:math:`512 = 2^{9}`). The original image is shown below:
 
-  .. image:: images/Pyramids_Tutorial_Original_Image.png
+  .. image:: images/Pyramids_Tutorial_Original_Image.jpg
      :alt: Pyramids: Original image	
      :align: center 
 
 * First we apply two successive :pyr_down:`pyrDown <>` operations by pressing 'd'. Our output is:
  
-  .. image:: images/Pyramids_Tutorial_PyrDown_Result.png
+  .. image:: images/Pyramids_Tutorial_PyrDown_Result.jpg
      :alt: Pyramids: PyrDown Result
      :align: center 
 
 * Note that we should have lost some resolution due to the fact that we are diminishing the size of the image. This is evident after we apply :pyr_up:`pyrUp <>` twice (by pressing 'u'). Our output is now:
  
-  .. image:: images/Pyramids_Tutorial_PyrUp_Result.png
+  .. image:: images/Pyramids_Tutorial_PyrUp_Result.jpg
      :alt: Pyramids: PyrUp Result
      :align: center 
 

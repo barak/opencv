@@ -9,8 +9,10 @@ Goal
 
 In this tutorial you will learn how to:
 
-#. Use the OpenCV function :sobel:`Sobel <>` to calculate the derivatives from an image.
-#. Use the OpenCV function :scharr:`Scharr <>` to calculate a more accurate derivative for a kernel of size :math:`3 \cdot 3`  
+.. container:: enumeratevisibleitemswithsquare
+
+   * Use the OpenCV function :sobel:`Sobel <>` to calculate the derivatives from an image.
+   * Use the OpenCV function :scharr:`Scharr <>` to calculate a more accurate derivative for a kernel of size :math:`3 \cdot 3`  
   
 Theory
 ========
@@ -26,7 +28,6 @@ Theory
 
    .. image:: images/Sobel_Derivatives_Tutorial_Theory_0.jpg
            :alt: How intensity changes in an edge
-           :height: 200pt
            :align: center
  
    You can easily notice that in an *edge*, the pixel intensity *changes* in a notorious way. A good way to express *changes* is by using *derivatives*. A high change in gradient indicates a major change in the image. 
@@ -35,14 +36,12 @@ Theory
 
    .. image:: images/Sobel_Derivatives_Tutorial_Theory_Intensity_Function.jpg
            :alt:  Intensity Plot for an edge
-           :height: 200pt
            :align: center
 
 #. The edge "jump" can be seen more easily if we take the first derivative (actually, here appears as a maximum)
 
    .. image:: images/Sobel_Derivatives_Tutorial_Theory_dIntensity_Function.jpg
            :alt:  First derivative of Intensity - Plot for an edge
-           :height: 200pt
            :align: center
 
 #. So, from the explanation above, we can deduce that a method to detect edges in an image can be performed by locating pixel locations where the gradient is higher than its neighbors (or to generalize, higher than a threshold).
@@ -231,6 +230,7 @@ Explanation
       Sobel( src_gray, grad_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT );   
       /// Gradient Y  
       Sobel( src_gray, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT );   
+
    The function takes the following arguments:
 
    * *src_gray*: In our example, the input image. Here it is *CV_8U* 
