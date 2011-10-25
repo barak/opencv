@@ -36,7 +36,6 @@ Morphological Operations
 
   .. image:: images/Morphology_1_Tutorial_Theory_Original_Image.png
      :alt: Original image
-     :height: 100px
      :align: center 
 
 Dilation
@@ -50,7 +49,6 @@ Dilation
 
   .. image:: images/Morphology_1_Tutorial_Theory_Dilation.png
      :alt: Dilation result - Theory example
-     :height: 100px
      :align: center 
 
 The background (bright) dilates around the black regions of the letter.
@@ -66,14 +64,13 @@ Erosion
 
   .. image:: images/Morphology_1_Tutorial_Theory_Erosion.png
      :alt: Erosion result - Theory example
-     :height: 100px
      :align: center 
 
 
 Code
 ======
 
-This tutorial code's is shown lines below. You can also download it from `here <https://code.ros.org/svn/opencv/trunk/opencv/samples/cpp/tutorial_code/Image_Processing/Morphology_1.cpp>`_
+This tutorial code's is shown lines below. You can also download it from `here <https://code.ros.org/svn/opencv/trunk/opencv/samples/cpp/tutorial_code/ImgProc/Morphology_1.cpp>`_
 
 .. code-block:: cpp 
 
@@ -178,16 +175,16 @@ Explanation
 
 #. Most of the stuff shown is known by you (if you have any doubt, please refer to the tutorials in previous sections). Let's check the general structure of the program:
 
-   * Load an image (can be RGB or grayscale)
+   .. container:: enumeratevisibleitemswithsquare
 
-   * Create two windows (one for dilation output, the other for erosion)
+      * Load an image (can be RGB or grayscale)
+      * Create two windows (one for dilation output, the other for erosion)
+      * Create a set of 02 Trackbars for each operation:
 
-   * Create a set of 02 Trackbars for each operation:
+        * The first trackbar "Element" returns either **erosion_elem** or **dilation_elem**
+        * The second trackbar "Kernel size" return **erosion_size** or **dilation_size** for the corresponding operation. 
 
-     * The first trackbar "Element" returns either **erosion_elem** or **dilation_elem**
-     * The second trackbar "Kernel size" return **erosion_size** or **dilation_size** for the corresponding operation. 
-
-   * Every time we move any slider, the user's function **Erosion** or **Dilation** will be called and it will update the output image based on the current trackbar values.
+      * Every time we move any slider, the user's function **Erosion** or **Dilation** will be called and it will update the output image based on the current trackbar values.
   
    Let's analyze these two functions:
  
@@ -223,13 +220,15 @@ Explanation
      	    				        Size( 2*erosion_size + 1, 2*erosion_size+1 ),
 				       	        Point( erosion_size, erosion_size ) );   
 						
-        We can choose any of three shapes for our kernel:
+       We can choose any of three shapes for our kernel:
 
-	* Rectangular box: MORPH_RECT
- 	* Cross:  MORPH_CROSS 
-	* Ellipse: MORPH_ELLIPSE
+       .. container:: enumeratevisibleitemswithsquare
 
-        Then, we just have to specify the size of our kernel and the *anchor point*. If not specified, it is assumed to be in the center.
+	  + Rectangular box: MORPH_RECT
+ 	  + Cross:  MORPH_CROSS 
+	  + Ellipse: MORPH_ELLIPSE
+
+       Then, we just have to specify the size of our kernel and the *anchor point*. If not specified, it is assumed to be in the center.
 
    * That is all. We are ready to perform the erosion of our image.
 
@@ -266,15 +265,12 @@ Results
 
 * Compile the code above and execute it with an image as argument. For instance, using this image:
 
-  .. image:: images/Morphology_1_Tutorial_Original_Image.png
+  .. image:: images/Morphology_1_Tutorial_Original_Image.jpg
      :alt: Original image
-     :height: 200px
      :align: center 
 
   We get the results below. Varying the indices in the Trackbars give different output images, naturally. Try them out! You can even try to add a third Trackbar to control the number of iterations.
 
-  .. image:: images/Morphology_1_Tutorial_Cover.png
+  .. image:: images/Morphology_1_Tutorial_Cover.jpg
      :alt: Dilation and Erosion application
-     :height: 400px
      :align: center 
- 

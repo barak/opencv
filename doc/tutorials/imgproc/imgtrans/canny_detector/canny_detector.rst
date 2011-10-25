@@ -8,7 +8,9 @@ Goal
 
 In this tutorial you will learn how to:
 
-a. Use the OpenCV function :canny:`Canny <>` to implement the Canny Edge Detector.
+.. container:: enumeratevisibleitemswithsquare
+
+   * Use the OpenCV function :canny:`Canny <>` to implement the Canny Edge Detector.
 
 Theory
 =======
@@ -27,12 +29,12 @@ Steps
    .. math::
    
       K = \dfrac{1}{159}\begin{bmatrix}
-			    2 & 4 & 5 & 4 & 2 \\
-			    4 & 9 & 12 & 9 & 4 \\
-			    5 & 12 & 15 & 12 & 5 \\
-			    4 & 9 & 12 & 9 & 4 \\
-			    2 & 4 & 5 & 4 & 2 
-              		    \end{bmatrix} 
+                2 & 4 & 5 & 4 & 2 \\
+                4 & 9 & 12 & 9 & 4 \\
+                5 & 12 & 15 & 12 & 5 \\
+                4 & 9 & 12 & 9 & 4 \\
+                2 & 4 & 5 & 4 & 2 
+                        \end{bmatrix} 
 
 
 #. Find the intensity gradient of the image. For this, we follow a procedure analogous to Sobel: 
@@ -206,7 +208,8 @@ Explanation
 #. Create a window to display the results
 
    .. code-block:: cpp
-     namedWindow( window_name, CV_WINDOW_AUTOSIZE );
+
+      namedWindow( window_name, CV_WINDOW_AUTOSIZE );
 
 #. Create a Trackbar for the user to enter the lower threshold for our Canny detector:
 
@@ -264,21 +267,21 @@ Explanation
 Result
 =======
 
-#. After compiling the code above, we can run it giving as argument the path to an image. For example, using as an input the following image:
+* After compiling the code above, we can run it giving as argument the path to an image. For example, using as an input the following image:
 
    .. image:: images/Canny_Detector_Tutorial_Original_Image.jpg
            :alt: Original test image
            :width: 200pt
            :align: center
 
-   and moving the slider, trying different threshold, we obtain the following result:
+* Moving the slider, trying different threshold, we obtain the following result:
 
    .. image:: images/Canny_Detector_Tutorial_Result.jpg
            :alt: Result after running Canny
            :width: 200pt
            :align: center
   
-   Notice how the image is superposed to the black background on the edge regions.
+* Notice how the image is superposed to the black background on the edge regions.
   
 
 

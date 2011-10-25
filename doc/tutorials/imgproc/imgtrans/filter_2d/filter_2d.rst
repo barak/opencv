@@ -8,10 +8,12 @@ Goal
 
 In this tutorial you will learn how to:
 
-* Use the OpenCV function :filter2d:`filter2D <>` to create your own linear filters.  
+.. container:: enumeratevisibleitemswithsquare
+
+   * Use the OpenCV function :filter2d:`filter2D <>` to create your own linear filters.  
   
 Theory
-============
+=======
 
 .. note::
    The explanation below belongs to the book **Learning OpenCV** by Bradski and Kaehler.
@@ -132,6 +134,7 @@ Code
   
      return 0;
    }
+
 Explanation
 =============
 
@@ -193,6 +196,6 @@ Results
 
 #. After compiling the code above, you  can execute it giving as argument the path of an image. The result should be a window that shows an image blurred by a normalized filter. Each 0.5 seconds the kernel size should change, as can be seen in the series of snapshots below:
 
-   .. image:: images/filter_2d_tutorial_result.png
+   .. image:: images/filter_2d_tutorial_result.jpg
            :alt: kernel example
            :align: center
