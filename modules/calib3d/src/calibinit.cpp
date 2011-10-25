@@ -60,6 +60,7 @@
 \************************************************************************************/
 
 #include "precomp.hpp"
+#include "circlesgrid.hpp"
 #include <stdarg.h>
 
 //#define ENABLE_TRIM_COL_ROW
@@ -1893,46 +1894,143 @@ cvDrawChessboardCorners( CvArr* _image, CvSize pattern_size,
     }
 }
 
-namespace cv
-{
-
-bool findChessboardCorners( const Mat& image, Size patternSize,
-                            vector<Point2f>& corners, int flags )
+bool cv::findChessboardCorners( InputArray _image, Size patternSize,
+                            OutputArray corners, int flags )
 {
     int count = patternSize.area()*2;
-    corners.resize(count);
-    CvMat _image = image;
-    bool ok = cvFindChessboardCorners(&_image, patternSize,
-        (CvPoint2D32f*)&corners[0], &count, flags ) > 0;
-    if(count >= 0)
-        corners.resize(count);
+    vector<Point2f> tmpcorners(count+1);
+    Mat image = _image.getMat(); CvMat c_image = image;
+    bool ok = cvFindChessboardCorners(&c_image, patternSize,
+        (CvPoint2D32f*)&tmpcorners[0], &count, flags ) > 0;
+    if( count > 0 )
+    {
+        tmpcorners.resize(count);
+        Mat(tmpcorners).copyTo(corners);
+    }
+    else
+        corners.release();
     return ok;
 }
 
-void drawChessboardCorners( Mat& image, Size patternSize,
-                            const Mat& corners,
-                            bool patternWasFound )
+namespace
 {
-    if( corners.cols == 0 || corners.rows == 0 )
-        return;
-    CvMat _image = image;
-    int nelems = corners.checkVector(2, CV_32F, true);
-    CV_Assert(nelems >= 0);
-    cvDrawChessboardCorners( &_image, patternSize, (CvPoint2D32f*)corners.data,
-                             nelems, patternWasFound );
+int quiet_error(int /*status*/, const char* /*func_name*/,
+                                       const char* /*err_msg*/, const char* /*file_name*/,
+                                       int /*line*/, void* /*userdata*/ )
+{
+  return 0;
 }
-    
-void drawChessboardCorners( Mat& image, Size patternSize,
-                            const vector<Point2f>& corners,
-                            bool patternWasFound )
-{
-    if( corners.empty() )
-        return;
-    CvMat _image = image;
-    cvDrawChessboardCorners( &_image, patternSize, (CvPoint2D32f*)&corners[0],
-                            (int)corners.size(), patternWasFound );
 }
 
+void cv::drawChessboardCorners( InputOutputArray _image, Size patternSize,
+                            InputArray _corners,
+                            bool patternWasFound )
+{
+    Mat corners = _corners.getMat();
+    if( corners.empty() )
+        return;
+    Mat image = _image.getMat(); CvMat c_image = _image.getMat();
+    int nelems = corners.checkVector(2, CV_32F, true);
+    CV_Assert(nelems >= 0);
+    cvDrawChessboardCorners( &c_image, patternSize, (CvPoint2D32f*)corners.data,
+                             nelems, patternWasFound );
+}
+
+bool cv::findCirclesGrid( InputArray _image, Size patternSize,
+                          OutputArray _centers, int flags, const Ptr<FeatureDetector> &blobDetector )
+{
+	bool isAsymmetricGrid = (flags & CALIB_CB_ASYMMETRIC_GRID) ? true : false;
+	bool isSymmetricGrid  = (flags & CALIB_CB_SYMMETRIC_GRID ) ? true : false;
+    CV_Assert(isAsymmetricGrid ^ isSymmetricGrid);
+
+    Mat image = _image.getMat();
+    vector<Point2f> centers;
+
+    vector<KeyPoint> keypoints;
+    blobDetector->detect(image, keypoints);
+    vector<Point2f> points;
+    for (size_t i = 0; i < keypoints.size(); i++)
+    {
+      points.push_back (keypoints[i].pt);
+    }
+
+    if(flags & CALIB_CB_CLUSTERING)
+    {
+      CirclesGridClusterFinder circlesGridClusterFinder(isAsymmetricGrid);
+      circlesGridClusterFinder.findGrid(points, patternSize, centers);
+      Mat(centers).copyTo(_centers);
+      return !centers.empty();
+    }
+
+    CirclesGridFinderParameters parameters;
+    parameters.vertexPenalty = -0.6f;
+    parameters.vertexGain = 1;
+    parameters.existingVertexGain = 10000;
+    parameters.edgeGain = 1;
+    parameters.edgePenalty = -0.6f;
+
+    if(flags & CALIB_CB_ASYMMETRIC_GRID)
+      parameters.gridType = CirclesGridFinderParameters::ASYMMETRIC_GRID;
+    if(flags & CALIB_CB_SYMMETRIC_GRID)
+      parameters.gridType = CirclesGridFinderParameters::SYMMETRIC_GRID;
+
+    const int attempts = 2;
+    const size_t minHomographyPoints = 4;
+    Mat H;
+    for (int i = 0; i < attempts; i++)
+    {
+      centers.clear();
+      CirclesGridFinder boxFinder(patternSize, points, parameters);
+      bool isFound = false;
+#define BE_QUIET 1
+#if BE_QUIET
+      redirectError(quiet_error);
+#endif
+      try
+      {
+        isFound = boxFinder.findHoles();
+      }
+      catch (cv::Exception)
+      {
+
+      }
+#if BE_QUIET
+      redirectError(0);
+#endif
+      if (isFound)
+      {
+      	switch(parameters.gridType)
+      	{
+          case CirclesGridFinderParameters::SYMMETRIC_GRID:
+            boxFinder.getHoles(centers);
+            break;
+          case CirclesGridFinderParameters::ASYMMETRIC_GRID:
+	    boxFinder.getAsymmetricHoles(centers);
+	    break;
+          default:
+            CV_Error(CV_StsBadArg, "Unkown pattern type");
+      	}
+
+        if (i != 0)
+        {
+          Mat orgPointsMat;
+          transform(centers, orgPointsMat, H.inv());
+          convertPointsFromHomogeneous(orgPointsMat, centers);
+        }
+        Mat(centers).copyTo(_centers);
+        return true;
+      }
+      
+      boxFinder.getHoles(centers);
+      if (i != attempts - 1)
+      {
+        if (centers.size() < minHomographyPoints)
+          break;
+        H = CirclesGridFinder::rectifyGrid(boxFinder.getDetectedGridSize(), centers, points, points);
+      }
+    }
+    Mat(centers).copyTo(_centers);
+    return false;
 }
 
 /* End of file. */

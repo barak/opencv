@@ -321,7 +321,7 @@ void jp2_box_dump(jp2_box_t *box, FILE *out)
 
 	fprintf(out, "JP2 box: ");
 	fprintf(out, "type=%c%s%c (0x%08x); length=%d\n", '"', boxinfo->name,
-	  '"', box->type, box->len);
+	  '"', (unsigned)box->type, (int)box->len);
 	if (box->ops->dumpdata) {
 		(*box->ops->dumpdata)(box, out);
 	}
@@ -433,7 +433,7 @@ static void jp2_cdef_dumpdata(jp2_box_t *box, FILE *out)
 	unsigned int i;
 	for (i = 0; i < cdef->numchans; ++i) {
 		fprintf(out, "channo=%d; type=%d; assoc=%d\n",
-		  cdef->ents[i].channo, cdef->ents[i].type, cdef->ents[i].assoc);
+		  (int)cdef->ents[i].channo, (int)cdef->ents[i].type, (int)cdef->ents[i].assoc);
 	}
 }
 
@@ -490,18 +490,18 @@ int jp2_box_put(jp2_box_t *box, jas_stream_t *out)
 		box->len = jas_stream_tell(tmpstream) + JP2_BOX_HDRLEN(false);
 		jas_stream_rewind(tmpstream);
 	}
-	extlen = (box->len >= (((uint_fast64_t)1) << 32)) != 0;
-	if (jp2_putuint32(out, extlen ? 1 : box->len)) {
+	//extlen = (box->len >= (((uint_fast64_t)1) << 32)) != 0;
+	if (jp2_putuint32(out, /*extlen ? 1 :*/ box->len)) {
 		goto error;
 	}
 	if (jp2_putuint32(out, box->type)) {
 		goto error;
 	}
-	if (extlen) {
+	/*if (extlen) {
 		if (jp2_putuint64(out, box->len)) {
 			goto error;
 		}
-	}
+	}*/
 
 	if (dataflag) {
 		if (jas_stream_copy(out, tmpstream, box->len - JP2_BOX_HDRLEN(false))) {
@@ -871,7 +871,7 @@ static void jp2_pclr_dumpdata(jp2_box_t *box, FILE *out)
 	  (int) pclr->numchans);
 	for (i = 0; i < pclr->numlutents; ++i) {
 		for (j = 0; j < pclr->numchans; ++j) {
-			fprintf(out, "LUT[%d][%d]=%d\n", i, j, pclr->lutdata[i * pclr->numchans + j]);
+			fprintf(out, "LUT[%d][%d]=%d\n", i, j, (int)pclr->lutdata[i * pclr->numchans + j]);
 		}
 	}
 }

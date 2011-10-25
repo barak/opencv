@@ -41,11 +41,9 @@
 
 #include "precomp.hpp"
 
-#ifdef HAVE_EIGEN2
+#if defined(HAVE_EIGEN) && EIGEN_WORLD_VERSION == 2
 #include <Eigen/Array>
 #endif
-
-using namespace std;
 
 namespace cv
 {
@@ -161,18 +159,11 @@ const Mat DescriptorMatcher::DescriptorCollection::getDescriptor( int globalDesc
 
 void DescriptorMatcher::DescriptorCollection::getLocalIdx( int globalDescIdx, int& imgIdx, int& localDescIdx ) const
 {
-    imgIdx = -1;
-    CV_Assert( globalDescIdx < size() );
-    for( size_t i = 1; i < startIdxs.size(); i++ )
-    {
-        if( globalDescIdx < startIdxs[i] )
-        {
-            imgIdx = (int)(i - 1);
-            break;
-        }
-    }
-    imgIdx = imgIdx == -1 ? (int)(startIdxs.size() - 1) : imgIdx;
-    localDescIdx = globalDescIdx - startIdxs[imgIdx];
+    CV_Assert( (globalDescIdx>=0) && (globalDescIdx < size()) );
+    std::vector<int>::const_iterator img_it = std::upper_bound(startIdxs.begin(), startIdxs.end(), globalDescIdx);
+    --img_it;
+    imgIdx = (int)(img_it - startIdxs.begin());
+    localDescIdx = globalDescIdx - (*img_it);
 }
 
 int DescriptorMatcher::DescriptorCollection::size() const
@@ -215,7 +206,7 @@ void DescriptorMatcher::clear()
 
 bool DescriptorMatcher::empty() const
 {
-	return trainDescCollection.size() == 0;
+    return trainDescCollection.empty();
 }
 
 void DescriptorMatcher::train()
@@ -253,33 +244,33 @@ void DescriptorMatcher::match( const Mat& queryDescriptors, vector<DMatch>& matc
 
 void DescriptorMatcher::checkMasks( const vector<Mat>& masks, int queryDescriptorsCount ) const
 {
-	if( isMaskSupported() && !masks.empty() )
-	{
-		// Check masks
-		size_t imageCount = trainDescCollection.size();
-		CV_Assert( masks.size() == imageCount );
-		for( size_t i = 0; i < imageCount; i++ )
-		{
-			if( !masks[i].empty() && !trainDescCollection[i].empty() )
-			{
-				CV_Assert( masks[i].rows == queryDescriptorsCount && 
-					       masks[i].cols == trainDescCollection[i].rows &&
-						   masks[i].type() == CV_8UC1 );
-			}
-		}
-	}
+    if( isMaskSupported() && !masks.empty() )
+    {
+        // Check masks
+        size_t imageCount = trainDescCollection.size();
+        CV_Assert( masks.size() == imageCount );
+        for( size_t i = 0; i < imageCount; i++ )
+        {
+            if( !masks[i].empty() && !trainDescCollection[i].empty() )
+            {
+                    CV_Assert( masks[i].rows == queryDescriptorsCount &&
+                                   masks[i].cols == trainDescCollection[i].rows &&
+                                       masks[i].type() == CV_8UC1 );
+            }
+        }
+    }
 }
 
 void DescriptorMatcher::knnMatch( const Mat& queryDescriptors, vector<vector<DMatch> >& matches, int knn,
                                   const vector<Mat>& masks, bool compactResult )
 {
-	matches.empty();
-	if( empty() || queryDescriptors.empty() )
-		return;
+    matches.clear();
+    if( empty() || queryDescriptors.empty() )
+        return;
 
-	CV_Assert( knn > 0 );
+    CV_Assert( knn > 0 );
 	
-	checkMasks( masks, queryDescriptors.rows );
+    checkMasks( masks, queryDescriptors.rows );
 
     train();
     knnMatchImpl( queryDescriptors, matches, knn, masks, compactResult );
@@ -288,13 +279,13 @@ void DescriptorMatcher::knnMatch( const Mat& queryDescriptors, vector<vector<DMa
 void DescriptorMatcher::radiusMatch( const Mat& queryDescriptors, vector<vector<DMatch> >& matches, float maxDistance,
                                      const vector<Mat>& masks, bool compactResult )
 {
-	matches.empty();
-	if( empty() || queryDescriptors.empty() )
-		return;
+    matches.clear();
+    if( empty() || queryDescriptors.empty() )
+        return;
 
-	CV_Assert( maxDistance > std::numeric_limits<float>::epsilon() );
+    CV_Assert( maxDistance > std::numeric_limits<float>::epsilon() );
 	
-	checkMasks( masks, queryDescriptors.rows );
+    checkMasks( masks, queryDescriptors.rows );
 
     train();
     radiusMatchImpl( queryDescriptors, matches, maxDistance, masks, compactResult );
@@ -360,7 +351,7 @@ template<>
 void BruteForceMatcher<L2<float> >::knnMatchImpl( const Mat& queryDescriptors, vector<vector<DMatch> >& matches, int knn,
                                               const vector<Mat>& masks, bool compactResult )
 {
-#ifndef HAVE_EIGEN2
+#ifndef HAVE_EIGEN
     commonKnnMatchImpl( *this, queryDescriptors, matches, knn, masks, compactResult );
 #else
     CV_Assert( queryDescriptors.type() == CV_32FC1 ||  queryDescriptors.empty() );
@@ -409,7 +400,7 @@ void BruteForceMatcher<L2<float> >::knnMatchImpl( const Mat& queryDescriptors, v
                     for( int c = 0; c < masks[iIdx].cols; c++ )
                     {
                         if( maskPtr[c] == 0 )
-                            e_allDists[iIdx](c) = std::numeric_limits<float>::min();
+                            e_allDists[iIdx](c) = -std::numeric_limits<float>::max();
                     }
                 }
             }
@@ -419,7 +410,7 @@ void BruteForceMatcher<L2<float> >::knnMatchImpl( const Mat& queryDescriptors, v
             vector<vector<DMatch> >::reverse_iterator curMatches = matches.rbegin();
             for( int k = 0; k < knn; k++ )
             {
-                float totalMaxCoeff = std::numeric_limits<float>::min();
+                float totalMaxCoeff = -std::numeric_limits<float>::max();
                 int bestTrainIdx = -1, bestImgIdx = -1;
                 for( size_t iIdx = 0; iIdx < imgCount; iIdx++ )
                 {
@@ -435,7 +426,7 @@ void BruteForceMatcher<L2<float> >::knnMatchImpl( const Mat& queryDescriptors, v
                 if( bestTrainIdx == -1 )
                     break;
 
-                e_allDists[bestImgIdx](bestTrainIdx) = std::numeric_limits<float>::min();
+                e_allDists[bestImgIdx](bestTrainIdx) = -std::numeric_limits<float>::max();
                 curMatches->push_back( DMatch(qIdx, bestTrainIdx, bestImgIdx, sqrt((-2)*totalMaxCoeff + queryNorm2)) );
             }
             std::sort( curMatches->begin(), curMatches->end() );
@@ -448,7 +439,7 @@ template<>
 void BruteForceMatcher<L2<float> >::radiusMatchImpl( const Mat& queryDescriptors, vector<vector<DMatch> >& matches, float maxDistance,
                                                      const vector<Mat>& masks, bool compactResult )
 {
-#ifndef HAVE_EIGEN2
+#ifndef HAVE_EIGEN
     commonRadiusMatchImpl( *this, queryDescriptors, matches, maxDistance, masks, compactResult );
 #else
     CV_Assert( queryDescriptors.type() == CV_32FC1 ||  queryDescriptors.empty() );
@@ -566,8 +557,8 @@ Ptr<DescriptorMatcher> FlannBasedMatcher::clone( bool emptyTrainData ) const
         //matcher->flannIndex;
         matcher->addedDescCount = addedDescCount;
         matcher->mergedDescriptors = DescriptorCollection( mergedDescriptors );
-        transform( trainDescCollection.begin(), trainDescCollection.end(),
-                   matcher->trainDescCollection.begin(), clone_op );
+        std::transform( trainDescCollection.begin(), trainDescCollection.end(),
+                        matcher->trainDescCollection.begin(), clone_op );
     }
     return matcher;
 }
@@ -631,7 +622,7 @@ GenericDescriptorMatcher::KeyPointCollection::KeyPointCollection( const KeyPoint
 {
     pointCount = collection.pointCount;
 
-    transform( collection.images.begin(), collection.images.end(), images.begin(), clone_op );
+    std::transform( collection.images.begin(), collection.images.end(), images.begin(), clone_op );
 
     keypoints.resize( collection.keypoints.size() );
     for( size_t i = 0; i < keypoints.size(); i++ )
@@ -667,7 +658,11 @@ void GenericDescriptorMatcher::KeyPointCollection::add( const vector<Mat>& _imag
 
 void GenericDescriptorMatcher::KeyPointCollection::clear()
 {
+    pointCount = 0;
+
+    images.clear();
     keypoints.clear();
+    startIndices.clear();
 }
 
 size_t GenericDescriptorMatcher::KeyPointCollection::keypointCount() const
@@ -741,10 +736,20 @@ GenericDescriptorMatcher::GenericDescriptorMatcher()
 GenericDescriptorMatcher::~GenericDescriptorMatcher()
 {}
 
-void GenericDescriptorMatcher::add( const vector<Mat>& imgCollection,
-                                    vector<vector<KeyPoint> >& pointCollection )
+void GenericDescriptorMatcher::add( const vector<Mat>& images,
+                                    vector<vector<KeyPoint> >& keypoints )
 {
-    trainPointCollection.add( imgCollection, pointCollection );
+    CV_Assert( !images.empty() );
+    CV_Assert( images.size() == keypoints.size() );
+
+    for( size_t i = 0; i < images.size(); i++ )
+    {
+        CV_Assert( !images[i].empty() );
+        KeyPointsFilter::runByImageBorder( keypoints[i], images[i].size(), 0 );
+        KeyPointsFilter::runByKeypointSize( keypoints[i], std::numeric_limits<float>::epsilon() );
+    }
+
+    trainPointCollection.add( images, keypoints );
 }
 
 const vector<Mat>& GenericDescriptorMatcher::getTrainImages() const
@@ -832,6 +837,14 @@ void GenericDescriptorMatcher::knnMatch( const Mat& queryImage, vector<KeyPoint>
                                          vector<vector<DMatch> >& matches, int knn,
                                          const vector<Mat>& masks, bool compactResult )
 {
+    matches.clear();
+
+    if( queryImage.empty() || queryKeypoints.empty() )
+        return;
+
+    KeyPointsFilter::runByImageBorder( queryKeypoints, queryImage.size(), 0 );
+    KeyPointsFilter::runByKeypointSize( queryKeypoints, std::numeric_limits<float>::epsilon() );
+    
     train();
     knnMatchImpl( queryImage, queryKeypoints, matches, knn, masks, compactResult );
 }
@@ -840,6 +853,14 @@ void GenericDescriptorMatcher::radiusMatch( const Mat& queryImage, vector<KeyPoi
                                             vector<vector<DMatch> >& matches, float maxDistance,
                                             const vector<Mat>& masks, bool compactResult )
 {
+    matches.clear();
+
+    if( queryImage.empty() || queryKeypoints.empty() )
+        return;
+
+    KeyPointsFilter::runByImageBorder( queryKeypoints, queryImage.size(), 0 );
+    KeyPointsFilter::runByKeypointSize( queryKeypoints, std::numeric_limits<float>::epsilon() );
+	
     train();
     radiusMatchImpl( queryImage, queryKeypoints, matches, maxDistance, masks, compactResult );
 }
@@ -849,6 +870,11 @@ void GenericDescriptorMatcher::read( const FileNode& )
 
 void GenericDescriptorMatcher::write( FileStorage& ) const
 {}
+
+bool GenericDescriptorMatcher::empty() const
+{
+    return true;
+}
 
 /*
  * Factory function for GenericDescriptorMatch creating
@@ -914,7 +940,8 @@ void OneWayDescriptorMatcher::clear()
     GenericDescriptorMatcher::clear();
 
     prevTrainCount = 0;
-    base->clear();
+    if( !base.empty() )
+        base->clear();
 }
 
 void OneWayDescriptorMatcher::train()
@@ -996,13 +1023,18 @@ void OneWayDescriptorMatcher::write( FileStorage& fs ) const
     base->Write (fs);
 }
 
+bool OneWayDescriptorMatcher::empty() const
+{
+    return base.empty() || base->empty();
+}
+
 Ptr<GenericDescriptorMatcher> OneWayDescriptorMatcher::clone( bool emptyTrainData ) const
 {
     OneWayDescriptorMatcher* matcher = new OneWayDescriptorMatcher( params );
 
     if( !emptyTrainData )
     {
-        CV_Error( CV_StsNotImplemented, "deep clone dunctionality is not implemented, because "
+        CV_Error( CV_StsNotImplemented, "deep clone functionality is not implemented, because "
               "OneWayDescriptorBase has not copy constructor or clone method ");
 
         //matcher->base;
@@ -1107,20 +1139,21 @@ void FernDescriptorMatcher::knnMatchImpl( const Mat& queryImage, vector<KeyPoint
         for( int k = 0; k < knn; k++ )
         {
             DMatch bestMatch;
-            size_t ci = 0;
-            for( ; ci < signature.size(); ci++ )
+            size_t best_ci = 0;
+            for( size_t ci = 0; ci < signature.size(); ci++ )
             {
                 if( -signature[ci] < bestMatch.distance )
                 {
                     int imgIdx = -1, trainIdx = -1;
                     trainPointCollection.getLocalIdx( (int)ci , imgIdx, trainIdx );
                     bestMatch = DMatch( (int)queryIdx, trainIdx, imgIdx, -signature[ci] );
+                    best_ci = ci;
                 }
             }
 
             if( bestMatch.trainIdx == -1 )
                 break;
-            signature[ci] = std::numeric_limits<float>::min();
+            signature[best_ci] = -std::numeric_limits<float>::max();
             matches[queryIdx].push_back( bestMatch );
         }
     }
@@ -1174,6 +1207,11 @@ void FernDescriptorMatcher::write( FileStorage& fs ) const
     fs << "compressionMethod" << params.compressionMethod;
 
 //    classifier->write(fs);
+}
+
+bool FernDescriptorMatcher::empty() const
+{
+    return classifier.empty() || classifier->empty();
 }
 
 Ptr<GenericDescriptorMatcher> FernDescriptorMatcher::clone( bool emptyTrainData ) const
@@ -1261,6 +1299,12 @@ void VectorDescriptorMatcher::write (FileStorage& fs) const
 {
     GenericDescriptorMatcher::write(fs);
     extractor->write (fs);
+}
+
+bool VectorDescriptorMatcher::empty() const
+{
+    return extractor.empty() || extractor->empty() ||
+           matcher.empty() || matcher->empty();
 }
 
 Ptr<GenericDescriptorMatcher> VectorDescriptorMatcher::clone( bool emptyTrainData ) const

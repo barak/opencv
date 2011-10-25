@@ -42,6 +42,15 @@
 #if defined(HAVE_QT)
 
 #include <window_QT.h>
+#include <math.h>
+#ifdef _WIN32
+#include <windows.h>
+#define usleep Sleep
+#endif
+
+#ifndef M_PI
+#define M_PI           3.14159265358979323846
+#endif
 
 //Static and global first
 static GuiReceiver *guiMainThread = NULL;
@@ -433,14 +442,11 @@ CvButtonbar* icvFindButtonbarByName( const char* button_name,QBoxLayout* layout)
 
 int icvInitSystem(int *c, char** v)
 {
-	static int wasInitialized = 0;
-
-	// check initialization status
-	if( !wasInitialized)
+	//"For any GUI application using Qt, there is precisely one QApplication object"
+	if(!QApplication::instance())
 	{
 		new QApplication(*c,v);
 
-		wasInitialized = 1;
 		qDebug()<<"init done";
 
 #if defined( HAVE_QT_OPENGL )
@@ -691,6 +697,7 @@ CV_IMPL void cvShowImage( const char* name, const CvArr* arr )
 
 GuiReceiver::GuiReceiver() : _bTimeOut(false), nb_windows(0)
 {
+	doesExternalQAppExist = (QApplication::instance() != 0);
 	icvInitSystem(&parameterSystemC, parameterSystemV);
 
 	timer = new QTimer;
@@ -705,7 +712,10 @@ void GuiReceiver::isLastWindow()
 	{
 		delete guiMainThread;//delete global_control_panel too
 		guiMainThread = NULL;
-		qApp->quit();
+		if(!doesExternalQAppExist)
+		{
+			qApp->quit();
+		}
 	}
 }
 
@@ -974,17 +984,29 @@ void GuiReceiver::destroyAllWindow()
 
 	if (multiThreads)
 	{
+		// WARNING: this could even close windows from an external parent app
+		//#TODO check externalQAppExists and in case it does, close windows carefully,
+		//      i.e. apply the className-check from below...
 		qApp->closeAllWindows();
-	}else{
-
-		foreach (QObject *obj, QApplication::topLevelWidgets())
+	}
+	else
+	{
+		bool isWidgetDeleted = true;
+		while(isWidgetDeleted)
 		{
-			if (obj->metaObject ()->className () == QString("CvWindow"))
+			isWidgetDeleted = false;
+			QWidgetList list = QApplication::topLevelWidgets();
+			for (int i = 0; i < list.count(); i++)
 			{
-				delete obj;
+				QObject *obj = list.at(i);
+				if (obj->metaObject ()->className () == QString("CvWindow"))
+				{
+					delete obj;
+					isWidgetDeleted = true;
+					break;
+				}
 			}
 		}
-
 	}
 
 }
@@ -1011,7 +1033,10 @@ void GuiReceiver::resizeWindow(QString name, int width, int height)
 	QPointer<CvWindow> w = icvFindWindowByName( name.toLatin1().data() );
 
 	if (w)
+	{
+		w->showNormal();
 		w->resize(width, height);
+	}
 }
 
 void GuiReceiver::enablePropertiesButtonEachWindow()
@@ -1314,7 +1339,10 @@ void CvButtonbar::addButton( QString name, CvButtonCallback call, void* userdata
 
 	if (button)
 	{
-		QObject::connect( button, SIGNAL( toggled(bool) ),button, SLOT( callCallBack(bool) ));
+		if (button_type == CV_PUSH_BUTTON)
+			QObject::connect( button, SIGNAL( clicked(bool) ),button, SLOT( callCallBack(bool) ));
+		else 
+			QObject::connect( button, SIGNAL( toggled(bool) ),button, SLOT( callCallBack(bool) ));
 		addWidget(button,Qt::AlignCenter);
 	}
 }
@@ -1844,18 +1872,14 @@ void CvWindow::keyPressEvent(QKeyEvent *event)
 {
 	//see http://doc.trolltech.com/4.6/qt.html#Key-enum
 	int key = event->key();
-	bool goodKey = false;
+	//bool goodKey = false;
+	bool goodKey = true;
 
-	if (key>=20 && key<=255 )
+	Qt::Key qtkey = static_cast<Qt::Key>(key);
+	char asciiCode = QTest::keyToAscii(qtkey);
+	if(asciiCode != 0)
 	{
-		key = (int)event->text().toLocal8Bit().at(0);
-		goodKey = true;
-	}
-
-	if (key == Qt::Key_Escape)
-	{
-		key = 27;
-		goodKey = true;
+		key = static_cast<int>(asciiCode);
 	}
 
 	//control plus (Z, +, -, up, down, left, right) are used for zoom/panning functions
@@ -2502,7 +2526,7 @@ void ViewPort::scaleView(qreal factor,QPointF center)
 
 void ViewPort::wheelEvent(QWheelEvent *event)
 {
-	scaleView( -event->delta() / 240.0,event->pos());
+	scaleView( event->delta() / 240.0,event->pos());
 	viewport()->update();
 }
 
@@ -2764,11 +2788,11 @@ void ViewPort::drawStatusBar()
 	if (nbChannelOriginImage!=CV_8UC1 && nbChannelOriginImage!=CV_8UC3)
 		return;
 
-	//if (mouseCoordinate.x()>=0 &&
-	//	mouseCoordinate.y()>=0 &&
-	//	mouseCoordinate.x()<image2Draw_qt.width() &&
-	//	mouseCoordinate.y()<image2Draw_qt.height())
-	if (mouseCoordinate.x()>=0 && mouseCoordinate.y()>=0)
+	if (mouseCoordinate.x()>=0 &&
+		mouseCoordinate.y()>=0 &&
+		mouseCoordinate.x()<image2Draw_qt.width() &&
+		mouseCoordinate.y()<image2Draw_qt.height())
+//	if (mouseCoordinate.x()>=0 && mouseCoordinate.y()>=0)
 	{
 		QRgb rgbValue = image2Draw_qt.pixel(mouseCoordinate);
 

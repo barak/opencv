@@ -43,6 +43,10 @@
 namespace cv
 {
 
+template<> void Ptr<CvHistogram>::delete_obj()
+{ cvReleaseHist(&obj); }
+
+    
 ////////////////// Helper functions //////////////////////
 
 static const size_t OUT_OF_RANGE = (size_t)1 << (sizeof(size_t)*8 - 2);
@@ -586,18 +590,22 @@ calcHist_8u( vector<uchar*>& _ptrs, const vector<int>& _deltas,
     }
 }
 
+}
 
-void calcHist( const Mat* images, int nimages, const int* channels,
-               const Mat& mask, Mat& hist, int dims, const int* histSize,
-               const float** ranges, bool uniform, bool accumulate )
+void cv::calcHist( const Mat* images, int nimages, const int* channels,
+                   InputArray _mask, OutputArray _hist, int dims, const int* histSize,
+                   const float** ranges, bool uniform, bool accumulate )
 {
+    Mat mask = _mask.getMat();
+    
     CV_Assert(dims > 0 && histSize);
-    hist.create(dims, histSize, CV_32F);    
-        
-    Mat ihist = hist;
+    
+    uchar* histdata = _hist.getMat().data;
+    _hist.create(dims, histSize, CV_32F);
+    Mat hist = _hist.getMat(), ihist = hist;
     ihist.flags = (ihist.flags & ~CV_MAT_TYPE_MASK)|CV_32S;
     
-    if( !accumulate )
+    if( !accumulate || histdata != hist.data )
         hist = Scalar(0.);
     else
         hist.convertTo(ihist, CV_32S);
@@ -613,15 +621,22 @@ void calcHist( const Mat* images, int nimages, const int* channels,
     const double* _uniranges = uniform ? &uniranges[0] : 0;
     
     int depth = images[0].depth();
+    
     if( depth == CV_8U )
         calcHist_8u(ptrs, deltas, imsize, ihist, dims, ranges, _uniranges, uniform );
+    else if( depth == CV_16U )
+        calcHist_<ushort>(ptrs, deltas, imsize, ihist, dims, ranges, _uniranges, uniform );
     else if( depth == CV_32F )
         calcHist_<float>(ptrs, deltas, imsize, ihist, dims, ranges, _uniranges, uniform );
+    else
+        CV_Error(CV_StsUnsupportedFormat, "");
     
     ihist.convertTo(hist, CV_32F);
 }
 
-    
+namespace cv
+{
+
 template<typename T> static void
 calcSparseHist_( vector<uchar*>& _ptrs, const vector<int>& _deltas,
                  Size imsize, SparseMat& hist, int dims, const float** _ranges,
@@ -780,8 +795,12 @@ static void calcHist( const Mat* images, int nimages, const int* channels,
     int depth = images[0].depth();
     if( depth == CV_8U )
         calcSparseHist_8u(ptrs, deltas, imsize, hist, dims, ranges, _uniranges, uniform );
+    else if( depth == CV_16U )
+        calcSparseHist_<ushort>(ptrs, deltas, imsize, hist, dims, ranges, _uniranges, uniform );
     else if( depth == CV_32F )
         calcSparseHist_<float>(ptrs, deltas, imsize, hist, dims, ranges, _uniranges, uniform );
+    else
+        CV_Error(CV_StsUnsupportedFormat, "");
     
     if( !keepInt )
     {
@@ -794,11 +813,13 @@ static void calcHist( const Mat* images, int nimages, const int* channels,
     }
 }
     
+}
     
-void calcHist( const Mat* images, int nimages, const int* channels,
-               const Mat& mask, SparseMat& hist, int dims, const int* histSize,
+void cv::calcHist( const Mat* images, int nimages, const int* channels,
+               InputArray _mask, SparseMat& hist, int dims, const int* histSize,
                const float** ranges, bool uniform, bool accumulate )
 {
+    Mat mask = _mask.getMat();
     calcHist( images, nimages, channels, mask, hist, dims, histSize,
               ranges, uniform, accumulate, false );
 }
@@ -806,6 +827,8 @@ void calcHist( const Mat* images, int nimages, const int* channels,
     
 /////////////////////////////////////// B A C K   P R O J E C T ////////////////////////////////////    
     
+namespace cv
+{
 
 template<typename T, typename BT> static void
 calcBackProj_( vector<uchar*>& _ptrs, const vector<int>& _deltas,
@@ -1093,12 +1116,14 @@ calcBackProj_8u( vector<uchar*>& _ptrs, const vector<int>& _deltas,
         }
     }
 }    
+
+}
     
-    
-void calcBackProject( const Mat* images, int nimages, const int* channels,
-                      const Mat& hist, Mat& backProject,
-                      const float** ranges, double scale, bool uniform )
+void cv::calcBackProject( const Mat* images, int nimages, const int* channels,
+                          InputArray _hist, OutputArray _backProject,
+                          const float** ranges, double scale, bool uniform )
 {
+    Mat hist = _hist.getMat();
     vector<uchar*> ptrs;
     vector<int> deltas;
     vector<double> uniranges;
@@ -1106,7 +1131,8 @@ void calcBackProject( const Mat* images, int nimages, const int* channels,
     int dims = hist.dims == 2 && hist.size[1] == 1 ? 1 : hist.dims;
     
     CV_Assert( dims > 0 && hist.data );
-    backProject.create( images[0].size(), images[0].depth() );
+    _backProject.create( images[0].size(), images[0].depth() );
+    Mat backProject = _backProject.getMat();
     histPrepareImages( images, nimages, channels, backProject, dims, hist.size, ranges,
                        uniform, ptrs, deltas, imsize, uniranges );
     const double* _uniranges = uniform ? &uniranges[0] : 0;
@@ -1114,11 +1140,18 @@ void calcBackProject( const Mat* images, int nimages, const int* channels,
     int depth = images[0].depth();
     if( depth == CV_8U )
         calcBackProj_8u(ptrs, deltas, imsize, hist, dims, ranges, _uniranges, (float)scale, uniform);
+    else if( depth == CV_16U )
+        calcBackProj_<ushort, ushort>(ptrs, deltas, imsize, hist, dims, ranges, _uniranges, (float)scale, uniform );
     else if( depth == CV_32F )
         calcBackProj_<float, float>(ptrs, deltas, imsize, hist, dims, ranges, _uniranges, (float)scale, uniform );
+    else
+        CV_Error(CV_StsUnsupportedFormat, "");
 }
 
-    
+
+namespace cv
+{
+
 template<typename T, typename BT> static void
 calcSparseBackProj_( vector<uchar*>& _ptrs, const vector<int>& _deltas,
                      Size imsize, const SparseMat& hist, int dims, const float** _ranges,
@@ -1246,11 +1279,12 @@ calcSparseBackProj_8u( vector<uchar*>& _ptrs, const vector<int>& _deltas,
             ptrs[i] += deltas[i*2 + 1];
     }
 }    
-    
 
-void calcBackProject( const Mat* images, int nimages, const int* channels,
-                      const SparseMat& hist, Mat& backProject,
-                      const float** ranges, double scale, bool uniform )
+}
+
+void cv::calcBackProject( const Mat* images, int nimages, const int* channels,
+                          const SparseMat& hist, OutputArray _backProject,
+                          const float** ranges, double scale, bool uniform )
 {
     vector<uchar*> ptrs;
     vector<int> deltas;
@@ -1259,7 +1293,8 @@ void calcBackProject( const Mat* images, int nimages, const int* channels,
     int dims = hist.dims();
     
     CV_Assert( dims > 0 );
-    backProject.create( images[0].size(), images[0].depth() );
+    _backProject.create( images[0].size(), images[0].depth() );
+    Mat backProject = _backProject.getMat();
     histPrepareImages( images, nimages, channels, backProject,
                        dims, hist.hdr->size, ranges,
                        uniform, ptrs, deltas, imsize, uniranges );
@@ -1269,21 +1304,27 @@ void calcBackProject( const Mat* images, int nimages, const int* channels,
     if( depth == CV_8U )
         calcSparseBackProj_8u(ptrs, deltas, imsize, hist, dims, ranges,
                               _uniranges, (float)scale, uniform);
+    else if( depth == CV_16U )
+        calcSparseBackProj_<ushort, ushort>(ptrs, deltas, imsize, hist, dims, ranges,
+                                          _uniranges, (float)scale, uniform );
     else if( depth == CV_32F )
         calcSparseBackProj_<float, float>(ptrs, deltas, imsize, hist, dims, ranges,
                                           _uniranges, (float)scale, uniform );
+    else
+        CV_Error(CV_StsUnsupportedFormat, "");
 }
 
     
 ////////////////// C O M P A R E   H I S T O G R A M S ////////////////////////    
 
-double compareHist( const Mat& H1, const Mat& H2, int method )
+double cv::compareHist( InputArray _H1, InputArray _H2, int method )
 {
+    Mat H1 = _H1.getMat(), H2 = _H2.getMat();
     const Mat* arrays[] = {&H1, &H2, 0};
     Mat planes[2];
     NAryMatIterator it(arrays, planes);
     double result = 0;
-    int i, len;
+    int j, len = (int)it.size;
     
     CV_Assert( H1.type() == H2.type() && H1.type() == CV_32F );
     
@@ -1291,7 +1332,7 @@ double compareHist( const Mat& H1, const Mat& H2, int method )
     
     CV_Assert( it.planes[0].isContinuous() && it.planes[1].isContinuous() );
     
-    for( i = 0; i < it.nplanes; i++, ++it )
+    for( size_t i = 0; i < it.nplanes; i++, ++it )
     {
         const float* h1 = (const float*)it.planes[0].data;
         const float* h2 = (const float*)it.planes[1].data;
@@ -1299,20 +1340,20 @@ double compareHist( const Mat& H1, const Mat& H2, int method )
         
         if( method == CV_COMP_CHISQR )
         {
-            for( i = 0; i < len; i++ )
+            for( j = 0; j < len; j++ )
             {
-                double a = h1[i] - h2[i];
-                double b = h1[i] + h2[i];
+                double a = h1[j] - h2[j];
+                double b = h1[j] + h2[j];
                 if( fabs(b) > FLT_EPSILON )
                     result += a*a/b;
             }
         }
         else if( method == CV_COMP_CORREL )
         {
-            for( i = 0; i < len; i++ )
+            for( j = 0; j < len; j++ )
             {
-                double a = h1[i];
-                double b = h2[i];
+                double a = h1[j];
+                double b = h2[j];
                 
                 s12 += a*b;
                 s1 += a;
@@ -1323,15 +1364,15 @@ double compareHist( const Mat& H1, const Mat& H2, int method )
         }
         else if( method == CV_COMP_INTERSECT )
         {
-            for( i = 0; i < len; i++ )
-                result += std::min(h1[i], h2[i]);
+            for( j = 0; j < len; j++ )
+                result += std::min(h1[j], h2[j]);
         }
         else if( method == CV_COMP_BHATTACHARYYA )
         {
-            for( i = 0; i < len; i++ )
+            for( j = 0; j < len; j++ )
             {
-                double a = h1[i];
-                double b = h2[i];
+                double a = h1[j];
+                double b = h2[j];
                 result += std::sqrt(a*b);
                 s1 += a;
                 s2 += b;
@@ -1343,9 +1384,7 @@ double compareHist( const Mat& H1, const Mat& H2, int method )
     
     if( method == CV_COMP_CORREL )
     {
-        size_t total = 1;
-        for( i = 0; i < H1.dims; i++ )
-            total *= H1.size[i];
+        size_t total = H1.total();
         double scale = 1./total;
         double num = s12 - s1*s2*scale;
         double denom2 = (s11 - s1*s1*scale)*(s22 - s2*s2*scale);
@@ -1362,7 +1401,7 @@ double compareHist( const Mat& H1, const Mat& H2, int method )
 }
 
     
-double compareHist( const SparseMat& H1, const SparseMat& H2, int method )
+double cv::compareHist( const SparseMat& H1, const SparseMat& H2, int method )
 {
     double result = 0;
     int i, dims = H1.dims();
@@ -1470,12 +1509,6 @@ double compareHist( const SparseMat& H1, const SparseMat& H2, int method )
         CV_Error( CV_StsBadArg, "Unknown comparison method" );
     
     return result;
-}
-
-    
-template<> void Ptr<CvHistogram>::delete_obj()
-{ cvReleaseHist(&obj); }
-    
 }
 
     
@@ -2377,11 +2410,13 @@ CV_IMPL void cvEqualizeHist( const CvArr* srcarr, CvArr* dstarr )
 }
 
 
-void cv::equalizeHist( const Mat& src, Mat& dst )
+void cv::equalizeHist( InputArray _src, OutputArray _dst )
 {
-    dst.create( src.size(), src.type() );
-    CvMat _src = src, _dst = dst;
-    cvEqualizeHist( &_src, &_dst );
+    Mat src = _src.getMat();
+    _dst.create( src.size(), src.type() );
+    Mat dst = _dst.getMat();
+    CvMat _csrc = src, _cdst = dst;
+    cvEqualizeHist( &_csrc, &_cdst );
 }
 
 /* Implementation of RTTI and Generic Functions for CvHistogram */

@@ -19,6 +19,9 @@
 /* V4L2 capturing support */
 #cmakedefine HAVE_CAMV4L2
 
+/* V4L/V4L2 capturing support via libv4l */
+#cmakedefine HAVE_LIBV4L
+
 /* Carbon windowing environment */
 #cmakedefine HAVE_CARBON
 
@@ -42,9 +45,6 @@
 
 /* GStreamer multimedia framework */
 #cmakedefine  HAVE_GSTREAMER
-
-/* GStreamer with gstappsink & gstappsrc */
-#cmakedefine  HAVE_GSTREAMER_APP
 
 /* GTK+ 2.0 Thread support */
 #cmakedefine  HAVE_GTHREAD
@@ -112,6 +112,9 @@
 /* Xine video library */
 #cmakedefine  HAVE_XINE
 
+/* OpenNI library */
+#cmakedefine  HAVE_OPENNI
+
 /* LZ77 compression/decompression library (used for PNG) */
 #cmakedefine  HAVE_ZLIB
 
@@ -119,7 +122,7 @@
 #cmakedefine  HAVE_IPP
 
 /* OpenCV compiled as static or dynamic libs */
-#cmakedefine  OPENCV_BUILD_SHARED_LIB
+#cmakedefine  BUILD_SHARED_LIBS
 
 /* Name of package */
 #define  PACKAGE "${PACKAGE}"
@@ -157,11 +160,26 @@
 /* Intel Threading Building Blocks */
 #cmakedefine  HAVE_TBB
 
-/* Eigen2 Matrix & Linear Algebra Library */
-#cmakedefine  HAVE_EIGEN2
+/* Threading Framework --- temporary decision for ARM instead of Intel TBB  */
+#cmakedefine  HAVE_THREADING_FRAMEWORK
+
+/* Eigen Matrix & Linear Algebra Library */
+#cmakedefine  HAVE_EIGEN
 
 /* NVidia Cuda Runtime API*/
 #cmakedefine HAVE_CUDA
+
+/* Compile for 'real' NVIDIA GPU architectures */
+#define CUDA_ARCH_BIN "${OPENCV_CUDA_ARCH_BIN}"
+
+/* Compile for 'virtual' NVIDIA PTX architectures */
+#define CUDA_ARCH_PTX "${OPENCV_CUDA_ARCH_PTX}"
+
+/* NVIDIA GPU features are used */
+#define CUDA_ARCH_FEATURES "${OPENCV_CUDA_ARCH_FEATURES}"
+
+/* Create PTX or BIN for 1.0 compute capability */
+#cmakedefine CUDA_ARCH_BIN_OR_PTX_10
 
 /* VideoInput library */
 #cmakedefine HAVE_VIDEOINPUT

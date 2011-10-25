@@ -49,8 +49,28 @@
 *                            Common macros and type definitions                          *
 \****************************************************************************************/
 
-#define cv_isprint(c)     ((signed char)(c) >= (signed char)' ')
-#define cv_isprint_or_tab(c)  ((signed char)(c) >= (signed char)' ' || (c) == '\t')
+#define cv_isprint(c)     ((uchar)(c) >= (uchar)' ')
+#define cv_isprint_or_tab(c)  ((uchar)(c) >= (uchar)' ' || (c) == '\t')
+
+static inline bool cv_isalnum(char c)
+{
+    return ('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
+}
+
+static inline bool cv_isalpha(char c)
+{
+    return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
+}
+
+static inline bool cv_isdigit(char c)
+{
+    return '0' <= c && c <= '9';
+}
+
+static inline bool cv_isspace(char c)
+{
+    return (9 <= c && c <= 13) || c == ' ';
+}
 
 static char* icv_itoa( int _val, char* buffer, int /*radix*/ )
 {
@@ -94,14 +114,14 @@ cv::string cv::FileStorage::getDefaultObjectName(const string& _filename)
     char* name = name_buf;
 
     // name must start with letter or '_'
-    if( !isalpha(*ptr) && *ptr!= '_' ){
+    if( !cv_isalpha(*ptr) && *ptr!= '_' ){
         *name++ = '_';
     }
 
     while( ptr < ptr2 )
     {
         char c = *ptr++;
-        if( !isalnum(c) && c != '-' && c != '_' )
+        if( !cv_isalnum(c) && c != '-' && c != '_' )
             c = '_';
         *name++ = c;
     }
@@ -760,7 +780,7 @@ icvDoubleToString( char* buf, double value )
             sprintf( buf, fmt, value );
             if( *ptr == '+' || *ptr == '-' )
                 ptr++;
-            for( ; isdigit(*ptr); ptr++ )
+            for( ; cv_isdigit(*ptr); ptr++ )
                 ;
             if( *ptr == ',' )
                 *ptr = '.';
@@ -799,7 +819,7 @@ icvFloatToString( char* buf, float value )
             sprintf( buf, fmt, value );
             if( *ptr == '+' || *ptr == '-' )
                 ptr++;
-            for( ; isdigit(*ptr); ptr++ )
+            for( ; cv_isdigit(*ptr); ptr++ )
                 ;
             if( *ptr == ',' )
                 *ptr = '.';
@@ -858,7 +878,7 @@ static double icv_strtod( CvFileStorage* fs, char* ptr, char** endptr )
             *endptr = dot_pos;
     }
 
-    if( *endptr == ptr || isalpha(**endptr) )
+    if( *endptr == ptr || cv_isalpha(**endptr) )
         icvProcessSpecialDouble( fs, ptr, &fval, endptr );
 
     return fval;
@@ -1020,20 +1040,20 @@ icvYMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
         }
     }
 
-    if( isdigit(c) ||
-        ((c == '-' || c == '+') && (isdigit(d) || d == '.')) ||
-        (c == '.' && isalnum(d))) // a number
+    if( cv_isdigit(c) ||
+        ((c == '-' || c == '+') && (cv_isdigit(d) || d == '.')) ||
+        (c == '.' && cv_isalnum(d))) // a number
     {
         double fval;
         int ival;
         endptr = ptr + (c == '-' || c == '+');
-        while( isdigit(*endptr) )
+        while( cv_isdigit(*endptr) )
             endptr++;
         if( *endptr == '.' || *endptr == 'e' )
         {
 force_real:
             fval = icv_strtod( fs, ptr, &endptr );
-            /*if( endptr == ptr || isalpha(*endptr) )
+            /*if( endptr == ptr || cv_isalpha(*endptr) )
                 icvProcessSpecialDouble( fs, endptr, &fval, &endptr ));*/
 
             node->tag = CV_NODE_REAL;
@@ -1059,7 +1079,7 @@ force_int:
             for( len = 0; len < CV_FS_MAX_LEN; )
             {
                 c = *++ptr;
-                if( isalnum(c) || (c != '\'' && cv_isprint(c)))
+                if( cv_isalnum(c) || (c != '\'' && cv_isprint(c)))
                     buf[len++] = c;
                 else if( c == '\'' )
                 {
@@ -1075,7 +1095,7 @@ force_int:
             for( len = 0; len < CV_FS_MAX_LEN; )
             {
                 c = *++ptr;
-                if( isalnum(c) || (c != '\\' && c != '\"' && cv_isprint(c)))
+                if( cv_isalnum(c) || (c != '\\' && c != '\"' && cv_isprint(c)))
                     buf[len++] = c;
                 else if( c == '\"' )
                 {
@@ -1095,7 +1115,7 @@ force_int:
                         buf[len++] = '\r';
                     else if( d == 't' )
                         buf[len++] = '\t';
-                    else if( d == 'x' || (isdigit(d) && d < '8') )
+                    else if( d == 'x' || (cv_isdigit(d) && d < '8') )
                     {
                         int val, is_hex = d == 'x';
                         c = ptr[3];
@@ -1293,12 +1313,14 @@ icvYMLParse( CvFileStorage* fs )
                 else if( is_first )
                     break;
             }
-            else if( isalnum(*ptr) || *ptr=='_')
+            else if( cv_isalnum(*ptr) || *ptr=='_')
             {
                 if( !is_first )
                     CV_PARSE_ERROR( "The YAML streams must start with '---', except the first one" );
                 break;
             }
+            else if( fs->dummy_eof )
+                break;
             else
                 CV_PARSE_ERROR( "Invalid or unsupported syntax" );
         }
@@ -1397,17 +1419,17 @@ icvYMLWrite( CvFileStorage* fs, const char* key, const char* data )
 
     if( key )
     {
-        if( !isalpha(key[0]) && key[0] != '_' )
+        if( !cv_isalpha(key[0]) && key[0] != '_' )
             CV_Error( CV_StsBadArg, "Key must start with a letter or _" );
 
         ptr = icvFSResizeWriteBuffer( fs, ptr, keylen );
 
         for( i = 0; i < keylen; i++ )
         {
-            int c = key[i];
+            char c = key[i];
 
-            ptr[i] = (char)c;
-            if( !isalnum(c) && c != '-' && c != '_' && c != ' ' )
+            ptr[i] = c;
+            if( !cv_isalnum(c) && c != '-' && c != '_' && c != ' ' )
                 CV_Error( CV_StsBadArg, "Key names may only contain alphanumeric characters [a-zA-Z0-9], '-', '_' and ' '" );
         }
 
@@ -1565,11 +1587,11 @@ icvYMLWriteString( CvFileStorage* fs, const char* key,
         {
             char c = str[i];
 
-            if( !need_quote && !isalnum(c) && c != '_' && c != ' ' && c != '-' &&
+            if( !need_quote && !cv_isalnum(c) && c != '_' && c != ' ' && c != '-' &&
                 c != '(' && c != ')' && c != '/' && c != '+' && c != ';' )
                 need_quote = 1;
 
-            if( !isalnum(c) && (!cv_isprint(c) || c == '\\' || c == '\'' || c == '\"') )
+            if( !cv_isalnum(c) && (!cv_isprint(c) || c == '\\' || c == '\'' || c == '\"') )
             {
                 *data++ = '\\';
                 if( cv_isprint(c) )
@@ -1589,7 +1611,7 @@ icvYMLWriteString( CvFileStorage* fs, const char* key,
             else
                 *data++ = c;
         }
-        if( !need_quote && (isdigit(str[0]) ||
+        if( !need_quote && (cv_isdigit(str[0]) ||
             str[0] == '+' || str[0] == '-' || str[0] == '.' ))
             need_quote = 1;
 
@@ -1754,7 +1776,7 @@ icvXMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
         char c = *ptr, d;
         char* endptr;
 
-        if( isspace(c) || c == '\0' || (c == '<' && ptr[1] == '!' && ptr[2] == '-') )
+        if( cv_isspace(c) || c == '\0' || (c == '<' && ptr[1] == '!' && ptr[2] == '-') )
         {
             ptr = icvXMLSkipSpaces( fs, ptr, 0 );
             have_space = 1;
@@ -1842,18 +1864,18 @@ icvXMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
             }
 
             if( value_type != CV_NODE_STRING &&
-                (isdigit(c) || ((c == '-' || c == '+') &&
-                (isdigit(d) || d == '.')) || (c == '.' && isalnum(d))) ) // a number
+                (cv_isdigit(c) || ((c == '-' || c == '+') &&
+                (cv_isdigit(d) || d == '.')) || (c == '.' && cv_isalnum(d))) ) // a number
             {
                 double fval;
                 int ival;
                 endptr = ptr + (c == '-' || c == '+');
-                while( isdigit(*endptr) )
+                while( cv_isdigit(*endptr) )
                     endptr++;
                 if( *endptr == '.' || *endptr == 'e' )
                 {
                     fval = icv_strtod( fs, ptr, &endptr );
-                    /*if( endptr == ptr || isalpha(*endptr) )
+                    /*if( endptr == ptr || cv_isalpha(*endptr) )
                         icvProcessSpecialDouble( fs, ptr, &fval, &endptr ));*/
                     elem->tag = CV_NODE_REAL;
                     elem->data.f = fval;
@@ -1884,7 +1906,7 @@ icvXMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
                 for( ;; )
                 {
                     c = *++ptr;
-                    if( !isalnum(c) )
+                    if( !cv_isalnum(c) )
                     {
                         if( c == '\"' )
                         {
@@ -1893,7 +1915,7 @@ icvXMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
                             ++ptr;
                             break;
                         }
-                        else if( !cv_isprint(c) || c == '<' || (!is_quoted && isspace(c)))
+                        else if( !cv_isprint(c) || c == '<' || (!is_quoted && cv_isspace(c)))
                         {
                             if( is_quoted )
                                 CV_PARSE_ERROR( "Closing \" is expected" );
@@ -1905,11 +1927,16 @@ icvXMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
                         }
                         else if( c == '&' )
                         {
-                            if( *ptr == '#' )
+                            if( *++ptr == '#' )
                             {
-                                int val;
+                                int val, base = 10;
                                 ptr++;
-                                val = (int)strtol( ptr, &endptr, 0 );
+                                if( *ptr == 'x' )
+                                {
+                                    base = 16;
+                                    ptr++;
+                                }
+                                val = (int)strtol( ptr, &endptr, base );
                                 if( (unsigned)val > (unsigned)255 ||
                                     !endptr || *endptr != ';' )
                                     CV_PARSE_ERROR( "Invalid numeric value in the string" );
@@ -1917,9 +1944,9 @@ icvXMLParseValue( CvFileStorage* fs, char* ptr, CvFileNode* node,
                             }
                             else
                             {
-                                endptr = ptr++;
+                                endptr = ptr;
                                 do c = *++endptr;
-                                while( isalnum(c) );
+                                while( cv_isalnum(c) );
                                 if( c != ';' )
                                     CV_PARSE_ERROR( "Invalid character in the symbol entity name" );
                                 len = (int)(endptr - ptr);
@@ -1996,7 +2023,7 @@ icvXMLParseTag( CvFileStorage* fs, char* ptr, CvStringHashNode** _tag,
         CV_PARSE_ERROR( "Tag should start with \'<\'" );
 
     ptr++;
-    if( isalnum(*ptr) || *ptr == '_' )
+    if( cv_isalnum(*ptr) || *ptr == '_' )
         tag_type = CV_XML_OPENING_TAG;
     else if( *ptr == '/' )
     {
@@ -2021,12 +2048,12 @@ icvXMLParseTag( CvFileStorage* fs, char* ptr, CvStringHashNode** _tag,
     {
         CvStringHashNode* attrname;
 
-        if( !isalpha(*ptr) && *ptr != '_' )
+        if( !cv_isalpha(*ptr) && *ptr != '_' )
             CV_PARSE_ERROR( "Name should start with a letter or underscore" );
 
         endptr = ptr - 1;
         do c = *++endptr;
-        while( isalnum(c) || c == '_' || c == '-' );
+        while( cv_isalnum(c) || c == '_' || c == '-' );
 
         attrname = cvGetHashedKey( fs, ptr, (int)(endptr - ptr), 1 );
         ptr = endptr;
@@ -2080,7 +2107,7 @@ icvXMLParseTag( CvFileStorage* fs, char* ptr, CvStringHashNode** _tag,
         }
 
         c = *ptr;
-        have_space = isspace(c) || c == '\0';
+        have_space = cv_isspace(c) || c == '\0';
 
         if( c != '>' )
         {
@@ -2142,11 +2169,15 @@ icvXMLParse( CvFileStorage* fs )
         if( version && strncmp( version, "1.", 2 ) != 0 )
             CV_Error( CV_StsParseError, "Unsupported version of XML" );
     }*/
-    {
+    // we support any 8-bit encoding, so we do not need to check the actual encoding.
+    // we do not support utf-16, but in the case of utf-16 we will not get here anyway.
+    /*{
         const char* encoding = cvAttrValue( list, "encoding" );
-        if( encoding && strcmp( encoding, "ASCII" ) != 0 )
+        if( encoding && strcmp( encoding, "ASCII" ) != 0 &&
+            strcmp( encoding, "UTF-8" ) != 0 &&
+            strcmp( encoding, "utf-8" ) != 0 )
             CV_PARSE_ERROR( "Unsupported encoding" );
-    }
+    }*/
 
     while( *ptr != '\0' )
     {
@@ -2221,14 +2252,14 @@ icvXMLWriteTag( CvFileStorage* fs, const char* key, int tag_type, CvAttrList lis
         *ptr++ = '/';
     }
 
-    if( !isalpha(key[0]) && key[0] != '_' )
+    if( !cv_isalpha(key[0]) && key[0] != '_' )
         CV_Error( CV_StsBadArg, "Key should start with a letter or _" );
 
     ptr = icvFSResizeWriteBuffer( fs, ptr, len );
     for( i = 0; i < len; i++ )
     {
         char c = key[i];
-        if( !isalnum(c) && c != '_' && c != '-' )
+        if( !cv_isalnum(c) && c != '_' && c != '-' )
             CV_Error( CV_StsBadArg, "Key name may only contain alphanumeric characters [a-zA-Z0-9], '-' and '_'" );
         ptr[i] = c;
     }
@@ -2427,8 +2458,12 @@ icvXMLWriteString( CvFileStorage* fs, const char* key, const char* str, int quot
         {
             char c = str[i];
 
-            if( !isalnum(c) && (!cv_isprint(c) || c == '<' || c == '>' ||
-                c == '&' || c == '\'' || c == '\"') )
+            if( (uchar)c >= 128 || c == ' ' )
+            {
+                *data++ = c;
+                need_quote = 1;
+            }
+            else if( !cv_isprint(c) || c == '<' || c == '>' || c == '&' || c == '\'' || c == '\"' )
             {
                 *data++ = '&';
                 if( c == '<' )
@@ -2458,19 +2493,16 @@ icvXMLWriteString( CvFileStorage* fs, const char* key, const char* str, int quot
                 }
                 else
                 {
-                    sprintf( data, "#x%02x", c );
+                    sprintf( data, "#x%02x", (uchar)c );
                     data += 4;
                 }
                 *data++ = ';';
+                need_quote = 1;
             }
             else
-            {
-                if( c == ' ' )
-                    need_quote = 1;
                 *data++ = c;
-            }
         }
-        if( !need_quote && (isdigit(str[0]) ||
+        if( !need_quote && (cv_isdigit(str[0]) ||
             str[0] == '+' || str[0] == '-' || str[0] == '.' ))
             need_quote = 1;
 
@@ -2559,7 +2591,7 @@ icvXMLWriteComment( CvFileStorage* fs, const char* comment, int eol_comment )
 \****************************************************************************************/
 
 CV_IMPL CvFileStorage*
-cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags )
+cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags, const char* encoding )
 {
     CvFileStorage* fs = 0;
     char* xml_buf = 0;
@@ -2587,7 +2619,7 @@ cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags )
     char compression = '\0';
 
     if( dot_pos && dot_pos[1] == 'g' && dot_pos[2] == 'z' &&
-        (dot_pos[3] == '\0' || (isdigit(dot_pos[3]) && dot_pos[4] == '\0')) )
+        (dot_pos[3] == '\0' || (cv_isdigit(dot_pos[3]) && dot_pos[4] == '\0')) )
     {
         if( append )
             CV_Error(CV_StsNotImplemented, "Appending data to compressed file is not implemented" );
@@ -2645,7 +2677,20 @@ cvOpenFileStorage( const char* filename, CvMemStorage* dststorage, int flags )
             fs->strstorage = cvCreateChildMemStorage( fs->memstorage );
             if( !append || file_size == 0 )
             {
-                icvPuts( fs, "<?xml version=\"1.0\"?>\n" );
+                if( encoding )
+                {
+                    if( strcmp( encoding, "UTF-16" ) == 0 ||
+                        strcmp( encoding, "utf-16" ) == 0 ||
+                        strcmp( encoding, "Utf-16" ) == 0 )
+                        CV_Error( CV_StsBadArg, "UTF-16 XML encoding is not supported! Use 8-bit encoding\n");
+                
+                    CV_Assert( strlen(encoding) < 1000 );
+                    char buf[1100];
+                    sprintf(buf, "<?xml version=\"1.0\" encoding=\"%s\"?>\n", encoding);
+                    icvPuts( fs, buf );
+                }
+                else
+                    icvPuts( fs, "<?xml version=\"1.0\"?>\n" );
                 icvPuts( fs, "<opencv_storage>\n" );
             }
             else
@@ -2848,10 +2893,10 @@ icvDecodeFormat( const char* dt, int* fmt_pairs, int max_len )
     {
         char c = dt[k];
 
-        if( isdigit(c) )
+        if( cv_isdigit(c) )
         {
             int count = c - '0';
-            if( isdigit(dt[k+1]) )
+            if( cv_isdigit(dt[k+1]) )
             {
                 char* endptr = 0;
                 count = (int)strtol( dt+k, &endptr, 10 );
@@ -3619,8 +3664,7 @@ icvReadSparseMat( CvFileStorage* fs, CvFileNode* node )
     CvFileNode* sizes_node;
     CvSeqReader reader;
     CvSeq* elements;
-    int* idx;
-    int* sizes = 0, dims, elem_type, cn;
+    int sizes[CV_MAX_DIM_HEAP], dims, elem_type, cn;
     int i;
 
     sizes_node = cvGetFileNodeByName( fs, node, "sizes" );
@@ -3635,7 +3679,6 @@ icvReadSparseMat( CvFileStorage* fs, CvFileNode* node )
     if( dims <= 0 || dims > CV_MAX_DIM_HEAP )
         CV_Error( CV_StsParseError, "Could not determine sparse matrix dimensionality" );
 
-    sizes = (int*)cvStackAlloc( dims*sizeof(sizes[0]));
     cvReadRawData( fs, sizes_node, sizes, "i" );
     elem_type = icvDecodeSimpleFormat( dt );
 
@@ -3646,7 +3689,7 @@ icvReadSparseMat( CvFileStorage* fs, CvFileNode* node )
     mat = cvCreateSparseMat( dims, sizes, elem_type );
 
     cn = CV_MAT_CN(elem_type);
-    idx = (int*)alloca( dims*sizeof(idx[0]) );
+    int idx[CV_MAX_DIM_HEAP];
     elements = data->data.seq;
     cvStartReadRawData( fs, data, &reader );
 
@@ -4059,7 +4102,7 @@ icvReadSeq( CvFileStorage* fs, CvFileNode* node )
 
     flags = CV_SEQ_MAGIC_VAL;
     
-    if( isdigit(flags_str[0]) )
+    if( cv_isdigit(flags_str[0]) )
     {
         const int OLD_SEQ_ELTYPE_BITS = 9;
         const int OLD_SEQ_ELTYPE_MASK = (1 << OLD_SEQ_ELTYPE_BITS) - 1;
@@ -4489,7 +4532,7 @@ icvReadGraph( CvFileStorage* fs, CvFileNode* node )
             edge_items_per_elem += fmt_pairs[i];
 
         if( edge_dt[2] == 'f' || (edge_dt[2] == '1' && edge_dt[3] == 'f') )
-            dst_edge_dt = edge_dt + 3 + isdigit(edge_dt[2]);
+            dst_edge_dt = edge_dt + 3 + cv_isdigit(edge_dt[2]);
         else
         {
             int val = (int)strtol( edge_dt + 2, &endptr, 10 );
@@ -4665,7 +4708,7 @@ cvRegisterType( const CvTypeInfo* _info )
         "(is_instance, release, read or write) are NULL");
 
     c = _info->type_name[0];
-    if( !isalpha(c) && c != '_' )
+    if( !cv_isalpha(c) && c != '_' )
         CV_Error( CV_StsBadArg, "Type name should start with a letter or _" );
 
     len = (int)strlen(_info->type_name);
@@ -4673,7 +4716,7 @@ cvRegisterType( const CvTypeInfo* _info )
     for( i = 0; i < len; i++ )
     {
         c = _info->type_name[i];
-        if( !isalnum(c) && c != '-' && c != '_' )
+        if( !cv_isalnum(c) && c != '-' && c != '_' )
             CV_Error( CV_StsBadArg,
             "Type name should contain only letters, digits, - and _" );
     }
@@ -4747,9 +4790,12 @@ cvTypeOf( const void* struct_ptr )
 {
     CvTypeInfo* info = 0;
 
-    for( info = CvType::first; info != 0; info = info->next )
-        if( info->is_instance( struct_ptr ))
-            break;
+    if( struct_ptr )
+    {
+        for( info = CvType::first; info != 0; info = info->next )
+            if( info->is_instance( struct_ptr ))
+                break;
+    }
 
     return info;
 }
@@ -4953,7 +4999,7 @@ static void getElemSize( const string& fmt, size_t& elemSize, size_t& cn )
 {
     const char* dt = fmt.c_str();
     cn = 1;
-    if( isdigit(dt[0]) )
+    if( cv_isdigit(dt[0]) )
     {
         cn = dt[0] - '0';
         dt++;
@@ -4969,10 +5015,10 @@ FileStorage::FileStorage()
     state = UNDEFINED;
 }
 
-FileStorage::FileStorage(const string& filename, int flags)
+FileStorage::FileStorage(const string& filename, int flags, const string& encoding)
 {
     state = UNDEFINED;
-    open( filename, flags );
+    open( filename, flags, encoding );
 }
 
 FileStorage::FileStorage(CvFileStorage* _fs)
@@ -4990,10 +5036,11 @@ FileStorage::~FileStorage()
     }
 }
 
-bool FileStorage::open(const string& filename, int flags)
+bool FileStorage::open(const string& filename, int flags, const string& encoding)
 {
     release();
-    fs = Ptr<CvFileStorage>(cvOpenFileStorage( filename.c_str(), 0, flags ));
+    fs = Ptr<CvFileStorage>(cvOpenFileStorage( filename.c_str(), 0, flags,
+                                               !encoding.empty() ? encoding.c_str() : 0));
     bool ok = isOpened();
     state = ok ? NAME_EXPECTED + INSIDE_MAP : UNDEFINED;
     return ok;
@@ -5039,7 +5086,7 @@ FileStorage& operator << (FileStorage& fs, const string& str)
     }
     else if( fs.state == NAME_EXPECTED + INSIDE_MAP )
     {
-        if( !isalpha(*_str) )
+        if( !cv_isalpha(*_str) )
             CV_Error_( CV_StsError, ("Incorrect element name %s", _str) );
         fs.elname = str;
         fs.state = VALUE_EXPECTED + INSIDE_MAP;

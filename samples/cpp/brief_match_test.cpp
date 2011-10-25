@@ -4,10 +4,10 @@
  *  Created on: Oct 17, 2010
  *      Author: ethan
  */
-#include <opencv2/calib3d/calib3d.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/calib3d/calib3d.hpp"
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/highgui/highgui.hpp"
 #include <vector>
 #include <iostream>
 
@@ -44,7 +44,7 @@ void matches2points(const vector<DMatch>& matches, const vector<KeyPoint>& kpts_
 
 }
 
-double match(const vector<KeyPoint>& kpts_train, const vector<KeyPoint>& kpts_query, DescriptorMatcher& matcher,
+double match(const vector<KeyPoint>& /*kpts_train*/, const vector<KeyPoint>& /*kpts_query*/, DescriptorMatcher& matcher,
             const Mat& train, const Mat& query, vector<DMatch>& matches)
 {
 
@@ -106,7 +106,7 @@ int main(int ac, char ** av)
   cout << "matching with BruteForceMatcher<HammingLUT>" << endl;
   BruteForceMatcher<HammingLUT> matcher;
   vector<DMatch> matches_lut;
-  float lut_time = match(kpts_1, kpts_2, matcher, desc_1, desc_2, matches_lut);
+  float lut_time = (float)match(kpts_1, kpts_2, matcher, desc_1, desc_2, matches_lut);
   cout << "done BruteForceMatcher<HammingLUT> matching. took " << lut_time << " seconds" << endl;
 
   cout << "matching with BruteForceMatcher<Hamming>" << endl;
@@ -118,7 +118,7 @@ int main(int ac, char ** av)
   vector<Point2f> mpts_1, mpts_2;
   matches2points(matches_popcount, kpts_1, kpts_2, mpts_1, mpts_2); //Extract a list of the (x,y) location of the matches
   vector<uchar> outlier_mask;
-  Mat H = findHomography(Mat(mpts_2), Mat(mpts_1), outlier_mask, RANSAC, 1);
+  Mat H = findHomography(mpts_2, mpts_1, RANSAC, 1, outlier_mask);
 
   Mat outimg;
   drawMatches(im2, kpts_2, im1, kpts_1, matches_popcount, outimg, Scalar::all(-1), Scalar::all(-1),
@@ -126,9 +126,11 @@ int main(int ac, char ** av)
   imshow("matches - popcount - outliers removed", outimg);
 
   Mat warped;
+  Mat diff;
   warpPerspective(im2, warped, H, im1.size());
   imshow("warped", warped);
-  imshow("diff", im1 - warped);
+  absdiff(im1,warped,diff);
+  imshow("diff", diff);
   waitKey();
   return 0;
 }

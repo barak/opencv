@@ -1,7 +1,9 @@
-#include <opencv2/video/background_segm.hpp>
-#include <opencv2/highgui/highgui.hpp>
-
+#include "opencv2/video/background_segm.hpp"
+#include "opencv2/highgui/highgui.hpp"
 #include <stdio.h>
+
+using namespace cv;
+
 void help()
 {
  printf("\nDo background segmentation, especially demonstrating the use of cvUpdateBGStatModel().\n"
@@ -14,51 +16,55 @@ void help()
 //this is a sample for foreground detection functions
 int main(int argc, char** argv)
 {
-    IplImage*       tmp_frame = NULL;
-    CvCapture*      cap = NULL;
+    VideoCapture cap;
     bool update_bg_model = true;
 
     if( argc < 2 )
-        cap = cvCaptureFromCAM(0);
+        cap.open(0);
     else
-        cap = cvCaptureFromFile(argv[1]);
+        cap.open(argv[1]);
     help();
     
-    if( !cap )
+    if( !cap.isOpened() )
     {
         printf("can not open camera or video file\n");
         return -1;
     }
     
-    tmp_frame = cvQueryFrame(cap);
-    if(!tmp_frame)
-    {
-        printf("can not read data from the video source\n");
-        return -1;
-    }
+    namedWindow("image", CV_WINDOW_NORMAL);
+    namedWindow("foreground mask", CV_WINDOW_NORMAL);
+    namedWindow("foreground image", CV_WINDOW_NORMAL);
+    namedWindow("mean background image", CV_WINDOW_NORMAL);
 
-    cvNamedWindow("BG", 1);
-    cvNamedWindow("FG", 1);
+    BackgroundSubtractorMOG2 bg_model;
+    Mat img, fgmask, fgimg;
 
-    CvBGStatModel* bg_model = 0;
-    
-    for( int fr = 1;tmp_frame; tmp_frame = cvQueryFrame(cap), fr++ )
+    for(;;)
     {
-        if(!bg_model)
-        {
-            //create BG model
-            bg_model = cvCreateGaussianBGModel( tmp_frame );
-            //bg_model = cvCreateFGDStatModel( temp );
-            continue;
-        }
+        cap >> img;
         
-        double t = (double)cvGetTickCount();
-        cvUpdateBGStatModel( tmp_frame, bg_model, update_bg_model ? -1 : 0 );
-        t = (double)cvGetTickCount() - t;
-        printf( "%d. %.1f\n", fr, t/(cvGetTickFrequency()*1000.) );
-        cvShowImage("BG", bg_model->background);
-        cvShowImage("FG", bg_model->foreground);
-        char k = cvWaitKey(5);
+        if( img.empty() )
+            break;
+        
+        if( fgimg.empty() )
+          fgimg.create(img.size(), img.type());
+
+        //update the model
+        bg_model(img, fgmask, update_bg_model ? -1 : 0);
+
+        fgimg = Scalar::all(0);
+        img.copyTo(fgimg, fgmask);
+
+        Mat bgimg;
+        bg_model.getBackgroundImage(bgimg);
+
+        imshow("image", img);
+        imshow("foreground mask", fgmask);
+        imshow("foreground image", fgimg);
+        if(!bgimg.empty())
+          imshow("mean background image", bgimg );
+
+        char k = (char)waitKey(30);
         if( k == 27 ) break;
         if( k == ' ' )
         {
@@ -69,10 +75,6 @@ int main(int argc, char** argv)
             	printf("Background update is off\n");
         }
     }
-
-
-    cvReleaseBGStatModel( &bg_model );
-    cvReleaseCapture(&cap);
 
     return 0;
 }

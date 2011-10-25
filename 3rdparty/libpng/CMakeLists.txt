@@ -1,6 +1,3 @@
-if(ANDROID)
-define_3rdparty_module(png)
-else()
 # ----------------------------------------------------------------------------
 #  CMake file for libpng. See root CMakeLists.txt
 #
@@ -9,14 +6,16 @@ project(libpng)
 
 # List of C++ files:
 
-include_directories(
-	"${CMAKE_CURRENT_SOURCE_DIR}"
-	"${CMAKE_CURRENT_SOURCE_DIR}/../include"
-	)
+include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
+
+if(ZLIB_FOUND)
+    include_directories(${ZLIB_INCLUDE_DIR})
+else()
+    include_directories("${CMAKE_CURRENT_SOURCE_DIR}/../zlib")
+endif()
 
 file(GLOB lib_srcs *.c)
 file(GLOB lib_hdrs *.h)
-set(lib_ext_hdrs "../include/png.h" "../include/pngconf.h")
 
 # ----------------------------------------------------------------------------------
 # 				Define the library target:
@@ -41,10 +40,12 @@ set_target_properties(${the_target}
 	DEBUG_POSTFIX "${OPENCV_DEBUG_POSTFIX}"
 	ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/3rdparty/lib"
 	)
+	
+if(ENABLE_SOLUTION_FOLDERS)
+	set_target_properties(${the_target} PROPERTIES FOLDER "3rdparty")
+endif()
     
 if(NOT BUILD_SHARED_LIBS)
     install(TARGETS ${the_target}
 	    ARCHIVE DESTINATION share/opencv/3rdparty/lib COMPONENT main)
 endif()
-    
-endif()#android

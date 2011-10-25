@@ -44,10 +44,8 @@
 #include <algorithm>
 #include <vector>
 
-#if ANDROID  && HAVE_NEON
-#include <cpu-features.h>
-#include <arm_neon.h>
-#endif
+#include <iostream>
+#include <iomanip>
 
 using namespace cv;
 
@@ -112,18 +110,17 @@ Hamming::ResultType Hamming::operator()(const unsigned char* a, const unsigned c
 {
 #if __GNUC__
   ResultType result = 0;
-#if ANDROID && HAVE_NEON
-  static uint64_t features = android_getCpuFeatures();
-  if ((features & ANDROID_CPU_ARM_FEATURE_NEON))
+#if CV_NEON
+  if (CPU_HAS_NEON_FEATURE)
   {
-    for (int i = 0; i < size; i += 16)
+    for (size_t i = 0; i < size; i += 16)
     {
       uint8x16_t A_vec = vld1q_u8 (a + i);
       uint8x16_t B_vec = vld1q_u8 (b + i);
       //uint8x16_t veorq_u8 (uint8x16_t, uint8x16_t)
       uint8x16_t AxorB = veorq_u8 (A_vec, B_vec);
 
-      uint8x16_t bitsSet += vcntq_u8 (AxorB);
+      uint8x16_t bitsSet = vcntq_u8 (AxorB);
       //uint16x8_t vpadalq_u8 (uint16x8_t, uint8x16_t)
       uint16x8_t bitSet8 = vpaddlq_u8 (bitsSet);
       uint32x4_t bitSet4 = vpaddlq_u16 (bitSet8);
@@ -134,12 +131,27 @@ Hamming::ResultType Hamming::operator()(const unsigned char* a, const unsigned c
     }
   }
   else
-#endif
-  for (int i = 0; i < size; i += sizeof(unsigned long))
+#endif  
   {
-    unsigned long a2 = *reinterpret_cast<const unsigned long*> (a + i);
-    unsigned long b2 = *reinterpret_cast<const unsigned long*> (b + i);
-    result += __builtin_popcountl(a2 ^ b2);
+    //for portability just use unsigned long -- and use the __builtin_popcountll (see docs for __builtin_popcountll)
+    typedef unsigned long long pop_t;
+    const size_t modulo = size % sizeof(pop_t);
+    const pop_t * a2 = reinterpret_cast<const pop_t*> (a);
+    const pop_t * b2 = reinterpret_cast<const pop_t*> (b);
+    const pop_t * a2_end = a2 + (size/sizeof(pop_t));
+
+    for (; a2 != a2_end; ++a2, ++b2)
+      result += __builtin_popcountll((*a2) ^ (*b2));
+
+    if (modulo)
+    {
+      //in the case where size is not divisible by sizeof(size_t)
+      //need to mask off the bits at the end  
+      pop_t a_final=0,b_final=0;
+      memcpy(&a_final,a2,modulo);
+      memcpy(&b_final,b2,modulo);
+      result += __builtin_popcountll(a_final ^ b_final);
+    }  
   }
   return result;
 #else
@@ -192,7 +204,7 @@ void BriefDescriptorExtractor::computeImpl(const Mat& image, std::vector<KeyPoin
     integral( grayImage, sum, CV_32S);
 
     //Remove keypoints very close to the border
-    removeBorderKeypoints(keypoints, image.size(), PATCH_SIZE/2 + KERNEL_SIZE/2);
+    KeyPointsFilter::runByImageBorder(keypoints, image.size(), PATCH_SIZE/2 + KERNEL_SIZE/2);
 
     descriptors = Mat::zeros((int)keypoints.size(), bytes_, CV_8U);
     test_fn_(sum, keypoints, descriptors);

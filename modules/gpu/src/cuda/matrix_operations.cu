@@ -40,76 +40,22 @@
 //
 //M*/
 
-#include "cuda_shared.hpp"
-#include "saturate_cast.hpp"
+#include "internal_shared.hpp"
+#include "opencv2/gpu/device/saturate_cast.hpp"
+#include "opencv2/gpu/device/transform.hpp"
+
+using namespace cv::gpu::device;
 
 namespace cv { namespace gpu { namespace matrix_operations {
 
     template <typename T> struct shift_and_sizeof;
-    template <> struct shift_and_sizeof<char> { enum { shift = 0 }; };
+    template <> struct shift_and_sizeof<signed char> { enum { shift = 0 }; };
     template <> struct shift_and_sizeof<unsigned char> { enum { shift = 0 }; };
     template <> struct shift_and_sizeof<short> { enum { shift = 1 }; };
     template <> struct shift_and_sizeof<unsigned short> { enum { shift = 1 }; };
     template <> struct shift_and_sizeof<int> { enum { shift = 2 }; };
     template <> struct shift_and_sizeof<float> { enum { shift = 2 }; };
     template <> struct shift_and_sizeof<double> { enum { shift = 3 }; };
-    
-    template <typename T, typename DT, size_t src_elem_size, size_t dst_elem_size>
-    struct ReadWriteTraits
-    {
-        enum {shift=1};
-
-        typedef T read_type;
-        typedef DT write_type;
-    };
-    template <typename T, typename DT>
-    struct ReadWriteTraits<T, DT, 1, 1>
-    {
-        enum {shift=4};
-
-        typedef char4 read_type;
-        typedef char4 write_type;
-    };
-    template <typename T, typename DT>
-    struct ReadWriteTraits<T, DT, 2, 1>
-    {
-        enum {shift=4};
-
-        typedef short4 read_type;
-        typedef char4 write_type;
-    };
-    template <typename T, typename DT>
-    struct ReadWriteTraits<T, DT, 4, 1>
-    {
-        enum {shift=4};
-
-        typedef int4 read_type;
-        typedef char4 write_type;
-    };
-    template <typename T, typename DT>
-    struct ReadWriteTraits<T, DT, 1, 2>
-    {
-        enum {shift=2};
-
-        typedef char2 read_type;
-        typedef short2 write_type;
-    };
-    template <typename T, typename DT>
-    struct ReadWriteTraits<T, DT, 2, 2>
-    {
-        enum {shift=2};
-
-        typedef short2 read_type;
-        typedef short2 write_type;
-    };
-    template <typename T, typename DT>
-    struct ReadWriteTraits<T, DT, 4, 2>
-    {
-        enum {shift=2};
-
-        typedef int2 read_type;
-        typedef short2 write_type;
-    };
 
 ///////////////////////////////////////////////////////////////////////////
 ////////////////////////////////// CopyTo /////////////////////////////////
@@ -138,9 +84,10 @@ namespace cv { namespace gpu { namespace matrix_operations {
 
         copy_to_with_mask<T><<<numBlocks,threadsPerBlock, 0, stream>>>
                 ((T*)mat_src.data, (T*)mat_dst.data, (unsigned char*)mask.data, mat_src.cols, mat_src.rows, mat_src.step, mask.step, channels);
+        cudaSafeCall( cudaGetLastError() );
 
         if (stream == 0)
-            cudaSafeCall ( cudaThreadSynchronize() );        
+            cudaSafeCall ( cudaDeviceSynchronize() );
     }
 
     void copy_to_with_mask(const DevMem2D& mat_src, DevMem2D mat_dst, int depth, const DevMem2D& mask, int channels, const cudaStream_t & stream)
@@ -148,7 +95,7 @@ namespace cv { namespace gpu { namespace matrix_operations {
         static CopyToFunc tab[8] =
         {
             copy_to_with_mask_run<unsigned char>,
-            copy_to_with_mask_run<char>,
+            copy_to_with_mask_run<signed char>,
             copy_to_with_mask_run<unsigned short>,
             copy_to_with_mask_run<short>,
             copy_to_with_mask_run<int>,
@@ -168,7 +115,51 @@ namespace cv { namespace gpu { namespace matrix_operations {
 ////////////////////////////////// SetTo //////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-    __constant__ double scalar_d[4]; 
+    __constant__ uchar scalar_8u[4];
+    __constant__ schar scalar_8s[4];
+    __constant__ ushort scalar_16u[4];
+    __constant__ short scalar_16s[4];
+    __constant__ int scalar_32s[4];
+    __constant__ float scalar_32f[4]; 
+    __constant__ double scalar_64f[4];
+
+    template <typename T> __device__ __forceinline__ T readScalar(int i);
+    template <> __device__ __forceinline__ uchar readScalar<uchar>(int i) {return scalar_8u[i];}
+    template <> __device__ __forceinline__ schar readScalar<schar>(int i) {return scalar_8s[i];}
+    template <> __device__ __forceinline__ ushort readScalar<ushort>(int i) {return scalar_16u[i];}
+    template <> __device__ __forceinline__ short readScalar<short>(int i) {return scalar_16s[i];}
+    template <> __device__ __forceinline__ int readScalar<int>(int i) {return scalar_32s[i];}
+    template <> __device__ __forceinline__ float readScalar<float>(int i) {return scalar_32f[i];}
+    template <> __device__ __forceinline__ double readScalar<double>(int i) {return scalar_64f[i];}
+
+    void writeScalar(const uchar* vals)
+    {
+        cudaSafeCall( cudaMemcpyToSymbol(scalar_8u, vals, sizeof(uchar) * 4) );
+    }
+    void writeScalar(const schar* vals)
+    {
+        cudaSafeCall( cudaMemcpyToSymbol(scalar_8s, vals, sizeof(schar) * 4) );
+    }
+    void writeScalar(const ushort* vals)
+    {
+        cudaSafeCall( cudaMemcpyToSymbol(scalar_16u, vals, sizeof(ushort) * 4) );
+    }
+    void writeScalar(const short* vals)
+    {
+        cudaSafeCall( cudaMemcpyToSymbol(scalar_16s, vals, sizeof(short) * 4) );
+    }
+    void writeScalar(const int* vals)
+    {
+        cudaSafeCall( cudaMemcpyToSymbol(scalar_32s, vals, sizeof(int) * 4) );
+    }
+    void writeScalar(const float* vals)
+    {
+        cudaSafeCall( cudaMemcpyToSymbol(scalar_32f, vals, sizeof(float) * 4) );
+    }
+    void writeScalar(const double* vals)
+    {
+        cudaSafeCall( cudaMemcpyToSymbol(scalar_64f, vals, sizeof(double) * 4) );
+    }
 
     template<typename T>
     __global__ void set_to_without_mask(T * mat, int cols, int rows, int step, int channels)
@@ -179,7 +170,7 @@ namespace cv { namespace gpu { namespace matrix_operations {
         if ((x < cols * channels ) && (y < rows))
         {
             size_t idx = y * ( step >> shift_and_sizeof<T>::shift ) + x;
-            mat[idx] = scalar_d[ x % channels ];
+            mat[idx] = readScalar<T>(x % channels);
         }
     }
 
@@ -193,141 +184,90 @@ namespace cv { namespace gpu { namespace matrix_operations {
             if (mask[y * step_mask + x / channels] != 0)
             {
                 size_t idx = y * ( step >> shift_and_sizeof<T>::shift ) + x;
-                mat[idx] = scalar_d[ x % channels ];
+                mat[idx] = readScalar<T>(x % channels);
             }
     }
-    typedef void (*SetToFunc_with_mask)(const DevMem2D& mat, const DevMem2D& mask, int channels, const cudaStream_t & stream);
-    typedef void (*SetToFunc_without_mask)(const DevMem2D& mat, int channels, const cudaStream_t & stream);
-
     template <typename T>
-    void set_to_with_mask_run(const DevMem2D& mat, const DevMem2D& mask, int channels, const cudaStream_t & stream)
+    void set_to_gpu(const DevMem2D& mat, const T* scalar, const DevMem2D& mask, int channels, cudaStream_t stream)
     {
+        writeScalar(scalar);
+
         dim3 threadsPerBlock(32, 8, 1);
         dim3 numBlocks (mat.cols * channels / threadsPerBlock.x + 1, mat.rows / threadsPerBlock.y + 1, 1);
 
-        set_to_with_mask<T><<<numBlocks,threadsPerBlock, 0, stream>>>((T*)mat.data, (unsigned char *)mask.data, mat.cols, mat.rows, mat.step, channels, mask.step);
+        set_to_with_mask<T><<<numBlocks, threadsPerBlock, 0, stream>>>((T*)mat.data, (uchar*)mask.data, mat.cols, mat.rows, mat.step, channels, mask.step);
+        cudaSafeCall( cudaGetLastError() );
+
         if (stream == 0)
-            cudaSafeCall ( cudaThreadSynchronize() );
+            cudaSafeCall ( cudaDeviceSynchronize() );
     }
 
+    template void set_to_gpu<uchar >(const DevMem2D& mat, const uchar* scalar, const DevMem2D& mask, int channels, cudaStream_t stream);
+    template void set_to_gpu<schar >(const DevMem2D& mat, const schar* scalar, const DevMem2D& mask, int channels, cudaStream_t stream);
+    template void set_to_gpu<ushort>(const DevMem2D& mat, const ushort* scalar, const DevMem2D& mask, int channels, cudaStream_t stream);
+    template void set_to_gpu<short >(const DevMem2D& mat, const short* scalar, const DevMem2D& mask, int channels, cudaStream_t stream);
+    template void set_to_gpu<int   >(const DevMem2D& mat, const int* scalar, const DevMem2D& mask, int channels, cudaStream_t stream);
+    template void set_to_gpu<float >(const DevMem2D& mat, const float* scalar, const DevMem2D& mask, int channels, cudaStream_t stream);
+    template void set_to_gpu<double>(const DevMem2D& mat, const double* scalar, const DevMem2D& mask, int channels, cudaStream_t stream);
+
     template <typename T>
-    void set_to_without_mask_run(const DevMem2D& mat, int channels, const cudaStream_t & stream)
+    void set_to_gpu(const DevMem2D& mat, const T* scalar, int channels, cudaStream_t stream)
     {
+        writeScalar(scalar);
+
         dim3 threadsPerBlock(32, 8, 1);
         dim3 numBlocks (mat.cols * channels / threadsPerBlock.x + 1, mat.rows / threadsPerBlock.y + 1, 1);
 
-        set_to_without_mask<T><<<numBlocks,threadsPerBlock, 0, stream>>>((T*)mat.data, mat.cols, mat.rows, mat.step, channels);
+        set_to_without_mask<T><<<numBlocks, threadsPerBlock, 0, stream>>>((T*)mat.data, mat.cols, mat.rows, mat.step, channels);
+        cudaSafeCall( cudaGetLastError() );
 
         if (stream == 0)
-            cudaSafeCall ( cudaThreadSynchronize() );
+            cudaSafeCall ( cudaDeviceSynchronize() );
     }
 
-    void set_to_without_mask(DevMem2D mat, int depth, const double *scalar, int channels, const cudaStream_t & stream)
-    {
-        cudaSafeCall( cudaMemcpyToSymbol(scalar_d, scalar, sizeof(double) * 4));
-
-        static SetToFunc_without_mask tab[8] =
-        {
-            set_to_without_mask_run<unsigned char>,
-            set_to_without_mask_run<char>,
-            set_to_without_mask_run<unsigned short>,
-            set_to_without_mask_run<short>,
-            set_to_without_mask_run<int>,
-            set_to_without_mask_run<float>,
-            set_to_without_mask_run<double>,
-            0
-        };
-
-        SetToFunc_without_mask func = tab[depth];
-
-        if (func == 0)
-            cv::gpu::error("Unsupported setTo operation", __FILE__, __LINE__);
-
-        func(mat, channels, stream);
-    }
-
-    void set_to_with_mask(DevMem2D mat, int depth, const double * scalar, const DevMem2D& mask, int channels, const cudaStream_t & stream)
-    {
-        cudaSafeCall( cudaMemcpyToSymbol(scalar_d, scalar, sizeof(double) * 4));
-
-        static SetToFunc_with_mask tab[8] =
-        {
-            set_to_with_mask_run<unsigned char>,
-            set_to_with_mask_run<char>,
-            set_to_with_mask_run<unsigned short>,
-            set_to_with_mask_run<short>,
-            set_to_with_mask_run<int>,
-            set_to_with_mask_run<float>,
-            set_to_with_mask_run<double>,
-            0
-        };
-
-        SetToFunc_with_mask func = tab[depth];
-
-        if (func == 0)
-            cv::gpu::error("Unsupported setTo operation", __FILE__, __LINE__);
-
-        func(mat, mask, channels, stream);
-    }
+    template void set_to_gpu<uchar >(const DevMem2D& mat, const uchar* scalar, int channels, cudaStream_t stream);
+    template void set_to_gpu<schar >(const DevMem2D& mat, const schar* scalar, int channels, cudaStream_t stream);
+    template void set_to_gpu<ushort>(const DevMem2D& mat, const ushort* scalar, int channels, cudaStream_t stream);
+    template void set_to_gpu<short >(const DevMem2D& mat, const short* scalar, int channels, cudaStream_t stream);
+    template void set_to_gpu<int   >(const DevMem2D& mat, const int* scalar, int channels, cudaStream_t stream);
+    template void set_to_gpu<float >(const DevMem2D& mat, const float* scalar, int channels, cudaStream_t stream);
+    template void set_to_gpu<double>(const DevMem2D& mat, const double* scalar, int channels, cudaStream_t stream);
 
 ///////////////////////////////////////////////////////////////////////////
 //////////////////////////////// ConvertTo ////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
 
-    template <typename T, typename DT>
-    __global__ static void convert_to(uchar* srcmat, size_t src_step, uchar* dstmat, size_t dst_step, size_t width, size_t height, double alpha, double beta)
+    template <typename T, typename D>
+    class Convertor
     {
-        typedef typename ReadWriteTraits<T, DT, sizeof(T), sizeof(DT)>::read_type read_type;
-        typedef typename ReadWriteTraits<T, DT, sizeof(T), sizeof(DT)>::write_type write_type;
-        const int shift = ReadWriteTraits<T, DT, sizeof(T), sizeof(DT)>::shift;
+    public:
+        Convertor(double alpha_, double beta_) : alpha(alpha_), beta(beta_) {}
 
-        const size_t x = threadIdx.x + blockIdx.x * blockDim.x;
-        const size_t y = threadIdx.y + blockIdx.y * blockDim.y;
-
-        if (y < height)
+        __device__ __forceinline__ D operator()(const T& src)
         {
-            const T* src = (const T*)(srcmat + src_step * y);
-            DT* dst = (DT*)(dstmat + dst_step * y);
-            if ((x * shift) + shift - 1 < width)
-            {
-                read_type srcn_el = ((read_type*)src)[x];
-                write_type dstn_el;
-
-                const T* src1_el = (const T*) &srcn_el;
-                DT* dst1_el = (DT*) &dstn_el;
-
-                for (int i = 0; i < shift; ++i)
-                    dst1_el[i] =  saturate_cast<DT>(alpha * src1_el[i] + beta);
-
-                ((write_type*)dst)[x] = dstn_el;
-            }
-            else
-            {
-                for (int i = 0; i < shift - 1; ++i)
-                    if ((x * shift) + i < width)
-                        dst[(x * shift) + i] = saturate_cast<DT>(alpha * src[(x * shift) + i] + beta);
-            }
+            return saturate_cast<D>(alpha * src + beta);
         }
-    }    
 
-    typedef void (*CvtFunc)(const DevMem2D& src, DevMem2D& dst, size_t width, size_t height, double alpha, double beta, const cudaStream_t & stream);
-
-    template<typename T, typename DT>
-    void cvt_(const DevMem2D& src, DevMem2D& dst, size_t width, size_t height, double alpha, double beta, const cudaStream_t & stream)
+    private:
+        double alpha, beta;
+    };
+    
+    template<typename T, typename D>
+    void cvt_(const DevMem2D& src, const DevMem2D& dst, double alpha, double beta, cudaStream_t stream)
     {
-        const int shift = ReadWriteTraits<T, DT, sizeof(T), sizeof(DT)>::shift;
-
-        dim3 block(32, 8);
-        dim3 grid(divUp(width, block.x * shift), divUp(height, block.y));
-
-        convert_to<T, DT><<<grid, block, 0, stream>>>(src.data, src.step, dst.data, dst.step, width, height, alpha, beta);
-        if (stream == 0)
-            cudaSafeCall( cudaThreadSynchronize() );
+        cudaSafeCall( cudaSetDoubleForDevice(&alpha) );
+        cudaSafeCall( cudaSetDoubleForDevice(&beta) );
+        Convertor<T, D> op(alpha, beta);
+        transform((DevMem2D_<T>)src, (DevMem2D_<D>)dst, op, stream);
     }
 
-    void convert_to(const DevMem2D& src, int sdepth, DevMem2D dst, int ddepth, int channels, double alpha, double beta, const cudaStream_t & stream)
+    void convert_gpu(const DevMem2D& src, int sdepth, const DevMem2D& dst, int ddepth, double alpha, double beta, 
+        cudaStream_t stream = 0)
     {
-        static CvtFunc tab[8][8] =
+        typedef void (*caller_t)(const DevMem2D& src, const DevMem2D& dst, double alpha, double beta, 
+            cudaStream_t stream);
+
+        static const caller_t tab[8][8] =
         {
             {cvt_<uchar, uchar>, cvt_<uchar, schar>, cvt_<uchar, ushort>, cvt_<uchar, short>,
             cvt_<uchar, int>, cvt_<uchar, float>, cvt_<uchar, double>, 0},
@@ -353,9 +293,10 @@ namespace cv { namespace gpu { namespace matrix_operations {
             {0,0,0,0,0,0,0,0}
         };
 
-        CvtFunc func = tab[sdepth][ddepth];
-        if (func == 0)
+        caller_t func = tab[sdepth][ddepth];
+        if (!func)
             cv::gpu::error("Unsupported convert operation", __FILE__, __LINE__);
-        func(src, dst, src.cols * channels, src.rows, alpha, beta, stream);
+
+        func(src, dst, alpha, beta, stream);
     }
 }}}

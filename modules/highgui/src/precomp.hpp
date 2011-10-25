@@ -46,6 +46,8 @@
 #pragma warning( disable: 4251 )
 #endif
 
+#include "cvconfig.h"
+
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/highgui/highgui_c.h"
 #include "opencv2/imgproc/imgproc_c.h"
@@ -58,9 +60,17 @@
 #include <ctype.h>
 #include <assert.h>
 
-#if !defined WIN32 && !defined _WIN32
-#include "cvconfig.h"
-#else
+#ifdef HAVE_TEGRA_OPTIMIZATION
+#include "opencv2/highgui/highgui_tegra.hpp"
+#endif
+
+#if defined WIN32 || defined _WIN32
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#undef min
+#undef max
+
 void  FillBitmapInfo( BITMAPINFO* bmi, int width, int height, int bpp, int origin );
 #endif
 
@@ -88,7 +98,6 @@ struct CvCapture
     virtual bool setProperty(int, double) { return 0; }
     virtual bool grabFrame() { return true; }
     virtual IplImage* retrieveFrame(int) { return 0; }
-    virtual IplImage* queryFrame() { return grabFrame() ? retrieveFrame(0) : 0; }
 	virtual int getCaptureDomain() { return CV_CAP_ANY; } // Return the type of the capture object: CV_CAP_VFW, etc...
 };
 
@@ -122,6 +131,8 @@ CvVideoWriter* cvCreateVideoWriter_Win32( const char* filename, int fourcc,
 CvVideoWriter* cvCreateVideoWriter_VFW( const char* filename, int fourcc,
                                         double fps, CvSize frameSize, int is_color );
 CvCapture* cvCreateCameraCapture_DShow( int index );
+CvCapture* cvCreateCameraCapture_OpenNI( int index );
+CvCapture* cvCreateCameraCapture_Android( int index );
 
 CVAPI(int) cvHaveImageReader(const char* filename);
 CVAPI(int) cvHaveImageWriter(const char* filename);
@@ -136,11 +147,11 @@ CvCapture* cvCreateFileCapture_XINE (const char* filename);
 #define CV_CAP_GSTREAMER_V4L2		2
 #define CV_CAP_GSTREAMER_FILE		3
 
-CvCapture * cvCreateCapture_GStreamer(int type, const char *filename);
-CVAPI(CvCapture*) cvCreateFileCapture_FFMPEG (const char* filename);
+CvCapture* cvCreateCapture_GStreamer(int type, const char *filename);
+CvCapture* cvCreateFileCapture_FFMPEG_proxy(const char* filename);
 
 
-CVAPI(CvVideoWriter*) cvCreateVideoWriter_FFMPEG ( const char* filename, int fourcc,
+CvVideoWriter* cvCreateVideoWriter_FFMPEG_proxy( const char* filename, int fourcc,
                                             double fps, CvSize frameSize, int is_color );
 
 CvCapture * cvCreateFileCapture_QT (const char  * filename);

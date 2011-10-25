@@ -1,10 +1,3 @@
-if(ANDROID)
-set(android_defs "-DEXCLUDE_MIF_SUPPORT -DEXCLUDE_PNM_SUPPORT -DEXCLUDE_BMP_SUPPORT -DEXCLUDE_RAS_SUPPORT  -DEXCLUDE_JPG_SUPPORT -DEXCLUDE_PGX_SUPPORT")
-define_3rdparty_module(jasper)
-set(android_defs "")
-else(ANDROID)
-
-
 # ----------------------------------------------------------------------------
 #  CMake file for libjasper. See root CMakeLists.txt
 #
@@ -15,15 +8,12 @@ project(libjasper)
 add_definitions(-DEXCLUDE_MIF_SUPPORT -DEXCLUDE_PNM_SUPPORT -DEXCLUDE_BMP_SUPPORT -DEXCLUDE_RAS_SUPPORT  -DEXCLUDE_JPG_SUPPORT -DEXCLUDE_PGX_SUPPORT)
 
 # List of C++ files:
-include_directories(
-	${CMAKE_CURRENT_SOURCE_DIR}
-	"${CMAKE_CURRENT_SOURCE_DIR}/../include"
-	)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 # The .cpp files:
 file(GLOB lib_srcs *.c)
 file(GLOB lib_hdrs *.h)
-file(GLOB lib_ext_hdrs ../include/jasper/*.h)
+file(GLOB lib_ext_hdrs jasper/*.h)
 
 # ----------------------------------------------------------------------------------
 # 				Define the library target:
@@ -57,10 +47,12 @@ set_target_properties(${the_target}
 	DEBUG_POSTFIX "${OPENCV_DEBUG_POSTFIX}"
 	ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/3rdparty/lib"
 	)
+	
+if(ENABLE_SOLUTION_FOLDERS)
+	set_target_properties(${the_target} PROPERTIES FOLDER "3rdparty")
+endif()	
     
 if(NOT BUILD_SHARED_LIBS)
     install(TARGETS ${the_target}
 	    ARCHIVE DESTINATION share/opencv/3rdparty/lib COMPONENT main)
 endif()
-    
-endif(ANDROID)#!android

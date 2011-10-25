@@ -601,13 +601,15 @@ Moments::operator CvMoments() const
 
     return m;
 }
+    
 }
     
-cv::Moments cv::moments( const Mat& array, bool binaryImage )
+cv::Moments cv::moments( InputArray _array, bool binaryImage )
 {
     CvMoments om;
-    CvMat _array = array;
-    cvMoments(&_array, &om, binaryImage);
+    Mat arr = _array.getMat();
+    CvMat c_array = arr;
+    cvMoments(&c_array, &om, binaryImage);
     return om;
 }
 

@@ -274,7 +274,8 @@ bool CvModelEstimator2::runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model
 bool CvModelEstimator2::getSubset( const CvMat* m1, const CvMat* m2,
                                    CvMat* ms1, CvMat* ms2, int maxAttempts )
 {
-    int* idx = (int*)cvStackAlloc( modelPoints*sizeof(idx[0]) );
+    cv::AutoBuffer<int> _idx(modelPoints);
+    int* idx = _idx;
     int i = 0, j, k, idx_i, iters = 0;
     int type = CV_MAT_TYPE(m1->type), elemSize = CV_ELEM_SIZE(type);
     const int *m1ptr = m1->data.i, *m2ptr = m2->data.i;
@@ -451,34 +452,34 @@ bool cv::Affine3DEstimator::checkSubset( const CvMat* ms1, int count )
     return j == i;
 }
 
-int cv::estimateAffine3D(const Mat& from, const Mat& to, Mat& out, vector<uchar>& outliers, double param1, double param2)
+int cv::estimateAffine3D(InputArray _from, InputArray _to,
+                         OutputArray _out, OutputArray _inliers,
+                         double param1, double param2)
 {
-    int count = from.cols*from.rows*from.channels()/3;
+    Mat from = _from.getMat(), to = _to.getMat();
+    int count = from.checkVector(3, CV_32F);
     
-    CV_Assert( count >= 4 && from.isContinuous() && to.isContinuous() &&
-               from.depth() == CV_32F && to.depth() == CV_32F &&
-               ((from.rows == 1 && from.channels() == 3) || from.cols*from.channels() == 3) &&
-               ((to.rows == 1 && to.channels() == 3) || to.cols*to.channels() == 3) &&
-               count == to.cols*to.rows*to.channels()/3);
+    CV_Assert( count >= 0 && to.checkVector(3, CV_32F) == count );
 
-    out.create(3, 4, CV_64F); 
-    outliers.resize(count);
-    fill(outliers.begin(), outliers.end(), (uchar)1);
+    _out.create(3, 4, CV_64F);
+    Mat out = _out.getMat();
+    
+    _inliers.create(count, 1, CV_8U, -1, true);
+    Mat inliers = _inliers.getMat();
+    inliers = Scalar::all(1);
 
-    vector<Point3d> dFrom;
-    vector<Point3d> dTo;    
-
-    copy(from.ptr<Point3f>(), from.ptr<Point3f>() + count, back_inserter(dFrom));
-    copy(to.ptr<Point3f>(), to.ptr<Point3f>() + count, back_inserter(dTo));
+    Mat dFrom, dTo;
+    from.convertTo(dFrom, CV_64F);
+    to.convertTo(dTo, CV_64F);
     
     CvMat F3x4 = out;
-    CvMat mask  = cvMat( 1, count, CV_8U, &outliers[0] );           
-    CvMat m1 = cvMat( 1, count, CV_64FC3, &dFrom[0] );    
-    CvMat m2 = cvMat( 1, count, CV_64FC3, &dTo[0] );
+    CvMat mask  = inliers;
+    CvMat m1 = dFrom;
+    CvMat m2 = dTo;
     
     const double epsilon = numeric_limits<double>::epsilon();        
     param1 = param1 <= 0 ? 3 : param1;
     param2 = (param2 < epsilon) ? 0.99 : (param2 > 1 - epsilon) ? 0.99 : param2;
             
-    return Affine3DEstimator().runRANSAC(&m1,& m2, &F3x4, &mask, param1, param2 );    
+    return Affine3DEstimator().runRANSAC(&m1, &m2, &F3x4, &mask, param1, param2 );    
 }

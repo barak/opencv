@@ -34,7 +34,6 @@ ELSE()
 	ENDIF()
 ENDIF(CMAKE_COMPILER_IS_GNUCXX)
 
-
 MACRO(_PCH_GET_COMPILE_FLAGS _out_compile_flags)
 
 
@@ -58,7 +57,7 @@ MACRO(_PCH_GET_COMPILE_FLAGS _out_compile_flags)
   ENDFOREACH(item)
 
   GET_DIRECTORY_PROPERTY(_directory_flags DEFINITIONS)
-  GET_DIRECTORY_PROPERTY(_global_definitions DIRECTORY ${CMAKE_SOURCE_DIR} DEFINITIONS)
+  GET_DIRECTORY_PROPERTY(_global_definitions DIRECTORY ${OpenCV_SOURCE_DIR} DEFINITIONS)
   #MESSAGE("_directory_flags ${_directory_flags} ${_global_definitions}" )
   LIST(APPEND ${_out_compile_flags} ${_directory_flags})
   LIST(APPEND ${_out_compile_flags} ${_global_definitions})
@@ -209,6 +208,12 @@ MACRO(ADD_PRECOMPILED_HEADER _targetName _input)
   ELSE(${_targetType} STREQUAL SHARED_LIBRARY)
     ADD_LIBRARY(${_targetName}_pch_dephelp STATIC ${_pch_dephelp_cxx})
   ENDIF(${_targetType} STREQUAL SHARED_LIBRARY)
+  
+  set_target_properties(${_targetName}_pch_dephelp PROPERTIES
+    DEBUG_POSTFIX "${OPENCV_DEBUG_POSTFIX}"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib/"
+    )
+
 
   FILE(MAKE_DIRECTORY ${_outdir})
 

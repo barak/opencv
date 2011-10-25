@@ -372,95 +372,93 @@ void CvCascadeBoostTrainData::get_ord_var_data( CvDTreeNode* n, int vi, float* o
     int nodeSampleCount = n->sample_count; 
     const int* sampleIndices = get_sample_indices(n, sampleIndicesBuf);
     
-	if ( vi < numPrecalcIdx )
-	{
-		if( !is_buf_16u )
+    if ( vi < numPrecalcIdx )
+    {
+        if( !is_buf_16u )
             *sortedIndices = buf->data.i + n->buf_idx*buf->cols + vi*sample_count + n->offset;
-	    else 
+        else
         {
-	        const unsigned short* shortIndices = (const unsigned short*)(buf->data.s + n->buf_idx*buf->cols + 
-	                                              vi*sample_count + n->offset );
-	        for( int i = 0; i < nodeSampleCount; i++ )
-                sortedIndicesBuf[i] = shortIndices[i];
-            *sortedIndices = sortedIndicesBuf;
-	    }
-		
-		if ( vi < numPrecalcVal )
-		{
-			for( int i = 0; i < nodeSampleCount; i++ )
-	        {
-                int idx = (*sortedIndices)[i];
-	            idx = sampleIndices[idx];
-	            ordValuesBuf[i] =  valCache.at<float>( vi, idx);
-	        }
-		}
-		else
-		{
+            const unsigned short* shortIndices = (const unsigned short*)(buf->data.s + n->buf_idx*buf->cols +
+                                                    vi*sample_count + n->offset );
             for( int i = 0; i < nodeSampleCount; i++ )
-	        {
-                int idx = (*sortedIndices)[i];
-	            idx = sampleIndices[idx];
-				ordValuesBuf[i] = (*featureEvaluator)( vi, idx);
-			}
-		}
-    }
-	else // vi >= numPrecalcIdx
-	{
-        vector<float> sampleValuesBuf;
-        float* sampleValues = 0;
+                sortedIndicesBuf[i] = shortIndices[i];
 
-        if( sizeof(float) == sizeof(int) )
+            *sortedIndices = sortedIndicesBuf;
+        }
+		
+        if( vi < numPrecalcVal )
         {
-            // use sampleIndices as temporary buffer for values
-            sampleValues = (float*)sampleIndices;
+            for( int i = 0; i < nodeSampleCount; i++ )
+            {
+                int idx = (*sortedIndices)[i];
+                idx = sampleIndices[idx];
+                ordValuesBuf[i] =  valCache.at<float>( vi, idx);
+            }
         }
         else
         {
-            sampleValuesBuf.resize(nodeSampleCount);
-            sampleValues = &sampleValuesBuf[0];
+            for( int i = 0; i < nodeSampleCount; i++ )
+            {
+                int idx = (*sortedIndices)[i];
+                idx = sampleIndices[idx];
+                ordValuesBuf[i] = (*featureEvaluator)( vi, idx);
+            }
         }
+    }
+    else // vi >= numPrecalcIdx
+    {
+        cv::AutoBuffer<float> abuf(nodeSampleCount);
+        float* sampleValues = &abuf[0];
 
-		if ( vi < numPrecalcVal )
-		{
-			for( int i = 0; i < nodeSampleCount; i++ )
-	        {
+        if ( vi < numPrecalcVal )
+        {
+            for( int i = 0; i < nodeSampleCount; i++ )
+            {
                 sortedIndicesBuf[i] = i;
                 sampleValues[i] = valCache.at<float>( vi, sampleIndices[i] );
-	        }
-		}
-		else
-		{
+            }
+        }
+        else
+        {
             for( int i = 0; i < nodeSampleCount; i++ )
-	        {
+            {
                 sortedIndicesBuf[i] = i;
                 sampleValues[i] = (*featureEvaluator)( vi, sampleIndices[i]);
-			}
-		}
+            }
+        }
         icvSortIntAux( sortedIndicesBuf, nodeSampleCount, &sampleValues[0] );
-		for( int i = 0; i < nodeSampleCount; i++ )
+        for( int i = 0; i < nodeSampleCount; i++ )
             ordValuesBuf[i] = (&sampleValues[0])[sortedIndicesBuf[i]];
         *sortedIndices = sortedIndicesBuf;
-	}
+    }
 	
     *ordValues = ordValuesBuf;
 }
  
-const int* CvCascadeBoostTrainData::get_cat_var_data( CvDTreeNode* n, int vi, int* catValuesBuf)
+const int* CvCascadeBoostTrainData::get_cat_var_data( CvDTreeNode* n, int vi, int* catValuesBuf )
 {
-    int nodeSampleCount = n->sample_count; 
+    int nodeSampleCount = n->sample_count;
     int* sampleIndicesBuf = catValuesBuf; //
     const int* sampleIndices = get_sample_indices(n, sampleIndicesBuf);
 
     if ( vi < numPrecalcVal )
-	{
-		for( int i = 0; i < nodeSampleCount; i++ )
+    {
+        for( int i = 0; i < nodeSampleCount; i++ )
             catValuesBuf[i] = (int) valCache.at<float>( vi, sampleIndices[i]);
-	}
-	else
-	{
-		for( int i = 0; i < nodeSampleCount; i++ )
-			catValuesBuf[i] = (int)(*featureEvaluator)( vi, sampleIndices[i] );
-	}
+    }
+    else
+    {
+        if( vi >= numPrecalcVal && vi < var_count )
+        {
+            for( int i = 0; i < nodeSampleCount; i++ )
+                catValuesBuf[i] = (int)(*featureEvaluator)( vi, sampleIndices[i] );
+        }
+        else
+        {
+            get_cv_labels( n, catValuesBuf );
+        }
+    }
+
     return catValuesBuf;
 }
 
@@ -474,9 +472,9 @@ float CvCascadeBoostTrainData::getVarValue( int vi, int si )
 
 struct FeatureIdxOnlyPrecalc
 {
-    FeatureIdxOnlyPrecalc( const CvFeatureEvaluator* _feval, CvMat* _buf, int _sample_count, bool _is_buf_16u )
+    FeatureIdxOnlyPrecalc( const CvFeatureEvaluator* _featureEvaluator, CvMat* _buf, int _sample_count, bool _is_buf_16u )
     {
-        feval = _feval;
+        featureEvaluator = _featureEvaluator;
         sample_count = _sample_count;
         udst = (unsigned short*)_buf->data.s;
         idst = _buf->data.i;
@@ -490,7 +488,7 @@ struct FeatureIdxOnlyPrecalc
         {
             for( int si = 0; si < sample_count; si++ )
             {
-                valCachePtr[si] = (*feval)( fi, si );
+                valCachePtr[si] = (*featureEvaluator)( fi, si );
                 if ( is_buf_16u )
                     *(udst + fi*sample_count + si) = (unsigned short)si;
                 else
@@ -502,7 +500,7 @@ struct FeatureIdxOnlyPrecalc
                 icvSortIntAux( idst + fi*sample_count, sample_count, valCachePtr );
         }
     }
-    const CvFeatureEvaluator* feval;
+    const CvFeatureEvaluator* featureEvaluator;
     int sample_count;
     int* idst;
     unsigned short* udst;
@@ -511,9 +509,9 @@ struct FeatureIdxOnlyPrecalc
 
 struct FeatureValAndIdxPrecalc
 {
-    FeatureValAndIdxPrecalc( const CvFeatureEvaluator* _feval, CvMat* _buf, Mat* _valCache, int _sample_count, bool _is_buf_16u )
+    FeatureValAndIdxPrecalc( const CvFeatureEvaluator* _featureEvaluator, CvMat* _buf, Mat* _valCache, int _sample_count, bool _is_buf_16u )
     {
-        feval = _feval;
+        featureEvaluator = _featureEvaluator;
         valCache = _valCache;
         sample_count = _sample_count;
         udst = (unsigned short*)_buf->data.s;
@@ -526,7 +524,7 @@ struct FeatureValAndIdxPrecalc
         {
             for( int si = 0; si < sample_count; si++ )
             {
-                valCache->at<float>(fi,si) = (*feval)( fi, si );
+                valCache->at<float>(fi,si) = (*featureEvaluator)( fi, si );
                 if ( is_buf_16u )
                     *(udst + fi*sample_count + si) = (unsigned short)si;
                 else
@@ -538,7 +536,7 @@ struct FeatureValAndIdxPrecalc
                 icvSortIntAux( idst + fi*sample_count, sample_count, valCache->ptr<float>(fi) );
         }
     }
-    const CvFeatureEvaluator* feval;
+    const CvFeatureEvaluator* featureEvaluator;
     Mat* valCache;
     int sample_count;
     int* idst;
@@ -548,9 +546,9 @@ struct FeatureValAndIdxPrecalc
 
 struct FeatureValOnlyPrecalc
 {
-    FeatureValOnlyPrecalc( const CvFeatureEvaluator* _feval, Mat* _valCache, int _sample_count )
+    FeatureValOnlyPrecalc( const CvFeatureEvaluator* _featureEvaluator, Mat* _valCache, int _sample_count )
     {
-        feval = _feval;
+        featureEvaluator = _featureEvaluator;
         valCache = _valCache;
         sample_count = _sample_count;
     }
@@ -558,9 +556,9 @@ struct FeatureValOnlyPrecalc
     {
         for ( int fi = range.begin(); fi < range.end(); fi++)
             for( int si = 0; si < sample_count; si++ )
-                valCache->at<float>(fi,si) = (*feval)( fi, si );
+                valCache->at<float>(fi,si) = (*featureEvaluator)( fi, si );
     }
-    const CvFeatureEvaluator* feval;
+    const CvFeatureEvaluator* featureEvaluator;
     Mat* valCache;
     int sample_count;
 };
@@ -1297,12 +1295,12 @@ bool CvCascadeBoost::isErrDesired()
 {
     int sCount = data->sample_count,
         numPos = 0, numNeg = 0, numFalse = 0, numPosTrue = 0;
-    float* eval = (float*) cvStackAlloc( sizeof(eval[0]) * sCount );
+    vector<float> eval(sCount);
     
     for( int i = 0; i < sCount; i++ )
         if( ((CvCascadeBoostTrainData*)data)->featureEvaluator->getCls( i ) == 1.0F )
             eval[numPos++] = predict( i, true );
-    icvSortFlt( eval, numPos, 0 );
+    icvSortFlt( &eval[0], numPos, 0 );
     int thresholdIdx = (int)((1.0F - minHitRate) * numPos);
     threshold = eval[ thresholdIdx ];
     numPosTrue = numPos - thresholdIdx;

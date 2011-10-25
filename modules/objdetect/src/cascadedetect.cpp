@@ -63,7 +63,7 @@ public:
 };    
     
 
-static void groupRectangles(vector<Rect>& rectList, int groupThreshold, double eps, vector<int>* weights)
+void groupRectangles(vector<Rect>& rectList, int groupThreshold, double eps, vector<int>* weights, vector<double>* levelWeights)
 {
     if( groupThreshold <= 0 || rectList.empty() )
     {
@@ -82,6 +82,8 @@ static void groupRectangles(vector<Rect>& rectList, int groupThreshold, double e
     
     vector<Rect> rrects(nclasses);
     vector<int> rweights(nclasses, 0);
+	vector<int> rejectLevels(nclasses, 0);
+    vector<double> rejectWeights(nclasses, DBL_MIN);
     int i, j, nlabels = (int)labels.size();
     for( i = 0; i < nlabels; i++ )
     {
@@ -92,6 +94,20 @@ static void groupRectangles(vector<Rect>& rectList, int groupThreshold, double e
         rrects[cls].height += rectList[i].height;
         rweights[cls]++;
     }
+    if ( levelWeights && weights && !weights->empty() && !levelWeights->empty() )
+	{
+		for( i = 0; i < nlabels; i++ )
+		{
+			int cls = labels[i];
+            if( (*weights)[i] > rejectLevels[cls] )
+            {
+                rejectLevels[cls] = (*weights)[i];
+                rejectWeights[cls] = (*levelWeights)[i];
+            }
+            else if( ( (*weights)[i] == rejectLevels[cls] ) && ( (*levelWeights)[i] > rejectWeights[cls] ) )
+                rejectWeights[cls] = (*levelWeights)[i];
+		}
+	}
     
     for( i = 0; i < nclasses; i++ )
     {
@@ -106,11 +122,14 @@ static void groupRectangles(vector<Rect>& rectList, int groupThreshold, double e
     rectList.clear();
     if( weights )
         weights->clear();
+	if( levelWeights )
+		levelWeights->clear();
     
     for( i = 0; i < nclasses; i++ )
     {
         Rect r1 = rrects[i];
-        int n1 = rweights[i];
+        int n1 = levelWeights ? rejectLevels[i] : rweights[i];
+		double w1 = rejectWeights[i];
         if( n1 <= groupThreshold )
             continue;
         // filter out small face rectangles inside large rectangles
@@ -139,19 +158,224 @@ static void groupRectangles(vector<Rect>& rectList, int groupThreshold, double e
             rectList.push_back(r1);
             if( weights )
                 weights->push_back(n1);
+			if( levelWeights )
+				levelWeights->push_back(w1);
         }
     }
 }
 
+class MeanshiftGrouping
+{
+public:
+	MeanshiftGrouping(const Point3d& densKer, const vector<Point3d>& posV, 
+		const vector<double>& wV, double modeEps = 1e-4, int maxIter = 20)
+    {
+	    densityKernel = densKer;
+        weightsV = wV;
+        positionsV = posV;
+        positionsCount = posV.size();
+	    meanshiftV.resize(positionsCount);
+        distanceV.resize(positionsCount);
+        modeEps = modeEps;
+	    iterMax = maxIter;
+        
+	    for (unsigned i = 0; i<positionsV.size(); i++)
+	    {
+		    meanshiftV[i] = getNewValue(positionsV[i]);
+
+		    distanceV[i] = moveToMode(meanshiftV[i]);
+
+		    meanshiftV[i] -= positionsV[i];
+	    }
+    }
+	
+	void getModes(vector<Point3d>& modesV, vector<double>& resWeightsV, const double eps)
+    {
+	    for (size_t i=0; i <distanceV.size(); i++)
+	    {
+		    bool is_found = false;
+		    for(size_t j=0; j<modesV.size(); j++)
+		    {
+			    if ( getDistance(distanceV[i], modesV[j]) < eps)
+			    {
+				    is_found=true;
+				    break;
+			    }
+		    }
+		    if (!is_found)
+		    {
+			    modesV.push_back(distanceV[i]);
+		    }
+	    }
+    	
+	    resWeightsV.resize(modesV.size());
+
+	    for (size_t i=0; i<modesV.size(); i++)
+	    {
+		    resWeightsV[i] = getResultWeight(modesV[i]);
+	    }
+    }
+
+protected:
+	vector<Point3d> positionsV;
+	vector<double> weightsV;
+
+	Point3d densityKernel;
+	int positionsCount;
+
+	vector<Point3d> meanshiftV;
+	vector<Point3d> distanceV;
+	int iterMax;
+	double modeEps;
+
+	Point3d getNewValue(const Point3d& inPt) const
+    {
+	    Point3d resPoint(.0);
+	    Point3d ratPoint(.0);
+	    for (size_t i=0; i<positionsV.size(); i++)
+	    {
+		    Point3d aPt= positionsV[i];
+		    Point3d bPt = inPt;
+		    Point3d sPt = densityKernel;
+    		
+		    sPt.x *= exp(aPt.z);
+		    sPt.y *= exp(aPt.z);
+    		
+		    aPt.x /= sPt.x;
+		    aPt.y /= sPt.y;
+		    aPt.z /= sPt.z;
+
+		    bPt.x /= sPt.x;
+		    bPt.y /= sPt.y;
+		    bPt.z /= sPt.z;
+    		
+		    double w = (weightsV[i])*std::exp(-((aPt-bPt).dot(aPt-bPt))/2)/std::sqrt(sPt.dot(Point3d(1,1,1)));
+    		
+		    resPoint += w*aPt;
+
+		    ratPoint.x += w/sPt.x;
+		    ratPoint.y += w/sPt.y;
+		    ratPoint.z += w/sPt.z;
+	    }
+	    resPoint.x /= ratPoint.x;
+	    resPoint.y /= ratPoint.y;
+	    resPoint.z /= ratPoint.z;
+	    return resPoint;
+    }
+
+	double getResultWeight(const Point3d& inPt) const
+    {
+	    double sumW=0;
+	    for (size_t i=0; i<positionsV.size(); i++)
+	    {
+		    Point3d aPt = positionsV[i];
+		    Point3d sPt = densityKernel;
+
+		    sPt.x *= exp(aPt.z);
+		    sPt.y *= exp(aPt.z);
+
+		    aPt -= inPt;
+    		
+		    aPt.x /= sPt.x;
+		    aPt.y /= sPt.y;
+		    aPt.z /= sPt.z;
+    		
+		    sumW+=(weightsV[i])*std::exp(-(aPt.dot(aPt))/2)/std::sqrt(sPt.dot(Point3d(1,1,1)));
+	    }
+	    return sumW;
+    }
+    
+	Point3d moveToMode(Point3d aPt) const
+    {
+	    Point3d bPt;
+	    for (int i = 0; i<iterMax; i++)
+	    {
+		    bPt = aPt;
+		    aPt = getNewValue(bPt);
+		    if ( getDistance(aPt, bPt) <= modeEps )
+		    {
+			    break;
+		    }
+	    }
+	    return aPt;
+    }
+
+    double getDistance(Point3d p1, Point3d p2) const
+    {
+	    Point3d ns = densityKernel;
+	    ns.x *= exp(p2.z);
+	    ns.y *= exp(p2.z);
+	    p2 -= p1;
+	    p2.x /= ns.x;
+	    p2.y /= ns.y;
+	    p2.z /= ns.z;
+	    return p2.dot(p2);
+    }
+};
+//new grouping function with using meanshift
+static void groupRectangles_meanshift(vector<Rect>& rectList, double detectThreshold, vector<double>* foundWeights, 
+									  vector<double>& scales, Size winDetSize)
+{
+    int detectionCount = rectList.size();
+    vector<Point3d> hits(detectionCount), resultHits;
+    vector<double> hitWeights(detectionCount), resultWeights;
+    Point2d hitCenter;
+
+    for (int i=0; i < detectionCount; i++) 
+    {
+        hitWeights[i] = (*foundWeights)[i];
+        hitCenter = (rectList[i].tl() + rectList[i].br())*(0.5); //center of rectangles
+        hits[i] = Point3d(hitCenter.x, hitCenter.y, std::log(scales[i]));
+    }
+
+    rectList.clear();
+    if (foundWeights)
+        foundWeights->clear();
+
+    double logZ = std::log(1.3);
+    Point3d smothing(8, 16, logZ);
+
+    MeanshiftGrouping msGrouping(smothing, hits, hitWeights, 1e-5, 100);
+
+    msGrouping.getModes(resultHits, resultWeights, 1);
+
+    for (unsigned i=0; i < resultHits.size(); ++i) 
+    {
+
+        double scale = exp(resultHits[i].z);
+        hitCenter.x = resultHits[i].x;
+        hitCenter.y = resultHits[i].y;
+        Size s( int(winDetSize.width * scale), int(winDetSize.height * scale) );
+        Rect resultRect( int(hitCenter.x-s.width/2), int(hitCenter.y-s.height/2), 
+            int(s.width), int(s.height) ); 
+
+        if (resultWeights[i] > detectThreshold) 
+        {
+            rectList.push_back(resultRect);
+            foundWeights->push_back(resultWeights[i]);
+        }
+    }
+}
 
 void groupRectangles(vector<Rect>& rectList, int groupThreshold, double eps)
 {
-    groupRectangles(rectList, groupThreshold, eps, 0);
+    groupRectangles(rectList, groupThreshold, eps, 0, 0);
 }
-    
+
 void groupRectangles(vector<Rect>& rectList, vector<int>& weights, int groupThreshold, double eps)
 {
-    groupRectangles(rectList, groupThreshold, eps, &weights);
+    groupRectangles(rectList, groupThreshold, eps, &weights, 0);
+}
+//used for cascade detection algorithm for ROC-curve calculating
+void groupRectangles(vector<Rect>& rectList, vector<int>& rejectLevels, vector<double>& levelWeights, int groupThreshold, double eps)
+{
+    groupRectangles(rectList, groupThreshold, eps, &rejectLevels, &levelWeights);
+}
+//can be used for HOG detection algorithm only
+void groupRectangles_meanshift(vector<Rect>& rectList, vector<double>& foundWeights, 
+							   vector<double>& foundScales, double detectThreshold, Size winDetSize)
+{
+	groupRectangles_meanshift(rectList, detectThreshold, &foundWeights, foundScales, winDetSize);
 }
 
     
@@ -258,6 +482,7 @@ public:
     { return featuresPtr[featureIdx].calc(offset) * varianceNormFactor; }
     virtual double calcOrd(int featureIdx) const
     { return (*this)(featureIdx); }
+
 private:
     Size origWinSize;
     Ptr<vector<Feature> > features;
@@ -397,7 +622,7 @@ bool HaarEvaluator::setImage( const Mat &image, Size _origWinSize )
             tilted0.create( rn, cn, CV_32S);
     }
     sum = Mat(rn, cn, CV_32S, sum0.data);
-    sqsum = Mat(rn, cn, CV_32S, sqsum0.data);
+    sqsum = Mat(rn, cn, CV_64F, sqsum0.data);
 
     if( hasTiltedFeatures )
     {
@@ -424,8 +649,8 @@ bool HaarEvaluator::setImage( const Mat &image, Size _origWinSize )
 bool  HaarEvaluator::setWindow( Point pt )
 {
     if( pt.x < 0 || pt.y < 0 ||
-        pt.x + origWinSize.width >= sum.cols-2 ||
-        pt.y + origWinSize.height >= sum.rows-2 )
+        pt.x + origWinSize.width >= sum.cols ||
+        pt.y + origWinSize.height >= sum.rows )
         return false;
 
     size_t pOffset = pt.y * (sum.step/sizeof(int)) + pt.x;
@@ -440,6 +665,7 @@ bool  HaarEvaluator::setWindow( Point pt )
         nf = 1.;
     varianceNormFactor = 1./nf;
     offset = (int)pOffset;
+
     return true;
 }
 
@@ -586,8 +812,8 @@ bool LBPEvaluator::setImage( const Mat& image, Size _origWinSize )
 bool LBPEvaluator::setWindow( Point pt )
 {
     if( pt.x < 0 || pt.y < 0 ||
-        pt.x + origWinSize.width >= sum.cols-2 ||
-        pt.y + origWinSize.height >= sum.rows-2 )
+        pt.x + origWinSize.width >= sum.cols ||
+        pt.y + origWinSize.height >= sum.rows )
         return false;
     offset = pt.y * ((int)sum.step/sizeof(int)) + pt.x;
     return true;
@@ -614,7 +840,7 @@ CascadeClassifier::~CascadeClassifier()
 
 bool CascadeClassifier::empty() const
 {
-    return oldCascade.empty() && stages.empty();
+    return oldCascade.empty() && data.stages.empty();
 }
 
 bool CascadeClassifier::load(const string& filename)
@@ -635,31 +861,31 @@ bool CascadeClassifier::load(const string& filename)
 }
     
 template<class FEval>
-inline int predictOrdered( CascadeClassifier& cascade, Ptr<FeatureEvaluator> &_feval )
+inline int predictOrdered( CascadeClassifier& cascade, Ptr<FeatureEvaluator> &_featureEvaluator, double& sum )
 {
-    int si, nstages = (int)cascade.stages.size();
+    int nstages = (int)cascade.data.stages.size();
     int nodeOfs = 0, leafOfs = 0;
-    FEval& feval = (FEval&)*_feval;
-    float* cascadeLeaves = &cascade.leaves[0];
-    CascadeClassifier::DTreeNode* cascadeNodes = &cascade.nodes[0];
-    CascadeClassifier::DTree* cascadeWeaks = &cascade.classifiers[0];
-    CascadeClassifier::Stage* cascadeStages = &cascade.stages[0];
+    FEval& featureEvaluator = (FEval&)*_featureEvaluator;
+    float* cascadeLeaves = &cascade.data.leaves[0];
+    CascadeClassifier::Data::DTreeNode* cascadeNodes = &cascade.data.nodes[0];
+    CascadeClassifier::Data::DTree* cascadeWeaks = &cascade.data.classifiers[0];
+    CascadeClassifier::Data::Stage* cascadeStages = &cascade.data.stages[0];
     
-    for( si = 0; si < nstages; si++ )
+    for( int si = 0; si < nstages; si++ )
     {
-        CascadeClassifier::Stage& stage = cascadeStages[si];
+        CascadeClassifier::Data::Stage& stage = cascadeStages[si];
         int wi, ntrees = stage.ntrees;
-        double sum = 0;
+        sum = 0;
         
         for( wi = 0; wi < ntrees; wi++ )
         {
-            CascadeClassifier::DTree& weak = cascadeWeaks[stage.first + wi];
+            CascadeClassifier::Data::DTree& weak = cascadeWeaks[stage.first + wi];
             int idx = 0, root = nodeOfs;
 
             do
             {
-                CascadeClassifier::DTreeNode& node = cascadeNodes[root + idx];
-                double val = feval(node.featureIdx);
+                CascadeClassifier::Data::DTreeNode& node = cascadeNodes[root + idx];
+                double val = featureEvaluator(node.featureIdx);
                 idx = val < node.threshold ? node.left : node.right;
             }
             while( idx > 0 );
@@ -674,32 +900,32 @@ inline int predictOrdered( CascadeClassifier& cascade, Ptr<FeatureEvaluator> &_f
 }
 
 template<class FEval>
-inline int predictCategorical( CascadeClassifier& cascade, Ptr<FeatureEvaluator> &_feval )
+inline int predictCategorical( CascadeClassifier& cascade, Ptr<FeatureEvaluator> &_featureEvaluator, double& sum )
 {
-    int si, nstages = (int)cascade.stages.size();
+    int nstages = (int)cascade.data.stages.size();
     int nodeOfs = 0, leafOfs = 0;
-    FEval& feval = (FEval&)*_feval;
-    size_t subsetSize = (cascade.ncategories + 31)/32;
-    int* cascadeSubsets = &cascade.subsets[0];
-    float* cascadeLeaves = &cascade.leaves[0];
-    CascadeClassifier::DTreeNode* cascadeNodes = &cascade.nodes[0];
-    CascadeClassifier::DTree* cascadeWeaks = &cascade.classifiers[0];
-    CascadeClassifier::Stage* cascadeStages = &cascade.stages[0];
+    FEval& featureEvaluator = (FEval&)*_featureEvaluator;
+    size_t subsetSize = (cascade.data.ncategories + 31)/32;
+    int* cascadeSubsets = &cascade.data.subsets[0];
+    float* cascadeLeaves = &cascade.data.leaves[0];
+    CascadeClassifier::Data::DTreeNode* cascadeNodes = &cascade.data.nodes[0];
+    CascadeClassifier::Data::DTree* cascadeWeaks = &cascade.data.classifiers[0];
+    CascadeClassifier::Data::Stage* cascadeStages = &cascade.data.stages[0];
     
-    for( si = 0; si < nstages; si++ )
+    for(int si = 0; si < nstages; si++ )
     {
-        CascadeClassifier::Stage& stage = cascadeStages[si];
+        CascadeClassifier::Data::Stage& stage = cascadeStages[si];
         int wi, ntrees = stage.ntrees;
-        double sum = 0;
+        sum = 0;
         
         for( wi = 0; wi < ntrees; wi++ )
         {
-            CascadeClassifier::DTree& weak = cascadeWeaks[stage.first + wi];
+            CascadeClassifier::Data::DTree& weak = cascadeWeaks[stage.first + wi];
             int idx = 0, root = nodeOfs;
             do
             {
-                CascadeClassifier::DTreeNode& node = cascadeNodes[root + idx];
-                int c = feval(node.featureIdx);
+                CascadeClassifier::Data::DTreeNode& node = cascadeNodes[root + idx];
+                int c = featureEvaluator(node.featureIdx);
                 const int* subset = &cascadeSubsets[(root + idx)*subsetSize];
                 idx = (subset[c>>5] & (1 << (c & 31))) ? node.left : node.right;
             }
@@ -715,141 +941,225 @@ inline int predictCategorical( CascadeClassifier& cascade, Ptr<FeatureEvaluator>
 }
 
 template<class FEval>
-inline int predictOrderedStump( CascadeClassifier& cascade, Ptr<FeatureEvaluator> &_feval )
+inline int predictOrderedStump( CascadeClassifier& cascade, Ptr<FeatureEvaluator> &_featureEvaluator, double& sum )
 {
-    int si, nstages = (int)cascade.stages.size();
     int nodeOfs = 0, leafOfs = 0;
-    FEval& feval = (FEval&)*_feval;
-    float* cascadeLeaves = &cascade.leaves[0];
-    CascadeClassifier::DTreeNode* cascadeNodes = &cascade.nodes[0];
-    CascadeClassifier::Stage* cascadeStages = &cascade.stages[0];
-    for( si = 0; si < nstages; si++ )
+    FEval& featureEvaluator = (FEval&)*_featureEvaluator;
+    float* cascadeLeaves = &cascade.data.leaves[0];
+    CascadeClassifier::Data::DTreeNode* cascadeNodes = &cascade.data.nodes[0];
+    CascadeClassifier::Data::Stage* cascadeStages = &cascade.data.stages[0];
+
+    int nstages = (int)cascade.data.stages.size();
+    for( int stageIdx = 0; stageIdx < nstages; stageIdx++ )
     {
-        CascadeClassifier::Stage& stage = cascadeStages[si];
-        int wi, ntrees = stage.ntrees;
-        double sum = 0;
-        for( wi = 0; wi < ntrees; wi++, nodeOfs++, leafOfs+= 2 )
+        CascadeClassifier::Data::Stage& stage = cascadeStages[stageIdx];
+        sum = 0.0;
+
+        int ntrees = stage.ntrees;
+        for( int i = 0; i < ntrees; i++, nodeOfs++, leafOfs+= 2 )
         {
-            CascadeClassifier::DTreeNode& node = cascadeNodes[nodeOfs];
-            double val = feval(node.featureIdx);
-            sum += cascadeLeaves[ val < node.threshold ? leafOfs : leafOfs+1 ];
+            CascadeClassifier::Data::DTreeNode& node = cascadeNodes[nodeOfs];
+            double value = featureEvaluator(node.featureIdx);
+            sum += cascadeLeaves[ value < node.threshold ? leafOfs : leafOfs + 1 ];
         }
+
         if( sum < stage.threshold )
-            return -si;            
+            return -stageIdx;
     }
+
     return 1;
 }
 
 template<class FEval>
-inline int predictCategoricalStump( CascadeClassifier& cascade, Ptr<FeatureEvaluator> &_feval )
+inline int predictCategoricalStump( CascadeClassifier& cascade, Ptr<FeatureEvaluator> &_featureEvaluator, double& sum )
 {
-    int si, nstages = (int)cascade.stages.size();
+    int nstages = (int)cascade.data.stages.size();
     int nodeOfs = 0, leafOfs = 0;
-    FEval& feval = (FEval&)*_feval;
-    size_t subsetSize = (cascade.ncategories + 31)/32;
-    int* cascadeSubsets = &cascade.subsets[0];
-    float* cascadeLeaves = &cascade.leaves[0];
-    CascadeClassifier::DTreeNode* cascadeNodes = &cascade.nodes[0];
-    CascadeClassifier::Stage* cascadeStages = &cascade.stages[0];
+    FEval& featureEvaluator = (FEval&)*_featureEvaluator;
+    size_t subsetSize = (cascade.data.ncategories + 31)/32;
+    int* cascadeSubsets = &cascade.data.subsets[0];
+    float* cascadeLeaves = &cascade.data.leaves[0];
+    CascadeClassifier::Data::DTreeNode* cascadeNodes = &cascade.data.nodes[0];
+    CascadeClassifier::Data::Stage* cascadeStages = &cascade.data.stages[0];
 
-    for( si = 0; si < nstages; si++ )
+#ifdef HAVE_TEGRA_OPTIMIZATION
+    float tmp; // float accumulator -- float operations are quicker 
+#endif
+    for( int si = 0; si < nstages; si++ )
     {
-        CascadeClassifier::Stage& stage = cascadeStages[si];
+        CascadeClassifier::Data::Stage& stage = cascadeStages[si];
         int wi, ntrees = stage.ntrees;
-        double sum = 0;
+#ifdef HAVE_TEGRA_OPTIMIZATION
+	tmp = 0;
+#else
+        sum = 0;
+#endif
 
         for( wi = 0; wi < ntrees; wi++ )
         {
-            CascadeClassifier::DTreeNode& node = cascadeNodes[nodeOfs];
-            int c = feval(node.featureIdx);
+            CascadeClassifier::Data::DTreeNode& node = cascadeNodes[nodeOfs];
+            int c = featureEvaluator(node.featureIdx);
             const int* subset = &cascadeSubsets[nodeOfs*subsetSize];
+#ifdef HAVE_TEGRA_OPTIMIZATION
+            tmp += cascadeLeaves[ subset[c>>5] & (1 << (c & 31)) ? leafOfs : leafOfs+1];
+#else
             sum += cascadeLeaves[ subset[c>>5] & (1 << (c & 31)) ? leafOfs : leafOfs+1];
+#endif
             nodeOfs++;
             leafOfs += 2;
         }
+#ifdef HAVE_TEGRA_OPTIMIZATION
+        if( tmp < stage.threshold ) {
+	    sum = (double)tmp;
+            return -si;            
+	}
+#else
         if( sum < stage.threshold )
             return -si;            
+#endif
     }
+
+#ifdef HAVE_TEGRA_OPTIMIZATION
+    sum = (double)tmp;
+#endif
+
     return 1;
 }
 
-int CascadeClassifier::runAt( Ptr<FeatureEvaluator> &_feval, Point pt )
+int CascadeClassifier::runAt( Ptr<FeatureEvaluator>& featureEvaluator, Point pt, double& weight )
 {
     CV_Assert( oldCascade.empty() );
-    /*if( !oldCascade.empty() )
-        return cvRunHaarClassifierCascade(oldCascade, pt, 0);*/
         
-    assert(featureType == FeatureEvaluator::HAAR ||
-           featureType == FeatureEvaluator::LBP);
-    return !_feval->setWindow(pt) ? -1 :
-                is_stump_based ? ( featureType == FeatureEvaluator::HAAR ?
-                    predictOrderedStump<HaarEvaluator>( *this, _feval ) :
-                    predictCategoricalStump<LBPEvaluator>( *this, _feval ) ) :
-                                 ( featureType == FeatureEvaluator::HAAR ?
-                    predictOrdered<HaarEvaluator>( *this, _feval ) :
-                    predictCategorical<LBPEvaluator>( *this, _feval ) );
+    assert(data.featureType == FeatureEvaluator::HAAR ||
+           data.featureType == FeatureEvaluator::LBP);
+
+    return !featureEvaluator->setWindow(pt) ? -1 :
+                data.isStumpBased ? ( data.featureType == FeatureEvaluator::HAAR ?
+                    predictOrderedStump<HaarEvaluator>( *this, featureEvaluator, weight ) :
+                    predictCategoricalStump<LBPEvaluator>( *this, featureEvaluator, weight ) ) :
+                                 ( data.featureType == FeatureEvaluator::HAAR ?
+                    predictOrdered<HaarEvaluator>( *this, featureEvaluator, weight ) :
+                    predictCategorical<LBPEvaluator>( *this, featureEvaluator, weight ) );
+}
+    
+bool CascadeClassifier::setImage( Ptr<FeatureEvaluator>& featureEvaluator, const Mat& image )
+{
+    return empty() ? false : featureEvaluator->setImage(image, data.origWinSize);
 }
 
-    
-bool CascadeClassifier::setImage( Ptr<FeatureEvaluator> &_feval, const Mat& image )
-{
-    /*if( !oldCascade.empty() )
-    {
-        Mat sum(image.rows+1, image.cols+1, CV_32S);
-        Mat tilted(image.rows+1, image.cols+1, CV_32S);
-        Mat sqsum(image.rows+1, image.cols+1, CV_64F);
-        integral(image, sum, sqsum, tilted);
-        CvMat _sum = sum, _sqsum = sqsum, _tilted = tilted;
-        cvSetImagesForHaarClassifierCascade( oldCascade, &_sum, &_sqsum, &_tilted, 1. );
-        return true;
-    }*/
-    return empty() ? false : _feval->setImage(image, origWinSize );
-}
-    
- 
 struct CascadeClassifierInvoker
 {
-    CascadeClassifierInvoker( CascadeClassifier& _cc, Size _sz1, int _stripSize, int _yStep, double _factor, ConcurrentRectVector& _vec )
+    CascadeClassifierInvoker( CascadeClassifier& _cc, Size _sz1, int _stripSize, int _yStep, double _factor, 
+        ConcurrentRectVector& _vec, vector<int>& _levels, vector<double>& _weights, bool outputLevels = false  )
     {
-        cc = &_cc;
-        sz1 = _sz1;
+        classifier = &_cc;
+        processingRectSize = _sz1;
         stripSize = _stripSize;
         yStep = _yStep;
-        factor = _factor;
-        vec = &_vec;
+        scalingFactor = _factor;
+        rectangles = &_vec;
+        rejectLevels  = outputLevels ? &_levels : 0;
+        levelWeights  = outputLevels ? &_weights : 0;
     }
     
     void operator()(const BlockedRange& range) const
     {
-        Ptr<FeatureEvaluator> feval = cc->feval->clone();
-        int y1 = range.begin()*stripSize, y2 = min(range.end()*stripSize, sz1.height);
-        Size winSize(cvRound(cc->origWinSize.width*factor), cvRound(cc->origWinSize.height*factor));
-            
+        Ptr<FeatureEvaluator> evaluator = classifier->featureEvaluator->clone();
+        Size winSize(cvRound(classifier->data.origWinSize.width * scalingFactor), cvRound(classifier->data.origWinSize.height * scalingFactor));
+
+        int y1 = range.begin() * stripSize;
+        int y2 = min(range.end() * stripSize, processingRectSize.height);
         for( int y = y1; y < y2; y += yStep )
-            for( int x = 0; x < sz1.width; x += yStep )
+        {
+            for( int x = 0; x < processingRectSize.width; x += yStep )
             {
-                int r = cc->runAt(feval, Point(x, y));
-                if( r > 0 )
-                    vec->push_back(Rect(cvRound(x*factor), cvRound(y*factor),
-                                        winSize.width, winSize.height));
-                if( r == 0 )
+                double gypWeight;
+                int result = classifier->runAt(evaluator, Point(x, y), gypWeight);
+                if( rejectLevels )
+                {
+                    if( result == 1 )
+                        result =  -1*classifier->data.stages.size();
+                    if( classifier->data.stages.size() + result < 4 )
+                    {
+                        rectangles->push_back(Rect(cvRound(x*scalingFactor), cvRound(y*scalingFactor), winSize.width, winSize.height)); 
+                        rejectLevels->push_back(-result);
+                        levelWeights->push_back(gypWeight);
+                    }
+                }                    
+                else if( result > 0 )
+                    rectangles->push_back(Rect(cvRound(x*scalingFactor), cvRound(y*scalingFactor),
+                                               winSize.width, winSize.height));
+                if( result == 0 )
                     x += yStep;
             }
+        }
     }
     
-    CascadeClassifier* cc;
-    Size sz1;
+    CascadeClassifier* classifier;
+    ConcurrentRectVector* rectangles;
+    Size processingRectSize;
     int stripSize, yStep;
-    double factor;
-    ConcurrentRectVector* vec;
+    double scalingFactor;
+    vector<int> *rejectLevels;
+    vector<double> *levelWeights;
 };
-    
     
 struct getRect { Rect operator ()(const CvAvgComp& e) const { return e.rect; } };
 
-void CascadeClassifier::detectMultiScale( const Mat& image, vector<Rect>& objects,
+bool CascadeClassifier::detectSingleScale( const Mat& image, int stripCount, Size processingRectSize,
+                                           int stripSize, int yStep, double factor, vector<Rect>& candidates,
+                                           vector<int>& levels, vector<double>& weights, bool outputRejectLevels )
+{
+    if( !featureEvaluator->setImage( image, data.origWinSize ) )
+        return false;
+
+    ConcurrentRectVector concurrentCandidates;
+    vector<int> rejectLevels;
+    vector<double> levelWeights;
+    if( outputRejectLevels )
+    {
+        parallel_for(BlockedRange(0, stripCount), CascadeClassifierInvoker( *this, processingRectSize, stripSize, yStep, factor,
+            concurrentCandidates, rejectLevels, levelWeights, true));
+        levels.insert( levels.end(), rejectLevels.begin(), rejectLevels.end() );
+        weights.insert( weights.end(), levelWeights.begin(), levelWeights.end() );
+    }
+    else
+    {
+         parallel_for(BlockedRange(0, stripCount), CascadeClassifierInvoker( *this, processingRectSize, stripSize, yStep, factor,
+            concurrentCandidates, rejectLevels, levelWeights, false));
+    }
+    candidates.insert( candidates.end(), concurrentCandidates.begin(), concurrentCandidates.end() );
+
+    return true;
+}
+
+bool CascadeClassifier::isOldFormatCascade() const
+{
+    return !oldCascade.empty();
+}
+
+
+int CascadeClassifier::getFeatureType() const
+{
+    return featureEvaluator->getFeatureType();
+}
+
+Size CascadeClassifier::getOriginalWindowSize() const
+{
+    return data.origWinSize;
+}
+
+bool CascadeClassifier::setImage(const Mat& image)
+{
+    return featureEvaluator->setImage(image, data.origWinSize);
+}
+
+void CascadeClassifier::detectMultiScale( const Mat& image, vector<Rect>& objects, 
+                                          vector<int>& rejectLevels,
+                                          vector<double>& levelWeights,
                                           double scaleFactor, int minNeighbors,
-                                          int flags, Size minSize, Size maxSize )
+                                          int flags, Size minObjectSize, Size maxObjectSize, 
+                                          bool outputRejectLevels )
 {
     const double GROUP_EPS = 0.2;
     
@@ -858,12 +1168,12 @@ void CascadeClassifier::detectMultiScale( const Mat& image, vector<Rect>& object
     if( empty() )
         return;
 
-    if( !oldCascade.empty() )
+    if( isOldFormatCascade() )
     {
         MemStorage storage(cvCreateMemStorage(0));
         CvMat _image = image;
-        CvSeq* _objects = cvHaarDetectObjects( &_image, oldCascade, storage, scaleFactor,
-                                              minNeighbors, flags, minSize );
+        CvSeq* _objects = cvHaarDetectObjectsForROC( &_image, oldCascade, storage, rejectLevels, levelWeights, scaleFactor,
+                                              minNeighbors, flags, minObjectSize, maxObjectSize, outputRejectLevels );
         vector<CvAvgComp> vecAvgComp;
         Seq<CvAvgComp>(_objects).copyTo(vecAvgComp);
         objects.resize(vecAvgComp.size());
@@ -871,70 +1181,93 @@ void CascadeClassifier::detectMultiScale( const Mat& image, vector<Rect>& object
         return;
     }
 
-    if( maxSize.height == 0 || maxSize.width == 0 )
-        maxSize = image.size();
-
     objects.clear();
+
+    if( maxObjectSize.height == 0 || maxObjectSize.width == 0 )
+        maxObjectSize = image.size();
     
-    Mat img = image, imgbuf(image.rows+1, image.cols+1, CV_8U);
-    
-    if( img.channels() > 1 )
+    Mat grayImage = image;
+    if( grayImage.channels() > 1 )
     {
         Mat temp;
-        cvtColor(img, temp, CV_BGR2GRAY);
-        img = temp;
+        cvtColor(grayImage, temp, CV_BGR2GRAY);
+        grayImage = temp;
     }
     
-    ConcurrentRectVector allCandidates;
+    Mat imageBuffer(image.rows + 1, image.cols + 1, CV_8U);
+    vector<Rect> candidates;
 
     for( double factor = 1; ; factor *= scaleFactor )
     {
-        int stripCount, stripSize;
-        Size winSize( cvRound(origWinSize.width*factor), cvRound(origWinSize.height*factor) );
-        Size sz( cvRound( img.cols/factor ), cvRound( img.rows/factor ) );
-        Size sz1( sz.width - origWinSize.width, sz.height - origWinSize.height );
+        Size originalWindowSize = getOriginalWindowSize();
+
+        Size windowSize( cvRound(originalWindowSize.width*factor), cvRound(originalWindowSize.height*factor) );
+        Size scaledImageSize( cvRound( grayImage.cols/factor ), cvRound( grayImage.rows/factor ) );
+        Size processingRectSize( scaledImageSize.width - originalWindowSize.width + 1, scaledImageSize.height - originalWindowSize.height + 1 );
         
-        if( sz1.width <= 0 || sz1.height <= 0 )
+        if( processingRectSize.width <= 0 || processingRectSize.height <= 0 )
             break;
-        if( winSize.width > maxSize.width || winSize.height > maxSize.height )
+        if( windowSize.width > maxObjectSize.width || windowSize.height > maxObjectSize.height )
             break;
-        if( winSize.width < minSize.width || winSize.height < minSize.height )
+        if( windowSize.width < minObjectSize.width || windowSize.height < minObjectSize.height )
             continue;
         
+        Mat scaledImage( scaledImageSize, CV_8U, imageBuffer.data );
+        resize( grayImage, scaledImage, scaledImageSize, 0, 0, CV_INTER_LINEAR );
+
         int yStep = factor > 2. ? 1 : 2;
-    #ifdef HAVE_TBB
+        int stripCount, stripSize;
+
+    #if defined(HAVE_TBB) || defined(HAVE_THREADING_FRAMEWORK)
         const int PTS_PER_THREAD = 1000;
-        stripCount = ((sz1.width/yStep)*(sz1.height + yStep-1)/yStep + PTS_PER_THREAD/2)/PTS_PER_THREAD;
+        stripCount = ((processingRectSize.width/yStep)*(processingRectSize.height + yStep-1)/yStep + PTS_PER_THREAD/2)/PTS_PER_THREAD;
         stripCount = std::min(std::max(stripCount, 1), 100);
-        stripSize = (((sz1.height + stripCount - 1)/stripCount + yStep-1)/yStep)*yStep;
+        stripSize = (((processingRectSize.height + stripCount - 1)/stripCount + yStep-1)/yStep)*yStep;
     #else
         stripCount = 1;
-        stripSize = sz1.height;
+        stripSize = processingRectSize.height;
     #endif
 
-        Mat img1( sz, CV_8U, imgbuf.data );
-        resize( img, img1, sz, 0, 0, CV_INTER_LINEAR );
-        if( !feval->setImage( img1, origWinSize ) )
+        if( !detectSingleScale( scaledImage, stripCount, processingRectSize, stripSize, yStep, factor, candidates, 
+            rejectLevels, levelWeights, outputRejectLevels ) )
             break;
- 
-        parallel_for(BlockedRange(0, stripCount), CascadeClassifierInvoker(*this, sz1, stripSize, yStep, factor, allCandidates));
     }
-    
-    objects.resize(allCandidates.size());
-    std::copy(allCandidates.begin(), allCandidates.end(), objects.begin());
-    groupRectangles( objects, minNeighbors, GROUP_EPS );
-}    
 
     
-bool CascadeClassifier::read(const FileNode& root)
+    objects.resize(candidates.size());
+    std::copy(candidates.begin(), candidates.end(), objects.begin());
+
+    if( outputRejectLevels )
+    {
+        groupRectangles( objects, rejectLevels, levelWeights, minNeighbors, GROUP_EPS );
+    }
+    else
+    {
+        groupRectangles( objects, minNeighbors, GROUP_EPS );
+    }
+}
+
+void CascadeClassifier::detectMultiScale( const Mat& image, vector<Rect>& objects,
+                                          double scaleFactor, int minNeighbors,
+                                          int flags, Size minObjectSize, Size maxObjectSize)
 {
+    vector<int> fakeLevels;
+    vector<double> fakeWeights;
+    detectMultiScale( image, objects, fakeLevels, fakeWeights, scaleFactor, 
+        minNeighbors, flags, minObjectSize, maxObjectSize, false );
+}    
+
+bool CascadeClassifier::Data::read(const FileNode &root)
+{
+    static const float THRESHOLD_EPS = 1e-5f;
+    
     // load stage params
     string stageTypeStr = (string)root[CC_STAGE_TYPE];
     if( stageTypeStr == CC_BOOST )
         stageType = BOOST;
     else
         return false;
-    
+
     string featureTypeStr = (string)root[CC_FEATURE_TYPE];
     if( featureTypeStr == CC_HAAR )
         featureType = FeatureEvaluator::HAAR;
@@ -942,38 +1275,38 @@ bool CascadeClassifier::read(const FileNode& root)
         featureType = FeatureEvaluator::LBP;
     else
         return false;
-    
+
     origWinSize.width = (int)root[CC_WIDTH];
     origWinSize.height = (int)root[CC_HEIGHT];
     CV_Assert( origWinSize.height > 0 && origWinSize.width > 0 );
-    
-    is_stump_based = (int)(root[CC_STAGE_PARAMS][CC_MAX_DEPTH]) == 1 ? true : false;
+
+    isStumpBased = (int)(root[CC_STAGE_PARAMS][CC_MAX_DEPTH]) == 1 ? true : false;
 
     // load feature params
     FileNode fn = root[CC_FEATURE_PARAMS];
     if( fn.empty() )
         return false;
-    
+
     ncategories = fn[CC_MAX_CAT_COUNT];
     int subsetSize = (ncategories + 31)/32,
         nodeStep = 3 + ( ncategories>0 ? subsetSize : 1 );
-    
+
     // load stages
     fn = root[CC_STAGES];
     if( fn.empty() )
         return false;
-    
+
     stages.reserve(fn.size());
     classifiers.clear();
     nodes.clear();
-    
+
     FileNodeIterator it = fn.begin(), it_end = fn.end();
-    
+
     for( int si = 0; it != it_end; si++, ++it )
     {
         FileNode fns = *it;
         Stage stage;
-        stage.threshold = fns[CC_STAGE_THRESHOLD];
+        stage.threshold = (float)fns[CC_STAGE_THRESHOLD] - THRESHOLD_EPS;
         fns = fns[CC_WEAK_CLASSIFIERS];
         if(fns.empty())
             return false;
@@ -981,7 +1314,7 @@ bool CascadeClassifier::read(const FileNode& root)
         stage.first = (int)classifiers.size();
         stages.push_back(stage);
         classifiers.reserve(stages[si].first + stages[si].ntrees);
-        
+
         FileNodeIterator it1 = fns.begin(), it1_end = fns.end();
         for( ; it1 != it1_end; ++it1 ) // weak trees
         {
@@ -990,56 +1323,62 @@ bool CascadeClassifier::read(const FileNode& root)
             FileNode leafValues = fnw[CC_LEAF_VALUES];
             if( internalNodes.empty() || leafValues.empty() )
                 return false;
+
             DTree tree;
             tree.nodeCount = (int)internalNodes.size()/nodeStep;
             classifiers.push_back(tree);
-            
+
             nodes.reserve(nodes.size() + tree.nodeCount);
             leaves.reserve(leaves.size() + leafValues.size());
             if( subsetSize > 0 )
                 subsets.reserve(subsets.size() + tree.nodeCount*subsetSize);
-            
-            FileNodeIterator it2 = internalNodes.begin(), it2_end = internalNodes.end();
-            
-            for( ; it2 != it2_end; ) // nodes
+
+            FileNodeIterator internalNodesIter = internalNodes.begin(), internalNodesEnd = internalNodes.end();
+
+            for( ; internalNodesIter != internalNodesEnd; ) // nodes
             {
                 DTreeNode node;
-                node.left = (int)*it2; ++it2;
-                node.right = (int)*it2; ++it2;
-                node.featureIdx = (int)*it2; ++it2;
+                node.left = (int)*internalNodesIter; ++internalNodesIter;
+                node.right = (int)*internalNodesIter; ++internalNodesIter;
+                node.featureIdx = (int)*internalNodesIter; ++internalNodesIter;
                 if( subsetSize > 0 )
                 {
-                    for( int j = 0; j < subsetSize; j++, ++it2 )
-                        subsets.push_back((int)*it2);
+                    for( int j = 0; j < subsetSize; j++, ++internalNodesIter )
+                        subsets.push_back((int)*internalNodesIter);
                     node.threshold = 0.f;
                 }
                 else
                 {
-                    node.threshold = (float)*it2; ++it2;
+                    node.threshold = (float)*internalNodesIter; ++internalNodesIter;
                 }
                 nodes.push_back(node);
             }
-            
-            it2 = leafValues.begin(), it2_end = leafValues.end();
-            
-            for( ; it2 != it2_end; ++it2 ) // leaves
-                leaves.push_back((float)*it2);
+
+            internalNodesIter = leafValues.begin(), internalNodesEnd = leafValues.end();
+
+            for( ; internalNodesIter != internalNodesEnd; ++internalNodesIter ) // leaves
+                leaves.push_back((float)*internalNodesIter);
         }
     }
 
+    return true;
+}
+
+bool CascadeClassifier::read(const FileNode& root)
+{
+    if( !data.read(root) )
+        return false;
+
     // load features
-    feval = FeatureEvaluator::create(featureType);
-    fn = root[CC_FEATURES];
+    featureEvaluator = FeatureEvaluator::create(data.featureType);
+    FileNode fn = root[CC_FEATURES];
     if( fn.empty() )
         return false;
     
-    return feval->read(fn);
+    return featureEvaluator->read(fn);
 }
     
 template<> void Ptr<CvHaarClassifierCascade>::delete_obj()
 { cvReleaseHaarClassifierCascade(&obj); }    
 
 } // namespace cv
-
-/* End of file. */
-

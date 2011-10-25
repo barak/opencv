@@ -35,7 +35,7 @@ namespace cvflann
 /** Global variable indicating the distance metric
  * to be used.
  */
-flann_distance_t flann_distance_type_ = EUCLIDEAN;
+flann_distance_t flann_distance_type_ = FLANN_DIST_EUCLIDEAN;
 flann_distance_t flann_distance_type() { return flann_distance_type_; }
 
 /**
@@ -89,7 +89,7 @@ int countCorrectMatches(int* neighbors, int* groundTruth, int n)
     return count;
 }
 
-// ----------------------- logger().cpp ---------------------------
+// ----------------------- logger.cpp ---------------------------
 
 Logger logger_;
 
@@ -131,10 +131,10 @@ int Logger::log(int level, const char* fmt, va_list arglist)
     }
 
 
-LOG_METHOD(fatal, LOG_FATAL)
-LOG_METHOD(error, LOG_ERROR)
-LOG_METHOD(warn, LOG_WARN)
-LOG_METHOD(info, LOG_INFO)
+LOG_METHOD(fatal, FLANN_LOG_FATAL)
+LOG_METHOD(error, FLANN_LOG_ERROR)
+LOG_METHOD(warn, FLANN_LOG_WARN)
+LOG_METHOD(info, FLANN_LOG_INFO)
 
 // ----------------------- random.cpp ---------------------------
 
@@ -208,12 +208,12 @@ class StaticInit
 public:
 	StaticInit()
 	{
-		ParamsFactory_instance().register_<LinearIndexParams>(LINEAR);
-		ParamsFactory_instance().register_<KDTreeIndexParams>(KDTREE);
-		ParamsFactory_instance().register_<KMeansIndexParams>(KMEANS);
-		ParamsFactory_instance().register_<CompositeIndexParams>(COMPOSITE);
-		ParamsFactory_instance().register_<AutotunedIndexParams>(AUTOTUNED);
-//		ParamsFactory::instance().register_<SavedIndexParams>(SAVED);
+		ParamsFactory_instance().register_<LinearIndexParams>(FLANN_INDEX_LINEAR);
+		ParamsFactory_instance().register_<KDTreeIndexParams>(FLANN_INDEX_KDTREE);
+		ParamsFactory_instance().register_<KMeansIndexParams>(FLANN_INDEX_KMEANS);
+		ParamsFactory_instance().register_<CompositeIndexParams>(FLANN_INDEX_COMPOSITE);
+		ParamsFactory_instance().register_<AutotunedIndexParams>(FLANN_INDEX_AUTOTUNED);
+//		ParamsFactory::instance().register_<SavedIndexParams>(FLANN_INDEX_SAVED);
 	}
 };
 StaticInit __init;

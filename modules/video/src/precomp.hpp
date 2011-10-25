@@ -47,13 +47,17 @@
 #pragma warning( disable: 4251 4710 4711 4514 4996 )
 #endif
 
-#ifdef HAVE_CONFIG_H 
-#include <cvconfig.h> 
+#ifdef HAVE_CVCONFIG_H 
+#include "cvconfig.h"
 #endif
 
 #include "opencv2/video/tracking.hpp"
 #include "opencv2/video/background_segm.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/core/internal.hpp"
+
+#ifdef HAVE_TEGRA_OPTIMIZATION
+#include "opencv2/video/video_tegra.hpp"
+#endif
 
 #endif

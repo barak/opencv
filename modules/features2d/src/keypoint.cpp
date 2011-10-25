@@ -43,7 +43,20 @@
 
 namespace cv
 {
-	
+
+size_t KeyPoint::hash() const
+{
+    size_t _Val = 2166136261U, scale = 16777619U;
+    Cv32suf u;
+    u.f = pt.x; _Val = (scale * _Val) ^ u.u;
+    u.f = pt.y; _Val = (scale * _Val) ^ u.u;
+    u.f = size; _Val = (scale * _Val) ^ u.u;
+    u.f = angle; _Val = (scale * _Val) ^ u.u;
+    u.f = response; _Val = (scale * _Val) ^ u.u;
+    _Val = (scale * _Val) ^ ((size_t) octave);
+    _Val = (scale * _Val) ^ ((size_t) class_id);
+    return _Val;
+}    
 
 void write(FileStorage& fs, const string& objname, const vector<KeyPoint>& keypoints)
 {
@@ -150,6 +163,134 @@ float KeyPoint::overlap( const KeyPoint& kp1, const KeyPoint& kp2 )
     }
 
     return ovrl;
+}
+
+struct RoiPredicate
+{
+    RoiPredicate( const Rect& _r ) : r(_r)
+    {}
+
+    bool operator()( const KeyPoint& keyPt ) const
+    {
+        return !r.contains( keyPt.pt );
+    }
+
+    Rect r;
+};
+
+void KeyPointsFilter::runByImageBorder( vector<KeyPoint>& keypoints, Size imageSize, int borderSize )
+{
+    if( borderSize > 0)
+    {
+        keypoints.erase( remove_if(keypoints.begin(), keypoints.end(),
+                                   RoiPredicate(Rect(Point(borderSize, borderSize),
+                                                     Point(imageSize.width - borderSize, imageSize.height - borderSize)))),
+                         keypoints.end() );
+    }
+}
+
+struct SizePredicate
+{
+    SizePredicate( float _minSize, float _maxSize ) : minSize(_minSize), maxSize(_maxSize)
+    {}
+
+    bool operator()( const KeyPoint& keyPt ) const
+    {
+        float size = keyPt.size;
+        return (size < minSize) || (size > maxSize);
+    }
+
+    float minSize, maxSize;
+};
+
+void KeyPointsFilter::runByKeypointSize( vector<KeyPoint>& keypoints, float minSize, float maxSize )
+{
+    CV_Assert( minSize >= 0 );
+    CV_Assert( maxSize >= 0);
+    CV_Assert( minSize <= maxSize );
+
+    keypoints.erase( remove_if(keypoints.begin(), keypoints.end(), SizePredicate(minSize, maxSize)),
+                     keypoints.end() );
+}
+
+class MaskPredicate
+{
+public:
+    MaskPredicate( const Mat& _mask ) : mask(_mask) {}
+    bool operator() (const KeyPoint& key_pt) const
+    {
+        return mask.at<uchar>( (int)(key_pt.pt.y + 0.5f), (int)(key_pt.pt.x + 0.5f) ) == 0;
+    }
+
+private:
+    const Mat mask;
+};
+
+void KeyPointsFilter::runByPixelsMask( vector<KeyPoint>& keypoints, const Mat& mask )
+{
+    if( mask.empty() )
+        return;
+
+    keypoints.erase(remove_if(keypoints.begin(), keypoints.end(), MaskPredicate(mask)), keypoints.end());
+}
+
+struct KeyPoint_LessThan
+{
+    KeyPoint_LessThan(const vector<KeyPoint>& _kp) : kp(&_kp) {}
+    bool operator()(int i, int j) const
+    {
+        const KeyPoint& kp1 = (*kp)[i];
+        const KeyPoint& kp2 = (*kp)[j];
+        if( kp1.pt.x != kp2.pt.x )
+            return kp1.pt.x < kp2.pt.x;
+        if( kp1.pt.y != kp2.pt.y )
+            return kp1.pt.y < kp2.pt.y;
+        if( kp1.size != kp2.size )
+            return kp1.size > kp2.size;
+        if( kp1.angle != kp2.angle )
+            return kp1.angle < kp2.angle;
+        if( kp1.response != kp2.response )
+            return kp1.response > kp2.response;
+        if( kp1.octave != kp2.octave )
+            return kp1.octave > kp2.octave;
+        if( kp1.class_id != kp2.class_id )
+            return kp1.class_id > kp2.class_id;
+
+        return i < j;
+    }
+    const vector<KeyPoint>* kp;
+};
+
+void KeyPointsFilter::removeDuplicated( vector<KeyPoint>& keypoints )
+{
+    int i, j, n = (int)keypoints.size();
+    vector<int> kpidx(n);
+    vector<uchar> mask(n, (uchar)1);
+
+    for( i = 0; i < n; i++ )
+        kpidx[i] = i;
+    std::sort(kpidx.begin(), kpidx.end(), KeyPoint_LessThan(keypoints));
+    for( i = 1, j = 0; i < n; i++ )
+    {
+        KeyPoint& kp1 = keypoints[kpidx[i]];
+        KeyPoint& kp2 = keypoints[kpidx[j]];
+        if( kp1.pt.x != kp2.pt.x || kp1.pt.y != kp2.pt.y ||
+            kp1.size != kp2.size || kp1.angle != kp2.angle )
+            j = i;
+        else
+            mask[kpidx[i]] = 0;
+    }
+
+    for( i = j = 0; i < n; i++ )
+    {
+        if( mask[i] )
+        {
+            if( i != j )
+                keypoints[j] = keypoints[i];
+            j++;
+        }
+    }
+    keypoints.resize(j);
 }
 
 }

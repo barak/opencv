@@ -1,5 +1,5 @@
 #include <opencv2/imgproc/imgproc_c.h>
-#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/highgui/highgui.hpp"
 #include <stdio.h>
 void help()
 {
@@ -8,7 +8,7 @@ void help()
 			"functions cvCreateMemStorage() and cvDrawContours().\n"
 			"It also shows the use of a trackbar to control contour retrieval.\n"
 			"\n"
-			"Call:\n"
+            "Usage :\n"
 			"./contours\n");
 }
 

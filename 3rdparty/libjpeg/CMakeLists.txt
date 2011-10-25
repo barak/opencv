@@ -1,7 +1,3 @@
-if(ANDROID)
-define_3rdparty_module(jpeg)
-else()
-#endif()#android
 # ----------------------------------------------------------------------------
 #  CMake file for libjpeg. See root CMakeLists.txt
 #
@@ -10,15 +6,11 @@ project(libjpeg)
 
 # List of C++ files:
 
-include_directories(
-	${CMAKE_CURRENT_SOURCE_DIR}
-	"${CMAKE_CURRENT_SOURCE_DIR}/../include"
-	)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 # The .cpp files:
 file(GLOB lib_srcs *.c)
 file(GLOB lib_hdrs *.h)
-set(lib_ext_hdrs "../include/jconfig.h" "../include/jmorecfg.h" "../include/jpeglib.h")
 
 # ----------------------------------------------------------------------------------
 # 				Define the library target:
@@ -26,7 +18,7 @@ set(lib_ext_hdrs "../include/jconfig.h" "../include/jmorecfg.h" "../include/jpeg
 
 set(the_target "libjpeg")
 
-add_library(${the_target} STATIC ${lib_srcs} ${lib_hdrs} ${lib_ext_hdrs})
+add_library(${the_target} STATIC ${lib_srcs} ${lib_hdrs})
 
 if(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3")
@@ -47,10 +39,12 @@ set_target_properties(${the_target}
 	DEBUG_POSTFIX "${OPENCV_DEBUG_POSTFIX}"
 	ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/3rdparty/lib
 	)
+	
+if(ENABLE_SOLUTION_FOLDERS)
+	set_target_properties(${the_target} PROPERTIES FOLDER "3rdparty")
+endif()	
     
 if(NOT BUILD_SHARED_LIBS)
     install(TARGETS ${the_target}
 	    ARCHIVE DESTINATION share/opencv/3rdparty/lib COMPONENT main)
 endif()
-    
-endif()#android

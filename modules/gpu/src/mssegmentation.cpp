@@ -69,8 +69,8 @@ public:
     vector<int> rank;
     vector<int> size;
 private:
-    DjSets(const DjSets&) {}
-    DjSets operator =(const DjSets&) {}
+    DjSets(const DjSets&);
+    void operator =(const DjSets&);
 };
 
 
@@ -102,8 +102,8 @@ public:
     int nume_max;
     int nume;
 private:
-    Graph(const Graph&) {}
-    Graph operator =(const Graph&) {}
+    Graph(const Graph&);
+    void operator =(const Graph&);
 };
 
 
@@ -123,9 +123,9 @@ struct SegmLinkVal
 struct SegmLink
 {
     SegmLink() {}
-    SegmLink(int from, int to, const SegmLinkVal& val) 
+    SegmLink(int from, int to, const SegmLinkVal& val)
         : from(from), to(to), val(val) {}
-    bool operator <(const SegmLink& other) const 
+    bool operator <(const SegmLink& other) const
     {
         return val < other.val;
     }
@@ -199,25 +199,25 @@ inline void Graph<T>::addEdge(int from, int to, const T& val)
 }
 
 
-inline int pix(int y, int x, int ncols) 
+inline int pix(int y, int x, int ncols)
 {
     return y * ncols + x;
 }
 
 
-inline int sqr(int x) 
+inline int sqr(int x)
 {
     return x * x;
 }
 
 
-inline int dist2(const cv::Vec4b& lhs, const cv::Vec4b& rhs) 
+inline int dist2(const cv::Vec4b& lhs, const cv::Vec4b& rhs)
 {
     return sqr(lhs[0] - rhs[0]) + sqr(lhs[1] - rhs[1]) + sqr(lhs[2] - rhs[2]);
 }
 
 
-inline int dist2(const cv::Vec2s& lhs, const cv::Vec2s& rhs) 
+inline int dist2(const cv::Vec2s& lhs, const cv::Vec2s& rhs)
 {
     return sqr(lhs[0] - rhs[0]) + sqr(lhs[1] - rhs[1]);
 }
@@ -227,6 +227,8 @@ inline int dist2(const cv::Vec2s& lhs, const cv::Vec2s& rhs)
 
 void cv::gpu::meanShiftSegmentation(const GpuMat& src, Mat& dst, int sp, int sr, int minsize, TermCriteria criteria)
 {
+    CV_Assert(TargetArchs::builtWith(FEATURE_SET_COMPUTE_12) && DeviceInfo().supports(FEATURE_SET_COMPUTE_12));
+
     CV_Assert(src.type() == CV_8UC4);
     const int nrows = src.rows;
     const int ncols = src.cols;

@@ -13,17 +13,16 @@ void help(char** argv)
     cout << "\nThis program demonstrats keypoint finding and matching between 2 images using features2d framework.\n"
      << "   In one case, the 2nd image is synthesized by homography from the first, in the second case, there are 2 images\n"
      << "\n"
-     << "case1: second image is obtained from the first (given) image using random generated homography matrix\n"
+     << "Case1: second image is obtained from the first (given) image using random generated homography matrix\n"
      << argv[0] << " [detectorType] [descriptorType] [matcherType] [matcherFilterType] [image] [evaluate(0 or 1)]\n"
      << "Example of case1:\n"
      << "./descriptor_extractor_matcher SURF SURF FlannBased NoneFilter cola.jpg 0\n"
      << "\n"
-     << "case2: both images are given. If ransacReprojThreshold>=0 then homography matrix are calculated\n"
-     << "Example of case2:\n"
+     << "Case2: both images are given. If ransacReprojThreshold>=0 then homography matrix are calculated\n"
      << argv[0] << " [detectorType] [descriptorType] [matcherType] [matcherFilterType] [image1] [image2] [ransacReprojThreshold]\n"
      << "\n"
      << "Matches are filtered using homography matrix in case1 and case2 (if ransacReprojThreshold>=0)\n"
-     << "Example:\n"
+     << "Example of case2:\n"
      << "./descriptor_extractor_matcher SURF SURF BruteForce CrossCheckFilter cola1.jpg cola2.jpg 3\n"
      << "\n"
      << "Possible detectorType values: see in documentation on createFeatureDetector().\n"
@@ -151,12 +150,29 @@ void doIteration( const Mat& img1, Mat& img2, bool isWarpPerspective,
 
     if( !H12.empty() && eval )
     {
-        cout << "< Evaluate descriptor match..." << endl;
+        cout << "< Evaluate descriptor matcher..." << endl;
         vector<Point2f> curve;
         Ptr<GenericDescriptorMatcher> gdm = new VectorDescriptorMatcher( descriptorExtractor, descriptorMatcher );
         evaluateGenericDescriptorMatcher( img1, img2, H12, keypoints1, keypoints2, 0, 0, curve, gdm );
-        for( float l_p = 0; l_p < 1 - FLT_EPSILON; l_p+=0.1f )
-            cout << "1-precision = " << l_p << "; recall = " << getRecall( curve, l_p ) << endl;
+
+        Point2f firstPoint = *curve.begin();
+        Point2f lastPoint = *curve.rbegin();
+        int prevPointIndex = -1;
+        cout << "1-precision = " << firstPoint.x << "; recall = " << firstPoint.y << endl;
+        for( float l_p = 0; l_p <= 1 + FLT_EPSILON; l_p+=0.05f )
+        {
+            int nearest = getNearestPoint( curve, l_p );
+            if( nearest >= 0 )
+            {
+                Point2f curPoint = curve[nearest];
+                if( curPoint.x > firstPoint.x && curPoint.x < lastPoint.x && nearest != prevPointIndex )
+                {
+                    cout << "1-precision = " << curPoint.x << "; recall = " << curPoint.y << endl;
+                    prevPointIndex = nearest;
+                }
+            }
+        }
+        cout << "1-precision = " << lastPoint.x << "; recall = " << lastPoint.y << endl;
         cout << ">" << endl;
     }
 
@@ -183,9 +199,11 @@ void doIteration( const Mat& img1, Mat& img2, bool isWarpPerspective,
         vector<Point2f> points1; KeyPoint::convert(keypoints1, points1, queryIdxs);
         vector<Point2f> points2; KeyPoint::convert(keypoints2, points2, trainIdxs);
         Mat points1t; perspectiveTransform(Mat(points1), points1t, H12);
+
+        double maxInlierDist = ransacReprojThreshold < 0 ? 3 : ransacReprojThreshold;
         for( size_t i1 = 0; i1 < points1.size(); i1++ )
         {
-            if( norm(points2[i1] - points1t.at<Point2f>((int)i1,0)) < 4 ) // inlier
+            if( norm(points2[i1] - points1t.at<Point2f>((int)i1,0)) <= maxInlierDist ) // inlier
                 matchesMask[i1] = 1;
         }
         // draw inliers
@@ -267,7 +285,7 @@ int main(int argc, char** argv)
         if( c == '\x1b' ) // esc
         {
             cout << "Exiting ..." << endl;
-            return 0;
+            break;
         }
         else if( isWarpPerspective )
         {
@@ -276,6 +294,5 @@ int main(int argc, char** argv)
                          ransacReprojThreshold, rng );
         }
     }
-    waitKey(0);
     return 0;
 }

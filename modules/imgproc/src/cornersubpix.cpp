@@ -254,13 +254,18 @@ cvFindCornerSubPix( const void* srcarr, CvPoint2D32f* corners,
     }
 }
 
-void cv::cornerSubPix( const Mat& image, vector<Point2f>& corners,
+void cv::cornerSubPix( InputArray _image, InputOutputArray _corners,
                        Size winSize, Size zeroZone,
                        TermCriteria criteria )
 {
-    CvMat _image = image;
-    cvFindCornerSubPix(&_image, (CvPoint2D32f*)&corners[0], (int)corners.size(),
-                       winSize, zeroZone, criteria );
+    Mat corners = _corners.getMat();
+    int ncorners = corners.checkVector(2);
+    CV_Assert( ncorners >= 0 && corners.depth() == CV_32F );
+    Mat image = _image.getMat();
+    CvMat c_image = image;
+    
+    cvFindCornerSubPix( &c_image, (CvPoint2D32f*)corners.data, ncorners,
+                        winSize, zeroZone, criteria );
 }
 
 /* End of file. */

@@ -159,7 +159,7 @@ static const void* initInterTab2D( int method, bool fixpt )
 
     if( !inittab[method] )
     {
-        AutoBuffer<float> _tab(INTER_TAB_SIZE);
+        AutoBuffer<float> _tab(8*INTER_TAB_SIZE);
         int i, j, k1, k2;
         initInterTab1D(method, _tab, INTER_TAB_SIZE);
         for( i = 0; i < INTER_TAB_SIZE; i++ )
@@ -253,14 +253,14 @@ resizeNN( const Mat& src, Mat& dst, double fx, double fy )
 
     for( x = 0; x < dsize.width; x++ )
     {
-        int sx = saturate_cast<int>(x*ifx);
+        int sx = cvFloor(x*ifx);
         x_ofs[x] = std::min(sx, ssize.width-1)*pix_size;
     }
 
     for( y = 0; y < dsize.height; y++ )
     {
         uchar* D = dst.data + dst.step*y;
-        int sy = std::min(saturate_cast<int>(y*ify), ssize.height-1);
+        int sy = std::min(cvFloor(y*ify), ssize.height-1);
         const uchar* S = src.data + src.step*sy;
 
         switch( pix_size )
@@ -1135,23 +1135,32 @@ static void resizeGeneric_( const Mat& src, Mat& dst,
 
 
 template<typename T, typename WT>
-static void resizeAreaFast_( const Mat& src, Mat& dst, const int* ofs, const int* xofs )
+static void resizeAreaFast_( const Mat& src, Mat& dst, const int* ofs, const int* xofs,
+                             int scale_x, int scale_y )
 {
     Size ssize = src.size(), dsize = dst.size();
     int cn = src.channels();
     int dy, dx, k = 0;
-    int scale_x = ssize.width/dsize.width;
-    int scale_y = ssize.height/dsize.height;
     int area = scale_x*scale_y;
     float scale = 1.f/(scale_x*scale_y);
+    int dwidth1 = (ssize.width/scale_x)*cn; 
     dsize.width *= cn;
+    ssize.width *= cn;
 
     for( dy = 0; dy < dsize.height; dy++ )
     {
         T* D = (T*)(dst.data + dst.step*dy);
-        for( dx = 0; dx < dsize.width; dx++ )
+        int sy0 = dy*scale_y, w = sy0 + scale_y <= ssize.height ? dwidth1 : 0;
+        if( sy0 >= ssize.height )
         {
-            const T* S = (const T*)(src.data + src.step*dy*scale_y) + xofs[dx];
+            for( dx = 0; dx < dsize.width; dx++ )
+                D[dx] = 0;
+            continue;
+        }
+        
+        for( dx = 0; dx < w; dx++ )
+        {
+            const T* S = (const T*)(src.data + src.step*sy0) + xofs[dx];
             WT sum = 0;
             for( k = 0; k <= area - 4; k += 4 )
                 sum += S[ofs[k]] + S[ofs[k+1]] + S[ofs[k+2]] + S[ofs[k+3]];
@@ -1159,6 +1168,30 @@ static void resizeAreaFast_( const Mat& src, Mat& dst, const int* ofs, const int
                 sum += S[ofs[k]];
 
             D[dx] = saturate_cast<T>(sum*scale);
+        }
+        
+        for( ; dx < dsize.width; dx++ )
+        {
+            WT sum = 0;
+            int count = 0, sx0 = xofs[dx];
+            if( sx0 >= ssize.width )
+                D[dx] = 0;
+            
+            for( int sy = 0; sy < scale_y; sy++ )
+            {
+                if( sy0 + sy >= ssize.height )
+                    break;
+                const T* S = (const T*)(src.data + src.step*(sy0 + sy)) + sx0;
+                for( int sx = 0; sx < scale_x*cn; sx += cn )
+                {
+                    if( sx0 + sx >= ssize.width )
+                        break;
+                    sum += S[sx];
+                    count++;
+                }
+            }
+            
+            D[dx] = saturate_cast<T>((float)sum/count);
         }
     }
 }
@@ -1274,15 +1307,18 @@ typedef void (*ResizeFunc)( const Mat& src, Mat& dst,
                             int xmin, int xmax, int ksize );
 
 typedef void (*ResizeAreaFastFunc)( const Mat& src, Mat& dst,
-                                    const int* ofs, const int *xofs );
+                                    const int* ofs, const int *xofs,
+                                    int scale_x, int scale_y );
 
 typedef void (*ResizeAreaFunc)( const Mat& src, Mat& dst,
                                 const DecimateAlpha* xofs, int xofs_count );
 
+}
+    
 //////////////////////////////////////////////////////////////////////////////////////////
 
-void resize( const Mat& src, Mat& dst, Size dsize,
-             double inv_scale_x, double inv_scale_y, int interpolation )
+void cv::resize( InputArray _src, OutputArray _dst, Size dsize,
+                 double inv_scale_x, double inv_scale_y, int interpolation )
 {
     static ResizeFunc linear_tab[] =
     {
@@ -1386,6 +1422,7 @@ void resize( const Mat& src, Mat& dst, Size dsize,
         0, resizeArea_<float, float>, resizeArea_<double, double>, 0
     };
 
+    Mat src = _src.getMat();
     Size ssize = src.size();
     
     CV_Assert( ssize.area() > 0 );
@@ -1400,7 +1437,8 @@ void resize( const Mat& src, Mat& dst, Size dsize,
         inv_scale_x = (double)dsize.width/src.cols;
         inv_scale_y = (double)dsize.height/src.rows;
     }
-    dst.create(dsize, src.type());
+    _dst.create(dsize, src.type());
+    Mat dst = _dst.getMat();
 
     int depth = src.depth(), cn = src.channels();
     double scale_x = 1./inv_scale_x, scale_y = 1./inv_scale_y;
@@ -1441,7 +1479,7 @@ void resize( const Mat& src, Mat& dst, Size dsize,
                     xofs[dx*cn + k] = sx + k;
             }
 
-            func( src, dst, ofs, xofs );
+            func( src, dst, ofs, xofs, iscale_x, iscale_y );
             return;
         }
 
@@ -1618,6 +1656,9 @@ void resize( const Mat& src, Mat& dst, Size dsize,
 /****************************************************************************************\
 *                       General warping (affine, perspective, remap)                     *
 \****************************************************************************************/
+
+namespace cv
+{
 
 template<typename T>
 static void remapNearest( const Mat& _src, Mat& _dst, const Mat& _xy,
@@ -2358,8 +2399,11 @@ typedef void (*RemapFunc)(const Mat& _src, Mat& _dst, const Mat& _xy,
                           const Mat& _fxy, const void* _wtab,
                           int borderType, const Scalar& _borderValue);
 
-void remap( const Mat& src, Mat& dst, const Mat& map1, const Mat& map2,
-            int interpolation, int borderType, const Scalar& borderValue )
+}
+    
+void cv::remap( InputArray _src, OutputArray _dst,
+                InputArray _map1, InputArray _map2,
+                int interpolation, int borderType, const Scalar& borderValue )
 {
     static RemapNNFunc nn_tab[] =
     {
@@ -2372,7 +2416,8 @@ void remap( const Mat& src, Mat& dst, const Mat& map1, const Mat& map2,
         remapBilinear<FixedPtCast<int, uchar, INTER_REMAP_COEF_BITS>, RemapVec_8u, short>, 0,
         remapBilinear<Cast<float, ushort>, RemapNoVec, float>,
         remapBilinear<Cast<float, short>, RemapNoVec, float>, 0,
-        remapBilinear<Cast<float, float>, RemapNoVec, float>, 0, 0
+        remapBilinear<Cast<float, float>, RemapNoVec, float>,
+        remapBilinear<Cast<double, double>, RemapNoVec, float>, 0
     };
 
     static RemapFunc cubic_tab[] =
@@ -2380,7 +2425,8 @@ void remap( const Mat& src, Mat& dst, const Mat& map1, const Mat& map2,
         remapBicubic<FixedPtCast<int, uchar, INTER_REMAP_COEF_BITS>, short, INTER_REMAP_COEF_SCALE>, 0,
         remapBicubic<Cast<float, ushort>, float, 1>,
         remapBicubic<Cast<float, short>, float, 1>, 0,
-        remapBicubic<Cast<float, float>, float, 1>, 0, 0
+        remapBicubic<Cast<float, float>, float, 1>,
+        remapBicubic<Cast<double, double>, float, 1>, 0
     };
 
     static RemapFunc lanczos4_tab[] =
@@ -2388,11 +2434,16 @@ void remap( const Mat& src, Mat& dst, const Mat& map1, const Mat& map2,
         remapLanczos4<FixedPtCast<int, uchar, INTER_REMAP_COEF_BITS>, short, INTER_REMAP_COEF_SCALE>, 0,
         remapLanczos4<Cast<float, ushort>, float, 1>,
         remapLanczos4<Cast<float, short>, float, 1>, 0,
-        remapLanczos4<Cast<float, float>, float, 1>, 0, 0
+        remapLanczos4<Cast<float, float>, float, 1>,
+        remapLanczos4<Cast<double, double>, float, 1>, 0
     };
 
+    Mat src = _src.getMat(), map1 = _map1.getMat(), map2 = _map2.getMat();
+    
     CV_Assert( (!map2.data || map2.size() == map1.size()));
-    dst.create( map1.size(), src.type() );
+    
+    _dst.create( map1.size(), src.type() );
+    Mat dst = _dst.getMat();
     CV_Assert(dst.data != src.data);
 
     int depth = src.depth(), map_depth = map1.depth();
@@ -2616,9 +2667,11 @@ void remap( const Mat& src, Mat& dst, const Mat& map1, const Mat& map2,
 }
 
 
-void convertMaps( const Mat& map1, const Mat& map2, Mat& dstmap1, Mat& dstmap2,
-                  int dstm1type, bool nninterpolate )
+void cv::convertMaps( InputArray _map1, InputArray _map2,
+                      OutputArray _dstmap1, OutputArray _dstmap2,
+                      int dstm1type, bool nninterpolate )
 {
+    Mat map1 = _map1.getMat(), map2 = _map2.getMat(), dstmap1, dstmap2;
     Size size = map1.size();
     const Mat *m1 = &map1, *m2 = &map2;
     int m1type = m1->type(), m2type = m2->type();
@@ -2637,11 +2690,16 @@ void convertMaps( const Mat& map1, const Mat& map2, Mat& dstmap1, Mat& dstmap2,
     if( dstm1type <= 0 )
         dstm1type = m1type == CV_16SC2 ? CV_32FC2 : CV_16SC2;
     CV_Assert( dstm1type == CV_16SC2 || dstm1type == CV_32FC1 || dstm1type == CV_32FC2 );
-    dstmap1.create( size, dstm1type );
+    _dstmap1.create( size, dstm1type );
+    dstmap1 = _dstmap1.getMat();
+    
     if( !nninterpolate && dstm1type != CV_32FC2 )
-        dstmap2.create( size, dstm1type == CV_16SC2 ? CV_16UC1 : CV_32FC1 );
+    {
+        _dstmap2.create( size, dstm1type == CV_16SC2 ? CV_16UC1 : CV_32FC1 );
+        dstmap2 = _dstmap2.getMat();
+    }
     else
-        dstmap2.release();
+        _dstmap2.release();
 
     if( m1type == dstm1type || (nninterpolate &&
         ((m1type == CV_16SC2 && dstm1type == CV_32FC2) ||
@@ -2748,10 +2806,13 @@ void convertMaps( const Mat& map1, const Mat& map2, Mat& dstmap1, Mat& dstmap2,
 }
 
 
-void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
-                 int flags, int borderType, const Scalar& borderValue )
+void cv::warpAffine( InputArray _src, OutputArray _dst,
+                     InputArray _M0, Size dsize,
+                     int flags, int borderType, const Scalar& borderValue )
 {
-    dst.create( dsize, src.type() );
+    Mat src = _src.getMat(), M0 = _M0.getMat();
+    _dst.create( dsize.area() == 0 ? src.size() : dsize, src.type() );
+    Mat dst = _dst.getMat();
     CV_Assert( dst.data != src.data && src.cols > 0 && src.rows > 0 );
 
     const int BLOCK_SZ = 64;
@@ -2818,8 +2879,8 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                     {
                         int X = (X0 + adelta[x+x1]) >> AB_BITS;
                         int Y = (Y0 + bdelta[x+x1]) >> AB_BITS;
-                        xy[x1*2] = (short)X;
-                        xy[x1*2+1] = (short)Y;
+                        xy[x1*2] = saturate_cast<short>(X);
+                        xy[x1*2+1] = saturate_cast<short>(Y);
                     }
                 else
                 {
@@ -2851,7 +2912,7 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                                                           _mm_srai_epi32(tx1, INTER_BITS));
                             ty0 = _mm_packs_epi32(_mm_srai_epi32(ty0, INTER_BITS),
                                                   _mm_srai_epi32(ty1, INTER_BITS));
-                            fx_ = _mm_add_epi16(fx_, _mm_slli_epi16(fy_, INTER_BITS));
+                            fx_ = _mm_adds_epi16(fx_, _mm_slli_epi16(fy_, INTER_BITS));
 
                             _mm_storeu_si128((__m128i*)(xy + x1*2), _mm_unpacklo_epi16(tx0, ty0));
                             _mm_storeu_si128((__m128i*)(xy + x1*2 + 8), _mm_unpackhi_epi16(tx0, ty0));
@@ -2863,8 +2924,8 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                     {
                         int X = (X0 + adelta[x+x1]) >> (AB_BITS - INTER_BITS);
                         int Y = (Y0 + bdelta[x+x1]) >> (AB_BITS - INTER_BITS);
-                        xy[x1*2] = (short)(X >> INTER_BITS);
-                        xy[x1*2+1] = (short)(Y >> INTER_BITS);
+                        xy[x1*2] = saturate_cast<short>(X >> INTER_BITS);
+                        xy[x1*2+1] = saturate_cast<short>(Y >> INTER_BITS);
                         alpha[x1] = (short)((Y & (INTER_TAB_SIZE-1))*INTER_TAB_SIZE +
                                 (X & (INTER_TAB_SIZE-1)));
                     }
@@ -2883,10 +2944,13 @@ void warpAffine( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
 }
 
 
-void warpPerspective( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
-                      int flags, int borderType, const Scalar& borderValue )
+void cv::warpPerspective( InputArray _src, OutputArray _dst, InputArray _M0,
+                          Size dsize, int flags, int borderType, const Scalar& borderValue )
 {
-    dst.create( dsize, src.type() );
+    Mat src = _src.getMat(), M0 = _M0.getMat();
+    _dst.create( dsize.area() == 0 ? src.size() : dsize, src.type() );
+    Mat dst = _dst.getMat();
+    
     CV_Assert( dst.data != src.data && src.cols > 0 && src.rows > 0 );
 
     const int BLOCK_SZ = 32;
@@ -2931,10 +2995,13 @@ void warpPerspective( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                     {
                         double W = W0 + M[6]*x1;
                         W = W ? 1./W : 0;
-                        int X = saturate_cast<int>((X0 + M[0]*x1)*W);
-                        int Y = saturate_cast<int>((Y0 + M[3]*x1)*W);
-                        xy[x1*2] = (short)X;
-                        xy[x1*2+1] = (short)Y;
+                        double fX = std::max((double)INT_MIN, std::min((double)INT_MAX, (X0 + M[0]*x1)*W));
+                        double fY = std::max((double)INT_MIN, std::min((double)INT_MAX, (Y0 + M[3]*x1)*W));
+                        int X = saturate_cast<int>(fX);
+                        int Y = saturate_cast<int>(fY);
+                        
+                        xy[x1*2] = saturate_cast<short>(X);
+                        xy[x1*2+1] = saturate_cast<short>(Y);
                     }
                 else
                 {
@@ -2943,10 +3010,13 @@ void warpPerspective( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
                     {
                         double W = W0 + M[6]*x1;
                         W = W ? INTER_TAB_SIZE/W : 0;
-                        int X = saturate_cast<int>((X0 + M[0]*x1)*W);
-                        int Y = saturate_cast<int>((Y0 + M[3]*x1)*W);
-                        xy[x1*2] = (short)(X >> INTER_BITS);
-                        xy[x1*2+1] = (short)(Y >> INTER_BITS);
+                        double fX = std::max((double)INT_MIN, std::min((double)INT_MAX, (X0 + M[0]*x1)*W));
+                        double fY = std::max((double)INT_MIN, std::min((double)INT_MAX, (Y0 + M[3]*x1)*W));
+                        int X = saturate_cast<int>(fX);
+                        int Y = saturate_cast<int>(fY);
+                        
+                        xy[x1*2] = saturate_cast<short>(X >> INTER_BITS);
+                        xy[x1*2+1] = saturate_cast<short>(Y >> INTER_BITS);
                         alpha[x1] = (short)((Y & (INTER_TAB_SIZE-1))*INTER_TAB_SIZE +
                                 (X & (INTER_TAB_SIZE-1)));
                     }
@@ -2965,7 +3035,7 @@ void warpPerspective( const Mat& src, Mat& dst, const Mat& M0, Size dsize,
 }
 
 
-Mat getRotationMatrix2D( Point2f center, double angle, double scale )
+cv::Mat cv::getRotationMatrix2D( Point2f center, double angle, double scale )
 {
     angle *= CV_PI/180;
     double alpha = cos(angle)*scale;
@@ -3008,7 +3078,7 @@ Mat getRotationMatrix2D( Point2f center, double angle, double scale )
  * where:
  *   cij - matrix coefficients, c22 = 1
  */
-Mat getPerspectiveTransform( const Point2f src[], const Point2f dst[] )
+cv::Mat cv::getPerspectiveTransform( const Point2f src[], const Point2f dst[] )
 {
     Mat M(3, 3, CV_64F), X(8, 1, CV_64F, M.data);
     double a[8][8], b[8];
@@ -3053,7 +3123,7 @@ Mat getPerspectiveTransform( const Point2f src[], const Point2f dst[] )
  * where:
  *   cij - matrix coefficients
  */
-Mat getAffineTransform( const Point2f src[], const Point2f dst[] )
+cv::Mat cv::getAffineTransform( const Point2f src[], const Point2f dst[] )
 {
     Mat M(2, 3, CV_64F), X(6, 1, CV_64F, M.data);
     double a[6*6], b[6];
@@ -3076,10 +3146,13 @@ Mat getAffineTransform( const Point2f src[], const Point2f dst[] )
     return M;
 }
     
-void invertAffineTransform(const Mat& matM, Mat& _iM)
+void cv::invertAffineTransform(InputArray _matM, OutputArray __iM)
 {
+    Mat matM = _matM.getMat();
     CV_Assert(matM.rows == 2 && matM.cols == 3);
-    _iM.create(2, 3, matM.type());
+    __iM.create(2, 3, matM.type());
+    Mat _iM = __iM.getMat();
+    
     if( matM.type() == CV_32F )
     {
         const float* M = (const float*)matM.data;
@@ -3113,8 +3186,6 @@ void invertAffineTransform(const Mat& matM, Mat& _iM)
     else
         CV_Error( CV_StsUnsupportedFormat, "" );
 }    
-
-}
 
 CV_IMPL void
 cvResize( const CvArr* srcarr, CvArr* dstarr, int method )

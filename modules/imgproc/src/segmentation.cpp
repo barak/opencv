@@ -303,10 +303,11 @@ cvWatershed( const CvArr* srcarr, CvArr* dstarr )
 }
 
 
-void cv::watershed( const Mat& src, Mat& markers )
+void cv::watershed( InputArray _src, InputOutputArray markers )
 {
-    CvMat _src = src, _markers = markers;
-    cvWatershed( &_src, &_markers );
+    Mat src = _src.getMat();
+    CvMat c_src = _src.getMat(), c_markers = markers.getMat();
+    cvWatershed( &c_src, &c_markers );
 }
 
 
@@ -321,8 +322,8 @@ cvPyrMeanShiftFiltering( const CvArr* srcarr, CvArr* dstarr,
 {
     const int cn = 3;
     const int MAX_LEVELS = 8;
-    cv::Mat src_pyramid[MAX_LEVELS+1];
-    cv::Mat dst_pyramid[MAX_LEVELS+1];
+    cv::Mat* src_pyramid = new cv::Mat[MAX_LEVELS+1];
+    cv::Mat* dst_pyramid = new cv::Mat[MAX_LEVELS+1];
     cv::Mat mask0;
     int i, j, level;
     //uchar* submask = 0;
@@ -368,7 +369,7 @@ cvPyrMeanShiftFiltering( const CvArr* srcarr, CvArr* dstarr,
                         (src_pyramid[level-1].cols+1)/2, src_pyramid[level-1].type() );
         dst_pyramid[level].create( src_pyramid[level].rows,
                         src_pyramid[level].cols, src_pyramid[level].type() );
-        cv::pyrDown( src_pyramid[level-1], src_pyramid[level] );
+        cv::pyrDown( src_pyramid[level-1], src_pyramid[level], src_pyramid[level].size() );
         //CV_CALL( cvResize( src_pyramid[level-1], src_pyramid[level], CV_INTER_AREA ));
     }
 
@@ -398,7 +399,7 @@ cvPyrMeanShiftFiltering( const CvArr* srcarr, CvArr* dstarr,
             mstep = (int)m.step;
             mask = m.data + mstep;
             //cvResize( dst_pyramid[level+1], dst_pyramid[level], CV_INTER_CUBIC );
-            cv::pyrUp( dst_pyramid[level+1], dst_pyramid[level] );
+            cv::pyrUp( dst_pyramid[level+1], dst_pyramid[level], dst_pyramid[level].size() );
             m.setTo(cv::Scalar::all(0));
 
             for( i = 1; i < size1.height-1; i++, dptr += dstep - (size1.width-2)*3, mask += mstep*2 )
@@ -521,16 +522,20 @@ cvPyrMeanShiftFiltering( const CvArr* srcarr, CvArr* dstarr,
             }
         }
     }
+    delete[] src_pyramid;
+    delete[] dst_pyramid;
 }
 
-void cv::pyrMeanShiftFiltering( const Mat& src, Mat& dst,
+void cv::pyrMeanShiftFiltering( InputArray _src, OutputArray _dst,
                                 double sp, double sr, int maxLevel,
                                 TermCriteria termcrit )
 {
+    Mat src = _src.getMat();
+    
     if( src.empty() )
         return;
 
-    dst.create( src.size(), src.type() );
-    CvMat _src = src, _dst = dst;
-    cvPyrMeanShiftFiltering( &_src, &_dst, sp, sr, maxLevel, termcrit );
+    _dst.create( src.size(), src.type() );
+    CvMat c_src = src, c_dst = _dst.getMat();
+    cvPyrMeanShiftFiltering( &c_src, &c_dst, sp, sr, maxLevel, termcrit );
 }
